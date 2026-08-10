@@ -22,8 +22,8 @@ Page({
       this.getTabBar().setData({ selected: 1 });
     }
     // 每次回到本页重新拉取数据（订课后余位/席位实时更新）
-    if (this.data.selectedDate && this.data.weekDays.length > 0) {
-      const current = this.data.weekDays.find(d => d.date === this.data.selectedDate);
+    if (this.data.selectedDate !== '' && this.data.selectedDate !== undefined && this.data.weekDays.length > 0) {
+      const current = this.data.weekDays.find(d => d.date === Number(this.data.selectedDate));
       if (current) this.loadSessions(current.full);
     }
   },
@@ -44,7 +44,8 @@ Page({
   },
 
   selectDate(e) {
-    const { full, date } = e.currentTarget.dataset;
+    const { full } = e.currentTarget.dataset;
+    const date = Number(e.currentTarget.dataset.date); // dataset 是字符串，转数字以匹配 weekDays
     const weekDays = this.data.weekDays.map(d => ({ ...d, selected: d.date === date }));
     this.setData({ weekDays, selectedDate: date });
     this.loadSessions(full);
