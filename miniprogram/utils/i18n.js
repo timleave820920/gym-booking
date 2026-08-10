@@ -106,6 +106,11 @@ const DICT = {
 
   // ===== 学员端首页 =====
   morningGreeting: { zh: '早上好，{{name}}', en: 'Good morning, {{name}}' },
+  greetingMorning: { zh: '早上好', en: 'Good morning' },
+  greetingNoon: { zh: '中午好', en: 'Good noon' },
+  greetingAfternoon: { zh: '下午好', en: 'Good afternoon' },
+  greetingEvening: { zh: '晚上好', en: 'Good evening' },
+  greetingLate: { zh: '夜深了', en: 'It\'s late' },
   todayDate: { zh: '今日 8月10日', en: 'Today Aug 10' },
   hotCourses: { zh: '热门课程', en: 'Hot Courses' },
   hotTop5: { zh: '热门课程 TOP5', en: 'Hot Courses TOP5' },

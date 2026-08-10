@@ -30,18 +30,18 @@ Page({
     }
   },
 
-  // 读取微信昵称（早上好，{昵称}）
-  // 注意：新版基础库下 getUserProfile 对未认证小程序返回"微信用户"默认值，
-  // 此时原样显示"微信用户"，不再简化成"小陈"（避免误导）
+  // 读取微信昵称 + 按时段问候（{时段问候}，{昵称}）
+  // 时段：6-12 早上好 / 12-13 中午好 / 13-18 下午好 / 18-22 晚上好 / 22-次日6 夜深了
   refreshUser() {
     const u = app.globalData.userInfo;
     let name = '微信用户';
     if (u && u.name && u.name !== '小陈同学') {
       name = u.name.slice(0, 8);
     }
-    // 组装问候语（i18n 模板替换）
+    // 组装问候语（按时段 + i18n）
     const t = i18n.t();
-    const greeting = t.morningGreeting.replace('{{name}}', name);
+    const greetingWord = this.getGreetingWord(t);
+    const greeting = `${greetingWord}，${name}`;
     // 组装课程卡片文案（模板替换占位符）
     const hotCourses = this.data.hotCourses.map(c => ({
       ...c,
@@ -56,6 +56,16 @@ Page({
       greeting,
       hotCourses
     });
+  },
+
+  // 根据当前时间返回对应时段问候词
+  getGreetingWord(t) {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 12) return t.greetingMorning;
+    if (hour >= 12 && hour < 13) return t.greetingNoon;
+    if (hour >= 13 && hour < 18) return t.greetingAfternoon;
+    if (hour >= 18 && hour < 22) return t.greetingEvening;
+    return t.greetingLate; // 22:00 - 次日 6:00
   },
 
   goSearch() {
