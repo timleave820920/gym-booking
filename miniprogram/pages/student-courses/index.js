@@ -1,5 +1,6 @@
 const mock = require('../../utils/mock.js');
 const api = require('../../utils/api.js');
+const app = getApp();
 
 const DEFAULT_COVER = '/images/2_193.png'; // 课程未设封面时的占位图
 const WEEK_LABELS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
