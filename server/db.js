@@ -9,7 +9,6 @@ const fs = require('node:fs');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'gym.db');
-
 // 确保数据目录存在
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -92,6 +91,36 @@ function listUsers() {
   return db.prepare('SELECT * FROM users ORDER BY created_at DESC').all();
 }
 
+/**
+ * 删除指定用户（按 id）
+ * @returns {boolean} 是否删除成功
+ */
+function deleteUserById(id) {
+  const result = db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
+/**
+ * 删除指定用户（按 openid）
+ * @returns {boolean} 是否删除成功
+ */
+function deleteUserByOpenid(openid) {
+  const result = db.prepare('DELETE FROM users WHERE openid = ?').run(openid);
+  return result.changes > 0;
+}
+
+/**
+ * 清空所有用户
+ * @returns {number} 删除的用户数
+ */
+function clearUsers() {
+  const count = countUsers();
+  db.exec('DELETE FROM users;');
+  // 重置自增 ID，让新注册从 1 开始
+  db.exec("DELETE FROM sqlite_sequence WHERE name = 'users';");
+  return count;
+}
+
 module.exports = {
   db,
   findUserByOpenid,
@@ -99,5 +128,8 @@ module.exports = {
   touchLogin,
   updateProfile,
   countUsers,
-  listUsers
+  listUsers,
+  deleteUserById,
+  deleteUserByOpenid,
+  clearUsers
 };

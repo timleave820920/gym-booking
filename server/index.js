@@ -125,6 +125,36 @@ function handleStats(req, res) {
   });
 }
 
+// 删除单个用户（?id=xxx 或 ?openid=xxx）
+function handleDeleteUser(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const id = url.searchParams.get('id');
+  const openid = url.searchParams.get('openid');
+
+  let deleted = false;
+  if (id) {
+    deleted = db.deleteUserById(id);
+  } else if (openid) {
+    deleted = db.deleteUserByOpenid(openid);
+  }
+
+  if (!deleted) {
+    return sendJson(res, 404, { code: 404, message: '用户不存在或已删除' });
+  }
+  return sendJson(res, 200, { code: 200, message: '用户已删除', totalUsers: db.countUsers() });
+}
+
+// 清空所有用户
+function handleClearUsers(req, res) {
+  const removed = db.clearUsers();
+  return sendJson(res, 200, {
+    code: 200,
+    message: `已清空 ${removed} 名用户`,
+    removed,
+    totalUsers: 0
+  });
+}
+
 function toPublicUser(user) {
   return {
     id: user.id,
@@ -161,6 +191,10 @@ const server = http.createServer(async (req, res) => {
       handleUsers(req, res);
     } else if (req.method === 'GET' && pathname === '/api/users/stats') {
       handleStats(req, res);
+    } else if (req.method === 'DELETE' && pathname === '/api/users') {
+      handleDeleteUser(req, res);
+    } else if (req.method === 'DELETE' && pathname === '/api/users/clear') {
+      handleClearUsers(req, res);
     } else if (req.method === 'GET' && pathname === '/api/health') {
       sendJson(res, 200, { code: 200, status: 'ok', time: new Date().toISOString() });
     } else {

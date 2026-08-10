@@ -1,0 +1,104 @@
+<view class="admin-page">
+  <!-- 顶栏 -->
+  <view class="admin-top flex-between">
+    <view class="flex-row admin-brand">
+      <view class="brand-logo flex-center"></view>
+      <text class="brand-name">训练馆管家</text>
+    </view>
+    <view class="flex-row admin-user">
+      <view class="admin-avatar"></view>
+      <text class="admin-name">管理员</text>
+      <view class="admin-exit" bindtap="exitToStudent"><text>退出</text></view>
+    </view>
+  </view>
+
+  <!-- 后台导航 -->
+  <scroll-view class="admin-nav" scroll-x enable-flex>
+    <view class="nav-inner">
+      <view class="nav-item" data-url="/pages/admin-dashboard/index" bindtap="navTo">数据仪表盘</view>
+      <view class="nav-item" data-url="/pages/admin-schedule/index" bindtap="navTo">排课管理</view>
+      <view class="nav-item" data-url="/pages/admin-create-course/index" bindtap="navTo">排课配置</view>
+      <view class="nav-item" data-url="/pages/admin-venues/index" bindtap="navTo">场地管理</view>
+      <view class="nav-item" data-url="/pages/admin-students/index" bindtap="navTo">学员管理</view>
+      <view class="nav-item" data-url="/pages/admin-coaches/index" bindtap="navTo">教练管理</view>
+      <view class="nav-item" data-url="/pages/admin-revenue/index" bindtap="navTo">营收统计</view>
+      <view class="nav-item nav-active" data-url="/pages/admin-db/index" bindtap="navTo">数据库</view>
+    </view>
+  </scroll-view>
+
+  <view class="admin-content">
+    <view class="flex-between">
+      <text class="page-title">数据库管理</text>
+    </view>
+
+    <!-- 数据库信息卡 -->
+    <view class="db-info-card">
+      <view class="flex-between db-info-row">
+        <text class="db-label">连接状态</text>
+        <view class="flex-row db-status-wrap">
+          <view class="db-dot {{dbConnected ? 'dot-on' : 'dot-off'}}"></view>
+          <text class="db-status {{dbConnected ? 'text-green' : 'text-red'}}">{{dbConnected ? '已连接' : '未连接'}}</text>
+        </view>
+      </view>
+      <view class="flex-between db-info-row">
+        <text class="db-label">数据库</text>
+        <text class="db-value">SQLite</text>
+      </view>
+      <view class="flex-between db-info-row">
+        <text class="db-label">位置</text>
+        <text class="db-value db-path">{{dbPath}}</text>
+      </view>
+      <view class="flex-between db-info-row">
+        <text class="db-label">注册用户</text>
+        <text class="db-value db-num">{{totalUsers}} 名</text>
+      </view>
+    </view>
+
+    <!-- 危险操作区 -->
+    <view class="danger-card">
+      <text class="danger-title">危险操作</text>
+      <text class="danger-desc">以下操作不可恢复，请谨慎使用</text>
+      <view class="danger-btns">
+        <view class="danger-btn" bindtap="clearAll">
+          <text>一键清空所有用户</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 用户列表 -->
+    <view class="panel">
+      <view class="flex-between">
+        <text class="panel-title">用户列表</text>
+        <text class="panel-sub">{{totalUsers}} 人</text>
+      </view>
+
+      <!-- 加载中 -->
+      <view class="loading-tip" wx:if="{{loading}}">
+        <text>正在从数据库加载...</text>
+      </view>
+
+      <!-- 用户列表 -->
+      <view class="db-user-row flex-row" wx:for="{{users}}" wx:key="id" wx:if="{{!loading}}">
+        <image class="db-avatar" src="{{item.avatar}}" mode="aspectFill" binderror="avatarError" data-id="{{item.id}}"></image>
+        <view class="flex-col flex-1">
+          <view class="flex-row db-user-top">
+            <text class="db-user-name">{{item.name}}</text>
+            <text class="db-role">{{item.role}}</text>
+          </view>
+          <text class="db-user-sub">{{item.phone}} · 登录 {{item.loginCount}} 次</text>
+          <text class="db-user-time">注册于 {{item.createdAt}}</text>
+        </view>
+        <view class="db-del-btn" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="deleteUser">删除</view>
+      </view>
+
+      <!-- 空状态 -->
+      <view class="empty-table flex-col" wx:if="{{!loading && users.length === 0}}">
+        <view class="empty-ico"></view>
+        <text class="empty-txt">暂无用户</text>
+        <text class="empty-sub">学员首次登录后会自动注册</text>
+      </view>
+    </view>
+
+    <view class="bottom-space"></view>
+  </view>
+</view>

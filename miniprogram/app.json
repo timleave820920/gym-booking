@@ -18,7 +18,8 @@
     "pages/admin-students/index",
     "pages/admin-coaches/index",
     "pages/admin-revenue/index",
-    "pages/admin-create-course/index"
+    "pages/admin-create-course/index",
+    "pages/admin-db/index"
   ],
   "window": {
     "navigationBarBackgroundColor": "#F9F4DF",

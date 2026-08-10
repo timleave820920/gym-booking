@@ -104,5 +104,15 @@ module.exports = {
       return cloudCall('users', { action: 'stats' });
     }
     return localRequest('/api/users/stats', 'GET');
+  },
+
+  // 删除单个用户（本地后端）
+  deleteUser(params) {
+    return localRequest('/api/users?' + Object.keys(params).map(k => k + '=' + params[k]).join('&'), 'DELETE');
+  },
+
+  // 清空所有用户（本地后端）
+  clearUsers() {
+    return localRequest('/api/users/clear', 'DELETE');
   }
 };
