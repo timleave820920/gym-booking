@@ -56,10 +56,6 @@
       <view class="demo-line"></view>
     </view>
     <view class="demo-roles flex-row">
-      <view class="demo-role" data-role="student" bindtap="quickLogin">
-        <view class="demo-ico demo-ico-student"></view>
-        <text class="demo-role-txt">{{t.roleStudent}}</text>
-      </view>
       <view class="demo-role" data-role="coach" bindtap="quickLogin">
         <view class="demo-ico demo-ico-coach"></view>
         <text class="demo-role-txt">{{t.roleCoach}}</text>
