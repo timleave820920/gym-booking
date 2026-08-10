@@ -41,6 +41,11 @@
       <text class="test-hint">正式版将按角色登录分流，此入口仅用于演示</text>
     </view>
 
+    <!-- 退出登录 -->
+    <view class="logout-btn" bindtap="logout">
+      <text>退出登录</text>
+    </view>
+
     <view class="list-spacer"></view>
   </view>
 </view>

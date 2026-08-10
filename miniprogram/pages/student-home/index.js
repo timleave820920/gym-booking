@@ -16,6 +16,12 @@ Page({
         start: c.start, end: c.end, remaining: c.remaining, price: c.price, img: c.img
       }))
     });
+    // 从登录态读取用户名
+    const u = app.globalData.userInfo;
+    const name = (u && u.name) ? u.name.replace(/同学|教练|管理员$/, '') : '小陈';
+    this.setData({
+      user: { ...this.data.user, name }
+    });
   },
 
   onShow() {

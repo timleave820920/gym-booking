@@ -20,6 +20,8 @@ Page({
   },
 
   goProfile() {
-    wx.switchTab({ url: '/pages/student-profile/index' });
+    wx.removeStorageSync('token');
+    wx.removeStorageSync('userInfo');
+    wx.reLaunch({ url: '/pages/login/index' });
   }
 });

@@ -37,7 +37,10 @@ Page({
     wx.redirectTo({ url });
   },
 
+  // 退出登录，返回登录页
   exitToStudent() {
-    wx.switchTab({ url: '/pages/student-profile/index' });
+    wx.removeStorageSync('token');
+    wx.removeStorageSync('userInfo');
+    wx.reLaunch({ url: '/pages/login/index' });
   }
 });

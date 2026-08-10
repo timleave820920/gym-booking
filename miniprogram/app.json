@@ -1,5 +1,6 @@
 {
   "pages": [
+    "pages/login/index",
     "pages/student-home/index",
     "pages/student-courses/index",
     "pages/student-course-detail/index",

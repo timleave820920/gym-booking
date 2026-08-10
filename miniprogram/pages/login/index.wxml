@@ -1,0 +1,48 @@
+<view class="page">
+  <!-- 品牌区 -->
+  <view class="brand-area">
+    <view class="logo-badge">
+      <view class="logo-icon"></view>
+    </view>
+    <text class="brand-name">综合训练馆</text>
+    <text class="brand-slogan">挥洒汗水，遇见更好的自己</text>
+  </view>
+
+  <!-- 登录表单区 -->
+  <view class="form-area">
+    <!-- 微信一键登录 -->
+    <view class="wx-btn flex-row" bindtap="login">
+      <view class="wx-icon flex-center">
+        <text class="wx-icon-in">微</text>
+      </view>
+      <text class="wx-btn-txt">{{loggingIn ? '登录中...' : '微信一键登录'}}</text>
+    </view>
+
+    <!-- 协议勾选 -->
+    <view class="agree-row flex-row" bindtap="toggleAgree">
+      <view class="agree-box flex-center {{agreed ? 'agree-on' : ''}}">
+        <text class="agree-check" wx:if="{{agreed}}">✓</text>
+      </view>
+      <text class="agree-txt">我已阅读并同意《用户协议》和《隐私政策》</text>
+    </view>
+
+    <!-- 演示模式分割线 -->
+    <view class="role-divider flex-row">
+      <view class="divider-line"></view>
+      <text class="divider-txt">演示模式 · 选择登录身份</text>
+      <view class="divider-line"></view>
+    </view>
+
+    <!-- 身份选择 -->
+    <view class="role-row flex-row">
+      <view class="role-card flex-col {{item.selected ? 'role-on' : ''}}"
+            wx:for="{{roles}}" wx:key="id"
+            data-id="{{item.id}}" bindtap="selectRole">
+        <view class="role-icon {{'ic-' + item.icon}}"></view>
+        <text class="role-name">{{item.name}}</text>
+      </view>
+    </view>
+
+    <text class="role-hint">正式版将默认使用微信登录，此处仅用于演示各角色界面</text>
+  </view>
+</view>

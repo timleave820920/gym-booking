@@ -39,6 +39,25 @@ Page({
     }
   },
 
+  // 退出登录
+  logout() {
+    wx.showModal({
+      title: '退出登录',
+      content: '确定要退出当前账号吗？',
+      confirmText: '退出',
+      confirmColor: '#E5484D',
+      success: (res) => {
+        if (res.confirm) {
+          app.logout();
+          wx.showToast({ title: '已退出', icon: 'none' });
+          setTimeout(() => {
+            wx.reLaunch({ url: '/pages/login/index' });
+          }, 500);
+        }
+      }
+    });
+  },
+
   goMenu(e) {
     const url = e.currentTarget.dataset.url;
     if (url) {
