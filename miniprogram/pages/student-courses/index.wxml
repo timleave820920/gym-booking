@@ -23,8 +23,8 @@
     <!-- 课程列表 -->
     <view class="course-list">
       <view class="loading-tip" wx:if="{{loading}}">加载中...</view>
-      <view class="course-card flex-row" wx:for="{{courseList}}" wx:key="id"
-            bindtap="goDetail" data-id="{{item.id}}">
+      <view class="course-card flex-row {{item.isFull ? 'card-full' : ''}}" wx:for="{{courseList}}" wx:key="id"
+            bindtap="goDetail" data-id="{{item.id}}" data-full="{{item.isFull}}">
         <image class="course-cover" src="{{item.img}}" mode="aspectFill"></image>
         <view class="flex-col flex-1 course-info">
           <text class="course-name">{{item.name}}</text>
@@ -33,9 +33,11 @@
             <text class="meta-txt">{{item.start}}-{{item.end}} · {{item.category}}</text>
           </view>
           <view class="flex-between coach-row">
-            <text class="coach-name">教练 · {{item.coach}} · 余 {{item.remaining}} 席</text>
-            <view class="book-btn" catchtap="goDetail" data-id="{{item.id}}">
-              <text>¥{{item.price}} 约课</text>
+            <text class="coach-name">教练 · {{item.coach}}</text>
+            <text class="seat-count {{item.isFull ? 'seat-full' : ''}}">{{item.seatText}}</text>
+            <view class="book-btn {{item.isFull ? 'btn-full' : ''}}" catchtap="goDetail" data-id="{{item.id}}" data-full="{{item.isFull}}">
+              <text wx:if="{{item.isFull}}">已满</text>
+              <text wx:else>¥{{item.price}} 约课</text>
             </view>
           </view>
         </view>

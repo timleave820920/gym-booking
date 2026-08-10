@@ -59,26 +59,41 @@ Page({
         remaining: s.remaining,
         capacity: s.capacity,
         price: (s.price_fen / 100).toFixed(0),
-        img: s.cover || DEFAULT_COVER,
-        seatFull: s.remaining <= 2
-      }));
+        img: s.cover || DEFAULT_COVER
+      })).map(s => this.decorateSession(s));
       this.setData({ courseList: list, loading: false, offline: false });
     }).catch(() => {
       // 后端不可用 → 用 mock 演示数据（当日映射：日期数-9 → 周一..周日）
       const dayIndex = Number(full.slice(8, 10)) - 9;
       const list = mock.courses
         .filter(c => c.days.includes(dayIndex))
-        .map(c => ({
+        .map(c => this.decorateSession({
           id: c.id, name: c.name, category: c.category, coach: c.coach,
           start: c.start, end: c.end, remaining: c.remaining, price: c.price,
-          img: c.img, seatFull: c.remaining <= 2
+          img: c.img, capacity: c.capacity || 20
         }));
       this.setData({ courseList: list, loading: false, offline: true });
     });
   },
 
+  // 装饰场次：计算席位文案（已订/总席）与满员状态
+  decorateSession(s) {
+    const cap = s.capacity || 20;
+    const remaining = s.remaining !== undefined ? s.remaining : cap;
+    const booked = Math.max(cap - remaining, 0);
+    const isFull = booked >= cap;
+    return {
+      ...s,
+      booked,
+      seatText: `${String(booked).padStart(2, '0')}/${cap}`,
+      isFull,
+      seatFull: remaining <= 2
+    };
+  },
+
   goDetail(e) {
     const id = e.currentTarget.dataset.id;
+    if (e.currentTarget.dataset.full) return; // 满员不可点击
     wx.navigateTo({ url: `/pages/student-course-detail/index?session_id=${id}` });
   },
 
