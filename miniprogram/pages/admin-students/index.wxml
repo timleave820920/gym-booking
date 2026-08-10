@@ -33,6 +33,12 @@
       </view>
     </view>
 
+    <!-- 数据库状态 -->
+    <view class="db-status flex-row {{dbConnected ? 'db-on' : 'db-off'}}">
+      <view class="db-dot"></view>
+      <text class="db-txt">{{dbConnected ? '已连接数据库 · 共 ' + totalCount + ' 名注册学员' : '数据库未连接，请确认后端服务已启动'}}</text>
+    </view>
+
     <!-- 搜索 -->
     <view class="search-bar flex-row">
       <text class="icon-search"></text>
@@ -40,27 +46,39 @@
       <view class="filter-tag">全部学员</view>
     </view>
 
+    <!-- 加载中 -->
+    <view class="loading-tip" wx:if="{{loading}}">
+      <text>正在从数据库加载...</text>
+    </view>
+
     <!-- 表格 -->
-    <view class="table">
+    <view class="table" wx:if="{{!loading}}">
       <view class="table-head flex-row">
         <text class="th th-name">学员</text>
         <text class="th th-status">学员状态</text>
-        <text class="th th-num">本月上课</text>
+        <text class="th th-num">登录次数</text>
         <text class="th th-op">操作</text>
       </view>
       <view class="table-row flex-row" wx:for="{{students}}" wx:key="id">
         <view class="td td-name flex-row">
-          <image class="td-avatar" src="{{item.avatar}}" mode="aspectFill"></image>
+          <image class="td-avatar" src="{{item.avatar}}" mode="aspectFill" binderror="avatarError" data-id="{{item.id}}"></image>
           <view class="flex-col">
             <text class="td-title">{{item.name}}</text>
-            <text class="td-sub">{{item.phone}}</text>
+            <text class="td-sub">{{item.phone}} · 注册 {{item.createdAt}}</text>
           </view>
         </view>
         <view class="td td-status">
-          <view class="tag tag-green">{{item.status}}</view>
+          <view class="tag {{'tag-' + item.status.type}}">{{item.status.text}}</view>
         </view>
-        <view class="td td-num">{{item.classes}} 节</view>
-        <view class="td td-op" bindtap="edit">编辑</view>
+        <view class="td td-num">{{item.loginCount}} 次</view>
+        <view class="td td-op" bindtap="edit">查看</view>
+      </view>
+
+      <!-- 空状态 -->
+      <view class="empty-table flex-col" wx:if="{{students.length === 0}}">
+        <view class="empty-ico"></view>
+        <text class="empty-txt">暂无注册学员</text>
+        <text class="empty-sub">学员首次登录后会自动注册到数据库</text>
       </view>
     </view>
 

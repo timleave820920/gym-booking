@@ -148,3 +148,60 @@
   color: #1A1A23;
   font-weight: 700;
 }
+
+/* 数据库状态 */
+.db-status {
+  margin-top: 24rpx;
+  padding: 16rpx 24rpx;
+  border-radius: 20rpx;
+  align-items: center;
+  font-size: 24rpx;
+}
+.db-on {
+  background: #E5FFC9;
+  color: #3D9970;
+}
+.db-off {
+  background: #FFE3E3;
+  color: #E5484D;
+}
+.db-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 12rpx;
+}
+.db-txt {
+  flex: 1;
+}
+
+/* 加载中 */
+.loading-tip {
+  margin-top: 48rpx;
+  text-align: center;
+  color: #B0AFA8;
+  font-size: 26rpx;
+}
+
+/* 空状态 */
+.empty-table {
+  align-items: center;
+  padding: 80rpx 0;
+}
+.empty-ico {
+  width: 96rpx;
+  height: 96rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" stroke="%23B0AFA8" stroke-width="1.6"/><path d="M2.5 20C2.5 16.13 5.41 13 9 13C12.59 13 15.5 16.13 15.5 20" stroke="%23B0AFA8" stroke-width="1.6" stroke-linecap="round"/><circle cx="17" cy="9" r="2.5" stroke="%23B0AFA8" stroke-width="1.6"/><path d="M16.5 13.5C19 13.5 21 15.5 21 18.5" stroke="%23B0AFA8" stroke-width="1.6" stroke-linecap="round"/></svg>') no-repeat center/contain;
+}
+.empty-txt {
+  margin-top: 24rpx;
+  color: #6B6B76;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+.empty-sub {
+  margin-top: 8rpx;
+  color: #B0AFA8;
+  font-size: 24rpx;
+}
