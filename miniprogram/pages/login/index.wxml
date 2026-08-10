@@ -42,5 +42,37 @@
     </view>
 
     <text class="login-hint">登录即代表同意以学员身份使用本服务</text>
+    <text class="login-hint2">首次登录将引导完善微信头像与昵称</text>
+  </view>
+
+  <!-- 完善资料弹层 -->
+  <view class="profile-mask" wx:if="{{showProfile}}">
+    <view class="profile-card">
+      <text class="profile-title">完善资料</text>
+      <text class="profile-sub">点击使用微信昵称，一键填写真实名字</text>
+
+      <!-- 头像：微信官方 chooseAvatar -->
+      <view class="avatar-row flex-row">
+        <button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+          <image class="avatar-img" src="{{tempAvatar}}" mode="aspectFill"></image>
+          <view class="avatar-plus">+</view>
+        </button>
+        <view class="flex-col flex-1 avatar-hint">
+          <text class="avatar-hint-t">点击上方圆圈选择微信头像</text>
+          <text class="avatar-hint-s">已授权时自动使用微信头像</text>
+        </view>
+      </view>
+
+      <!-- 昵称：微信官方 nickname 填写能力 -->
+      <view class="nick-row flex-row">
+        <text class="nick-label">昵称</text>
+        <input class="nick-input" type="nickname" placeholder="点击输入，键盘上方可一键使用微信昵称"
+               placeholder-class="nick-ph" value="{{tempNick}}" bindinput="onNickInput" />
+      </view>
+
+      <view class="profile-btn" bindtap="confirmProfile">
+        <text>完成，进入训练馆</text>
+      </view>
+    </view>
   </view>
 </view>

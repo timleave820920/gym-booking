@@ -3,7 +3,10 @@ const app = getApp();
 Page({
   data: {
     agreed: true,          // 默认勾选协议
-    loggingIn: false
+    loggingIn: false,
+    showProfile: false,    // 完善资料弹层
+    tempAvatar: '/images/2_556.png',  // 待确认头像
+    tempNick: ''            // 待确认昵称
   },
 
   // 切换协议勾选
@@ -17,15 +20,15 @@ Page({
     if (this.data.loggingIn) return;
     this.setData({ loggingIn: true });
 
-    // 获取微信授权（系统弹框：询问是否允许使用微信号/头像/手机号）
     wx.getUserProfile({
       desc: '用于登录及完善会员资料',
       success: (profileRes) => {
         const wxUser = profileRes.userInfo || {};
-        this.doLogin({
+        const profile = {
           avatar: wxUser.avatarUrl || '/images/2_556.png',
           name: wxUser.nickName || '微信用户'
-        });
+        };
+        this.finishLogin(profile);
       },
       fail: () => {
         // 拒绝授权 → 演示模式模拟问询
@@ -36,7 +39,7 @@ Page({
           cancelText: '拒绝',
           success: (res) => {
             if (res.confirm) {
-              this.doLogin({ avatar: '/images/2_556.png', name: '微信用户' });
+              this.finishLogin({ avatar: '/images/2_556.png', name: '微信用户' });
             } else {
               this.setData({ loggingIn: false });
               wx.showToast({ title: '已取消登录', icon: 'none' });
@@ -48,25 +51,23 @@ Page({
   },
 
   // ===== 手机号快捷登录 =====
-  // 通过 button open-type="getPhoneNumber" 触发，企业认证小程序可直接获取
   phoneLogin(e) {
     if (!this.checkAgree()) return;
     if (this.data.loggingIn) return;
 
     const detail = e.detail || {};
     if (detail.errMsg && detail.errMsg.indexOf('ok') > -1 && detail.code) {
-      // 真实环境：code 是动态令牌，发给后端换取手机号
+      // 真实环境：code 发给后端换手机号
       this.setData({ loggingIn: true });
-      // 演示：模拟后端用 code 换手机号
       setTimeout(() => {
-        this.doLogin({
+        this.finishLogin({
           avatar: '/images/2_556.png',
           name: '微信用户',
-          phone: '138****2210' // 演示脱敏手机号
+          phone: '138****2210'
         });
       }, 600);
     } else {
-      // 未认证小程序 / 用户拒绝 → 演示模式模拟问询
+      // 未认证/拒绝 → 演示模式模拟问询
       wx.showModal({
         title: '手机号快捷登录',
         content: '是否允许使用微信绑定的手机号登录本小程序？',
@@ -76,7 +77,7 @@ Page({
           if (res.confirm) {
             this.setData({ loggingIn: true });
             setTimeout(() => {
-              this.doLogin({
+              this.finishLogin({
                 avatar: '/images/2_556.png',
                 name: '微信用户',
                 phone: '138****2210'
@@ -97,11 +98,52 @@ Page({
     return true;
   },
 
-  // 执行登录（演示模式：wx.login 获取 code，不真正请求后端）
+  // 登录完成：昵称是默认值时弹出完善资料，否则直接进首页
+  finishLogin(profile) {
+    const needProfile = !profile.name || profile.name === '微信用户' || profile.name === '小陈同学';
+    if (needProfile) {
+      // 弹出完善资料（使用微信昵称填写能力）
+      this.setData({
+        loggingIn: false,
+        showProfile: true,
+        tempAvatar: profile.avatar || '/images/2_556.png',
+        tempNick: ''
+      });
+    } else {
+      this.doLogin(profile);
+    }
+  },
+
+  // ===== 完善资料 =====
+  // 选择微信头像（open-type="chooseAvatar"）
+  onChooseAvatar(e) {
+    const url = e.detail.avatarUrl;
+    if (url) {
+      this.setData({ tempAvatar: url });
+    }
+  },
+  // 输入昵称（type="nickname"，键盘上方可一键使用微信昵称）
+  onNickInput(e) {
+    this.setData({ tempNick: e.detail.value });
+  },
+  // 完成完善资料
+  confirmProfile() {
+    const nick = (this.data.tempNick || '').trim();
+    if (!nick) {
+      wx.showToast({ title: '请输入昵称', icon: 'none' });
+      return;
+    }
+    this.setData({ showProfile: false });
+    this.doLogin({
+      avatar: this.data.tempAvatar,
+      name: nick
+    });
+  },
+
+  // 执行登录
   doLogin(userProfile) {
     wx.login({
       success: (res) => {
-        const code = res.code; // 演示版仅记录
         setTimeout(() => {
           const token = 'demo_' + Date.now();
           const userInfo = {
