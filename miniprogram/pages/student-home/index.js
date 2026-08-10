@@ -1,14 +1,19 @@
 const mock = require('../../utils/mock.js');
+const api = require('../../utils/api.js');
 const app = getApp();
 const i18n = require('../../utils/i18n.js');
+
+const DEFAULT_COVER = '/images/2_193.png'; // 课程未设封面时的占位图
 
 Page({
   data: {
     user: { name: '小陈', date: '' },
-    hotCourses: [],
+    hotCourses: [],      // 今日课程
     tab: 0,
     greeting: '',
-    t: i18n.t()
+    t: i18n.t(),
+    offline: false,      // 后端不可用回退演示数据
+    loaded: false        // 首屏加载完成（控制空状态显示）
   },
 
   onLoad() {
@@ -17,22 +22,67 @@ Page({
     const today = new Date();
     const week = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
     const dateText = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日 ${week[today.getDay()]} · 今日宜挥汗`;
-    // 首页热门课程：取每个课程第一个排课日对应的课程
-    this.setData({
-      'user.date': dateText,
-      hotCourses: mock.courses.slice(0, 3).map(c => ({
-        id: c.id, name: c.name, coach: c.coach, venue: c.venue,
-        start: c.start, end: c.end, remaining: c.remaining, price: c.price, img: c.img
-      }))
-    });
+    this.setData({ 'user.date': dateText });
+    this.loadTodayCourses();
   },
 
   onShow() {
-    // 每次显示首页都刷新用户昵称（登录授权后立即生效）
+    // 每次显示首页都刷新用户昵称 + 重新标记已结束课程（登录授权后立即生效）
     this.refreshUser();
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 0 });
     }
+  },
+
+  // 加载今日课程：从后端拉当天场次，按当前时间标记"已结束"
+  loadTodayCourses() {
+    const today = new Date();
+    const full = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    api.getSessionsByDate(full).then((res) => {
+      const list = (res.sessions || []).map(s => ({
+        id: s.id,
+        name: s.course_name,
+        coach: s.coach_name,
+        venue: s.venue_name,
+        start: s.start_time,
+        end: s.end_time,
+        remaining: s.remaining,
+        price: (s.price_fen / 100).toFixed(0),
+        img: s.cover || DEFAULT_COVER,
+        ended: this.isEnded(s.end_time)
+      }));
+      this.setData({ hotCourses: this.decorate(list), offline: false, loaded: true });
+    }).catch(() => {
+      // 后端不可用 → 用演示数据（取前 3 门课，按当日时间判断结束）
+      const list = mock.courses.slice(0, 3).map(c => ({
+        id: c.id, name: c.name, coach: c.coach, venue: c.venue,
+        start: c.start, end: c.end, remaining: c.remaining, price: c.price, img: c.img,
+        ended: this.isEnded(c.end)
+      }));
+      this.setData({ hotCourses: this.decorate(list), offline: true, loaded: true });
+    });
+  },
+
+  // 判断课程是否已结束：当前时间晚于当天结束时间
+  isEnded(endTime) {
+    const [h, m] = (endTime || '00:00').split(':').map(Number);
+    const now = new Date();
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+    return now > end;
+  },
+
+  // 组装课程卡片文案（i18n 模板替换占位符）；recheck 时重算已结束标记
+  decorate(list, recheck) {
+    const t = i18n.t();
+    return (list || []).map(c => ({
+      ...c,
+      ended: recheck ? this.isEnded(c.end) : c.ended,
+      metaText: t.timeRangeSeats
+        .replace('{{start}}', c.start)
+        .replace('{{end}}', c.end)
+        .replace('{{remaining}}', c.remaining),
+      coachText: t.coachNameMeta.replace('{{coach}}', c.coach)
+    }));
   },
 
   // 读取微信昵称 + 按时段问候（{时段问候}，{昵称}）
@@ -47,15 +97,8 @@ Page({
     const t = i18n.t();
     const greetingWord = this.getGreetingWord(t);
     const greeting = `${greetingWord}，${name}`;
-    // 组装课程卡片文案（模板替换占位符）
-    const hotCourses = this.data.hotCourses.map(c => ({
-      ...c,
-      metaText: t.timeRangeSeats
-        .replace('{{start}}', c.start)
-        .replace('{{end}}', c.end)
-        .replace('{{remaining}}', c.remaining),
-      coachText: t.coachNameMeta.replace('{{coach}}', c.coach)
-    }));
+    // 重新装饰课程卡片（顺带按当前时间刷新"已结束"标记）
+    const hotCourses = this.decorate(this.data.hotCourses, true);
     this.setData({
       user: { ...this.data.user, name },
       greeting,
@@ -79,7 +122,7 @@ Page({
 
   goDetail(e) {
     const id = e.currentTarget.dataset.id;
-    wx.navigateTo({ url: `/pages/student-course-detail/index?id=${id}` });
+    wx.navigateTo({ url: `/pages/student-course-detail/index?session_id=${id}` });
   },
 
   switchTab(e) {

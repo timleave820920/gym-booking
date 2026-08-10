@@ -21,14 +21,17 @@
       <view class="banner-deco"></view>
     </view>
 
-    <!-- 热门课程 -->
+    <!-- 今日课程 -->
     <view class="flex-between hot-head">
-      <text class="section-title">{{t.hotCourses}}</text>
+      <text class="section-title">{{t.todayCourses}}</text>
       <view class="flex-row more" bindtap="goCourses">
         <text class="more-txt">{{t.viewAll}}</text>
         <text class="icon-chevron"></text>
       </view>
     </view>
+
+    <!-- 后端不可用提示 -->
+    <text class="offline-tip" wx:if="{{offline}}">后端未连接，当前展示演示数据</text>
 
     <view class="hot-list">
       <view class="course-card flex-row" wx:for="{{hotCourses}}" wx:key="id"
@@ -42,11 +45,17 @@
           </view>
           <view class="flex-between coach-row">
             <text class="coach-name">{{item.coachText}}</text>
-            <view class="book-btn" catchtap="goDetail" data-id="{{item.id}}">
-              <text>¥{{item.price}} {{t.bookClass}}</text>
+            <view class="book-btn {{item.ended ? 'book-ended' : ''}}" catchtap="goDetail" data-id="{{item.id}}">
+              <text>{{item.ended ? t.ended : '¥' + item.price + ' ' + t.bookClass}}</text>
             </view>
           </view>
         </view>
+      </view>
+
+      <!-- 今日暂无课程 -->
+      <view class="empty-today flex-col" wx:if="{{loaded && hotCourses.length === 0}}">
+        <text class="empty-icon">▦</text>
+        <text class="empty-txt">{{t.noTodayCourse}}</text>
       </view>
     </view>
 

@@ -114,5 +114,31 @@
   padding: 10rpx 24rpx;
   border-radius: 26rpx;
 }
+/* 已结束课程：按钮灰化 */
+.book-ended {
+  background: #E0DCCB;
+  color: #8A8A8A;
+}
+.offline-tip {
+  display: block;
+  text-align: center;
+  font-size: 22rpx;
+  color: #B0AFA8;
+  padding: 16rpx 0 0;
+}
+/* 今日无课空状态 */
+.empty-today {
+  align-items: center;
+  padding: 80rpx 0;
+}
+.empty-today .empty-icon {
+  font-size: 72rpx;
+  color: #D9D4C0;
+}
+.empty-today .empty-txt {
+  margin-top: 16rpx;
+  color: #B0AFA8;
+  font-size: 26rpx;
+}
 
 .list-spacer { height: 60rpx; }
