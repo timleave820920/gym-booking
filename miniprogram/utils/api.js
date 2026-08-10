@@ -114,5 +114,17 @@ module.exports = {
   // 清空所有用户（本地后端）
   clearUsers() {
     return localRequest('/api/users/clear', 'DELETE');
+  },
+
+  // 按日期查场次（学员端课程列表）
+  getSessionsByDate(date) {
+    if (USE_CLOUD) return Promise.reject({ code: -1, message: '云函数暂未实现课程列表' });
+    return localRequest('/api/sessions?date=' + date, 'GET');
+  },
+
+  // 场次详情（学员端课程详情）
+  getSession(id) {
+    if (USE_CLOUD) return Promise.reject({ code: -1, message: '云函数暂未实现场次详情' });
+    return localRequest('/api/sessions/' + id, 'GET');
   }
 };

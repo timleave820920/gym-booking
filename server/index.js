@@ -249,6 +249,18 @@ function serveStatic(res, filePath) {
   });
 }
 
+// ===== 场次查询（学员端课程列表/详情）=====
+function handleSessionsByDate(req, res, date) {
+  const sessions = db.listSessionsByDate(date);
+  return sendJson(res, 200, { code: 200, date, sessions });
+}
+
+function handleSessionDetail(req, res, id) {
+  const s = db.getSessionById(Number(id));
+  if (!s) return sendJson(res, 404, { code: 404, message: '场次不存在' });
+  return sendJson(res, 200, { code: 200, session: s });
+}
+
 function toPublicUser(user) {
   return {
     id: user.id,
@@ -309,6 +321,14 @@ const server = http.createServer(async (req, res) => {
       const id = pathname.split('/')[3];
       const body = await readBody(req);
       handlePublishCourse(req, res, id, body);
+    } else if (req.method === 'GET' && pathname === '/api/sessions') {
+      const date = url.searchParams.get('date');
+      if (!date) {
+        return sendJson(res, 400, { code: 400, message: '缺少 date 参数（YYYY-MM-DD）' });
+      }
+      handleSessionsByDate(req, res, date);
+    } else if (req.method === 'GET' && /^\/api\/sessions\/\d+$/.test(pathname)) {
+      handleSessionDetail(req, res, pathname.split('/')[3]);
     } else if (pathname === '/' || pathname === '/courses.html') {
       serveStatic(res, path.join(__dirname, '..', 'web', 'courses.html'));
     } else if (pathname.startsWith('/web/')) {

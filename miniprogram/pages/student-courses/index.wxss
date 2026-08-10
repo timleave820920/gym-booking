@@ -91,6 +91,19 @@
   align-items: center;
   padding: 120rpx 0;
 }
+.offline-tip {
+  display: block;
+  text-align: center;
+  font-size: 22rpx;
+  color: #B0AFA8;
+  padding: 16rpx 0 0;
+}
+.loading-tip {
+  text-align: center;
+  font-size: 26rpx;
+  color: #B0AFA8;
+  padding: 80rpx 0;
+}
 .empty-icon {
   font-size: 96rpx; color: #D9D4C0;
 }

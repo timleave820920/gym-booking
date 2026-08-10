@@ -10,15 +10,19 @@
     <!-- 周日期选择条 -->
     <view class="date-bar flex-row">
       <view class="date-item flex-col {{item.selected ? 'date-active' : ''}}"
-            wx:for="{{weekDays}}" wx:key="date"
-            data-date="{{item.date}}" bindtap="selectDate">
+            wx:for="{{weekDays}}" wx:key="full"
+            data-full="{{item.full}}" data-date="{{item.date}}" bindtap="selectDate">
         <text class="date-week {{item.selected ? 'week-active' : ''}}">{{item.weekday}}</text>
         <text class="date-num {{item.selected ? 'num-active' : ''}}">{{item.date}}</text>
       </view>
     </view>
 
+    <!-- 后端不可用提示 -->
+    <text class="offline-tip" wx:if="{{offline}}">后端未连接，当前展示演示数据</text>
+
     <!-- 课程列表 -->
     <view class="course-list">
+      <view class="loading-tip" wx:if="{{loading}}">加载中...</view>
       <view class="course-card flex-row" wx:for="{{courseList}}" wx:key="id"
             bindtap="goDetail" data-id="{{item.id}}">
         <image class="course-cover" src="{{item.img}}" mode="aspectFill"></image>

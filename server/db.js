@@ -340,6 +340,27 @@ function publishSessions(courseId, startDate, endDate) {
   return { created, skipped };
 }
 
+// 场次查询的公共 JOIN
+const SESSION_SELECT = `
+  SELECT s.id, s.date, s.start_time, s.end_time, s.capacity, s.booked_count, s.status,
+         (s.capacity - s.booked_count) AS remaining,
+         c.id AS course_id, c.name AS course_name, c.category, c.level, c.duration_min, c.price_fen, c.cover,
+         co.name AS coach_name, v.name AS venue_name
+  FROM course_sessions s
+  JOIN courses c ON c.id = s.course_id
+  JOIN coaches co ON co.id = s.coach_id
+  JOIN venues v ON v.id = s.venue_id`;
+
+/** 按日期查已发布场次（学员端课程列表） */
+function listSessionsByDate(date) {
+  return db.prepare(`${SESSION_SELECT} WHERE s.date = ? AND s.status = 'published' ORDER BY s.start_time`).all(date);
+}
+
+/** 场次详情（学员端课程详情） */
+function getSessionById(id) {
+  return db.prepare(`${SESSION_SELECT} WHERE s.id = ?`).get(id) || null;
+}
+
 module.exports = {
   db,
   findUserByOpenid,
@@ -360,5 +381,8 @@ module.exports = {
   createCourse,
   updateCourse,
   deleteCourse,
-  publishSessions
+  publishSessions,
+  // 场次查询
+  listSessionsByDate,
+  getSessionById
 };
