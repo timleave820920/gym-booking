@@ -11,10 +11,24 @@ App({
     },
     role: 'student',
     // 当前选中的课程（从列表/详情进入支付时传递）
-    currentCourse: null
+    currentCourse: null,
+    // 云开发是否已初始化
+    cloudInited: false
   },
 
   onLaunch() {
+    // 云开发模式：初始化 wx.cloud（USE_CLOUD=true 时生效）
+    try {
+      const api = require('./utils/api.js');
+      if (api.USE_CLOUD && wx.cloud) {
+        wx.cloud.init({ env: api.CLOUD_ENV, traceUser: true });
+        this.globalData.cloudInited = true;
+        console.log('[cloud] 云开发已初始化 env=' + api.CLOUD_ENV);
+      }
+    } catch (e) {
+      console.warn('[cloud] 云开发初始化跳过', e.message);
+    }
+
     // 读取本地登录态
     const token = wx.getStorageSync('token');
     const savedUser = wx.getStorageSync('userInfo');

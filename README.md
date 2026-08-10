@@ -6,12 +6,23 @@
 
 ## 快速开始
 
-**后端（需先启动）**：
+**后端（两种模式，通过 `miniprogram/utils/api.js` 的 `USE_CLOUD` 切换）**：
+
+**模式一：本地后端（开发调试，默认）**
 ```bash
 cd server
 node index.js        # 需要 Node 22.5+（使用内置 node:sqlite）
 # 服务启动于 http://127.0.0.1:3000，数据库文件 server/data/gym.db
 ```
+
+**模式二：微信云开发（生产环境，推荐）**
+1. 微信开发者工具 → 工具栏「云开发」→ 开通环境（按量付费，有免费额度），记下环境 ID
+2. 云数据库中创建集合 `users`
+3. 右键 `cloudfunctions/login`、`cloudfunctions/users` → 「上传并部署：云端安装依赖」
+4. `miniprogram/utils/api.js` 中：`USE_CLOUD = true`，`CLOUD_ENV = '你的环境ID'`
+5. 云函数通过 `cloud.getWXContext()` 自动获取**真实 openid**，无需模拟
+
+> 云开发优势：免服务器/域名/备案、登录拿真实 openid、免费额度够开发期、与生产环境一致。
 
 **小程序**：
 1. 打开**微信开发者工具** → 导入项目

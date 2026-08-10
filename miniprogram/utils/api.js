@@ -1,18 +1,30 @@
 /**
- * API 请求封装
+ * API 请求封装（双模式）
  * 综合训练馆订课系统
  *
- * 后端地址配置：
- * - 开发者工具（不校验域名）：http://127.0.0.1:3000
- * - 真机预览（同一局域网）：改为电脑 IP，如 http://192.168.194.11:3000
- * - 生产环境：替换为 HTTPS 正式域名
+ * 模式切换（USE_CLOUD）：
+ *   true  = 微信云开发（生产环境，登录拿真实 openid）
+ *   false = 本地后端（开发调试，server/index.js）
+ *
+ * 使用云开发时：
+ *   1. 微信开发者工具 → 云开发 → 开通环境
+ *   2. 云数据库中创建集合：users
+ *   3. 右键 cloudfunctions/login、cloudfunctions/users → 「上传并部署：云端安装依赖」
+ *   4. 将 USE_CLOUD 设为 true
+ *   5. app.js 中 wx.cloud.init({ env: '你的环境ID' })
  */
-const BASE_URL = 'http://127.0.0.1:3000';
+const USE_CLOUD = false;
 
-function request(path, method = 'GET', data = {}) {
+const CLOUD_ENV = 'gym-prod'; // TODO: 改为你的云环境 ID
+
+// 本地后端地址（USE_CLOUD=false 时使用）
+const LOCAL_BASE_URL = 'http://127.0.0.1:3000';
+
+// ===== 本地后端请求 =====
+function localRequest(path, method = 'GET', data = {}) {
   return new Promise((resolve, reject) => {
     wx.request({
-      url: BASE_URL + path,
+      url: LOCAL_BASE_URL + path,
       method,
       data,
       timeout: 10000,
@@ -24,33 +36,66 @@ function request(path, method = 'GET', data = {}) {
           reject({ code: res.statusCode, message: (res.data && res.data.message) || '请求失败' });
         }
       },
-      fail: (err) => {
-        reject({ code: -1, message: '无法连接服务器，请确认后端已启动', detail: err });
-      }
+      fail: () => reject({ code: -1, message: '无法连接本地后端，请确认 server 已启动' })
     });
   });
 }
 
+// ===== 云开发请求 =====
+function cloudCall(name, data = {}) {
+  return wx.cloud.callFunction({ name, data }).then(res => res.result);
+}
+
+// 确保云开发已初始化
+function ensureCloud() {
+  if (!wx.cloud) {
+    throw new Error('当前基础库不支持云开发，请升级');
+  }
+  const app = getApp();
+  if (!app.globalData.cloudInited) {
+    wx.cloud.init({ env: CLOUD_ENV, traceUser: true });
+    app.globalData.cloudInited = true;
+  }
+}
+
 module.exports = {
-  BASE_URL,
+  USE_CLOUD,
+  CLOUD_ENV,
+  LOCAL_BASE_URL,
 
   // 注册/登录（首次=注册，再次=登录）
   login(data) {
-    return request('/api/auth/login', 'POST', data);
+    if (USE_CLOUD) {
+      ensureCloud();
+      return cloudCall('login', data);
+    }
+    return localRequest('/api/auth/login', 'POST', data);
   },
 
   // 更新用户资料
   updateProfile(data) {
-    return request('/api/auth/profile', 'POST', data);
+    if (USE_CLOUD) {
+      ensureCloud();
+      return cloudCall('login', { action: 'updateProfile', ...data });
+    }
+    return localRequest('/api/auth/profile', 'POST', data);
   },
 
   // 用户列表（后台用）
   getUsers() {
-    return request('/api/users', 'GET');
+    if (USE_CLOUD) {
+      ensureCloud();
+      return cloudCall('users', { action: 'list' });
+    }
+    return localRequest('/api/users', 'GET');
   },
 
   // 用户统计
   getUsersStats() {
-    return request('/api/users/stats', 'GET');
+    if (USE_CLOUD) {
+      ensureCloud();
+      return cloudCall('users', { action: 'stats' });
+    }
+    return localRequest('/api/users/stats', 'GET');
   }
 };
