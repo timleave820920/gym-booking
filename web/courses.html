@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>课程编辑 · 综合训练馆订课系统</title>
+<style>
+  :root {
+    --cream: #F9F4DF; --lime: #B9FF66; --purple: #5B57EB;
+    --dark: #1A1A23; --gray: #6B6B76; --light: #B0AFA8; --white: #FFFFFF;
+    --danger: #E5484D;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; background: var(--cream); color: var(--dark); }
+  header { background: var(--dark); color: #fff; padding: 18px 32px; display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 20px; font-weight: 500; letter-spacing: 1px; }
+  header h1 span { color: var(--lime); }
+  header .sub { font-size: 13px; color: #B0AFA8; margin-top: 2px; }
+  .status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #D9D4C0; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #F09595; }
+  .dot.ok { background: #97C459; }
+  main { display: flex; gap: 24px; padding: 24px 32px; align-items: flex-start; }
+  aside { width: 320px; flex-shrink: 0; background: var(--white); border-radius: 16px; padding: 20px; }
+  aside h2 { font-size: 15px; font-weight: 500; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+  .btn-new { background: var(--lime); border: none; border-radius: 10px; padding: 6px 14px; font-size: 13px; color: var(--dark); cursor: pointer; font-weight: 500; }
+  .btn-new:hover { filter: brightness(0.96); }
+  .course-item { border: 1.5px solid #E8E4D5; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; cursor: pointer; transition: border-color .15s, background .15s; position: relative; }
+  .course-item:hover { border-color: var(--purple); }
+  .course-item.active { border-color: var(--purple); background: #F4F3FF; }
+  .course-item .nm { font-size: 14px; font-weight: 500; padding-right: 26px; }
+  .course-item .mt { font-size: 12px; color: var(--gray); margin-top: 4px; }
+  .course-item .st { display: inline-block; font-size: 11px; border-radius: 8px; padding: 1px 8px; margin-top: 6px; }
+  .st.published { background: #EAF3DE; color: #3B6D11; }
+  .st.draft { background: #FAEEDA; color: #854F0B; }
+  .course-item .del { position: absolute; top: 8px; right: 10px; border: none; background: none; color: var(--light); font-size: 15px; cursor: pointer; }
+  .course-item .del:hover { color: var(--danger); }
+  section { flex: 1; background: var(--white); border-radius: 16px; padding: 24px 28px; min-width: 0; }
+  .block { margin-bottom: 22px; }
+  .block > h3 { font-size: 14px; font-weight: 500; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #F0EDDF; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px 16px; }
+  .field label { display: block; font-size: 12px; color: var(--gray); margin-bottom: 5px; }
+  .field input[type=text], .field select { width: 100%; height: 36px; border: 1.5px solid #E0DCCB; border-radius: 9px; padding: 0 10px; font-size: 13px; color: var(--dark); background: #FCFAF2; outline: none; }
+  .field input:focus, .field select:focus { border-color: var(--purple); background: #fff; }
+  .field.wide { grid-column: 1 / -1; }
+  .cover-preview { margin-top: 8px; }
+  .cover-preview img { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--dark); object-fit: cover; display: none; background: #F0EDDF; }
+  .rules { margin-top: 4px; }
+  .rule-row { display: grid; grid-template-columns: 96px 1fr 1fr 1fr 1fr 84px 30px; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .rule-row select { width: 100%; height: 34px; border: 1.5px solid #E0DCCB; border-radius: 8px; padding: 0 6px; font-size: 12px; background: #FCFAF2; color: var(--dark); outline: none; }
+  .rule-row select:focus { border-color: var(--purple); }
+  .rule-row .rm { border: none; background: none; color: var(--light); font-size: 16px; cursor: pointer; }
+  .rule-row .rm:hover { color: var(--danger); }
+  .btn-add { border: 1.5px dashed #C9C7BC; background: none; border-radius: 9px; padding: 8px 0; width: 100%; font-size: 13px; color: var(--gray); cursor: pointer; }
+  .btn-add:hover { border-color: var(--purple); color: var(--purple); }
+  .publish-bar { background: #F4F3FF; border-radius: 12px; padding: 16px; display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+  .publish-bar .field { flex: 1; min-width: 150px; }
+  .btn { border: none; border-radius: 10px; padding: 10px 20px; font-size: 14px; cursor: pointer; font-weight: 500; }
+  .btn-save { background: var(--lime); color: var(--dark); }
+  .btn-save:hover { filter: brightness(0.96); }
+  .btn-del { background: none; border: 1.5px solid var(--danger); color: var(--danger); }
+  .btn-del:hover { background: #FCEBEB; }
+  .btn-publish { background: var(--purple); color: #fff; padding: 12px 28px; font-size: 15px; }
+  .btn-publish:hover { filter: brightness(1.08); }
+  .ops { display: flex; gap: 12px; margin-bottom: 20px; }
+  .msg { font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .msg.ok { color: #3B6D11; }
+  .msg.err { color: var(--danger); }
+  .empty { color: var(--light); font-size: 13px; padding: 20px 0; text-align: center; }
+  footer { text-align: center; color: var(--light); font-size: 12px; padding: 10px 0 20px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>课程编辑 <span>·</span> 综合训练馆订课系统</h1>
+    <div class="sub">新增 / 编辑 / 删除课程 · 下拉式属性 · 一键发布课表</div>
+  </div>
+  <div class="status"><span class="dot" id="connDot"></span><span id="connTxt">连接后端中…</span></div>
+</header>
+
+<main>
+  <aside>
+    <h2>课程列表 <button class="btn-new" onclick="newCourse()">+ 新增课程</button></h2>
+    <div id="courseList"></div>
+  </aside>
+
+  <section>
+    <!-- 课程信息 -->
+    <div class="block">
+      <h3>课程信息</h3>
+      <div class="grid">
+        <div class="field wide">
+          <label>课程名称 *</label>
+          <input type="text" id="f-name" placeholder="如：Hyrox冲冲冲">
+        </div>
+        <div class="field"><label>分类</label><select id="f-category"></select></div>
+        <div class="field"><label>难度（1-5）</label><select id="f-level"></select></div>
+        <div class="field"><label>时长（分钟）</label><select id="f-duration"></select></div>
+        <div class="field"><label>价格（元）</label><select id="f-price"></select></div>
+        <div class="field"><label>状态</label><select id="f-status"></select></div>
+        <div class="field wide"><label>封面图</label>
+          <select id="f-cover" onchange="previewCover()"></select>
+          <div class="cover-preview"><img id="coverImg" alt="封面预览"></div>
+        </div>
+        <div class="field wide"><label>课程描述</label><select id="f-description"></select></div>
+      </div>
+    </div>
+
+    <!-- 每周排课规则 -->
+    <div class="block">
+      <h3>每周排课规则（发布时按此生成场次）</h3>
+      <div class="rules" id="rulesBox"></div>
+      <button class="btn-add" onclick="addRule()">+ 添加一条排课规则</button>
+    </div>
+
+    <!-- 操作 -->
+    <div class="ops">
+      <button class="btn btn-save" onclick="saveCourse()">保存课程</button>
+      <button class="btn btn-del" onclick="deleteCourse()">删除课程</button>
+      <div class="msg" id="saveMsg"></div>
+    </div>
+
+    <!-- 发布课程（末尾） -->
+    <div class="block">
+      <h3>发布课程</h3>
+      <div class="publish-bar">
+        <div class="field"><label>起始日期</label><select id="f-date-from"></select></div>
+        <div class="field"><label>结束日期</label><select id="f-date-to"></select></div>
+        <button class="btn btn-publish" onclick="publishCourse()">发布课程</button>
+      </div>
+      <div class="msg" id="pubMsg"></div>
+    </div>
+  </section>
+</main>
+<footer>本地后端 · 127.0.0.1:3000</footer>
+
+<script>
+const API = 'http://127.0.0.1:3000';
+let meta = null, courses = [], editingId = null;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const toast = (id, text, ok) => { $(id).textContent = text; $(id).className = 'msg ' + (ok ? 'ok' : 'err'); };
+
+async function api(path, method = 'GET', body) {
+  const opt = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opt.body = JSON.stringify(body);
+  const res = await fetch(API + path, opt);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.code >= 400) throw new Error(data.message || ('请求失败 ' + res.status));
+  return data;
+}
+
+function optFill(sel, items, map, selected, placeholder) {
+  sel.innerHTML = '';
+  if (placeholder !== undefined) {
+    const o = document.createElement('option'); o.value = ''; o.textContent = placeholder; sel.appendChild(o);
+  }
+  for (const it of items) {
+    const o = document.createElement('option');
+    o.value = map.val(it); o.textContent = map.txt(it);
+    if (String(selected) === String(o.value)) o.selected = true;
+    sel.appendChild(o);
+  }
+}
+
+function fillSelect(sel, values, selected, label) {
+  sel.innerHTML = '';
+  for (const v of values) {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = label ? label(v) : v;
+    if (String(selected) === String(v)) o.selected = true;
+    sel.appendChild(o);
+  }
+}
+
+// ===== 初始化 =====
+async function init() {
+  try {
+    const h = await fetch(API + '/api/health').then(r => r.json());
+    $('connDot').classList.add('ok'); $('connTxt').textContent = '已连接本地后端';
+  } catch (e) {
+    $('connTxt').textContent = '无法连接后端（请运行 node server/index.js）';
+  }
+  try {
+    const [m, c] = await Promise.all([api('/api/meta'), api('/api/courses')]);
+    meta = m; courses = c.courses || [];
+    buildMetaForm();
+    renderList();
+    buildDateOptions();
+    if (courses.length) editCourse(courses[0].id);
+    else newCourse();
+  } catch (e) {
+    toast('saveMsg', '加载失败：' + e.message, false);
+  }
+}
+
+function buildMetaForm() {
+  optFill($('f-category'), meta.categories, { val: v => v, txt: v => v });
+  fillSelect($('f-level'), meta.levels);
+  fillSelect($('f-duration'), meta.durations, undefined, v => v + ' 分钟');
+  fillSelect($('f-price'), meta.prices, undefined, v => '¥' + v);
+  optFill($('f-status'), meta.statuses, { val: v => v, txt: v => meta.statusLabels[v] || v });
+  optFill($('f-cover'), meta.images, { val: v => v, txt: v => v.split('/').pop() }, '', '无封面');
+  optFill($('f-description'), meta.descriptions, { val: v => v, txt: v => (v || '无描述') }, '', undefined);
+}
+
+function buildDateOptions() {
+  const now = new Date();
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const lbl = d => `${d.getMonth() + 1}月${d.getDate()}日 周${'日一二三四五六'[d.getDay()]}`;
+  const days = [];
+  for (let i = 0; i < 60; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    days.push({ v: fmt(d), t: lbl(d) });
+  }
+  fillSelect($('f-date-from'), days, days[0].v, d => d.t);
+  fillSelect($('f-date-to'), days, days[20].v, d => d.t);
+}
+
+// ===== 列表 =====
+function renderList() {
+  const box = $('courseList');
+  if (!courses.length) { box.innerHTML = '<div class="empty">暂无课程，点击右上角新增</div>'; return; }
+  box.innerHTML = courses.map(c => `
+    <div class="course-item ${c.id === editingId ? 'active' : ''}" onclick="editCourse(${c.id})">
+      <button class="del" onclick="event.stopPropagation();askDelete(${c.id})" title="删除">×</button>
+      <div class="nm">${esc(c.name)}</div>
+      <div class="mt">${esc(c.category)} · 难度${c.level} · ${c.duration_min}分钟 · ¥${(c.price_fen / 100).toFixed(0)} · ${c.rules.length}条规则</div>
+      <span class="st ${c.status}">${c.status === 'published' ? '已发布' : '草稿'}</span>
+    </div>`).join('');
+}
+
+// ===== 表单 =====
+function newCourse() {
+  editingId = null;
+  $('f-name').value = '';
+  $('f-status').value = 'published';
+  $('f-cover').value = '';
+  $('f-description').value = '';
+  previewCover();
+  $('rulesBox').innerHTML = '';
+  addRule();
+  renderList();
+  toast('saveMsg', '新增模式：填写属性后点「保存课程」', true);
+  $('f-name').focus();
+}
+
+function editCourse(id) {
+  const c = courses.find(x => x.id === id);
+  if (!c) return;
+  editingId = id;
+  $('f-name').value = c.name || '';
+  $('f-category').value = c.category;
+  $('f-level').value = c.level;
+  $('f-duration').value = c.duration_min;
+  $('f-price').value = (c.price_fen / 100);
+  $('f-status').value = c.status;
+  $('f-cover').value = c.cover || '';
+  $('f-description').value = c.description || '';
+  previewCover();
+  $('rulesBox').innerHTML = '';
+  (c.rules && c.rules.length ? c.rules : [{}]).forEach(r => addRule(r));
+  renderList();
+  toast('saveMsg', '', true);
+}
+
+function ruleRowHtml(r = {}) {
+  const mk = (name, items, map, val) => {
+    const opts = items.map(it => `<option value="${map.val(it)}" ${String(map.val(it)) === String(val) ? 'selected' : ''}>${esc(map.txt(it))}</option>`).join('');
+    return `<select data-rule="${name}">${opts}</select>`;
+  };
+  const wd = meta.weekdays.map(w => `<option value="${w.v}" ${Number(r.weekday || 1) === w.v ? 'selected' : ''}>${w.label}</option>`).join('');
+  const co = meta.coaches.map(c => `<option value="${c.id}" ${Number(r.coach_id || meta.coaches[0].id) === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+  const ve = meta.venues.map(v => `<option value="${v.id}" ${Number(r.venue_id || meta.venues[0].id) === v.id ? 'selected' : ''}>${esc(v.name)}</option>`).join('');
+  const ts = t => meta.timeSlots.map(s => `<option value="${s}" ${(r.start_time || '10:00') === s ? 'selected' : ''}>${s}</option>`).join('');
+  const te = t => meta.timeSlots.map(s => `<option value="${s}" ${(r.end_time || '11:00') === s ? 'selected' : ''}>${s}</option>`).join('');
+  const cp = meta.capacities.map(c => `<option value="${c}" ${Number(r.capacity || 20) === c ? 'selected' : ''}>${c}人</option>`).join('');
+  return `<div class="rule-row">
+    <select data-rule="weekday">${wd}</select>
+    <select data-rule="start_time">${ts()}</select>
+    <select data-rule="end_time">${te()}</select>
+    <select data-rule="coach_id">${co}</select>
+    <select data-rule="venue_id">${ve}</select>
+    <select data-rule="capacity">${cp}</select>
+    <button class="rm" onclick="this.closest('.rule-row').remove()" title="删除规则">×</button>
+  </div>`;
+}
+
+function addRule(r) {
+  const div = document.createElement('div');
+  div.innerHTML = ruleRowHtml(r);
+  $('rulesBox').appendChild(div.firstElementChild);
+}
+
+function previewCover() {
+  const v = $('f-cover').value;
+  $('coverImg').style.display = v ? 'block' : 'none';
+  if (v) $('coverImg').src = API + v;
+}
+
+function collectRules() {
+  return [...document.querySelectorAll('#rulesBox .rule-row')].map(row => ({
+    weekday: +row.querySelector('[data-rule=weekday]').value,
+    start_time: row.querySelector('[data-rule=start_time]').value,
+    end_time: row.querySelector('[data-rule=end_time]').value,
+    coach_id: +row.querySelector('[data-rule=coach_id]').value,
+    venue_id: +row.querySelector('[data-rule=venue_id]').value,
+    capacity: +row.querySelector('[data-rule=capacity]').value
+  })).filter(r => r.coach_id && r.venue_id);
+}
+
+function collectCourse() {
+  return {
+    name: $('f-name').value.trim(),
+    category: $('f-category').value,
+    level: +$('f-level').value,
+    duration_min: +$('f-duration').value,
+    price_fen: Math.round(+$('f-price').value * 100),
+    cover: $('f-cover').value,
+    description: $('f-description').value,
+    status: $('f-status').value,
+    rules: collectRules()
+  };
+}
+
+// ===== 操作 =====
+async function saveCourse() {
+  const data = collectCourse();
+  if (!data.name) return toast('saveMsg', '请填写课程名称', false);
+  try {
+    if (editingId) {
+      await api('/api/courses/' + editingId, 'PUT', data);
+      toast('saveMsg', '课程已保存', true);
+    } else {
+      const r = await api('/api/courses', 'POST', data);
+      editingId = r.course.id;
+      toast('saveMsg', '课程已创建，可继续添加规则并发布', true);
+    }
+    courses = (await api('/api/courses')).courses || [];
+    renderList();
+  } catch (e) { toast('saveMsg', e.message, false); }
+}
+
+async function deleteCourse() {
+  if (!editingId) return toast('saveMsg', '当前无课程可删除', false);
+  if (!confirm('确定删除该课程？其排课规则与未预约场次将一并删除。')) return;
+  try {
+    await api('/api/courses/' + editingId, 'DELETE');
+    courses = (await api('/api/courses')).courses || [];
+    toast('saveMsg', '课程已删除', true);
+    courses.length ? editCourse(courses[0].id) : newCourse();
+  } catch (e) { toast('saveMsg', e.message, false); }
+}
+
+async function askDelete(id) {
+  const c = courses.find(x => x.id === id);
+  if (!confirm(`确定删除「${c.name}」？其排课规则与未预约场次将一并删除。`)) return;
+  try {
+    await api('/api/courses/' + id, 'DELETE');
+    courses = (await api('/api/courses')).courses || [];
+    toast('saveMsg', '课程已删除', true);
+    if (editingId === id) courses.length ? editCourse(courses[0].id) : newCourse();
+    else renderList();
+  } catch (e) { toast('saveMsg', e.message, false); }
+}
+
+async function publishCourse() {
+  if (!editingId) return toast('pubMsg', '请先选择或新增一个课程', false);
+  const from = $('f-date-from').value, to = $('f-date-to').value;
+  if (from > to) return toast('pubMsg', '起始日期不能晚于结束日期', false);
+  if (!collectRules().length) return toast('pubMsg', '请先添加至少一条每周排课规则并保存', false);
+  if (!confirm(`发布「${$('f-name').value || '该课程'}」\n${from} ~ ${to}\n将按排课规则生成场次（已存在的自动跳过）。确定？`)) return;
+  try {
+    const r = await api('/api/courses/' + editingId + '/publish', 'POST', { start_date: from, end_date: to });
+    toast('pubMsg', r.message || '发布完成', true);
+  } catch (e) { toast('pubMsg', e.message, false); }
+}
+
+init();
+</script>
+</body>
+</html>

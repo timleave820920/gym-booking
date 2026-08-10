@@ -223,6 +223,123 @@ function clearUsers() {
   return count;
 }
 
+// ===== 课程相关（结构见 DATA-MODEL.md）=====
+
+/** 教练列表（下拉选项用） */
+function listCoaches() {
+  return db.prepare("SELECT id, name, skills, status FROM coaches WHERE status='active' OR 1=1 ORDER BY id").all();
+}
+
+/** 场地列表（下拉选项用） */
+function listVenues() {
+  return db.prepare('SELECT id, name, capacity, status FROM venues ORDER BY id').all();
+}
+
+/** 课程列表（含排课规则） */
+function listCourses() {
+  const courses = db.prepare('SELECT * FROM courses ORDER BY id').all();
+  const rules = db.prepare('SELECT * FROM schedule_templates ORDER BY id').all();
+  const byCourse = {};
+  for (const r of rules) {
+    (byCourse[r.course_id] = byCourse[r.course_id] || []).push({
+      weekday: r.weekday,
+      start_time: r.start_time,
+      end_time: r.end_time,
+      coach_id: r.coach_id,
+      venue_id: r.venue_id,
+      capacity: r.capacity
+    });
+  }
+  return courses.map(c => ({ ...c, rules: byCourse[c.id] || [] }));
+}
+
+/** 课程规则列表 */
+function getRules(courseId) {
+  return db.prepare('SELECT * FROM schedule_templates WHERE course_id = ? ORDER BY weekday, start_time').all(courseId);
+}
+
+/** 替换课程规则（先删后插，事务内） */
+function replaceRules(courseId, rules) {
+  db.prepare('DELETE FROM schedule_templates WHERE course_id = ?').run(courseId);
+  const ins = db.prepare(`INSERT INTO schedule_templates (course_id, weekday, start_time, end_time, venue_id, coach_id, capacity)
+                          VALUES (?, ?, ?, ?, ?, ?, ?)`);
+  for (const r of rules || []) {
+    ins.run(courseId, r.weekday, r.start_time, r.end_time, r.venue_id, r.coach_id, r.capacity);
+  }
+}
+
+/** 新增课程（含规则） @returns 新课程对象 */
+function createCourse(data) {
+  const res = db.prepare(`INSERT INTO courses (name, category, level, duration_min, price_fen, cover, description, status)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(data.name, data.category, data.level, data.duration_min, data.price_fen, data.cover || '', data.description || '', data.status || 'published');
+  const id = res.lastInsertRowid;
+  replaceRules(id, data.rules || []);
+  return { id, ...data };
+}
+
+/** 更新课程（含规则） @returns 是否成功 */
+function updateCourse(id, data) {
+  const res = db.prepare(`UPDATE courses SET name=?, category=?, level=?, duration_min=?, price_fen=?, cover=?, description=?, status=?, updated_at=datetime('now','localtime')
+                          WHERE id = ?`)
+    .run(data.name, data.category, data.level, data.duration_min, data.price_fen, data.cover || '', data.description || '', data.status || 'published', id);
+  if (res.changes === 0) return false;
+  replaceRules(id, data.rules || []);
+  return true;
+}
+
+/**
+ * 删除课程（级联删规则与场次；场次有订单则拒绝）
+ * @returns {{ok:boolean, bookings?:number}}
+ */
+function deleteCourse(id) {
+  const b = db.prepare('SELECT COUNT(*) c FROM bookings b JOIN course_sessions s ON s.id = b.session_id WHERE s.course_id = ?').get(id).c;
+  if (b > 0) return { ok: false, bookings: b };
+  db.exec('BEGIN');
+  try {
+    db.prepare('DELETE FROM schedule_templates WHERE course_id = ?').run(id);
+    db.prepare('DELETE FROM course_sessions WHERE course_id = ?').run(id);
+    db.prepare('DELETE FROM courses WHERE id = ?').run(id);
+    db.exec('COMMIT');
+    return { ok: true };
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+/**
+ * 发布课程：按排课规则在日期范围内生成场次（幂等，已存在的跳过）
+ * @returns {{created:number, skipped:number}}
+ */
+function publishSessions(courseId, startDate, endDate) {
+  const rules = getRules(courseId);
+  if (rules.length === 0) return { created: 0, skipped: 0, reason: 'no_rules' };
+
+  const exists = new Set(db.prepare("SELECT date || '_' || start_time || '_' || venue_id k FROM course_sessions WHERE course_id = ?")
+    .all(courseId).map(r => r.k));
+
+  const ins = db.prepare(`INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'published', 'manual')`);
+  let created = 0, skipped = 0;
+
+  const start = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T00:00:00');
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const weekday = d.getDay() === 0 ? 7 : d.getDay(); // 周日=7
+    for (const r of rules) {
+      if (r.weekday !== weekday) continue;
+      const key = `${iso}_${r.start_time}_${r.venue_id}`;
+      if (exists.has(key)) { skipped++; continue; }
+      ins.run(courseId, r.coach_id, r.venue_id, iso, r.start_time, r.end_time, r.capacity);
+      exists.add(key);
+      created++;
+    }
+  }
+  return { created, skipped };
+}
+
 module.exports = {
   db,
   findUserByOpenid,
@@ -233,5 +350,15 @@ module.exports = {
   listUsers,
   deleteUserById,
   deleteUserByOpenid,
-  clearUsers
+  clearUsers,
+  // 课程相关
+  listCoaches,
+  listVenues,
+  listCourses,
+  getRules,
+  replaceRules,
+  createCourse,
+  updateCourse,
+  deleteCourse,
+  publishSessions
 };

@@ -12,6 +12,8 @@
  *   GET  /api/health        健康检查
  */
 const http = require('node:http');
+const path = require('node:path');
+const fs = require('node:fs');
 const db = require('./db');
 
 const PORT = process.env.PORT || 3000;
@@ -155,6 +157,98 @@ function handleClearUsers(req, res) {
   });
 }
 
+// ===== 课程管理（电脑端课程编辑网页用）=====
+
+// 下拉选项元数据
+function handleMeta(req, res) {
+  const imgDir = path.join(__dirname, '..', 'miniprogram', 'images');
+  let images = [];
+  try {
+    images = fs.readdirSync(imgDir).filter(f => /\.(png|jpg|jpeg|webp)$/i.test(f)).map(f => `/images/${f}`);
+  } catch (e) { /* 目录不存在则空 */ }
+  return sendJson(res, 200, {
+    code: 200,
+    coaches: db.listCoaches(),
+    venues: db.listVenues(),
+    categories: [...new Set(['Hybrid综合训练', '燃脂团课', '力量训练', '瑜伽普拉提', '骑行有氧'].concat(db.listCourses().map(c => c.category)))],
+    levels: [1, 2, 3, 4, 5],
+    durations: [30, 45, 60, 90, 120],
+    prices: [50, 58, 68, 80, 88, 90, 108, 128],
+    statuses: ['published', 'draft'],
+    statusLabels: { published: '已发布', draft: '草稿' },
+    descriptions: ['', '全身综合体能训练，含力量与心肺', '新手友好，从基础动作开始', '高强度进阶，挑战极限'],
+    images,
+    timeSlots: (() => { const s = []; for (let h = 6; h < 22; h++) for (const m of [0, 30]) s.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`); return s; })(),
+    weekdays: [1, 2, 3, 4, 5, 6, 7].map(v => ({ v, label: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][v - 1] })),
+    capacities: [10, 15, 20, 25, 30]
+  });
+}
+
+function handleListCourses(req, res) {
+  return sendJson(res, 200, { code: 200, courses: db.listCourses() });
+}
+
+function handleCreateCourse(req, res, body) {
+  const { name, category, level, duration_min, price_fen, cover, description, status, rules } = body || {};
+  if (!name || !category) {
+    return sendJson(res, 400, { code: 400, message: '课程名称与分类必填' });
+  }
+  const course = db.createCourse({
+    name, category,
+    level: level || 3,
+    duration_min: duration_min || 60,
+    price_fen: price_fen || 0,
+    cover: cover || '', description: description || '', status: status || 'published', rules: rules || []
+  });
+  return sendJson(res, 201, { code: 201, message: '课程已创建', course: { id: course.id } });
+}
+
+function handleUpdateCourse(req, res, id, body) {
+  if (!body || !body.name) {
+    return sendJson(res, 400, { code: 400, message: '课程名称必填' });
+  }
+  const ok = db.updateCourse(id, body);
+  if (!ok) return sendJson(res, 404, { code: 404, message: '课程不存在' });
+  return sendJson(res, 200, { code: 200, message: '课程已保存' });
+}
+
+function handleDeleteCourse(req, res, id) {
+  const result = db.deleteCourse(id);
+  if (!result.ok) {
+    return sendJson(res, 409, { code: 409, message: `课程存在 ${result.bookings} 条预约记录，无法删除` });
+  }
+  return sendJson(res, 200, { code: 200, message: '课程已删除' });
+}
+
+function handlePublishCourse(req, res, id, body) {
+  const { start_date, end_date } = body || {};
+  if (!start_date || !end_date) {
+    return sendJson(res, 400, { code: 400, message: '请选择发布起止日期' });
+  }
+  const course = db.listCourses().find(c => c.id === Number(id));
+  if (!course) return sendJson(res, 404, { code: 404, message: '课程不存在' });
+  const result = db.publishSessions(Number(id), start_date, end_date);
+  if (result.reason === 'no_rules') {
+    return sendJson(res, 400, { code: 400, message: '请先添加至少一条每周排课规则' });
+  }
+  return sendJson(res, 200, {
+    code: 200,
+    message: `发布完成：新增 ${result.created} 个场次，跳过 ${result.skipped} 个已存在场次`,
+    ...result
+  });
+}
+
+// ===== 静态资源（课程编辑网页 + 图片）=====
+function serveStatic(res, filePath) {
+  fs.readFile(filePath, (err, data) => {
+    if (err) return sendJson(res, 404, { code: 404, message: '资源不存在' });
+    const ext = path.extname(filePath).toLowerCase();
+    const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
+    res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream' });
+    res.end(data);
+  });
+}
+
 function toPublicUser(user) {
   return {
     id: user.id,
@@ -197,6 +291,31 @@ const server = http.createServer(async (req, res) => {
       handleClearUsers(req, res);
     } else if (req.method === 'GET' && pathname === '/api/health') {
       sendJson(res, 200, { code: 200, status: 'ok', time: new Date().toISOString() });
+    } else if (req.method === 'GET' && pathname === '/api/meta') {
+      handleMeta(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/courses') {
+      handleListCourses(req, res);
+    } else if (req.method === 'POST' && pathname === '/api/courses') {
+      const body = await readBody(req);
+      handleCreateCourse(req, res, body);
+    } else if (req.method === 'PUT' && /^\/api\/courses\/\d+$/.test(pathname)) {
+      const id = pathname.split('/')[3];
+      const body = await readBody(req);
+      handleUpdateCourse(req, res, id, body);
+    } else if (req.method === 'DELETE' && /^\/api\/courses\/\d+$/.test(pathname)) {
+      const id = pathname.split('/')[3];
+      handleDeleteCourse(req, res, id);
+    } else if (req.method === 'POST' && /^\/api\/courses\/\d+\/publish$/.test(pathname)) {
+      const id = pathname.split('/')[3];
+      const body = await readBody(req);
+      handlePublishCourse(req, res, id, body);
+    } else if (pathname === '/' || pathname === '/courses.html') {
+      serveStatic(res, path.join(__dirname, '..', 'web', 'courses.html'));
+    } else if (pathname.startsWith('/web/')) {
+      serveStatic(res, path.join(__dirname, '..', 'web', pathname.slice(5)));
+    } else if (pathname.startsWith('/images/')) {
+      const name = path.basename(pathname);
+      serveStatic(res, path.join(__dirname, '..', 'miniprogram', 'images', name));
     } else {
       sendJson(res, 404, { code: 404, message: '接口不存在' });
     }
