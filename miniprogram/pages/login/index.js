@@ -1,4 +1,5 @@
 const app = getApp();
+const api = require('../../utils/api.js');
 
 Page({
   data: {
@@ -115,18 +116,15 @@ Page({
   },
 
   // ===== 完善资料 =====
-  // 选择微信头像（open-type="chooseAvatar"）
   onChooseAvatar(e) {
     const url = e.detail.avatarUrl;
     if (url) {
       this.setData({ tempAvatar: url });
     }
   },
-  // 输入昵称（type="nickname"，键盘上方可一键使用微信昵称）
   onNickInput(e) {
     this.setData({ tempNick: e.detail.value });
   },
-  // 完成完善资料
   confirmProfile() {
     const nick = (this.data.tempNick || '').trim();
     if (!nick) {
@@ -140,35 +138,71 @@ Page({
     });
   },
 
-  // 执行登录
+  // ===== 执行登录（对接后端：首次=注册，再次=登录）=====
   doLogin(userProfile) {
     wx.login({
       success: (res) => {
-        setTimeout(() => {
-          const token = 'demo_' + Date.now();
+        const code = res.code || '';
+
+        // 生成/读取持久化 openid（同一设备始终一致 → 第二次即登录）
+        let openid = wx.getStorageSync('openid');
+        if (!openid) {
+          openid = 'uid_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+          wx.setStorageSync('openid', openid);
+        }
+
+        // 请求后端注册/登录
+        api.login({
+          code,
+          openid,
+          nickname: userProfile.name || '',
+          avatar: userProfile.avatar || '',
+          phone: userProfile.phone || ''
+        }).then((res2) => {
+          const isNewUser = res2.isNewUser;
+          const user = res2.user;
+
+          // 保存登录态
+          const token = 'token_' + Date.now();
           const userInfo = {
-            ...userProfile,
-            role: 'student',
-            totalClasses: 32,
-            totalHours: '28.5h',
-            totalCalories: '12,480',
-            streak: 12
+            name: user.nickname || userProfile.name || '微信用户',
+            avatar: user.avatar || userProfile.avatar || '/images/2_556.png',
+            phone: user.phone || '',
+            openid: user.openid || openid,
+            role: user.role || 'student',
+            totalClasses: user.total_classes || 32,
+            totalHours: user.total_hours || '28.5h',
+            totalCalories: user.total_calories || '12,480',
+            streak: user.streak || 12
           };
           wx.setStorageSync('token', token);
           wx.setStorageSync('userInfo', userInfo);
           app.globalData.userInfo = userInfo;
-          app.globalData.role = 'student';
+          app.globalData.role = userInfo.role;
 
           this.setData({ loggingIn: false });
-          wx.showToast({ title: '登录成功', icon: 'success' });
+
+          // 区分注册/登录提示
+          wx.showToast({
+            title: isNewUser ? '注册成功' : '欢迎回来',
+            icon: 'none'
+          });
           setTimeout(() => {
             wx.switchTab({ url: '/pages/student-home/index' });
-          }, 600);
-        }, 800);
+          }, 800);
+        }).catch((err) => {
+          this.setData({ loggingIn: false });
+          wx.showModal({
+            title: '登录失败',
+            content: err.message || '无法连接服务器',
+            showCancel: false,
+            confirmText: '知道了'
+          });
+        });
       },
       fail: () => {
         this.setData({ loggingIn: false });
-        wx.showToast({ title: '登录失败，请重试', icon: 'none' });
+        wx.showToast({ title: '微信登录失败', icon: 'none' });
       }
     });
   }

@@ -1,0 +1,13 @@
+{
+  "name": "gym-booking-server",
+  "version": "1.0.0",
+  "description": "综合训练馆订课系统 - 后端服务（SQLite 数据库）",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}
