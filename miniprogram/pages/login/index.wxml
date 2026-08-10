@@ -43,6 +43,27 @@
 
     <text class="login-hint">登录即代表同意以学员身份使用本服务</text>
     <text class="login-hint2">首次登录将引导完善微信头像与昵称</text>
+
+    <!-- 演示身份快捷入口 -->
+    <view class="demo-divider flex-row">
+      <view class="demo-line"></view>
+      <text class="demo-txt">演示身份入口</text>
+      <view class="demo-line"></view>
+    </view>
+    <view class="demo-roles flex-row">
+      <view class="demo-role" data-role="student" bindtap="quickLogin">
+        <view class="demo-ico demo-ico-student"></view>
+        <text class="demo-role-txt">学员</text>
+      </view>
+      <view class="demo-role" data-role="coach" bindtap="quickLogin">
+        <view class="demo-ico demo-ico-coach"></view>
+        <text class="demo-role-txt">教练</text>
+      </view>
+      <view class="demo-role" data-role="admin" bindtap="quickLogin">
+        <view class="demo-ico demo-ico-admin"></view>
+        <text class="demo-role-txt">管理员</text>
+      </view>
+    </view>
   </view>
 
   <!-- 完善资料弹层 -->

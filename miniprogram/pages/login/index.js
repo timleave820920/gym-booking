@@ -15,6 +15,43 @@ Page({
     this.setData({ agreed: !this.data.agreed });
   },
 
+  // ===== 演示身份快捷登录（不写数据库，直接进入对应端）=====
+  quickLogin(e) {
+    const role = e.currentTarget.dataset.role;
+    const urls = {
+      student: '/pages/student-home/index',
+      coach: '/pages/coach-schedule/index',
+      admin: '/pages/admin-dashboard/index'
+    };
+    const names = {
+      student: '学员',
+      coach: '教练',
+      admin: '管理员'
+    };
+    const token = 'demo_' + role + '_' + Date.now();
+    const userInfo = {
+      name: names[role],
+      avatar: '/images/2_556.png',
+      role: role,
+      totalClasses: 32,
+      totalHours: '28.5h',
+      totalCalories: '12,480',
+      streak: 12
+    };
+    wx.setStorageSync('token', token);
+    wx.setStorageSync('userInfo', userInfo);
+    app.globalData.userInfo = userInfo;
+    app.globalData.role = role;
+
+    wx.showToast({ title: names[role] + '身份进入', icon: 'none' });
+    setTimeout(() => {
+      wx.switchTab({
+        url: urls[role],
+        fail: () => wx.redirectTo({ url: urls[role] })
+      });
+    }, 400);
+  },
+
   // ===== 微信一键登录 =====
   login() {
     if (!this.checkAgree()) return;

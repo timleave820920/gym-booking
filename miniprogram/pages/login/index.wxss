@@ -302,3 +302,50 @@
   color: #1A1A23;
   box-shadow: 0 16rpx 40rpx rgba(185,255,102,0.5);
 }
+
+/* 演示身份入口 */
+.demo-divider {
+  margin-top: 48rpx;
+  align-items: center;
+  gap: 20rpx;
+}
+.demo-line {
+  flex: 1;
+  height: 2rpx;
+  background: #D9D4C0;
+}
+.demo-txt {
+  font-size: 22rpx;
+  color: #B0AFA8;
+}
+.demo-roles {
+  margin-top: 24rpx;
+  gap: 24rpx;
+  justify-content: center;
+}
+.demo-role {
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+}
+.demo-ico {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 32rpx;
+  border: 3rpx solid #1A1A23;
+  background-color: #F0EDDF;
+}
+.demo-ico-student {
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="%231A1A23" stroke-width="2"/><path d="M4.5 20C4.5 16.13 7.86 13.5 12 13.5C16.14 13.5 19.5 16.13 19.5 20" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain #F0EDDF;
+}
+.demo-ico-coach {
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="14" rx="3" stroke="%231A1A23" stroke-width="2"/><path d="M12 4V18" stroke="%231A1A23" stroke-width="2"/><path d="M8 10H10" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/><path d="M8 14H10" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain #F0EDDF;
+}
+.demo-ico-admin {
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M12 3L20 6.5V11C20 15.5 16.6 19.7 12 21C7.4 19.7 4 15.5 4 11V6.5L12 3Z" stroke="%231A1A23" stroke-width="2" stroke-linejoin="round"/><path d="M9 12L11 14L15 9.5" stroke="%231A1A23" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center/contain #F0EDDF;
+}
+.demo-role-txt {
+  font-size: 26rpx;
+  color: #6B6B76;
+  font-weight: 600;
+}
