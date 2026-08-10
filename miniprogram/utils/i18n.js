@@ -250,7 +250,7 @@ const DICT = {
   courseMetaFull: { zh: '{{time}}-{{end}} · 余 {{remaining}} 席', en: '{{time}}-{{end}} · {{remaining}} left' },
   enrolledMeta: { zh: '{{venue}} · 已报名 {{enrolled}}/{{capacity}}', en: '{{venue}} · Enrolled {{enrolled}}/{{capacity}}' },
   todayTag: { zh: '今天', en: 'Today' },
-  timeRangeSeats: { zh: '{{start}}-{{end}} · 余 {{remaining}} 席', en: '{{start}}-{{end}} · {{remaining}} left' },
+  timeRangeSeats: { zh: '{{start}}-{{end}} · {{remaining}}/{{capacity}}', en: '{{start}}-{{end}} · {{remaining}}/{{capacity}}' },
   bookPrice: { zh: '¥{{price}} 约课', en: '¥{{price}} Book' }
 };
 

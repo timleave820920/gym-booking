@@ -29,7 +29,7 @@
         <text class="info-label">强度</text>
       </view>
       <view class="info-item flex-col">
-        <text class="info-value {{remaining <= 2 ? 'text-red' : ''}}">{{remaining}} / {{capacity}}</text>
+        <text class="info-value {{remaining <= 2 ? 'text-red' : ''}}">{{remaining}}/{{capacity}}</text>
         <text class="info-label">剩余 / 上限</text>
       </view>
       <view class="info-item flex-col">

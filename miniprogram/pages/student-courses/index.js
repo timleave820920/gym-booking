@@ -81,7 +81,7 @@ Page({
     });
   },
 
-  // 装饰场次：计算席位文案（已订/总席）与满员状态
+  // 装饰场次：计算席位文案（剩余/总席）与满员状态
   decorateSession(s) {
     const cap = s.capacity || 20;
     const remaining = s.remaining !== undefined ? s.remaining : cap;
@@ -90,7 +90,8 @@ Page({
     return {
       ...s,
       booked,
-      seatText: `${String(booked).padStart(2, '0')}/${cap}`,
+      remaining,
+      seatText: `${String(remaining).padStart(2, '0')}/${cap}`,
       isFull,
       seatFull: remaining <= 2
     };

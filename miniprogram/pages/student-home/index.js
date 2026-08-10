@@ -47,6 +47,7 @@ Page({
         start: s.start_time,
         end: s.end_time,
         remaining: s.remaining,
+        capacity: s.capacity,
         price: (s.price_fen / 100).toFixed(0),
         img: s.cover || DEFAULT_COVER,
         status: this.getStatus(s.start_time, s.end_time)
@@ -57,6 +58,7 @@ Page({
       const list = mock.courses.slice(0, 3).map(c => ({
         id: c.id, name: c.name, coach: c.coach, venue: c.venue,
         start: c.start, end: c.end, remaining: c.remaining, price: c.price, img: c.img,
+        capacity: c.capacity || 20,
         status: this.getStatus(c.start, c.end)
       }));
       this.setData({ hotCourses: this.decorate(list), offline: true, loaded: true });
@@ -84,7 +86,8 @@ Page({
       metaText: t.timeRangeSeats
         .replace('{{start}}', c.start)
         .replace('{{end}}', c.end)
-        .replace('{{remaining}}', c.remaining),
+        .replace('{{remaining}}', String(c.remaining || 0).padStart(2, '0'))
+        .replace('{{capacity}}', c.capacity || 20),
       coachText: t.coachNameMeta.replace('{{coach}}', c.coach)
     }));
   },
