@@ -18,6 +18,21 @@
       <text class="wx-btn-txt">{{loggingIn ? '登录中...' : '微信一键登录'}}</text>
     </view>
 
+    <!-- 或分隔线 -->
+    <view class="or-divider flex-row">
+      <view class="or-line"></view>
+      <text class="or-txt">或</text>
+      <view class="or-line"></view>
+    </view>
+
+    <!-- 手机号快捷登录（微信官方手机号授权） -->
+    <button class="phone-btn flex-row" open-type="getPhoneNumber" bindgetphonenumber="phoneLogin">
+      <view class="phone-icon flex-center">
+        <view class="phone-svg"></view>
+      </view>
+      <text class="phone-btn-txt">手机号快捷登录</text>
+    </button>
+
     <!-- 协议勾选 -->
     <view class="agree-row flex-row" bindtap="toggleAgree">
       <view class="agree-box flex-center {{agreed ? 'agree-on' : ''}}">

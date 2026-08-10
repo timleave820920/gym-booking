@@ -16,7 +16,18 @@ Page({
         start: c.start, end: c.end, remaining: c.remaining, price: c.price, img: c.img
       }))
     });
-    // 从登录态读取用户名（微信真实昵称；默认占位名简化展示）
+  },
+
+  onShow() {
+    // 每次显示首页都刷新用户昵称（登录授权后立即生效）
+    this.refreshUser();
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 0 });
+    }
+  },
+
+  // 读取微信真实昵称（早上好，{昵称}）
+  refreshUser() {
     const u = app.globalData.userInfo;
     let name = '小陈';
     if (u && u.name) {
@@ -25,12 +36,6 @@ Page({
     this.setData({
       user: { ...this.data.user, name }
     });
-  },
-
-  onShow() {
-    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 0 });
-    }
   },
 
   goSearch() {

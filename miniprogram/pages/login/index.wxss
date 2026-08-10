@@ -81,6 +81,56 @@
   color: #FFFFFF;
 }
 
+/* 或分隔线 */
+.or-divider {
+  align-items: center;
+  gap: 20rpx;
+}
+.or-line {
+  flex: 1;
+  height: 2rpx;
+  background: #D9D4C0;
+}
+.or-txt {
+  font-size: 24rpx;
+  color: #B0AFA8;
+}
+
+/* 手机号快捷登录 */
+.phone-btn {
+  height: 140rpx;
+  border-radius: 70rpx;
+  background: #FFFFFF;
+  border: 3rpx solid #1A1A23;
+  align-items: center;
+  justify-content: center;
+  gap: 20rpx;
+  box-shadow: 0 16rpx 36rpx rgba(26,26,35,0.1);
+  padding: 0;
+  margin: 0;
+  font-size: inherit;
+  line-height: inherit;
+}
+.phone-btn::after {
+  border: none;
+}
+.phone-icon {
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 34rpx;
+  background: #E5FFC9;
+}
+.phone-svg {
+  width: 36rpx;
+  height: 36rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><rect x="7" y="2.5" width="10" height="19" rx="2.5" stroke="%231A1A23" stroke-width="2"/><path d="M10.5 18.5H13.5" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
+}
+.phone-btn-txt {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1A1A23;
+}
+
 /* 协议 */
 .agree-row {
   align-items: center;
