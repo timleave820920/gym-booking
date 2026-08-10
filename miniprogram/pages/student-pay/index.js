@@ -56,15 +56,8 @@ Page({
       payStatus: 'paid'
     }).then((res) => {
       wx.hideLoading();
-      wx.showModal({
-        title: '支付成功',
-        content: `已成功预订「${course.name}」，可在我的课程中查看`,
-        showCancel: false,
-        confirmText: '查看我的课程',
-        success: () => {
-          wx.switchTab({ url: '/pages/student-my-courses/index' });
-        }
-      });
+      // 跳转支付成功落地页
+      wx.redirectTo({ url: '/pages/pay-success/index' });
     }).catch((err) => {
       wx.hideLoading();
       wx.showModal({

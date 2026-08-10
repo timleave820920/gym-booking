@@ -1,0 +1,30 @@
+<view class="page">
+  <view class="success-wrap flex-col">
+    <!-- 成功图标（SVG） -->
+    <view class="success-ico"></view>
+    <text class="success-title">支付成功！</text>
+    <text class="success-sub">已成功预订课程</text>
+
+    <!-- 课程信息卡 -->
+    <view class="course-card" wx:if="{{course}}">
+      <view class="flex-row card-body">
+        <image class="course-img" src="{{course.img}}" mode="aspectFill"></image>
+        <view class="flex-col flex-1 course-info">
+          <text class="course-name">{{course.name}}</text>
+          <text class="course-meta">教练 · {{course.coach}} · {{course.venue}}</text>
+          <text class="course-time">{{course.time}}</text>
+        </view>
+      </view>
+      <view class="flex-between card-foot">
+        <text class="pay-label">实付金额</text>
+        <text class="pay-amount">¥{{course.price}}</text>
+      </view>
+    </view>
+
+    <!-- 查看按钮 -->
+    <view class="view-btn" bindtap="goProfile">
+      <text>查看</text>
+    </view>
+    <text class="tip-txt">可前往「我的」查看已订课程</text>
+  </view>
+</view>

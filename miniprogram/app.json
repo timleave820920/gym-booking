@@ -5,6 +5,7 @@
     "pages/student-courses/index",
     "pages/student-course-detail/index",
     "pages/student-pay/index",
+    "pages/pay-success/index",
     "pages/student-my-courses/index",
     "pages/student-checkin/index",
     "pages/student-achievements/index",
