@@ -68,4 +68,35 @@
     <text class="db-count">当前注册用户人数：{{userCount}} 人</text>
     <text class="demo-hint">{{t.demoHint}}</text>
   </view>
+
+  <!-- 完善资料弹层（微信官方头像昵称填写能力） -->
+  <view class="profile-mask" wx:if="{{showProfile}}">
+    <view class="profile-card">
+      <text class="profile-title">{{t.completeProfile}}</text>
+      <text class="profile-sub">{{t.profileSub}}</text>
+
+      <!-- 头像：open-type="chooseAvatar" -->
+      <view class="avatar-row flex-row">
+        <button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+          <image class="avatar-img" src="{{tempAvatar}}" mode="aspectFill"></image>
+          <view class="avatar-plus">+</view>
+        </button>
+        <view class="flex-col flex-1 avatar-hint">
+          <text class="avatar-hint-t">{{t.chooseAvatarHint1}}</text>
+          <text class="avatar-hint-s">{{t.chooseAvatarHint2}}</text>
+        </view>
+      </view>
+
+      <!-- 昵称：type="nickname" -->
+      <view class="nick-row flex-row">
+        <text class="nick-label">{{t.nickname}}</text>
+        <input class="nick-input" type="nickname" placeholder="{{t.nicknamePh}}"
+               placeholder-class="nick-ph" value="{{tempNick}}" bindinput="onNickInput" />
+      </view>
+
+      <view class="profile-btn" bindtap="confirmProfile">
+        <text>{{t.finishEnter}}</text>
+      </view>
+    </view>
+  </view>
 </view>
