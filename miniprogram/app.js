@@ -2,7 +2,7 @@ App({
   globalData: {
     // 默认学员信息（未登录时兜底）
     userInfo: {
-      name: '小陈同学',
+      name: '微信用户',
       avatar: '/images/2_556.png',
       totalClasses: 32,
       totalHours: '28.5h',
@@ -64,7 +64,7 @@ App({
     wx.removeStorageSync('userInfo');
     this.globalData.role = 'student';
     this.globalData.userInfo = {
-      name: '小陈同学',
+      name: '微信用户',
       avatar: '/images/2_556.png',
       totalClasses: 32,
       totalHours: '28.5h',

@@ -2,7 +2,7 @@ const app = getApp();
 
 Page({
   data: {
-    user: { name: '小陈同学', avatar: '/images/2_556.png', desc: '累计锻炼 32 节课' },
+    user: { name: '微信用户', avatar: '/images/2_556.png', desc: '累计锻炼 32 节课' },
     menus: [
       [
         { icon: 'check', name: '我的课程', url: '/pages/student-my-courses/index' },

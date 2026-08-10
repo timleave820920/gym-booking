@@ -30,12 +30,14 @@ Page({
     }
   },
 
-  // 读取微信真实昵称（早上好，{昵称}）
+  // 读取微信昵称（早上好，{昵称}）
+  // 注意：新版基础库下 getUserProfile 对未认证小程序返回"微信用户"默认值，
+  // 此时原样显示"微信用户"，不再简化成"小陈"（避免误导）
   refreshUser() {
     const u = app.globalData.userInfo;
-    let name = '小陈';
-    if (u && u.name) {
-      name = (u.name === '小陈同学' || u.name === '微信用户') ? '小陈' : u.name.slice(0, 8);
+    let name = '微信用户';
+    if (u && u.name && u.name !== '小陈同学') {
+      name = u.name.slice(0, 8);
     }
     // 组装问候语（i18n 模板替换）
     const t = i18n.t();
