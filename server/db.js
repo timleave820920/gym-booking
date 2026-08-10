@@ -484,6 +484,37 @@ function countBookingsByUser(openid) {
   return db.prepare("SELECT COUNT(*) c FROM bookings WHERE user_openid = ? AND status = 'booked'").get(openid).c;
 }
 
+/**
+ * 统计已完成的锻炼次数 = 已订（booked）且场次已结束的总数
+ * 场次已结束：日期早于今天，或日期=今天且结束时间早于当前时间
+ */
+function countFinishedWorkouts(openid) {
+  const row = db.prepare(`
+    SELECT COUNT(*) c
+    FROM bookings b
+    JOIN course_sessions s ON s.id = b.session_id
+    WHERE b.user_openid = ? AND b.status = 'booked'
+      AND (s.date < date('now','localtime')
+           OR (s.date = date('now','localtime') AND s.end_time < time('now','localtime')))
+  `).get(openid);
+  return row.c;
+}
+
+/**
+ * 统计当前未开始的已订课（待上课）
+ */
+function countUpcomingBookings(openid) {
+  const row = db.prepare(`
+    SELECT COUNT(*) c
+    FROM bookings b
+    JOIN course_sessions s ON s.id = b.session_id
+    WHERE b.user_openid = ? AND b.status = 'booked'
+      AND (s.date > date('now','localtime')
+           OR (s.date = date('now','localtime') AND s.start_time >= time('now','localtime')))
+  `).get(openid);
+  return row.c;
+}
+
 module.exports = {
   db,
   findUserByOpenid,
@@ -513,5 +544,7 @@ module.exports = {
   createBooking,
   listBookingsByUser,
   cancelBooking,
-  countBookingsByUser
+  countBookingsByUser,
+  countFinishedWorkouts,
+  countUpcomingBookings
 };

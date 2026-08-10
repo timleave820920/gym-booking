@@ -174,10 +174,21 @@ function handleUsers(req, res) {
 }
 
 function handleStats(req, res) {
-  return sendJson(res, 200, {
+  // 支持 ?openid=xxx 返回该用户真实锻炼数据
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  const base = {
     code: 200,
     totalUsers: db.countUsers()
-  });
+  };
+  if (openid) {
+    base.myStats = {
+      finishedWorkouts: db.countFinishedWorkouts(openid),  // 已完成锻炼次数
+      upcomingBookings: db.countUpcomingBookings(openid),  // 待上课数
+      totalBookings: db.countBookingsByUser(openid)        // 已订课总数
+    };
+  }
+  return sendJson(res, 200, base);
 }
 
 // 删除单个用户（?id=xxx 或 ?openid=xxx）

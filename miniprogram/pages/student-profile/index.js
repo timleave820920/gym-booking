@@ -1,8 +1,9 @@
 const app = getApp();
+const api = require('../../utils/api.js');
 
 Page({
   data: {
-    user: { name: '微信用户', avatar: '/images/2_556.png', desc: '累计锻炼 32 节课' },
+    user: { name: '微信用户', avatar: '/images/2_556.png', desc: '累计锻炼 0 节课' },
     menus: [
       [
         { icon: 'check', name: '我的课程', url: '/pages/student-my-courses/index' },
@@ -23,20 +24,50 @@ Page({
   },
 
   onLoad() {
-    const u = app.globalData.userInfo;
+    this.refreshUser();
+    this.loadWorkoutCount();
+  },
+
+  onShow() {
+    // 每次进入刷新（订课后锻炼次数实时更新）
+    this.loadWorkoutCount();
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 3 });
+    }
+  },
+
+  // 读取本地用户基础信息
+  refreshUser() {
+    const u = app.globalData.userInfo || {};
+    const count = this.getCountFromDesc(this.data.user.desc);
     this.setData({
       user: {
-        name: u.name,
-        avatar: u.avatar,
-        desc: `累计锻炼 ${u.totalClasses} 节课`
+        name: u.name || '微信用户',
+        avatar: u.avatar || '/images/2_556.png',
+        desc: `累计锻炼 ${count} 节课`
       }
     });
   },
 
-  onShow() {
-    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 3 });
-    }
+  // 从 desc 提取当前数字（避免重复刷新丢失）
+  getCountFromDesc(desc) {
+    const m = String(desc || '').match(/(\d+)/);
+    return m ? Number(m[1]) : 0;
+  },
+
+  // 从后端拉取真实锻炼次数（已订且已结束的场次总数）
+  loadWorkoutCount() {
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+    if (!openid) return;
+    api.getUsersStats(openid).then((res) => {
+      const finished = (res.myStats && res.myStats.finishedWorkouts) || 0;
+      this.setData({
+        user: { ...this.data.user, desc: `累计锻炼 ${finished} 节课` }
+      });
+    }).catch(() => {
+      // 后端不可用：保持当前显示
+    });
   },
 
   // 头像加载失败（如微信头像域名未配置）→ 回退默认头像

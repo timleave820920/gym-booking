@@ -97,13 +97,15 @@ module.exports = {
     return localRequest('/api/users', 'GET');
   },
 
-  // 用户统计
-  getUsersStats() {
+  // 用户统计（传 openid 返回真实锻炼数据）
+  getUsersStats(openid) {
     if (USE_CLOUD) {
       ensureCloud();
       return cloudCall('users', { action: 'stats' });
     }
-    return localRequest('/api/users/stats', 'GET');
+    let qs = '';
+    if (openid) qs = '?openid=' + openid;
+    return localRequest('/api/users/stats' + qs, 'GET');
   },
 
   // 删除单个用户（本地后端）
