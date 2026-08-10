@@ -1,0 +1,162 @@
+.page {
+  min-height: 100vh;
+  background: #F9F4DF;
+  padding-bottom: 80rpx;
+}
+.pt-safe {
+  padding-top: calc(88rpx + env(safe-area-inset-top));
+}
+.head-row { align-items: center; }
+.back-wrap { align-items: center; }
+.icon-back {
+  width: 36rpx; height: 36rpx;
+  margin-right: 16rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9L11 14" stroke="%231A1A23" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+}
+.page-title {
+  font-size: 48rpx; font-weight: 800; color: #1A1A23;
+}
+.share-btn {
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 12rpx 28rpx;
+  align-items: center;
+}
+.icon-share {
+  width: 28rpx; height: 28rpx;
+  margin-right: 8rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none"><path d="M11 5V12H3V5" stroke="%231A1A23" stroke-width="1.6" stroke-linecap="round"/><path d="M7 8V1.5M5 3.5L7 1.5L9 3.5" stroke="%231A1A23" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+}
+.share-txt {
+  font-size: 26rpx; font-weight: 600; color: #1A1A23;
+}
+
+/* 数据卡组 */
+.stats-row {
+  margin-top: 32rpx;
+  gap: 20rpx;
+}
+.stat-card {
+  flex: 1;
+  height: 192rpx;
+  border-radius: 32rpx;
+  align-items: center;
+  justify-content: center;
+}
+.stat-dark {
+  background: #1A1A23;
+}
+.stat-card:not(.stat-dark) {
+  background: #FFFFFF;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.stat-value {
+  font-size: 56rpx; font-weight: 800;
+}
+.value-lime { color: #B9FF66; }
+.value-purple { color: #5B57EB; }
+.value-orange { color: #D97706; }
+.stat-label {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #6B6B76;
+}
+.stat-dark .stat-label { color: #FFFFFF; opacity: 0.8; }
+
+/* 连续打卡 */
+.streak-card {
+  margin-top: 24rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 28rpx 32rpx;
+  align-items: center;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.icon-flame {
+  width: 64rpx; height: 64rpx;
+  margin-right: 24rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M12 22C16.42 22 20 18.42 20 14C20 9.5 15.5 5 12 2C12 6 9 7.5 9 10.5C9 12.99 10.9 14 12 14C12.5 14 13 13.9 13.5 13.7C13.2 14.8 12.3 15.5 11 15.5C9.5 15.5 8.5 14.5 8.5 13C8.5 11 10 9.5 10 7C7.5 9 6 11.5 6 14C6 18.42 9.58 22 12 22Z" stroke="%23D97706" stroke-width="2" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+}
+.streak-title {
+  font-size: 30rpx; font-weight: 700; color: #1A1A23;
+}
+.streak-sub {
+  font-size: 24rpx; color: #6B6B76;
+  margin-top: 4rpx;
+}
+.icon-chevron {
+  width: 36rpx; height: 36rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke="%236B6B76" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+}
+
+/* 本周记录 */
+.week-card {
+  margin-top: 24rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 28rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.card-title {
+  font-size: 30rpx; font-weight: 700; color: #1A1A23;
+}
+.week-row {
+  margin-top: 24rpx;
+  gap: 12rpx;
+}
+.day-item {
+  flex: 1;
+  height: 128rpx;
+  border-radius: 24rpx;
+  background: #F0EDDF;
+  align-items: center;
+  justify-content: center;
+}
+.day-on {
+  background: #B9FF66;
+}
+.day-today {
+  background: #5B57EB;
+  border: 3rpx solid #1A1A23;
+}
+.day-week {
+  font-size: 22rpx; color: #6B6B76;
+}
+.day-count {
+  font-size: 32rpx; font-weight: 700; color: #1A1A23;
+  margin-top: 4rpx;
+}
+
+/* 成就徽章 */
+.ach-section {
+  margin-top: 40rpx;
+}
+.ach-grid {
+  margin-top: 24rpx;
+  gap: 20rpx;
+}
+.ach-item {
+  flex: 1;
+  background: #FFFFFF;
+  border-radius: 28rpx;
+  padding: 24rpx 0;
+  align-items: center;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.04);
+}
+.medal {
+  width: 72rpx; height: 72rpx;
+  border-radius: 50%;
+}
+.medal-icon {
+  width: 44rpx; height: 44rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" fill="none"><path d="M12 30V25.5L8 27L6 21.5L10.5 18L6 14.5L8 9L12 10.5V6H24V10.5L28 9L30 14.5L25.5 18L30 21.5L28 27L24 25.5V30H12Z" stroke="%231A1A23" stroke-width="2" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+}
+.medal-off {
+  opacity: 0.35;
+}
+.ach-name {
+  margin-top: 12rpx;
+  font-size: 22rpx; font-weight: 600; color: #1A1A23;
+}
+
+.list-spacer { height: 60rpx; }

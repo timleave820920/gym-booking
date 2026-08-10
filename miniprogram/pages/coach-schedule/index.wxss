@@ -1,0 +1,83 @@
+.page {
+  min-height: 100vh;
+  background: #F9F4DF;
+  padding-bottom: 220rpx;
+}
+.pt-safe {
+  padding-top: calc(88rpx + env(safe-area-inset-top));
+}
+.head-row { align-items: center; }
+.greet-title {
+  font-size: 40rpx; font-weight: 800; color: #1A1A23;
+}
+.greet-sub {
+  font-size: 26rpx; color: #6B6B76;
+  margin-top: 4rpx;
+}
+.coach-avatar {
+  width: 88rpx; height: 88rpx;
+  border-radius: 50%;
+  border: 4rpx solid #1A1A23;
+}
+
+/* 今日概览 */
+.today-card {
+  margin-top: 32rpx;
+  background: linear-gradient(135deg, #5B57EB 0%, #7B6CD9 100%);
+  border-radius: 40rpx;
+  padding: 32rpx;
+  align-items: center;
+}
+.icon-calendar {
+  width: 72rpx; height: 72rpx;
+  margin-right: 24rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="%23FFFFFF" stroke-width="2"/><path d="M3 10H21M8 3V7M16 3V7" stroke="%23FFFFFF" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
+}
+.today-title {
+  font-size: 32rpx; font-weight: 700; color: #FFFFFF;
+}
+.today-sub {
+  font-size: 24rpx; color: #DCD8FF;
+  margin-top: 4rpx;
+}
+.today-card .icon-chevron {
+  width: 36rpx; height: 36rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke="%23DCD8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+}
+
+/* 课表列表 */
+.schedule-list {
+  margin-top: 32rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+.schedule-card {
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 24rpx;
+  align-items: center;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.time-box {
+  width: 112rpx;
+  align-items: center;
+  flex-shrink: 0;
+}
+.time-value {
+  font-size: 34rpx; font-weight: 800; color: #1A1A23;
+}
+.time-dur {
+  font-size: 22rpx; color: #6B6B76;
+  margin-top: 4rpx;
+}
+.info-box { justify-content: center; }
+.course-name {
+  font-size: 30rpx; font-weight: 700; color: #1A1A23;
+}
+.course-meta {
+  font-size: 24rpx; color: #6B6B76;
+  margin-top: 6rpx;
+}
+
+.list-spacer { height: 60rpx; }

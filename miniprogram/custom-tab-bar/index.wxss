@@ -1,0 +1,66 @@
+.tabbar-wrap {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  padding: 12rpx 42rpx 42rpx;
+  background: linear-gradient(to top, #F9F4DF 80%, rgba(249,244,223,0));
+  z-index: 100;
+}
+.tabbar-pill {
+  display: flex;
+  background: #FFFFFF;
+  border-radius: 72rpx;
+  border: 2rpx solid #E8E2CC;
+  padding: 8rpx;
+  box-shadow: 0 12rpx 32rpx rgba(0,0,0,0.08);
+}
+.tab-item {
+  flex: 1;
+  height: 124rpx;
+  border-radius: 52rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #6B6B76;
+}
+.tab-item.active {
+  background: #B9FF66;
+  color: #1A1A23;
+}
+.tab-icon {
+  width: 36rpx;
+  height: 36rpx;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+.ic-home {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M3 10.5L12 3L21 10.5V20C21 20.55 20.55 21 20 21H15V15H9V21H4C3.45 21 3 20.55 3 20V10.5Z" stroke="%236B6B76" stroke-width="2" stroke-linejoin="round"/></svg>');
+}
+.tab-item.active .ic-home {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M3 10.5L12 3L21 10.5V20C21 20.55 20.55 21 20 21H15V15H9V21H4C3.45 21 3 20.55 3 20V10.5Z" stroke="%231A1A23" stroke-width="2" stroke-linejoin="round"/></svg>');
+}
+.ic-grid {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" stroke="%236B6B76" stroke-width="2"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="%236B6B76" stroke-width="2"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="%236B6B76" stroke-width="2"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="%236B6B76" stroke-width="2"/></svg>');
+}
+.tab-item.active .ic-grid {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" stroke="%231A1A23" stroke-width="2"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="%231A1A23" stroke-width="2"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="%231A1A23" stroke-width="2"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="%231A1A23" stroke-width="2"/></svg>');
+}
+.ic-check {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M5 13L9 17L19 7" stroke="%236B6B76" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+}
+.tab-item.active .ic-check {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M5 13L9 17L19 7" stroke="%231A1A23" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+}
+.ic-user {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="%236B6B76" stroke-width="2"/><path d="M4 21C4 16.58 7.58 13 12 13C16.42 13 20 16.58 20 21" stroke="%236B6B76" stroke-width="2" stroke-linecap="round"/></svg>');
+}
+.tab-item.active .ic-user {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="%231A1A23" stroke-width="2"/><path d="M4 21C4 16.58 7.58 13 12 13C16.42 13 20 16.58 20 21" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>');
+}
+.safe-bottom {
+  padding-bottom: calc(42rpx + env(safe-area-inset-bottom));
+}

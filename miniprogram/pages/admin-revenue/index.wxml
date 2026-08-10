@@ -1,0 +1,76 @@
+<view class="admin-page">
+  <view class="admin-top flex-between">
+    <view class="flex-row admin-brand">
+      <view class="brand-logo flex-center"></view>
+      <text class="brand-name">训练馆管家</text>
+    </view>
+    <view class="flex-row admin-user">
+      <view class="admin-avatar"></view>
+      <text class="admin-name">管理员</text>
+      <view class="admin-exit" bindtap="exitToStudent"><text>退出</text></view>
+    </view>
+  </view>
+
+    <!-- 后台导航 -->
+  <scroll-view class="admin-nav" scroll-x enable-flex>
+    <view class="nav-inner">
+      <view class="nav-item" data-url="/pages/admin-dashboard/index" bindtap="navTo">数据仪表盘</view>
+      <view class="nav-item" data-url="/pages/admin-schedule/index" bindtap="navTo">排课管理</view>
+      <view class="nav-item" data-url="/pages/admin-create-course/index" bindtap="navTo">排课配置</view>
+      <view class="nav-item" data-url="/pages/admin-venues/index" bindtap="navTo">场地管理</view>
+      <view class="nav-item" data-url="/pages/admin-students/index" bindtap="navTo">学员管理</view>
+      <view class="nav-item" data-url="/pages/admin-coaches/index" bindtap="navTo">教练管理</view>
+      <view class="nav-item nav-active" data-url="/pages/admin-revenue/index" bindtap="navTo">营收统计</view>
+    </view>
+  </scroll-view>
+
+  <view class="admin-content">
+    <view class="flex-between">
+      <text class="page-title">营收统计</text>
+      <view class="seg-mini flex-row">
+        <view class="mini-item mini-on">本月</view>
+        <view class="mini-item">本季</view>
+        <view class="mini-item">全年</view>
+      </view>
+    </view>
+
+    <!-- 统计卡 -->
+    <view class="stats-grid">
+      <view class="stat-card flex-col {{item.dark ? 'stat-dark' : ''}}"
+            wx:for="{{stats}}" wx:key="label">
+        <text class="stat-label {{item.dark ? 'label-white' : ''}}">{{item.label}}</text>
+        <text class="stat-value {{item.dark ? 'text-white' : ''}}">{{item.value}}</text>
+        <text class="stat-trend {{item.dark ? 'text-lime' : (item.trend.indexOf('占') > -1 ? 'text-purple' : 'text-green')}}">{{item.trend}}</text>
+      </view>
+    </view>
+
+    <!-- 月度柱状图 -->
+    <view class="panel">
+      <text class="panel-title">月度营收（万元）</text>
+      <view class="bar-chart flex-row">
+        <view class="bar-col flex-col" wx:for="{{monthly}}" wx:key="month">
+          <view class="bar-fill {{index >= 6 ? 'bar-lime' : (index >= 3 ? 'bar-purple' : 'bar-soft')}}"
+                style="height: {{item.value / maxValue * 320}}rpx;"></view>
+          <text class="bar-month">{{item.month}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 收入来源 -->
+    <view class="panel">
+      <text class="panel-title">收入来源分布</text>
+      <view class="flex-row source-body">
+        <view class="donut"></view>
+        <view class="flex-col flex-1 legend">
+          <view class="legend-row flex-row" wx:for="{{sources}}" wx:key="name">
+            <view class="legend-dot" style="background: {{item.color}};"></view>
+            <text class="legend-name">{{item.name}}</text>
+            <text class="legend-pct">{{item.pct}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="bottom-space"></view>
+  </view>
+</view>

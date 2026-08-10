@@ -1,0 +1,46 @@
+<view class="page">
+  <view class="page-pad pt-safe">
+    <view class="flex-between head-row">
+      <text class="page-title">个人中心</text>
+      <view class="gear-btn flex-center" bindtap="goSettings">
+        <text class="icon-gear"></text>
+      </view>
+    </view>
+
+    <!-- 用户卡 -->
+    <view class="user-card flex-row">
+      <image class="user-avatar" src="{{user.avatar}}" mode="aspectFill"></image>
+      <view class="flex-col flex-1">
+        <text class="user-name">{{user.name}}</text>
+        <text class="user-desc">{{user.desc}}</text>
+      </view>
+      <text class="icon-chevron"></text>
+    </view>
+
+    <!-- 菜单组 -->
+    <view class="menu-group" wx:for="{{menus}}" wx:key="index" wx:for-item="group">
+      <view class="menu-row flex-row" wx:for="{{group}}" wx:key="name"
+            data-url="{{item.url}}" bindtap="goMenu">
+        <view class="menu-icon {{'icon-' + item.icon}}"></view>
+        <text class="menu-name">{{item.name}}</text>
+        <text class="icon-chevron-sm"></text>
+      </view>
+    </view>
+
+    <!-- 测试入口（演示用） -->
+    <view class="test-section">
+      <text class="test-title">角色入口 · 演示</text>
+      <view class="menu-group">
+        <view class="menu-row flex-row" wx:for="{{testEntries}}" wx:key="name"
+              data-url="{{item.url}}" bindtap="goMenu">
+          <view class="menu-icon {{'icon-' + item.icon}}"></view>
+          <text class="menu-name">{{item.name}}</text>
+          <text class="icon-chevron-sm"></text>
+        </view>
+      </view>
+      <text class="test-hint">正式版将按角色登录分流，此入口仅用于演示</text>
+    </view>
+
+    <view class="list-spacer"></view>
+  </view>
+</view>

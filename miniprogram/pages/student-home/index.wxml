@@ -1,0 +1,61 @@
+<view class="page">
+  <!-- 顶部问候 -->
+  <view class="page-pad pt-safe">
+    <view class="flex-between">
+      <view class="flex-col">
+        <text class="greet-title">早上好，{{user.name}}</text>
+        <text class="greet-date">{{user.date}}</text>
+      </view>
+      <view class="bell-btn flex-center" bindtap="goProfile">
+        <text class="icon-bell"></text>
+      </view>
+    </view>
+
+    <!-- 搜索栏 -->
+    <view class="search-bar flex-row" bindtap="goSearch">
+      <text class="icon-search"></text>
+      <text class="search-ph">搜索课程 / 教练 / 场地</text>
+    </view>
+
+    <!-- 活动 Banner -->
+    <view class="banner" bindtap="goCourses">
+      <text class="banner-tag">SUMMER BURN</text>
+      <text class="banner-title">夏日燃脂季</text>
+      <text class="banner-sub">全场团课 5 折起，立即开练</text>
+      <view class="banner-btn">去抢课</view>
+      <image class="banner-img" src="/images/2_166.png" mode="aspectFill"></image>
+      <view class="banner-deco"></view>
+    </view>
+
+    <!-- 热门课程 -->
+    <view class="flex-between hot-head">
+      <text class="section-title">热门课程</text>
+      <view class="flex-row more" bindtap="goCourses">
+        <text class="more-txt">查看全部</text>
+        <text class="icon-chevron"></text>
+      </view>
+    </view>
+
+    <view class="hot-list">
+      <view class="course-card flex-row" wx:for="{{hotCourses}}" wx:key="id"
+            bindtap="goDetail" data-id="{{item.id}}">
+        <image class="course-cover" src="{{item.img}}" mode="aspectFill"></image>
+        <view class="flex-col flex-1 course-info">
+          <text class="course-name">{{item.name}}</text>
+          <view class="flex-row course-meta">
+            <text class="icon-clock"></text>
+            <text class="meta-txt">{{item.start}}-{{item.end}} · 余 {{item.remaining}} 席</text>
+          </view>
+          <view class="flex-between coach-row">
+            <text class="coach-name">教练 · {{item.coach}}</text>
+            <view class="book-btn" catchtap="goDetail" data-id="{{item.id}}">
+              <text>¥{{item.price}} 约课</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="list-spacer"></view>
+  </view>
+</view>

@@ -1,0 +1,107 @@
+.page {
+  min-height: 100vh;
+  background: #F9F4DF;
+  padding-bottom: 220rpx;
+}
+.pt-safe {
+  padding-top: calc(88rpx + env(safe-area-inset-top));
+}
+.head-row { align-items: center; }
+.page-title {
+  font-size: 48rpx; font-weight: 800; color: #1A1A23;
+}
+.head-date { color: #6B6B76; font-size: 28rpx; }
+
+/* 分段切换 */
+.seg {
+  margin-top: 32rpx;
+  background: #EDE8D3;
+  border-radius: 40rpx;
+  padding: 8rpx;
+}
+.seg-item {
+  flex: 1;
+  height: 72rpx;
+  border-radius: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: #6B6B76;
+}
+.seg-active {
+  background: #1A1A23;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+/* 课程卡片 */
+.my-list {
+  margin-top: 32rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 28rpx;
+}
+.my-card {
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 24rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.card-top { align-items: center; }
+.card-date {
+  color: #6B6B76; font-size: 26rpx;
+}
+.card-body {
+  margin-top: 24rpx;
+  align-items: center;
+}
+.time-box {
+  width: 128rpx;
+  align-items: center;
+  flex-shrink: 0;
+}
+.time-value {
+  font-size: 36rpx; font-weight: 800; color: #1A1A23;
+}
+.time-dur {
+  font-size: 22rpx; color: #6B6B76;
+  margin-top: 4rpx;
+}
+.v-divider {
+  width: 2rpx; height: 88rpx;
+  background: #E8E2CC;
+  margin-right: 24rpx;
+}
+.info-box { justify-content: center; }
+.course-name {
+  font-size: 30rpx; font-weight: 700; color: #1A1A23;
+}
+.course-meta {
+  font-size: 24rpx; color: #6B6B76;
+  margin-top: 8rpx;
+}
+.card-actions {
+  margin-top: 24rpx;
+  justify-content: flex-end;
+  gap: 20rpx;
+}
+.btn-sm {
+  padding: 14rpx 36rpx;
+  font-size: 26rpx;
+  border-radius: 32rpx;
+}
+
+/* 空状态 */
+.empty-state {
+  align-items: center;
+  padding: 160rpx 0;
+}
+.empty-icon {
+  font-size: 96rpx; color: #D9D4C0;
+}
+.empty-txt {
+  margin-top: 24rpx; color: #6B6B76; font-size: 30rpx;
+}
+
+.list-spacer { height: 60rpx; }

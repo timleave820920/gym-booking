@@ -1,0 +1,173 @@
+/* ===== 全局样式（训练馆订课系统） ===== */
+page {
+  background: #F9F4DF;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+  color: #1A1A23;
+  font-size: 28rpx;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+view, text, image, button, scroll-view {
+  box-sizing: border-box;
+}
+
+button {
+  padding: 0;
+  margin: 0;
+  background: none;
+  border-radius: 0;
+  font-size: inherit;
+  line-height: inherit;
+}
+button::after {
+  border: none;
+}
+
+/* ===== 品牌色 ===== */
+.bg-cream { background: #F9F4DF; }
+.bg-white { background: #FFFFFF; }
+.bg-dark { background: #1A1A23; }
+.bg-lime { background: #B9FF66; }
+.bg-purple { background: #5B57EB; }
+.bg-pink { background: #F8B7B8; }
+.bg-soft-lime { background: #E5FFC9; }
+.bg-soft-purple { background: #DCD8FF; }
+.bg-soft-pink { background: #FFE3E3; }
+.bg-soft-yellow { background: #FFF0D6; }
+.bg-soft-gray { background: #F0EDDF; }
+
+.text-primary { color: #1A1A23; }
+.text-secondary { color: #333333; }
+.text-muted { color: #6B6B76; }
+.text-lime { color: #B9FF66; }
+.text-purple { color: #5B57EB; }
+.text-green { color: #3D9970; }
+.text-orange { color: #D97706; }
+.text-red { color: #E5484D; }
+.text-white { color: #FFFFFF; }
+.text-placeholder { color: #B0AFA8; }
+
+/* ===== 卡片 ===== */
+.card {
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  box-shadow: 0 6rpx 24rpx rgba(0, 0, 0, 0.05);
+}
+.card-pad { padding: 24rpx; }
+
+/* ===== 按钮 ===== */
+.btn-primary {
+  background: #B9FF66;
+  color: #1A1A23;
+  border-radius: 999rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12rpx 28rpx rgba(185, 255, 102, 0.5);
+}
+.btn-purple {
+  background: #5B57EB;
+  color: #FFFFFF;
+  border-radius: 999rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-outline {
+  background: #FFFFFF;
+  color: #6B6B76;
+  border: 2rpx solid #C9C7BC;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-dark {
+  background: #1A1A23;
+  color: #FFFFFF;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== 徽标/标签 ===== */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+  padding: 8rpx 20rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+.tag-green { background: #E5FFC9; color: #3D9970; }
+.tag-orange { background: #FFF0D6; color: #D97706; }
+.tag-purple { background: #DCD8FF; color: #5B57EB; }
+.tag-dark { background: #1A1A23; color: #B9FF66; }
+
+/* ===== 胶囊 TabBar ===== */
+.tabbar-wrap {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  padding: 12rpx 42rpx 42rpx;
+  background: linear-gradient(to top, #F9F4DF 80%, rgba(249,244,223,0));
+  z-index: 100;
+}
+.tabbar-pill {
+  display: flex;
+  background: #FFFFFF;
+  border-radius: 72rpx;
+  border: 2rpx solid #E8E2CC;
+  padding: 8rpx;
+  box-shadow: 0 12rpx 32rpx rgba(0,0,0,0.08);
+}
+.tab-item {
+  flex: 1;
+  height: 124rpx;
+  border-radius: 52rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #6B6B76;
+}
+.tab-item.active {
+  background: #B9FF66;
+  color: #1A1A23;
+}
+.tab-item.active.admin-active {
+  background: #5B57EB;
+  color: #FFFFFF;
+}
+.tab-icon {
+  width: 36rpx;
+  height: 36rpx;
+}
+
+/* ===== 状态栏占位 ===== */
+.status-bar {
+  height: 88rpx;
+}
+
+/* ===== 通用布局 ===== */
+.flex-row { display: flex; flex-direction: row; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.flex-1 { flex: 1; }
+.page-pad { padding: 24rpx 40rpx; }
+.mt-8 { margin-top: 8rpx; }
+.mt-16 { margin-top: 16rpx; }
+.mt-24 { margin-top: 24rpx; }
+.mt-32 { margin-top: 32rpx; }
+.mt-40 { margin-top: 40rpx; }
+
+/* ===== 底部安全区 ===== */
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }

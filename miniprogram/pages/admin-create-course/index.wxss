@@ -1,0 +1,280 @@
+.admin-page { min-height: 100vh; background: #F9F4DF; }
+.admin-top {
+  background: #1A1A23;
+  padding: 24rpx 40rpx calc(24rpx + env(safe-area-inset-top));
+  align-items: center;
+}
+.admin-brand { align-items: center; }
+.brand-logo {
+  width: 64rpx; height: 64rpx;
+  border-radius: 20rpx;
+  background: #B9FF66;
+  margin-right: 20rpx;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none"><path d="M8.5 8.5V23.5M5 11.5V20.5M23.5 8.5V23.5M27 11.5V20.5M8.5 16H23.5" stroke="%231A1A23" stroke-width="2.4" stroke-linecap="round"/></svg>');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 40rpx;
+}
+.brand-name { color: #FFFFFF; font-size: 32rpx; font-weight: 800; }
+.admin-user { align-items: center; }
+.admin-avatar {
+  width: 64rpx; height: 64rpx;
+  border-radius: 50%;
+  background: #5B57EB;
+  margin-right: 16rpx;
+}
+.admin-name { color: #FFFFFF; font-size: 26rpx; font-weight: 600; }
+.admin-exit {
+  margin-left: 20rpx;
+  padding: 8rpx 24rpx;
+  border-radius: 28rpx;
+  background: #B9FF66;
+  color: #1A1A23;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.admin-content { padding: 32rpx 40rpx; }
+.page-title { font-size: 40rpx; font-weight: 700; color: #1A1A23; }
+
+/* 表单卡片 */
+.form-card {
+  margin-top: 32rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.form-title {
+  font-size: 36rpx; font-weight: 700; color: #1A1A23;
+  display: block;
+}
+.form-row {
+  margin-top: 32rpx;
+  align-items: center;
+}
+.form-label {
+  width: 200rpx;
+  font-size: 28rpx; font-weight: 600; color: #1A1A23;
+  flex-shrink: 0;
+}
+.option-row {
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+.option-chip {
+  padding: 14rpx 36rpx;
+  border-radius: 36rpx;
+  border: 2rpx solid #E8E2CC;
+  background: #FFFFFF;
+  color: #6B6B76;
+  font-size: 26rpx;
+}
+.chip-on {
+  background: #B9FF66;
+  border-color: #1A1A23;
+  color: #1A1A23;
+  font-weight: 600;
+}
+
+/* 日期选择 */
+.date-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+.date-chip {
+  width: calc(25% - 12rpx);
+  border-radius: 24rpx;
+  border: 2rpx solid #E8E2CC;
+  background: #FFFFFF;
+  padding: 20rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.date-on {
+  background: #1A1A23;
+  border-color: #1A1A23;
+}
+.date-label {
+  font-size: 26rpx; font-weight: 600; color: #1A1A23;
+}
+.date-sub {
+  font-size: 20rpx; color: #6B6B76;
+  margin-top: 4rpx;
+}
+.date-on .date-label { color: #B9FF66; }
+.date-on .date-sub { color: #FFFFFF; opacity: 0.6; }
+
+/* 时间 */
+.time-row {
+  gap: 16rpx;
+  align-items: center;
+}
+.time-input {
+  width: 200rpx;
+  height: 72rpx;
+  border-radius: 24rpx;
+  background: #F0EDDF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: #1A1A23;
+}
+.time-sep {
+  color: #6B6B76;
+  font-size: 26rpx;
+}
+.cap-input {
+  width: 160rpx;
+  height: 72rpx;
+  border-radius: 24rpx;
+  background: #F0EDDF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 24rpx;
+}
+.cap-inner {
+  width: 90rpx;
+  text-align: right;
+  font-size: 28rpx;
+  color: #1A1A23;
+}
+.cap-unit {
+  font-size: 24rpx;
+  color: #6B6B76;
+  margin-left: 8rpx;
+}
+
+/* 右侧区 */
+.side-row {
+  margin-top: 32rpx;
+  display: flex;
+  gap: 24rpx;
+}
+.preview-card {
+  flex: 1;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 28rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.panel-title {
+  font-size: 32rpx; font-weight: 700; color: #1A1A23;
+}
+.preview-item {
+  margin-top: 20rpx;
+  border-radius: 20rpx;
+  padding: 20rpx 24rpx;
+  display: flex;
+  align-items: center;
+}
+.preview-day {
+  width: 220rpx;
+  font-size: 24rpx; font-weight: 600;
+  flex-shrink: 0;
+}
+.preview-name {
+  font-size: 26rpx;
+  color: #1A1A23;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 发布卡 */
+.publish-card {
+  width: 560rpx;
+  background: #1A1A23;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  flex-shrink: 0;
+}
+.pub-title {
+  font-size: 36rpx; font-weight: 700; color: #FFFFFF;
+}
+.pub-sub {
+  font-size: 24rpx; color: #B0AFA8;
+  margin-top: 8rpx;
+  display: block;
+}
+.pub-btn {
+  margin-top: 28rpx;
+  height: 96rpx;
+  border-radius: 48rpx;
+  background: #B9FF66;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1A1A23;
+  box-shadow: 0 12rpx 28rpx rgba(185,255,102,0.4);
+}
+.pub-check {
+  width: 40rpx; height: 40rpx;
+  margin-right: 12rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M5 13L9 17L19 7" stroke="%231A1A23" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+}
+.refresh-row {
+  margin-top: 28rpx;
+  align-items: center;
+}
+.icon-refresh {
+  width: 36rpx; height: 36rpx;
+  margin-right: 12rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="%23B0AFA8" stroke-width="2"/><path d="M12 7V12L15 14" stroke="%23B0AFA8" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
+}
+.refresh-txt {
+  flex: 1;
+  font-size: 22rpx;
+  color: #B0AFA8;
+}
+.refresh-edit {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #B9FF66;
+}
+.refresh-time-btn {
+  margin-top: 16rpx;
+  height: 64rpx;
+  border-radius: 32rpx;
+  border: 2rpx solid #B9FF66;
+  color: #B9FF66;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bottom-space { height: 80rpx; }
+
+/* 后台横向导航条 */
+.admin-nav {
+  background: #1A1A23;
+  white-space: nowrap;
+  width: 100%;
+}
+.nav-inner {
+  display: flex;
+  padding: 16rpx 24rpx 24rpx;
+  gap: 12rpx;
+}
+.nav-item {
+  flex-shrink: 0;
+  padding: 14rpx 32rpx;
+  border-radius: 36rpx;
+  background: rgba(255,255,255,0.08);
+  color: #B0AFA8;
+  font-size: 26rpx;
+}
+.nav-active {
+  background: #B9FF66;
+  color: #1A1A23;
+  font-weight: 700;
+}

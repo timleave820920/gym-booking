@@ -1,0 +1,90 @@
+.page {
+  min-height: 100vh;
+  background: #F9F4DF;
+  padding-bottom: 60rpx;
+}
+
+/* 课程信息 */
+.course-bar {
+  margin-top: 16rpx;
+  background: #1A1A23;
+  border-radius: 28rpx;
+  padding: 24rpx;
+  align-items: center;
+}
+.course-name {
+  font-size: 30rpx; font-weight: 700; color: #FFFFFF;
+}
+.course-meta {
+  font-size: 24rpx; color: #FFFFFF;
+  opacity: 0.65;
+  margin-top: 4rpx;
+}
+.count-badge {
+  background: #B9FF66;
+  color: #1A1A23;
+  font-size: 24rpx; font-weight: 700;
+  padding: 12rpx 24rpx;
+  border-radius: 28rpx;
+}
+
+/* 统计行 */
+.stats-row {
+  margin-top: 24rpx;
+  gap: 16rpx;
+}
+.stat-item {
+  flex: 1;
+  height: 112rpx;
+  border-radius: 24rpx;
+  background: #FFFFFF;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.04);
+}
+.stat-value {
+  font-size: 36rpx; font-weight: 800; color: #1A1A23;
+}
+.stat-label {
+  font-size: 22rpx; color: #6B6B76;
+  margin-top: 4rpx;
+}
+
+/* 学员列表 */
+.student-list {
+  margin-top: 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+.student-row {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 20rpx 24rpx;
+  align-items: center;
+}
+.stu-avatar {
+  width: 64rpx; height: 64rpx;
+  border-radius: 50%;
+  margin-right: 20rpx;
+}
+.stu-name {
+  font-size: 28rpx; font-weight: 600; color: #1A1A23;
+}
+.stu-meta {
+  font-size: 22rpx; color: #6B6B76;
+  margin-top: 2rpx;
+}
+
+.scan-btn {
+  margin-top: 48rpx;
+  height: 96rpx;
+  border-radius: 48rpx;
+  background: #5B57EB;
+  color: #FFFFFF;
+  font-size: 30rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

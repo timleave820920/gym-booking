@@ -1,0 +1,78 @@
+<view class="admin-page">
+  <view class="admin-top flex-between">
+    <view class="flex-row admin-brand">
+      <view class="brand-logo flex-center"></view>
+      <text class="brand-name">训练馆管家</text>
+    </view>
+    <view class="flex-row admin-user">
+      <view class="admin-avatar"></view>
+      <text class="admin-name">管理员</text>
+      <view class="admin-exit" bindtap="exitToStudent"><text>退出</text></view>
+    </view>
+  </view>
+
+    <!-- 后台导航 -->
+  <scroll-view class="admin-nav" scroll-x enable-flex>
+    <view class="nav-inner">
+      <view class="nav-item" data-url="/pages/admin-dashboard/index" bindtap="navTo">数据仪表盘</view>
+      <view class="nav-item nav-active" data-url="/pages/admin-schedule/index" bindtap="navTo">排课管理</view>
+      <view class="nav-item" data-url="/pages/admin-create-course/index" bindtap="navTo">排课配置</view>
+      <view class="nav-item" data-url="/pages/admin-venues/index" bindtap="navTo">场地管理</view>
+      <view class="nav-item" data-url="/pages/admin-students/index" bindtap="navTo">学员管理</view>
+      <view class="nav-item" data-url="/pages/admin-coaches/index" bindtap="navTo">教练管理</view>
+      <view class="nav-item" data-url="/pages/admin-revenue/index" bindtap="navTo">营收统计</view>
+    </view>
+  </scroll-view>
+
+  <view class="admin-content">
+    <view class="flex-between">
+      <text class="page-title">排课管理</text>
+      <view class="flex-row toolbar-actions">
+        <view class="refresh-setting-btn" bindtap="openRefreshSetting">
+          <text class="icon-clock-sm"></text>
+          <text>{{refreshDesc}}</text>
+        </view>
+        <view class="add-btn flex-row" bindtap="createCourse">
+          <text class="icon-plus"></text>
+          <text>配置排课</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 月份 -->
+    <view class="month-bar flex-row">
+      <view class="nav-arrow flex-center" data-page="schedule" bindtap="nav">
+        <text class="arrow arrow-l"></text>
+      </view>
+      <text class="month-txt">2026年8月</text>
+      <view class="nav-arrow flex-center" data-page="schedule" bindtap="nav">
+        <text class="arrow arrow-r"></text>
+      </view>
+    </view>
+
+    <!-- 周视图 -->
+    <view class="week-panel">
+      <view class="week-head flex-row">
+        <view class="time-col-head"></view>
+        <view class="day-head" wx:for="{{weekDays}}" wx:key="*this">
+          <text class="day-week">{{item}}</text>
+          <text class="day-num">{{index + 10}}</text>
+        </view>
+      </view>
+      <view class="week-body">
+        <view class="time-col">
+          <text class="time-item" wx:for="{{times}}" wx:key="*this">{{item}}</text>
+        </view>
+        <view class="event-col">
+          <view class="event-block flex-col" wx:for="{{events}}" wx:key="id"
+                style="left: {{index % 6 * 150}}rpx; top: {{(index % 2) * 110}}rpx; background: {{item.color}};">
+            <text class="ev-name" style="color: {{item.text}};">{{item.name}}</text>
+            <text class="ev-meta" style="color: {{item.text}};">{{item.meta}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="bottom-space"></view>
+  </view>
+</view>

@@ -1,0 +1,179 @@
+.admin-page { min-height: 100vh; background: #F9F4DF; }
+.admin-top {
+  background: #1A1A23;
+  padding: 24rpx 40rpx calc(24rpx + env(safe-area-inset-top));
+  align-items: center;
+}
+.admin-brand { align-items: center; }
+.brand-logo {
+  width: 64rpx; height: 64rpx;
+  border-radius: 20rpx;
+  background: #B9FF66;
+  margin-right: 20rpx;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none"><path d="M8.5 8.5V23.5M5 11.5V20.5M23.5 8.5V23.5M27 11.5V20.5M8.5 16H23.5" stroke="%231A1A23" stroke-width="2.4" stroke-linecap="round"/></svg>');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 40rpx;
+}
+.brand-name { color: #FFFFFF; font-size: 32rpx; font-weight: 800; }
+.admin-user { align-items: center; }
+.admin-avatar {
+  width: 64rpx; height: 64rpx;
+  border-radius: 50%;
+  background: #5B57EB;
+  margin-right: 16rpx;
+}
+.admin-name { color: #FFFFFF; font-size: 26rpx; font-weight: 600; }
+
+.admin-content { padding: 32rpx 40rpx; }
+.page-title { font-size: 40rpx; font-weight: 700; color: #1A1A23; }
+.add-btn {
+  background: #B9FF66;
+  border-radius: 40rpx;
+  padding: 16rpx 32rpx;
+  font-size: 26rpx; font-weight: 700; color: #1A1A23;
+  align-items: center;
+}
+.toolbar-actions {
+  align-items: center;
+  gap: 20rpx;
+}
+.refresh-setting-btn {
+  background: #FFFFFF;
+  border-radius: 40rpx;
+  padding: 16rpx 28rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #5B57EB;
+  align-items: center;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.icon-clock-sm {
+  width: 28rpx; height: 28rpx;
+  margin-right: 8rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="%235B57EB" stroke-width="2"/><path d="M12 7V12L15 14" stroke="%235B57EB" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
+}
+.icon-plus {
+  width: 32rpx; height: 32rpx;
+  margin-right: 8rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M12 5V19M5 12H19" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
+}
+
+/* 月份 */
+.month-bar {
+  margin-top: 32rpx;
+  align-items: center;
+  justify-content: center;
+  gap: 32rpx;
+}
+.nav-arrow {
+  width: 64rpx; height: 64rpx;
+  border-radius: 50%;
+  background: #FFFFFF;
+}
+.arrow {
+  width: 28rpx; height: 28rpx;
+  border: solid #1A1A23;
+  border-width: 0 4rpx 4rpx 0;
+}
+.arrow-l { transform: rotate(135deg); margin-left: 8rpx; }
+.arrow-r { transform: rotate(-45deg); margin-left: -8rpx; }
+.month-txt { font-size: 32rpx; font-weight: 700; color: #1A1A23; }
+
+/* 周视图 */
+.week-panel {
+  margin-top: 24rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  overflow: hidden;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.week-head {
+  border-bottom: 2rpx solid #F0EDDF;
+}
+.time-col-head {
+  width: 130rpx;
+  flex-shrink: 0;
+}
+.day-head {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16rpx 0;
+}
+.day-week { font-size: 22rpx; color: #6B6B76; }
+.day-num { font-size: 32rpx; font-weight: 700; color: #1A1A23; margin-top: 4rpx; }
+
+.week-body {
+  position: relative;
+  height: 380rpx;
+}
+.time-col {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 130rpx;
+  padding-top: 16rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 56rpx;
+  align-items: center;
+}
+.time-item { font-size: 24rpx; color: #6B6B76; }
+.event-col {
+  position: absolute;
+  left: 130rpx; top: 0; right: 0; bottom: 0;
+}
+.event-block {
+  position: absolute;
+  width: 150rpx;
+  border-radius: 20rpx;
+  padding: 16rpx;
+}
+.ev-name {
+  font-size: 26rpx; font-weight: 700;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ev-meta {
+  font-size: 22rpx;
+  margin-top: 4rpx;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.bottom-space { height: 80rpx; }
+
+/* 退出按钮 */
+.admin-exit {
+  margin-left: 20rpx;
+  padding: 8rpx 24rpx;
+  border-radius: 28rpx;
+  background: #B9FF66;
+  color: #1A1A23;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+/* 后台横向导航条 */
+.admin-nav {
+  background: #1A1A23;
+  white-space: nowrap;
+  width: 100%;
+}
+.nav-inner {
+  display: flex;
+  padding: 16rpx 24rpx 24rpx;
+  gap: 12rpx;
+}
+.nav-item {
+  flex-shrink: 0;
+  padding: 14rpx 32rpx;
+  border-radius: 36rpx;
+  background: rgba(255,255,255,0.08);
+  color: #B0AFA8;
+  font-size: 26rpx;
+}
+.nav-active {
+  background: #B9FF66;
+  color: #1A1A23;
+  font-weight: 700;
+}

@@ -1,0 +1,54 @@
+<view class="admin-page">
+  <view class="admin-top flex-between">
+    <view class="flex-row admin-brand">
+      <view class="brand-logo flex-center"></view>
+      <text class="brand-name">训练馆管家</text>
+    </view>
+    <view class="flex-row admin-user">
+      <view class="admin-avatar"></view>
+      <text class="admin-name">管理员</text>
+      <view class="admin-exit" bindtap="exitToStudent"><text>退出</text></view>
+    </view>
+  </view>
+
+    <!-- 后台导航 -->
+  <scroll-view class="admin-nav" scroll-x enable-flex>
+    <view class="nav-inner">
+      <view class="nav-item" data-url="/pages/admin-dashboard/index" bindtap="navTo">数据仪表盘</view>
+      <view class="nav-item" data-url="/pages/admin-schedule/index" bindtap="navTo">排课管理</view>
+      <view class="nav-item" data-url="/pages/admin-create-course/index" bindtap="navTo">排课配置</view>
+      <view class="nav-item nav-active" data-url="/pages/admin-venues/index" bindtap="navTo">场地管理</view>
+      <view class="nav-item" data-url="/pages/admin-students/index" bindtap="navTo">学员管理</view>
+      <view class="nav-item" data-url="/pages/admin-coaches/index" bindtap="navTo">教练管理</view>
+      <view class="nav-item" data-url="/pages/admin-revenue/index" bindtap="navTo">营收统计</view>
+    </view>
+  </scroll-view>
+
+  <view class="admin-content">
+    <view class="flex-between">
+      <view class="flex-row">
+        <text class="page-title">场地管理</text>
+      </view>
+      <view class="add-btn flex-row" bindtap="add">
+        <text class="icon-plus"></text>
+        <text>新增场地</text>
+      </view>
+    </view>
+
+    <view class="venue-grid">
+      <view class="venue-card" wx:for="{{venues}}" wx:key="id">
+        <image class="venue-img" src="{{item.img}}" mode="aspectFill"></image>
+        <view class="venue-body">
+          <text class="venue-name">{{item.name}}</text>
+          <view class="flex-between venue-meta">
+            <text class="meta-txt">容量 {{item.capacity}} 人</text>
+            <text class="meta-stat">今日 {{item.today}} 节排课</text>
+          </view>
+          <view class="venue-btn" bindtap="manage">管理场地</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="bottom-space"></view>
+  </view>
+</view>

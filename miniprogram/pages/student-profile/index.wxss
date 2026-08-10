@@ -1,0 +1,125 @@
+.page {
+  min-height: 100vh;
+  background: #F9F4DF;
+  padding-bottom: 220rpx;
+}
+.pt-safe {
+  padding-top: calc(88rpx + env(safe-area-inset-top));
+}
+.head-row { align-items: center; }
+.page-title {
+  font-size: 48rpx; font-weight: 800; color: #1A1A23;
+}
+.gear-btn {
+  width: 72rpx; height: 72rpx;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.icon-gear {
+  width: 36rpx; height: 36rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="%231A1A23" stroke-width="2"/><path d="M19.4 15C19.47 14.7 19.5 14.36 19.5 14C19.5 13.64 19.47 13.3 19.4 13L21 11.5L19.5 8.5L17.3 9.2C16.68 8.72 16 8.33 15.25 8.1L15 5.8H12L11.75 8.1C11 8.33 10.32 8.72 9.7 9.2L7.5 8.5L6 11.5L7.6 13C7.53 13.3 7.5 13.64 7.5 14C7.5 14.36 7.53 14.7 7.6 15L6 16.5L7.5 19.5L9.7 18.8C10.32 19.28 11 19.67 11.75 19.9L12 22.2H15L15.25 19.9C16 19.67 16.68 19.28 17.3 18.8L19.5 19.5L21 16.5L19.4 15Z" stroke="%231A1A23" stroke-width="1.8" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+}
+
+/* 用户卡 */
+.user-card {
+  margin-top: 32rpx;
+  background: linear-gradient(120deg, #B9FF66 0%, #FFCB47 100%);
+  border-radius: 40rpx;
+  padding: 32rpx;
+  align-items: center;
+}
+.user-avatar {
+  width: 112rpx; height: 112rpx;
+  border-radius: 50%;
+  border: 4rpx solid #1A1A23;
+  margin-right: 28rpx;
+}
+.user-name {
+  font-size: 36rpx; font-weight: 800; color: #1A1A23;
+}
+.user-desc {
+  font-size: 24rpx; color: #1A1A23;
+  opacity: 0.7;
+  margin-top: 8rpx;
+}
+.icon-chevron {
+  width: 36rpx; height: 36rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke="%231A1A23" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+}
+
+/* 菜单组 */
+.menu-group {
+  margin-top: 32rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 8rpx 0;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.04);
+}
+.menu-row {
+  height: 104rpx;
+  padding: 0 28rpx;
+  align-items: center;
+  border-bottom: 2rpx solid #F5F2E6;
+}
+.menu-group .menu-row:last-child {
+  border-bottom: none;
+}
+.menu-icon {
+  width: 40rpx; height: 40rpx;
+  margin-right: 24rpx;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+.icon-check {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M5 13L9 17L19 7" stroke="%231A1A23" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+}
+.icon-trophy {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M8 21H16M12 17V21M7 4H17V9C17 11.76 14.76 14 12 14C9.24 14 7 11.76 7 9V4ZM7 6H4C4 9.5 6.5 12 10 12M17 6H20C20 9.5 17.5 12 14 12" stroke="%231A1A23" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+}
+.icon-wallet {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" stroke="%231A1A23" stroke-width="2"/><path d="M3 10H21" stroke="%231A1A23" stroke-width="2"/><circle cx="16.5" cy="15.5" r="1.5" fill="%231A1A23"/></svg>');
+}
+.icon-bell {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M6 8C6 4.69 8.69 2 12 2C15.31 2 18 4.69 18 8V11C18 14.5 19.5 16 19.5 16H4.5C4.5 16 6 14.5 6 11V8Z" stroke="%231A1A23" stroke-width="2"/><path d="M10.3 20C10.73 20.61 11.31 21 12 21C12.69 21 13.27 20.61 13.7 20" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>');
+}
+.icon-edit {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M4 20H8L19 9C19.55 8.45 20 7.66 20 6.83C20 5.51 18.93 4.44 17.61 4.44C16.78 4.44 15.99 4.89 15.44 5.44L4 16.88V20Z" stroke="%231A1A23" stroke-width="2" stroke-linejoin="round"/></svg>');
+}
+.icon-coach {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M5 8V16M3 10V14M19 8V16M21 10V14M5 12H19" stroke="%235B57EB" stroke-width="2" stroke-linecap="round"/></svg>');
+}
+.icon-admin {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M4 20V10M10 20V4M16 20V13M21 20H3" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>');
+}
+
+/* 测试入口 */
+.test-section {
+  margin-top: 40rpx;
+}
+.test-title {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #B0AFA8;
+  margin-left: 8rpx;
+  margin-bottom: 16rpx;
+  display: block;
+}
+.test-hint {
+  font-size: 20rpx;
+  color: #B0AFA8;
+  margin-top: 12rpx;
+  margin-left: 8rpx;
+  display: block;
+}
+.menu-name {
+  flex: 1;
+  font-size: 28rpx; font-weight: 500; color: #1A1A23;
+}
+.icon-chevron-sm {
+  width: 32rpx; height: 32rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke="%236B6B76" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+}
+
+.list-spacer { height: 60rpx; }

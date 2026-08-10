@@ -1,0 +1,51 @@
+<view class="page" wx:if="{{course}}">
+  <view class="page-pad pt-16">
+    <!-- 课程信息卡 -->
+    <view class="course-card flex-row">
+      <image class="course-cover" src="{{course.img}}" mode="aspectFill"></image>
+      <view class="flex-col flex-1 course-info">
+        <text class="course-name">{{course.name}}</text>
+        <text class="course-meta">{{course.time}} · {{course.venue}} · 教练{{course.coach}}</text>
+        <text class="course-price">¥{{course.price}}</text>
+      </view>
+    </view>
+
+    <!-- 金额卡 -->
+    <view class="amount-card flex-col">
+      <text class="amount-label">需支付金额（元）</text>
+      <text class="amount-value">¥ {{course.price}}.00</text>
+    </view>
+
+    <!-- 支付方式 -->
+    <view class="section-title">选择支付方式</view>
+    <view class="method-list">
+      <view class="method-row flex-between {{item.selected ? 'method-selected' : ''}}"
+            wx:for="{{payMethods}}" wx:key="id"
+            data-id="{{item.id}}" bindtap="selectMethod">
+        <view class="flex-row method-left">
+          <view class="method-icon flex-center {{item.id === 1 ? 'icon-wallet' : 'icon-card'}}"></view>
+          <view class="flex-col">
+            <text class="method-name">{{item.name}}</text>
+            <text class="method-desc">{{item.desc}}</text>
+          </view>
+        </view>
+        <view class="radio {{item.selected ? 'radio-on' : ''}}">
+          <view class="radio-dot" wx:if="{{item.selected}}"></view>
+        </view>
+      </view>
+    </view>
+
+    <view class="spacer"></view>
+  </view>
+
+  <!-- 底部 CTA -->
+  <view class="cta-bar flex-between">
+    <view class="flex-col">
+      <text class="cta-price">¥ {{course.price}}.00</text>
+      <text class="cta-sub">含课程费用</text>
+    </view>
+    <view class="pay-btn" bindtap="pay">
+      <text>确认支付</text>
+    </view>
+  </view>
+</view>

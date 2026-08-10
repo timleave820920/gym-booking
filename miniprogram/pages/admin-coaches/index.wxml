@@ -1,0 +1,56 @@
+<view class="admin-page">
+  <view class="admin-top flex-between">
+    <view class="flex-row admin-brand">
+      <view class="brand-logo flex-center"></view>
+      <text class="brand-name">训练馆管家</text>
+    </view>
+    <view class="flex-row admin-user">
+      <view class="admin-avatar"></view>
+      <text class="admin-name">管理员</text>
+      <view class="admin-exit" bindtap="exitToStudent"><text>退出</text></view>
+    </view>
+  </view>
+
+    <!-- 后台导航 -->
+  <scroll-view class="admin-nav" scroll-x enable-flex>
+    <view class="nav-inner">
+      <view class="nav-item" data-url="/pages/admin-dashboard/index" bindtap="navTo">数据仪表盘</view>
+      <view class="nav-item" data-url="/pages/admin-schedule/index" bindtap="navTo">排课管理</view>
+      <view class="nav-item" data-url="/pages/admin-create-course/index" bindtap="navTo">排课配置</view>
+      <view class="nav-item" data-url="/pages/admin-venues/index" bindtap="navTo">场地管理</view>
+      <view class="nav-item" data-url="/pages/admin-students/index" bindtap="navTo">学员管理</view>
+      <view class="nav-item nav-active" data-url="/pages/admin-coaches/index" bindtap="navTo">教练管理</view>
+      <view class="nav-item" data-url="/pages/admin-revenue/index" bindtap="navTo">营收统计</view>
+    </view>
+  </scroll-view>
+
+  <view class="admin-content">
+    <view class="flex-between">
+      <text class="page-title">教练管理</text>
+      <view class="add-btn flex-row" bindtap="add">
+        <text class="icon-plus"></text>
+        <text>添加教练</text>
+      </view>
+    </view>
+
+    <!-- 搜索 -->
+    <view class="search-bar flex-row">
+      <text class="icon-search"></text>
+      <text class="search-ph">搜索教练姓名 / 专长</text>
+    </view>
+
+    <!-- 教练卡片 -->
+    <view class="coach-grid">
+      <view class="coach-card flex-row" wx:for="{{coaches}}" wx:key="id">
+        <image class="coach-avatar" src="{{item.avatar}}" mode="aspectFill"></image>
+        <view class="flex-col flex-1">
+          <text class="coach-name">{{item.name}}</text>
+          <text class="coach-skill">{{item.skill}}</text>
+          <text class="coach-stat">{{item.stat}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="bottom-space"></view>
+  </view>
+</view>

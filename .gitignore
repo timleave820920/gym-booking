@@ -1,0 +1,17 @@
+# 项目数据与本地缓存（不入库）
+.workbuddy/
+
+# 预览二维码（临时产物）
+preview-qrcode.*
+
+# 微信开发者工具本地配置（含用户级信息）
+project.private.config.json
+minitest/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+*.log
+
+# Node 依赖（如后续引入 npm 构建）
+node_modules/

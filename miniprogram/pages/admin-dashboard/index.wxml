@@ -1,0 +1,78 @@
+<view class="admin-page">
+  <!-- 顶栏 -->
+  <view class="admin-top flex-between">
+    <view class="flex-row admin-brand">
+      <view class="brand-logo flex-center"></view>
+      <text class="brand-name">训练馆管家</text>
+    </view>
+    <view class="flex-row admin-user">
+      <view class="admin-avatar"></view>
+      <text class="admin-name">管理员</text>
+      <view class="admin-exit" bindtap="exitToStudent"><text>退出</text></view>
+    </view>
+  </view>
+
+  <!-- 内容 -->
+    <!-- 后台导航 -->
+  <scroll-view class="admin-nav" scroll-x enable-flex>
+    <view class="nav-inner">
+      <view class="nav-item nav-active" data-url="/pages/admin-dashboard/index" bindtap="navTo">数据仪表盘</view>
+      <view class="nav-item" data-url="/pages/admin-schedule/index" bindtap="navTo">排课管理</view>
+      <view class="nav-item" data-url="/pages/admin-create-course/index" bindtap="navTo">排课配置</view>
+      <view class="nav-item" data-url="/pages/admin-venues/index" bindtap="navTo">场地管理</view>
+      <view class="nav-item" data-url="/pages/admin-students/index" bindtap="navTo">学员管理</view>
+      <view class="nav-item" data-url="/pages/admin-coaches/index" bindtap="navTo">教练管理</view>
+      <view class="nav-item" data-url="/pages/admin-revenue/index" bindtap="navTo">营收统计</view>
+    </view>
+  </scroll-view>
+
+  <view class="admin-content">
+    <text class="page-title">数据仪表盘</text>
+
+    <!-- 统计卡片 -->
+    <view class="stats-grid">
+      <view class="stat-card flex-row {{item.dark ? 'stat-dark' : ''}}"
+            wx:for="{{stats}}" wx:key="label">
+        <view class="stat-icon flex-center {{'ic-' + item.icon}}"></view>
+        <view class="flex-col flex-1">
+          <text class="stat-value {{item.dark ? 'text-white' : ''}}">{{item.value}}</text>
+          <text class="stat-label">{{item.label}}</text>
+          <text class="stat-trend {{item.dark ? 'text-lime' : 'text-green'}}">{{item.trend}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 营收趋势 -->
+    <view class="panel">
+      <view class="flex-between">
+        <text class="panel-title">营收趋势</text>
+        <view class="seg-mini flex-row">
+          <view class="mini-item mini-on">近7天</view>
+          <view class="mini-item">近30天</view>
+        </view>
+      </view>
+      <view class="chart-area">
+        <view class="bar-line"></view>
+        <view class="bar-line" style="top: 96rpx;"></view>
+        <view class="bar-line" style="top: 192rpx;"></view>
+        <view class="bar-line" style="top: 288rpx;"></view>
+        <view class="chart-svg"></view>
+      </view>
+    </view>
+
+    <!-- 热门课程 -->
+    <view class="panel">
+      <text class="panel-title">热门课程 TOP5</text>
+      <view class="rank-row flex-row" wx:for="{{hotCourses}}" wx:key="rank">
+        <text class="rank-num" style="color: {{item.color}}">{{item.rank}}</text>
+        <text class="rank-name">{{item.name}}</text>
+        <view class="rank-bar">
+          <view class="rank-fill" style="width: {{item.pct}}%; background: {{item.color}};"></view>
+        </view>
+        <text class="rank-pct">{{item.pct}}%</text>
+      </view>
+    </view>
+
+    <view class="bottom-space"></view>
+  </view>
+</view>

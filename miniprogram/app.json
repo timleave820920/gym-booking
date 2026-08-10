@@ -1,0 +1,56 @@
+{
+  "pages": [
+    "pages/student-home/index",
+    "pages/student-courses/index",
+    "pages/student-course-detail/index",
+    "pages/student-pay/index",
+    "pages/student-my-courses/index",
+    "pages/student-checkin/index",
+    "pages/student-achievements/index",
+    "pages/student-profile/index",
+    "pages/coach-schedule/index",
+    "pages/coach-students/index",
+    "pages/coach-scan/index",
+    "pages/admin-dashboard/index",
+    "pages/admin-schedule/index",
+    "pages/admin-venues/index",
+    "pages/admin-students/index",
+    "pages/admin-coaches/index",
+    "pages/admin-revenue/index",
+    "pages/admin-create-course/index"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#F9F4DF",
+    "navigationBarTitleText": "综合训练馆",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F9F4DF",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#6B6B76",
+    "selectedColor": "#1A1A23",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/student-home/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/student-courses/index",
+        "text": "课程"
+      },
+      {
+        "pagePath": "pages/student-my-courses/index",
+        "text": "我的课"
+      },
+      {
+        "pagePath": "pages/student-profile/index",
+        "text": "我的"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

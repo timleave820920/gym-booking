@@ -1,0 +1,7 @@
+# Windows 下统一使用 LF 行尾（提交到仓库保持 LF）
+* text=auto
+*.js text eol=lf
+*.json text eol=lf
+*.wxml text eol=lf
+*.wxss text eol=lf
+*.md text eol=lf

@@ -1,0 +1,164 @@
+.page {
+  min-height: 100vh;
+  background: #F9F4DF;
+  padding-bottom: 200rpx;
+}
+
+/* 大图头部 */
+.hero {
+  position: relative;
+  width: 750rpx;
+  height: 520rpx;
+}
+.hero-img {
+  width: 750rpx;
+  height: 520rpx;
+}
+.hero-nav {
+  position: absolute;
+  top: calc(88rpx + env(safe-area-inset-top));
+  left: 32rpx; right: 32rpx;
+  display: flex;
+  justify-content: space-between;
+}
+.round-btn {
+  width: 72rpx; height: 72rpx;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.9);
+}
+.icon-back {
+  width: 36rpx; height: 36rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9L11 14" stroke="%231A1A23" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+}
+.icon-heart {
+  width: 36rpx; height: 36rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" fill="none"><path d="M9 15.5L7.9 14.5C4.2 11.2 1.5 8.7 1.5 5.6C1.5 3.1 3.4 1.2 5.9 1.2C7.3 1.2 8.6 1.9 9 2.7C9.4 1.9 10.7 1.2 12.1 1.2C14.6 1.2 16.5 3.1 16.5 5.6C16.5 8.7 13.8 11.2 10.1 14.5L9 15.5Z" stroke="%231A1A23" stroke-width="1.8" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+}
+.hero-tag {
+  position: absolute;
+  left: 32rpx; bottom: 28rpx;
+  background: rgba(26,26,35,0.85);
+  color: #FFFFFF;
+  font-size: 24rpx; font-weight: 600;
+  padding: 10rpx 24rpx;
+  border-radius: 26rpx;
+}
+
+/* 内容区 */
+.detail-content {
+  padding: 32rpx 40rpx;
+}
+.course-title {
+  font-size: 44rpx; font-weight: 800; color: #1A1A23;
+  display: block;
+}
+.course-sub {
+  font-size: 26rpx; color: #6B6B76;
+  margin-top: 8rpx; display: block;
+}
+
+.info-card {
+  margin-top: 24rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 28rpx 0;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.info-item {
+  flex: 1;
+  align-items: center;
+}
+.info-value {
+  font-size: 30rpx; font-weight: 700; color: #1A1A23;
+}
+.info-label {
+  font-size: 22rpx; color: #6B6B76;
+  margin-top: 8rpx;
+}
+
+.coach-row {
+  margin-top: 24rpx;
+  align-items: center;
+}
+.coach-avatar {
+  width: 88rpx; height: 88rpx;
+  border-radius: 50%;
+  margin-right: 24rpx;
+}
+.coach-info { justify-content: center; }
+.coach-name {
+  font-size: 28rpx; font-weight: 600; color: #1A1A23;
+}
+.coach-desc {
+  font-size: 24rpx; color: #6B6B76;
+  margin-top: 4rpx;
+}
+.icon-chevron {
+  width: 36rpx; height: 36rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke="%236B6B76" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+}
+
+/* 本场时间 */
+.time-card {
+  margin-top: 24rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 28rpx 32rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+  align-items: center;
+}
+.time-label {
+  font-size: 24rpx; color: #6B6B76;
+}
+.time-value {
+  font-size: 32rpx; font-weight: 700; color: #1A1A23;
+  margin-top: 4rpx;
+}
+
+/* 席位提示 */
+.seat-hint {
+  margin-top: 24rpx;
+  background: #FFF8E6;
+  border-radius: 24rpx;
+  padding: 20rpx 24rpx;
+  align-items: center;
+}
+.hint-dot {
+  width: 20rpx; height: 20rpx;
+  border-radius: 50%;
+  background: #D97706;
+  margin-right: 12rpx;
+}
+.hint-txt {
+  color: #D97706; font-size: 24rpx;
+}
+
+.detail-spacer { height: 40rpx; }
+
+/* 底部 CTA */
+.cta-bar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  background: #FFFFFF;
+  padding: 20rpx 40rpx calc(20rpx + env(safe-area-inset-bottom));
+  box-shadow: 0 -8rpx 32rpx rgba(0,0,0,0.06);
+  align-items: center;
+  z-index: 50;
+}
+.price-value {
+  font-size: 44rpx; font-weight: 800; color: #1A1A23;
+}
+.price-sub {
+  font-size: 22rpx; color: #6B6B76;
+}
+.book-btn {
+  background: #B9FF66;
+  color: #1A1A23;
+  font-size: 32rpx; font-weight: 700;
+  width: 400rpx; height: 104rpx;
+  border-radius: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12rpx 28rpx rgba(185,255,102,0.5);
+}

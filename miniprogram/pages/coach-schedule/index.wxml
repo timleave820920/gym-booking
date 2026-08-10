@@ -1,0 +1,59 @@
+<view class="page">
+  <view class="page-pad pt-safe">
+    <view class="flex-between head-row">
+      <view class="flex-col">
+        <text class="greet-title">{{coach.name}}教练，早上好</text>
+        <text class="greet-sub">今天有 3 节课 · 20 名学员</text>
+      </view>
+      <image class="coach-avatar" src="/images/2_645.png" mode="aspectFill"></image>
+    </view>
+
+    <!-- 今日概览 -->
+    <view class="today-card flex-row" bindtap="goScan">
+      <view class="icon-calendar"></view>
+      <view class="flex-col flex-1">
+        <text class="today-title">8月10日 星期一</text>
+        <text class="today-sub">10:00 第一节课 · 记得提前到场</text>
+      </view>
+      <text class="icon-chevron"></text>
+    </view>
+
+    <!-- 课表列表 -->
+    <view class="schedule-list">
+      <view class="schedule-card flex-row" wx:for="{{schedule}}" wx:key="id"
+            data-id="{{item.id}}" bindtap="goStudents">
+        <view class="flex-col time-box">
+          <text class="time-value">{{item.time}}</text>
+          <text class="time-dur">{{item.duration}}</text>
+        </view>
+        <view class="flex-col flex-1 info-box">
+          <text class="course-name">{{item.name}}</text>
+          <text class="course-meta">{{item.venue}} · 已报名 {{item.enrolled}}/{{item.capacity}}</text>
+        </view>
+        <view class="tag {{item.statusType === 'green' ? 'tag-green' : 'tag-orange'}}">
+          {{item.status}}
+        </view>
+      </view>
+    </view>
+
+    <view class="list-spacer"></view>
+  </view>
+
+  <!-- 教练端 TabBar -->
+  <view class="tabbar-wrap safe-bottom">
+    <view class="tabbar-pill">
+      <view class="tab-item active admin-active">
+        <text class="tab-icon">▦</text>
+        <text>课表</text>
+      </view>
+      <view class="tab-item" bindtap="goStudents" data-id="1">
+        <text class="tab-icon">●</text>
+        <text>学员</text>
+      </view>
+      <view class="tab-item" bindtap="goProfile">
+        <text class="tab-icon">⌂</text>
+        <text>退出</text>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,124 @@
+.admin-page { min-height: 100vh; background: #F9F4DF; }
+.admin-top {
+  background: #1A1A23;
+  padding: 24rpx 40rpx calc(24rpx + env(safe-area-inset-top));
+  align-items: center;
+}
+.admin-brand { align-items: center; }
+.brand-logo {
+  width: 64rpx; height: 64rpx;
+  border-radius: 20rpx;
+  background: #B9FF66;
+  margin-right: 20rpx;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none"><path d="M8.5 8.5V23.5M5 11.5V20.5M23.5 8.5V23.5M27 11.5V20.5M8.5 16H23.5" stroke="%231A1A23" stroke-width="2.4" stroke-linecap="round"/></svg>');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 40rpx;
+}
+.brand-name { color: #FFFFFF; font-size: 32rpx; font-weight: 800; }
+.admin-user { align-items: center; }
+.admin-avatar {
+  width: 64rpx; height: 64rpx;
+  border-radius: 50%;
+  background: #5B57EB;
+  margin-right: 16rpx;
+}
+.admin-name { color: #FFFFFF; font-size: 26rpx; font-weight: 600; }
+
+.admin-content { padding: 32rpx 40rpx; }
+.page-title { font-size: 40rpx; font-weight: 700; color: #1A1A23; }
+.add-btn {
+  background: #B9FF66;
+  border-radius: 40rpx;
+  padding: 16rpx 32rpx;
+  font-size: 26rpx; font-weight: 700; color: #1A1A23;
+  align-items: center;
+}
+.icon-plus {
+  width: 32rpx; height: 32rpx;
+  margin-right: 8rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M12 5V19M5 12H19" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
+}
+
+/* 场地网格 */
+.venue-grid {
+  margin-top: 32rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24rpx;
+}
+.venue-card {
+  width: calc(50% - 12rpx);
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  overflow: hidden;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.venue-img {
+  width: 100%;
+  height: 260rpx;
+}
+.venue-body {
+  padding: 24rpx;
+}
+.venue-name {
+  font-size: 30rpx; font-weight: 700; color: #1A1A23;
+  display: block;
+}
+.venue-meta {
+  margin-top: 16rpx;
+}
+.meta-txt {
+  font-size: 26rpx; color: #6B6B76;
+}
+.meta-stat {
+  font-size: 26rpx; font-weight: 600; color: #3D9970;
+}
+.venue-btn {
+  margin-top: 20rpx;
+  height: 72rpx;
+  border-radius: 36rpx;
+  border: 2rpx solid #1A1A23;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx; font-weight: 600; color: #1A1A23;
+}
+
+.bottom-space { height: 80rpx; }
+
+/* 退出按钮 */
+.admin-exit {
+  margin-left: 20rpx;
+  padding: 8rpx 24rpx;
+  border-radius: 28rpx;
+  background: #B9FF66;
+  color: #1A1A23;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+/* 后台横向导航条 */
+.admin-nav {
+  background: #1A1A23;
+  white-space: nowrap;
+  width: 100%;
+}
+.nav-inner {
+  display: flex;
+  padding: 16rpx 24rpx 24rpx;
+  gap: 12rpx;
+}
+.nav-item {
+  flex-shrink: 0;
+  padding: 14rpx 32rpx;
+  border-radius: 36rpx;
+  background: rgba(255,255,255,0.08);
+  color: #B0AFA8;
+  font-size: 26rpx;
+}
+.nav-active {
+  background: #B9FF66;
+  color: #1A1A23;
+  font-weight: 700;
+}

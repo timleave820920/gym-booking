@@ -1,0 +1,69 @@
+<view class="admin-page">
+  <view class="admin-top flex-between">
+    <view class="flex-row admin-brand">
+      <view class="brand-logo flex-center"></view>
+      <text class="brand-name">训练馆管家</text>
+    </view>
+    <view class="flex-row admin-user">
+      <view class="admin-avatar"></view>
+      <text class="admin-name">管理员</text>
+      <view class="admin-exit" bindtap="exitToStudent"><text>退出</text></view>
+    </view>
+  </view>
+
+    <!-- 后台导航 -->
+  <scroll-view class="admin-nav" scroll-x enable-flex>
+    <view class="nav-inner">
+      <view class="nav-item" data-url="/pages/admin-dashboard/index" bindtap="navTo">数据仪表盘</view>
+      <view class="nav-item" data-url="/pages/admin-schedule/index" bindtap="navTo">排课管理</view>
+      <view class="nav-item" data-url="/pages/admin-create-course/index" bindtap="navTo">排课配置</view>
+      <view class="nav-item" data-url="/pages/admin-venues/index" bindtap="navTo">场地管理</view>
+      <view class="nav-item nav-active" data-url="/pages/admin-students/index" bindtap="navTo">学员管理</view>
+      <view class="nav-item" data-url="/pages/admin-coaches/index" bindtap="navTo">教练管理</view>
+      <view class="nav-item" data-url="/pages/admin-revenue/index" bindtap="navTo">营收统计</view>
+    </view>
+  </scroll-view>
+
+  <view class="admin-content">
+    <view class="flex-between">
+      <text class="page-title">学员管理</text>
+      <view class="add-btn flex-row" bindtap="add">
+        <text class="icon-plus"></text>
+        <text>添加学员</text>
+      </view>
+    </view>
+
+    <!-- 搜索 -->
+    <view class="search-bar flex-row">
+      <text class="icon-search"></text>
+      <text class="search-ph">搜索学员姓名 / 手机号</text>
+      <view class="filter-tag">全部学员</view>
+    </view>
+
+    <!-- 表格 -->
+    <view class="table">
+      <view class="table-head flex-row">
+        <text class="th th-name">学员</text>
+        <text class="th th-status">学员状态</text>
+        <text class="th th-num">本月上课</text>
+        <text class="th th-op">操作</text>
+      </view>
+      <view class="table-row flex-row" wx:for="{{students}}" wx:key="id">
+        <view class="td td-name flex-row">
+          <image class="td-avatar" src="{{item.avatar}}" mode="aspectFill"></image>
+          <view class="flex-col">
+            <text class="td-title">{{item.name}}</text>
+            <text class="td-sub">{{item.phone}}</text>
+          </view>
+        </view>
+        <view class="td td-status">
+          <view class="tag tag-green">{{item.status}}</view>
+        </view>
+        <view class="td td-num">{{item.classes}} 节</view>
+        <view class="td td-op" bindtap="edit">编辑</view>
+      </view>
+    </view>
+
+    <view class="bottom-space"></view>
+  </view>
+</view>

@@ -1,0 +1,137 @@
+.page {
+  min-height: 100vh;
+  background: #F9F4DF;
+  padding-bottom: 220rpx;
+}
+.pt-safe {
+  padding-top: calc(88rpx + env(safe-area-inset-top));
+}
+
+.greet-title {
+  font-size: 44rpx;
+  font-weight: 800;
+  color: #1A1A23;
+}
+.greet-date {
+  font-size: 26rpx;
+  color: #6B6B76;
+  margin-top: 8rpx;
+  display: block;
+}
+.bell-btn {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.06);
+}
+.icon-bell {
+  width: 40rpx; height: 40rpx;
+  border-radius: 12rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M6 8C6 4.69 8.69 2 12 2C15.31 2 18 4.69 18 8V11C18 14.5 19.5 16 19.5 16H4.5C4.5 16 6 14.5 6 11V8Z" stroke="%231A1A23" stroke-width="2"/><path d="M10.3 20C10.73 20.61 11.31 21 12 21C12.69 21 13.27 20.61 13.7 20" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
+}
+
+/* 搜索栏 */
+.search-bar {
+  margin-top: 24rpx;
+  height: 88rpx;
+  background: #FFFFFF;
+  border-radius: 44rpx;
+  padding: 0 28rpx;
+  align-items: center;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.icon-search {
+  width: 36rpx; height: 36rpx; margin-right: 16rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="%236B6B76" stroke-width="2"/><path d="M16.5 16.5L21 21" stroke="%236B6B76" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
+}
+.search-ph {
+  color: #B0AFA8;
+  font-size: 28rpx;
+}
+
+/* Banner */
+.banner {
+  position: relative;
+  margin-top: 32rpx;
+  height: 300rpx;
+  border-radius: 40rpx;
+  overflow: hidden;
+  background: linear-gradient(120deg, #FF6B35 0%, #FFCB47 100%);
+}
+.banner-tag {
+  position: absolute; top: 36rpx; left: 40rpx;
+  color: #FFFFFF; font-size: 24rpx; font-weight: 700;
+  letter-spacing: 4rpx;
+}
+.banner-title {
+  position: absolute; top: 88rpx; left: 40rpx;
+  color: #1A1A23; font-size: 56rpx; font-weight: 900;
+}
+.banner-sub {
+  position: absolute; top: 164rpx; left: 40rpx;
+  color: #FFFFFF; font-size: 26rpx;
+}
+.banner-btn {
+  position: absolute; top: 216rpx; left: 40rpx;
+  background: #1A1A23; color: #FFFFFF;
+  font-size: 26rpx; font-weight: 600;
+  padding: 12rpx 32rpx; border-radius: 30rpx;
+}
+.banner-img {
+  position: absolute; right: 0; top: 0;
+  width: 300rpx; height: 300rpx;
+}
+.banner-deco {
+  position: absolute; right: 80rpx; top: -40rpx;
+  width: 180rpx; height: 180rpx; border-radius: 50%;
+  background: linear-gradient(120deg, #B9FF66 0%, rgba(91,87,235,0.8) 100%);
+}
+
+/* 热门课程 */
+.hot-head { margin-top: 40rpx; }
+.section-title {
+  font-size: 36rpx; font-weight: 700; color: #1A1A23;
+}
+.more { align-items: center; }
+.more-txt { color: #6B6B76; font-size: 26rpx; margin-right: 4rpx; }
+.icon-chevron {
+  width: 28rpx; height: 28rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke="%236B6B76" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+}
+
+.hot-list { margin-top: 24rpx; display: flex; flex-direction: column; gap: 28rpx; }
+.course-card {
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 20rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.course-cover {
+  width: 176rpx; height: 176rpx;
+  border-radius: 24rpx;
+  margin-right: 24rpx;
+  flex-shrink: 0;
+}
+.course-info { justify-content: center; }
+.course-name {
+  font-size: 30rpx; font-weight: 700; color: #1A1A23;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.course-meta { margin-top: 12rpx; align-items: center; }
+.icon-clock {
+  width: 26rpx; height: 26rpx; margin-right: 8rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="%236B6B76" stroke-width="2"/><path d="M12 7V12L15 14" stroke="%236B6B76" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
+}
+.meta-txt { color: #6B6B76; font-size: 24rpx; }
+.coach-row { margin-top: 16rpx; }
+.coach-name { color: #6B6B76; font-size: 24rpx; }
+.book-btn {
+  background: #B9FF66;
+  color: #1A1A23;
+  font-size: 24rpx; font-weight: 700;
+  padding: 10rpx 24rpx;
+  border-radius: 26rpx;
+}
+
+.list-spacer { height: 60rpx; }

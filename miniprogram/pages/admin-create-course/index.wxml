@@ -1,0 +1,132 @@
+<view class="admin-page">
+  <!-- 顶栏 -->
+  <view class="admin-top flex-between">
+    <view class="flex-row admin-brand">
+      <view class="brand-logo flex-center"></view>
+      <text class="brand-name">训练馆管家</text>
+    </view>
+    <view class="flex-row admin-user">
+      <view class="admin-avatar"></view>
+      <text class="admin-name">管理员</text>
+      <view class="admin-exit" bindtap="exitToStudent"><text>退出</text></view>
+    </view>
+  </view>
+
+    <!-- 后台导航 -->
+  <scroll-view class="admin-nav" scroll-x enable-flex>
+    <view class="nav-inner">
+      <view class="nav-item" data-url="/pages/admin-dashboard/index" bindtap="navTo">数据仪表盘</view>
+      <view class="nav-item" data-url="/pages/admin-schedule/index" bindtap="navTo">排课管理</view>
+      <view class="nav-item nav-active" data-url="/pages/admin-create-course/index" bindtap="navTo">排课配置</view>
+      <view class="nav-item" data-url="/pages/admin-venues/index" bindtap="navTo">场地管理</view>
+      <view class="nav-item" data-url="/pages/admin-students/index" bindtap="navTo">学员管理</view>
+      <view class="nav-item" data-url="/pages/admin-coaches/index" bindtap="navTo">教练管理</view>
+      <view class="nav-item" data-url="/pages/admin-revenue/index" bindtap="navTo">营收统计</view>
+    </view>
+  </scroll-view>
+
+  <view class="admin-content">
+    <text class="page-title">排课配置</text>
+
+    <!-- 表单卡片 -->
+    <view class="form-card">
+      <text class="form-title">配置未来课程</text>
+
+      <!-- 课程类型 -->
+      <view class="form-row flex-row">
+        <text class="form-label">课程类型</text>
+        <view class="flex-row option-row">
+          <view class="option-chip {{selectedType === index ? 'chip-on' : ''}}"
+                wx:for="{{types}}" wx:key="*this"
+                data-idx="{{index}}" bindtap="pickType">{{item}}</view>
+        </view>
+      </view>
+
+      <!-- 教练 -->
+      <view class="form-row flex-row">
+        <text class="form-label">授课教练</text>
+        <view class="flex-row option-row">
+          <view class="option-chip {{selectedCoach === index ? 'chip-on' : ''}}"
+                wx:for="{{coaches}}" wx:key="*this"
+                data-idx="{{index}}" bindtap="pickCoach">{{item}}</view>
+        </view>
+      </view>
+
+      <!-- 日期 -->
+      <view class="form-row flex-col">
+        <text class="form-label">开课日期</text>
+        <view class="date-row">
+          <view class="date-chip {{selectedDate === index ? 'date-on' : ''}}"
+                wx:for="{{dates}}" wx:key="full"
+                data-idx="{{index}}" bindtap="pickDate">
+            <text class="date-label">{{item.label}}</text>
+            <text class="date-sub">{{item.full}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 时段 -->
+      <view class="form-row flex-row">
+        <text class="form-label">课程时段</text>
+        <view class="flex-row time-row">
+          <picker mode="time" value="{{startTime}}" bindchange="onStartTime">
+            <view class="time-input">{{startTime}}</view>
+          </picker>
+          <text class="time-sep">至</text>
+          <picker mode="time" value="{{endTime}}" bindchange="onEndTime">
+            <view class="time-input">{{endTime}}</view>
+          </picker>
+        </view>
+      </view>
+
+      <!-- 场地 / 容量 -->
+      <view class="form-row flex-row">
+        <text class="form-label">场地 / 容量</text>
+        <view class="flex-row option-row">
+          <view class="option-chip {{selectedVenue === index ? 'chip-on' : ''}}"
+                wx:for="{{venues}}" wx:key="*this"
+                data-idx="{{index}}" bindtap="pickVenue">{{item}}</view>
+        </view>
+        <view class="cap-input">
+          <input type="number" value="{{capacity}}" bindinput="onCapacity" class="cap-inner" />
+          <text class="cap-unit">人</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 右侧区：预览 + 发布 -->
+    <view class="side-row">
+      <!-- 本周课表预览 -->
+      <view class="preview-card">
+        <text class="panel-title">本周课表预览</text>
+        <view class="preview-item" wx:for="{{preview}}" wx:key="name"
+              style="background: {{item.color}};">
+          <text class="preview-day" style="color: {{item.text}};">{{item.day}}</text>
+          <text class="preview-name">{{item.name}}</text>
+        </view>
+      </view>
+
+      <!-- 发布卡 -->
+      <view class="publish-card">
+        <text class="pub-title">发布到云端</text>
+        <text class="pub-sub">发布后，学员端与教练端将同步更新为最新课表</text>
+        <view class="pub-btn" bindtap="publish">
+          <view class="pub-check"></view>
+          <text>发布课表</text>
+        </view>
+
+        <!-- 刷新设置 -->
+        <view class="refresh-row flex-row">
+          <view class="icon-refresh"></view>
+          <text class="refresh-txt">{{refreshDesc}}</text>
+          <text class="refresh-edit" bindtap="openRefreshSetting">设置</text>
+        </view>
+        <picker mode="time" value="{{refreshTime}}" bindchange="onRefreshTime">
+          <view class="refresh-time-btn">修改刷新时间</view>
+        </picker>
+      </view>
+    </view>
+
+    <view class="bottom-space"></view>
+  </view>
+</view>

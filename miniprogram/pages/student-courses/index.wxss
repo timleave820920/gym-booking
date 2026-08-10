@@ -1,0 +1,104 @@
+.page {
+  min-height: 100vh;
+  background: #F9F4DF;
+  padding-bottom: 220rpx;
+}
+.pt-safe {
+  padding-top: calc(88rpx + env(safe-area-inset-top));
+}
+.head-row { align-items: center; }
+.page-title {
+  font-size: 48rpx; font-weight: 800; color: #1A1A23;
+}
+.filter-btn {
+  width: 72rpx; height: 72rpx;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.icon-filter {
+  width: 36rpx; height: 36rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" fill="none"><path d="M2 5H16M5 9H13M8 13H10" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
+}
+
+/* 日期选择条 */
+.date-bar {
+  margin-top: 32rpx;
+  gap: 12rpx;
+}
+.date-item {
+  flex: 1;
+  height: 128rpx;
+  border-radius: 24rpx;
+  background: #FFFFFF;
+  align-items: center;
+  justify-content: center;
+}
+.date-active {
+  background: #1A1A23;
+}
+.date-week {
+  font-size: 22rpx; color: #6B6B76;
+}
+.week-active { color: #B9FF66; }
+.date-num {
+  font-size: 36rpx; font-weight: 700; color: #1A1A23;
+  margin-top: 4rpx;
+}
+.num-active { color: #FFFFFF; font-weight: 800; }
+
+/* 课程列表 */
+.course-list { margin-top: 32rpx; display: flex; flex-direction: column; gap: 28rpx; }
+.course-card {
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 20rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.course-cover {
+  width: 176rpx; height: 176rpx;
+  border-radius: 24rpx;
+  margin-right: 24rpx;
+  flex-shrink: 0;
+}
+.course-info { justify-content: center; }
+.course-name {
+  font-size: 30rpx; font-weight: 700; color: #1A1A23;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.course-meta { margin-top: 12rpx; align-items: center; }
+.icon-clock {
+  width: 26rpx; height: 26rpx; margin-right: 8rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="%236B6B76" stroke-width="2"/><path d="M12 7V12L15 14" stroke="%236B6B76" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
+}
+.meta-txt { color: #6B6B76; font-size: 24rpx; }
+.coach-row { margin-top: 16rpx; }
+.coach-name {
+  color: #6B6B76; font-size: 24rpx;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.book-btn {
+  background: #B9FF66;
+  color: #1A1A23;
+  font-size: 24rpx; font-weight: 700;
+  padding: 10rpx 24rpx;
+  border-radius: 26rpx;
+  flex-shrink: 0;
+}
+
+/* 空状态 */
+.empty-state {
+  align-items: center;
+  padding: 120rpx 0;
+}
+.empty-icon {
+  font-size: 96rpx; color: #D9D4C0;
+}
+.empty-txt {
+  margin-top: 24rpx; color: #6B6B76; font-size: 30rpx;
+}
+.empty-sub {
+  margin-top: 8rpx; color: #B0AFA8; font-size: 24rpx;
+}
+
+.list-spacer { height: 60rpx; }

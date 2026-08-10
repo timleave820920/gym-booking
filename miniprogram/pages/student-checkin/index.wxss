@@ -1,0 +1,83 @@
+.page {
+  min-height: 100vh;
+  background: #F9F4DF;
+}
+
+.course-info {
+  margin-top: 16rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 24rpx;
+  align-items: center;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.icon-time {
+  width: 44rpx; height: 44rpx;
+  margin-right: 24rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="%231A1A23" stroke-width="2"/><path d="M12 7V12L15 14" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
+}
+.course-name {
+  font-size: 30rpx; font-weight: 700; color: #1A1A23;
+}
+.course-meta {
+  font-size: 24rpx; color: #6B6B76;
+  margin-top: 4rpx;
+}
+
+/* 二维码卡 */
+.qr-card {
+  margin-top: 40rpx;
+  background: #FFFFFF;
+  border-radius: 40rpx;
+  padding: 48rpx;
+  align-items: center;
+  box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.06);
+}
+.qr-tip {
+  font-size: 28rpx; font-weight: 600; color: #1A1A23;
+}
+.qr-box {
+  margin-top: 32rpx;
+  width: 400rpx; height: 400rpx;
+  border-radius: 32rpx;
+  border: 2rpx solid #E8E2CC;
+  overflow: hidden;
+}
+.qr-img {
+  width: 360rpx; height: 360rpx;
+}
+.qr-sub {
+  margin-top: 24rpx;
+  font-size: 24rpx; color: #6B6B76;
+}
+.qr-hint {
+  margin-top: 24rpx;
+  width: 100%;
+  background: #FFF8E6;
+  border-radius: 24rpx;
+  padding: 20rpx 24rpx;
+  align-items: center;
+}
+.hint-icon {
+  width: 36rpx; height: 36rpx;
+  margin-right: 12rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="%23D97706" stroke-width="1.8"/><path d="M9 5V9.5M9 12.8V13" stroke="%23D97706" stroke-width="1.8" stroke-linecap="round"/></svg>') no-repeat center/contain;
+}
+.hint-txt {
+  color: #D97706; font-size: 24rpx;
+  flex: 1;
+}
+
+.refresh-btn {
+  margin-top: 48rpx;
+  height: 96rpx;
+  border-radius: 48rpx;
+  background: #B9FF66;
+  color: #1A1A23;
+  font-size: 30rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12rpx 28rpx rgba(185,255,102,0.5);
+}

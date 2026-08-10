@@ -1,0 +1,78 @@
+<view class="page" wx:if="{{course}}">
+  <!-- 大图头部 -->
+  <view class="hero">
+    <image class="hero-img" src="{{course.img}}" mode="aspectFill"></image>
+    <view class="hero-nav">
+      <view class="round-btn flex-center" bindtap="goBack">
+        <text class="icon-back"></text>
+      </view>
+      <view class="round-btn flex-center" bindtap="toggleFav">
+        <text class="icon-heart"></text>
+      </view>
+    </view>
+    <view class="hero-tag">{{course.category}}</view>
+  </view>
+
+  <!-- 内容区 -->
+  <view class="detail-content">
+    <text class="course-title">{{course.name}}</text>
+    <text class="course-sub">全身循环训练 · 高效燃脂 · 暴汗体验</text>
+
+    <!-- 信息卡：时长/强度/剩余席位/场地 -->
+    <view class="info-card flex-row">
+      <view class="info-item flex-col">
+        <text class="info-value">{{course.duration}}</text>
+        <text class="info-label">时长</text>
+      </view>
+      <view class="info-item flex-col">
+        <text class="info-value">{{course.level}} / 5级</text>
+        <text class="info-label">强度</text>
+      </view>
+      <view class="info-item flex-col">
+        <text class="info-value {{remaining <= 2 ? 'text-red' : ''}}">{{remaining}} / {{capacity}}</text>
+        <text class="info-label">剩余 / 上限</text>
+      </view>
+      <view class="info-item flex-col">
+        <text class="info-value">{{course.venue}}</text>
+        <text class="info-label">场地</text>
+      </view>
+    </view>
+
+    <!-- 教练 -->
+    <view class="coach-row flex-row">
+      <image class="coach-avatar" src="/images/2_295.png" mode="aspectFill"></image>
+      <view class="flex-col flex-1 coach-info">
+        <text class="coach-name">教练 · {{course.coach}}</text>
+        <text class="coach-desc">8 年团课教学经验 · 认证体能教练</text>
+      </view>
+      <text class="icon-chevron"></text>
+    </view>
+
+    <!-- 课程时间（当前这一节） -->
+    <view class="time-card flex-between">
+      <view class="flex-col">
+        <text class="time-label">本场时间</text>
+        <text class="time-value">{{course.start}} - {{course.end}}</text>
+      </view>
+      <view class="tag tag-orange">今日 8月10日</view>
+    </view>
+
+    <view class="seat-hint flex-row" wx:if="{{remaining <= 5}}">
+      <text class="hint-dot"></text>
+      <text class="hint-txt">席位紧张，仅剩 {{remaining}} 席，先约先得</text>
+    </view>
+
+    <view class="detail-spacer"></view>
+  </view>
+
+  <!-- 底部 CTA -->
+  <view class="cta-bar flex-between">
+    <view class="flex-col price-box">
+      <text class="price-value">¥ {{course.price}}</text>
+      <text class="price-sub">单次 ¥{{course.price}} · 约课后直接支付</text>
+    </view>
+    <view class="book-btn" bindtap="bookNow">
+      <text>立即预订</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,27 @@
+<view class="page">
+  <view class="page-pad">
+    <!-- 课程信息 -->
+    <view class="course-info flex-row">
+      <view class="icon-time"></view>
+      <view class="flex-col flex-1">
+        <text class="course-name">{{course.name}}</text>
+        <text class="course-meta">{{course.time}} · {{course.venue}}</text>
+      </view>
+    </view>
+
+    <!-- 二维码卡 -->
+    <view class="qr-card flex-col">
+      <text class="qr-tip">出示二维码给前台扫码签到</text>
+      <view class="qr-box flex-center">
+        <image class="qr-img" src="/images/2_472.png" mode="aspectFit"></image>
+      </view>
+      <text class="qr-sub">签到码 10 分钟内有效</text>
+      <view class="qr-hint flex-row">
+        <view class="hint-icon"></view>
+        <text class="hint-txt">开课前 30 分钟可签到，迟到 15 分钟自动取消</text>
+      </view>
+    </view>
+
+    <view class="refresh-btn" bindtap="refreshCode">刷新签到码</view>
+  </view>
+</view>

@@ -1,0 +1,204 @@
+.admin-page {
+  min-height: 100vh;
+  background: #F9F4DF;
+}
+
+/* 顶栏 */
+.admin-top {
+  background: #1A1A23;
+  padding: 24rpx 40rpx calc(24rpx + env(safe-area-inset-top));
+  align-items: center;
+}
+.admin-brand { align-items: center; }
+.brand-logo {
+  width: 64rpx; height: 64rpx;
+  border-radius: 20rpx;
+  background: #B9FF66;
+  margin-right: 20rpx;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none"><path d="M8.5 8.5V23.5M5 11.5V20.5M23.5 8.5V23.5M27 11.5V20.5M8.5 16H23.5" stroke="%231A1A23" stroke-width="2.4" stroke-linecap="round"/></svg>');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 40rpx;
+}
+.brand-name {
+  color: #FFFFFF;
+  font-size: 32rpx; font-weight: 800;
+}
+.admin-user { align-items: center; }
+.admin-avatar {
+  width: 64rpx; height: 64rpx;
+  border-radius: 50%;
+  background: #5B57EB;
+  margin-right: 16rpx;
+}
+.admin-name {
+  color: #FFFFFF;
+  font-size: 26rpx; font-weight: 600;
+}
+
+/* 内容 */
+.admin-content {
+  padding: 32rpx 40rpx;
+}
+.page-title {
+  font-size: 40rpx; font-weight: 700; color: #1A1A23;
+  display: block;
+}
+
+/* 统计卡片 */
+.stats-grid {
+  margin-top: 32rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24rpx;
+}
+.stat-card {
+  width: calc(50% - 12rpx);
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 28rpx;
+  align-items: center;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.stat-dark {
+  background: #1A1A23;
+}
+.stat-icon {
+  width: 96rpx; height: 96rpx;
+  border-radius: 28rpx;
+  margin-right: 20rpx;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 48rpx;
+  flex-shrink: 0;
+}
+.ic-users { background-color: #B9FF66; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" stroke="%231A1A23" stroke-width="2"/><path d="M2.5 20C2.5 16.13 5.41 13 9 13C12.59 13 15.5 16.13 15.5 20" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>'); }
+.ic-calendar { background-color: #DCD8FF; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="%231A1A23" stroke-width="2"/><path d="M3 10H21M8 3V7M16 3V7" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>'); }
+.ic-check { background-color: #E5FFC9; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M5 13L9 17L19 7" stroke="%231A1A23" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'); }
+.ic-wallet { background-color: #FFF0D6; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" stroke="%231A1A23" stroke-width="2"/><path d="M3 10H21" stroke="%231A1A23" stroke-width="2"/><circle cx="16.5" cy="15.5" r="1.5" fill="%231A1A23"/></svg>'); }
+.stat-value {
+  font-size: 44rpx; font-weight: 800; color: #1A1A23;
+}
+.stat-label {
+  font-size: 24rpx; color: #6B6B76;
+  margin-top: 4rpx;
+}
+.stat-trend {
+  font-size: 22rpx; font-weight: 600;
+  margin-top: 4rpx;
+}
+
+/* 面板 */
+.panel {
+  margin-top: 32rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 28rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.panel-title {
+  font-size: 32rpx; font-weight: 700; color: #1A1A23;
+}
+.seg-mini {
+  background: #F0EDDF;
+  border-radius: 30rpx;
+  padding: 4rpx;
+}
+.mini-item {
+  padding: 8rpx 24rpx;
+  border-radius: 26rpx;
+  font-size: 24rpx;
+  color: #6B6B76;
+}
+.mini-on {
+  background: #1A1A23;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+/* 图表 */
+.chart-area {
+  position: relative;
+  margin-top: 24rpx;
+  height: 360rpx;
+}
+.bar-line {
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 2rpx;
+  background: #F0EDDF;
+}
+.chart-svg {
+  position: absolute;
+  left: 0; right: 0; top: 0; bottom: 0;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" preserveAspectRatio="none"><path d="M0 150 C40 140 60 160 100 130 S160 90 200 110 S260 70 300 85 S360 40 400 60 S460 30 500 45 S560 15 640 25" stroke="%235B57EB" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M0 150 C40 140 60 160 100 130 S160 90 200 110 S260 70 300 85 S360 40 400 60 S460 30 500 45 S560 15 640 25 L640 220 L0 220 Z" fill="%235B57EB" opacity="0.15"/></svg>') no-repeat center/contain;
+}
+
+/* 排行 */
+.rank-row {
+  margin-top: 24rpx;
+  align-items: center;
+}
+.rank-num {
+  width: 48rpx;
+  font-size: 32rpx; font-weight: 800;
+}
+.rank-name {
+  width: 320rpx;
+  font-size: 28rpx; font-weight: 500; color: #1A1A23;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rank-bar {
+  flex: 1;
+  height: 20rpx;
+  border-radius: 10rpx;
+  background: #F0EDDF;
+  overflow: hidden;
+}
+.rank-fill {
+  height: 100%;
+  border-radius: 10rpx;
+}
+.rank-pct {
+  width: 88rpx;
+  text-align: right;
+  font-size: 26rpx; font-weight: 700; color: #1A1A23;
+}
+
+.bottom-space { height: 80rpx; }
+
+/* 退出按钮 */
+.admin-exit {
+  margin-left: 20rpx;
+  padding: 8rpx 24rpx;
+  border-radius: 28rpx;
+  background: #B9FF66;
+  color: #1A1A23;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+/* 后台横向导航条 */
+.admin-nav {
+  background: #1A1A23;
+  white-space: nowrap;
+  width: 100%;
+}
+.nav-inner {
+  display: flex;
+  padding: 16rpx 24rpx 24rpx;
+  gap: 12rpx;
+}
+.nav-item {
+  flex-shrink: 0;
+  padding: 14rpx 32rpx;
+  border-radius: 36rpx;
+  background: rgba(255,255,255,0.08);
+  color: #B0AFA8;
+  font-size: 26rpx;
+}
+.nav-active {
+  background: #B9FF66;
+  color: #1A1A23;
+  font-weight: 700;
+}
