@@ -53,7 +53,9 @@ Page({
   // 从后端拉取当天场次；失败则回退演示数据
   loadSessions(full) {
     this.setData({ loading: true, courseList: [] });
-    api.getSessionsByDate(full).then((res) => {
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+    api.getSessionsByDate(full, openid).then((res) => {
       const list = (res.sessions || []).map(s => ({
         id: s.id,
         name: s.course_name,
@@ -64,7 +66,8 @@ Page({
         remaining: s.remaining,
         capacity: s.capacity,
         price: (s.price_fen / 100).toFixed(0),
-        img: s.cover || DEFAULT_COVER
+        img: s.cover || DEFAULT_COVER,
+        bookedByMe: !!s.booked_by_me
       })).map(s => this.decorateSession(s));
       this.setData({ courseList: list, loading: false, offline: false });
     }).catch(() => {
@@ -81,25 +84,29 @@ Page({
     });
   },
 
-  // 装饰场次：计算席位文案（剩余/总席）与满员状态
+  // 装饰场次：计算席位文案（剩余/总席）、满员、已预订状态
   decorateSession(s) {
     const cap = s.capacity || 20;
     const remaining = s.remaining !== undefined ? s.remaining : cap;
     const booked = Math.max(cap - remaining, 0);
     const isFull = booked >= cap;
+    const isBooked = !!s.bookedByMe;
     return {
       ...s,
       booked,
       remaining,
       seatText: `${String(remaining).padStart(2, '0')}/${cap}`,
       isFull,
-      seatFull: remaining <= 2
+      isBooked,
+      // 已预订优先于满员显示
+      seatFull: !isBooked && remaining <= 2
     };
   },
 
   goDetail(e) {
     const id = e.currentTarget.dataset.id;
     if (e.currentTarget.dataset.full) return; // 满员不可点击
+    if (e.currentTarget.dataset.booked) return; // 已预订不可点击
     wx.navigateTo({ url: `/pages/student-course-detail/index?session_id=${id}` });
   },
 

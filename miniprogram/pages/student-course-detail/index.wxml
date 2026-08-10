@@ -71,8 +71,9 @@
       <text class="price-value">¥ {{course.price}}</text>
       <text class="price-sub">单次 ¥{{course.price}} · 约课后直接支付</text>
     </view>
-    <view class="book-btn" bindtap="bookNow">
-      <text>立即预订</text>
+    <view class="book-btn {{isBooked ? 'booked' : ''}}" bindtap="bookNow" data-booked="{{isBooked}}">
+      <text wx:if="{{isBooked}}">已预订</text>
+      <text wx:else>立即预订</text>
     </view>
   </view>
 </view>

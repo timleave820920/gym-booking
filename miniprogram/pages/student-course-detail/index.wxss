@@ -162,3 +162,9 @@
   justify-content: center;
   box-shadow: 0 12rpx 28rpx rgba(185,255,102,0.5);
 }
+/* 已预订：品牌深色 */
+.book-btn.booked {
+  background: #1A1A23;
+  color: #B9FF66;
+  box-shadow: 0 12rpx 28rpx rgba(0,0,0,0.2);
+}

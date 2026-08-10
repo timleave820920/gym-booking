@@ -356,6 +356,16 @@ function listSessionsByDate(date) {
   return db.prepare(`${SESSION_SELECT} WHERE s.date = ? AND s.status = 'published' ORDER BY s.start_time`).all(date);
 }
 
+/** 按日期查场次，并标记当前用户是否已预订（openid 可选） */
+function listSessionsByDateForUser(date, openid) {
+  const sessions = listSessionsByDate(date);
+  if (!openid) return sessions;
+  // 查该用户已预订的场次 id 集合（仅 booked 状态）
+  const bookedRows = db.prepare("SELECT session_id FROM bookings WHERE user_openid = ? AND status = 'booked'").all(openid);
+  const bookedSet = new Set(bookedRows.map(r => r.session_id));
+  return sessions.map(s => ({ ...s, booked_by_me: bookedSet.has(s.id) }));
+}
+
 /** 场次详情（学员端课程详情） */
 function getSessionById(id) {
   return db.prepare(`${SESSION_SELECT} WHERE s.id = ?`).get(id) || null;
@@ -497,6 +507,7 @@ module.exports = {
   publishSessions,
   // 场次查询
   listSessionsByDate,
+  listSessionsByDateForUser,
   getSessionById,
   // 订课
   createBooking,

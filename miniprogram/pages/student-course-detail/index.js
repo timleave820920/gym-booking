@@ -26,7 +26,9 @@ Page({
 
   // 从后端拉取场次详情
   loadSession(sessionId) {
-    api.getSession(sessionId).then((res) => {
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+    api.getSession(sessionId, openid).then((res) => {
       const s = res.session;
       this.setData({
         course: {
@@ -45,6 +47,7 @@ Page({
         },
         remaining: s.remaining,
         capacity: s.capacity,
+        isBooked: !!s.booked_by_me,
         offline: false
       });
     }).catch(() => {
@@ -72,6 +75,10 @@ Page({
 
   // 立即预订 -> 直接进入支付页（携带真实场次数据）
   bookNow() {
+    if (this.data.isBooked) {
+      wx.showToast({ title: '您已预订该课程', icon: 'none' });
+      return;
+    }
     const { course } = this.data;
     app.globalData.currentCourse = {
       session_id: course.id,

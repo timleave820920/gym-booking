@@ -116,16 +116,20 @@ module.exports = {
     return localRequest('/api/users/clear', 'DELETE');
   },
 
-  // 按日期查场次（学员端课程列表）
-  getSessionsByDate(date) {
+  // 按日期查场次（学员端课程列表；传 openid 可标记已预订）
+  getSessionsByDate(date, openid) {
     if (USE_CLOUD) return Promise.reject({ code: -1, message: '云函数暂未实现课程列表' });
-    return localRequest('/api/sessions?date=' + date, 'GET');
+    let qs = 'date=' + date;
+    if (openid) qs += '&openid=' + openid;
+    return localRequest('/api/sessions?' + qs, 'GET');
   },
 
-  // 场次详情（学员端课程详情）
-  getSession(id) {
+  // 场次详情（学员端课程详情；传 openid 可标记已预订）
+  getSession(id, openid) {
     if (USE_CLOUD) return Promise.reject({ code: -1, message: '云函数暂未实现场次详情' });
-    return localRequest('/api/sessions/' + id, 'GET');
+    let qs = '';
+    if (openid) qs = '?openid=' + openid;
+    return localRequest('/api/sessions/' + id + qs, 'GET');
   },
 
   // 订课（支付成功后调用）

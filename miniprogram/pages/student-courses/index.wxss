@@ -101,6 +101,11 @@
   background: #E5E2D4;
   color: #B0AFA8;
 }
+/* 已预订：按钮用品牌深色 */
+.btn-booked {
+  background: #1A1A23;
+  color: #B9FF66;
+}
 /* 满员：整卡降透明度 */
 .card-full {
   opacity: 0.75;

@@ -351,14 +351,24 @@ function serveStatic(res, filePath) {
 
 // ===== 场次查询（学员端课程列表/详情）=====
 function handleSessionsByDate(req, res, date) {
-  const sessions = db.listSessionsByDate(date);
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid') || null;
+  const sessions = db.listSessionsByDateForUser(date, openid);
   return sendJson(res, 200, { code: 200, date, sessions });
 }
 
 function handleSessionDetail(req, res, id) {
   const s = db.getSessionById(Number(id));
   if (!s) return sendJson(res, 404, { code: 404, message: '场次不存在' });
-  return sendJson(res, 200, { code: 200, session: s });
+  // 携带 openid 时标记是否已订
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid') || null;
+  let result = s;
+  if (openid) {
+    const booked = db.db.prepare("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ? AND status = 'booked'").get(openid, s.id);
+    result = { ...s, booked_by_me: !!booked };
+  }
+  return sendJson(res, 200, { code: 200, session: result });
 }
 
 function toPublicUser(user) {
