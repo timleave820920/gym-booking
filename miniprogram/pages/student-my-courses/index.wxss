@@ -105,3 +105,19 @@
 }
 
 .list-spacer { height: 60rpx; }
+
+/* 空状态补充样式 */
+.empty-sub {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #B0AFA8;
+}
+.empty-btn {
+  margin-top: 32rpx;
+  padding: 18rpx 64rpx;
+  border-radius: 44rpx;
+  background: #1A1A23;
+  color: #B9FF66;
+  font-size: 28rpx;
+  font-weight: 700;
+}

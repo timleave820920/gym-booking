@@ -210,6 +210,53 @@ function handleClearUsers(req, res) {
   });
 }
 
+// 订课（支付成功后调用）
+async function handleCreateBooking(req, res) {
+  const body = await readBody(req);
+  const { openid, sessionId, amountFen, payStatus } = body;
+  if (!openid || !sessionId) {
+    return sendJson(res, 400, { code: 400, message: '缺少 openid 或 sessionId' });
+  }
+  const result = db.createBooking({
+    user_openid: openid,
+    session_id: sessionId,
+    amount_fen: amountFen || 0,
+    pay_status: payStatus || 'paid'
+  });
+  if (!result.ok) {
+    return sendJson(res, 400, { code: 400, message: result.error });
+  }
+  return sendJson(res, 201, { code: 201, message: '订课成功', booking: result.booking });
+}
+
+// 查询我的订课（GET /api/bookings?openid=xxx&status=booked）
+function handleListBookings(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  const status = url.searchParams.get('status') || undefined;
+  if (!openid) {
+    return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  }
+  const bookings = db.listBookingsByUser(openid, status);
+  return sendJson(res, 200, { code: 200, bookings });
+}
+
+// 退订（DELETE /api/bookings/:id?openid=xxx）
+function handleCancelBooking(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const pathParts = url.pathname.split('/');
+  const bookingId = parseInt(pathParts[pathParts.length - 1], 10);
+  const openid = url.searchParams.get('openid');
+  if (!bookingId || !openid) {
+    return sendJson(res, 400, { code: 400, message: '缺少订课ID或openid' });
+  }
+  const result = db.cancelBooking(openid, bookingId);
+  if (!result.ok) {
+    return sendJson(res, 400, { code: 400, message: result.error });
+  }
+  return sendJson(res, 200, { code: 200, message: '已退订' });
+}
+
 // ===== 课程管理（电脑端课程编辑网页用）=====
 
 // 下拉选项元数据
@@ -354,6 +401,12 @@ const server = http.createServer(async (req, res) => {
       handleDeleteUser(req, res);
     } else if (req.method === 'DELETE' && pathname === '/api/users/clear') {
       handleClearUsers(req, res);
+    } else if (req.method === 'POST' && pathname === '/api/bookings') {
+      await handleCreateBooking(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/bookings') {
+      handleListBookings(req, res);
+    } else if (req.method === 'DELETE' && pathname.startsWith('/api/bookings/')) {
+      handleCancelBooking(req, res);
     } else if (req.method === 'GET' && pathname === '/api/health') {
       sendJson(res, 200, { code: 200, status: 'ok', time: new Date().toISOString() });
     } else if (req.method === 'GET' && pathname === '/api/meta') {

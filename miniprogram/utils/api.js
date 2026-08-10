@@ -126,5 +126,23 @@ module.exports = {
   getSession(id) {
     if (USE_CLOUD) return Promise.reject({ code: -1, message: '云函数暂未实现场次详情' });
     return localRequest('/api/sessions/' + id, 'GET');
+  },
+
+  // 订课（支付成功后调用）
+  bookCourse(data) {
+    if (USE_CLOUD) return Promise.reject({ code: -1, message: '云函数暂未实现订课' });
+    return localRequest('/api/bookings', 'POST', data);
+  },
+
+  // 查询我的订课（本地后端）
+  getMyBookings(openid, status) {
+    let qs = 'openid=' + openid;
+    if (status) qs += '&status=' + status;
+    return localRequest('/api/bookings?' + qs, 'GET');
+  },
+
+  // 退订
+  cancelBooking(openid, bookingId) {
+    return localRequest('/api/bookings/' + bookingId + '?openid=' + openid, 'DELETE');
   }
 };

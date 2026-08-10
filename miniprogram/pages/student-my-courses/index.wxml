@@ -15,13 +15,16 @@
       </view>
     </view>
 
+    <!-- 加载中 -->
+    <view class="empty-state flex-col" wx:if="{{loading}}">
+      <text class="empty-txt">加载中...</text>
+    </view>
+
     <!-- 课程卡片 -->
-    <view class="my-list" wx:if="{{tab === 0}}">
+    <view class="my-list" wx:if="{{!loading && courses.length > 0}}">
       <view class="my-card" wx:for="{{courses}}" wx:key="id">
         <view class="flex-between card-top">
-          <view class="tag {{item.statusType === 'pending' ? 'tag-green' : 'tag-orange'}}">
-            {{item.status}}
-          </view>
+          <view class="tag tag-green">{{item.status}}</view>
           <text class="card-date">{{item.date}}</text>
         </view>
         <view class="flex-row card-body">
@@ -36,16 +39,18 @@
           </view>
         </view>
         <view class="flex-row card-actions">
-          <view class="btn-sm btn-outline" bindtap="refund">退订</view>
+          <view class="btn-sm btn-outline" bindtap="refund" data-id="{{item.id}}" data-name="{{item.name}}">退订</view>
           <view class="btn-sm btn-primary" bindtap="checkin" wx:if="{{item.statusType === 'pending'}}">签到</view>
-          <view class="btn-sm btn-purple" wx:else>查看课表</view>
         </view>
       </view>
     </view>
 
-    <view class="empty-state flex-col" wx:else>
+    <!-- 空状态：未订课 -->
+    <view class="empty-state flex-col" wx:if="{{!loading && courses.length === 0}}">
       <text class="empty-icon">✓</text>
-      <text class="empty-txt">还没有完成的课程</text>
+      <text class="empty-txt">您尚未订课</text>
+      <text class="empty-sub">去课程列表挑一节喜欢的课吧</text>
+      <view class="empty-btn" bindtap="goCourses">去选课</view>
     </view>
 
     <view class="list-spacer"></view>

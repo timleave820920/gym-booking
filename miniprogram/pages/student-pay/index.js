@@ -1,4 +1,5 @@
 const app = getApp();
+const api = require('../../utils/api.js');
 
 Page({
   data: {
@@ -32,16 +33,46 @@ Page({
   pay() {
     wx.showLoading({ title: '支付中...' });
     setTimeout(() => {
+      this.confirmBook();
+    }, 800);
+  },
+
+  // 支付成功 → 真实订课落库
+  confirmBook() {
+    const course = this.data.course;
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+
+    if (!openid) {
+      wx.hideLoading();
+      wx.showToast({ title: '未登录，请先登录', icon: 'none' });
+      return;
+    }
+
+    api.bookCourse({
+      openid,
+      sessionId: course.session_id || course.id,
+      amountFen: Math.round((course.price || 68) * 100),
+      payStatus: 'paid'
+    }).then((res) => {
       wx.hideLoading();
       wx.showModal({
         title: '支付成功',
-        content: `已成功预订「${this.data.course.name}」，可在我的课程中查看`,
+        content: `已成功预订「${course.name}」，可在我的课程中查看`,
         showCancel: false,
         confirmText: '查看我的课程',
         success: () => {
           wx.switchTab({ url: '/pages/student-my-courses/index' });
         }
       });
-    }, 1200);
+    }).catch((err) => {
+      wx.hideLoading();
+      wx.showModal({
+        title: '预订失败',
+        content: err.message || '无法连接服务器，请稍后重试',
+        showCancel: false,
+        confirmText: '知道了'
+      });
+    });
   }
 });

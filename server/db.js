@@ -361,6 +361,119 @@ function getSessionById(id) {
   return db.prepare(`${SESSION_SELECT} WHERE s.id = ?`).get(id) || null;
 }
 
+// ===== 订课（bookings）=====
+
+/**
+ * 学员订课：创建订单 + 扣减场次余位（事务，防超卖）
+ * @param {object} p { user_openid, session_id, amount_fen, pay_status }
+ * @returns {{ok:true, booking:object}|{ok:false, error:string}}
+ */
+function createBooking({ user_openid, session_id, amount_fen = 0, pay_status = 'paid' }) {
+  // 校验用户存在
+  const user = findUserByOpenid(user_openid);
+  if (!user) return { ok: false, error: '用户不存在，请先登录' };
+
+  // 校验场次存在且可订
+  const session = getSessionById(session_id);
+  if (!session) return { ok: false, error: '课程场次不存在' };
+  if (session.status !== 'published') return { ok: false, error: '课程已下线' };
+  if (session.remaining <= 0) return { ok: false, error: '该课程已满员' };
+
+  // 检查是否已订（UNIQUE 约束兜底）
+  const exists = db.prepare('SELECT id, status FROM bookings WHERE user_openid = ? AND session_id = ?').get(user_openid, session_id);
+  if (exists && exists.status === 'booked') return { ok: false, error: '您已预订该课程，请勿重复预订' };
+
+  const bookingNo = 'BK' + Date.now() + Math.random().toString(36).slice(2, 8).toUpperCase();
+
+  db.exec('BEGIN');
+  try {
+    if (exists) {
+      // 曾退订 → 重新激活原订单（保留历史 booking_no）
+      db.prepare("UPDATE bookings SET status = 'booked', pay_status = ?, cancel_reason = '', checkin_at = NULL WHERE id = ?")
+        .run(pay_status, exists.id);
+    } else {
+      // 1. 创建订单
+      db.prepare(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status)
+                  VALUES (?, ?, ?, ?, 'booked', ?)`)
+        .run(bookingNo, user_openid, session_id, amount_fen, pay_status);
+    }
+    // 2. 扣减余位
+    db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(session_id);
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    if (e.message.includes('UNIQUE')) return { ok: false, error: '您已预订该课程，请勿重复预订' };
+    throw e;
+  }
+
+  const booking = db.prepare(`
+    SELECT b.id, b.booking_no, b.session_id, b.amount_fen, b.status, b.pay_status, b.checkin_at, b.created_at,
+           s.date, s.start_time, s.end_time, s.capacity, s.booked_count,
+           c.name AS course_name, c.level, c.duration_min,
+           co.name AS coach_name, v.name AS venue_name
+    FROM bookings b
+    JOIN course_sessions s ON s.id = b.session_id
+    JOIN courses c ON c.id = s.course_id
+    JOIN coaches co ON co.id = s.coach_id
+    JOIN venues v ON v.id = s.venue_id
+    WHERE b.id = last_insert_rowid()
+  `).get();
+  return { ok: true, booking };
+}
+
+/**
+ * 查询某学员的全部订课（我的课程）
+ * @param {string} openid
+ * @param {string} [status] 可选筛选：booked/cancelled
+ */
+function listBookingsByUser(openid, status) {
+  const where = status ? 'WHERE b.user_openid = ? AND b.status = ?' : 'WHERE b.user_openid = ?';
+  const params = status ? [openid, status] : [openid];
+  return db.prepare(`
+    SELECT b.id, b.booking_no, b.session_id, b.amount_fen, b.status, b.pay_status, b.checkin_at, b.created_at,
+           s.date, s.start_time, s.end_time, s.capacity, s.booked_count,
+           c.id AS course_id, c.name AS course_name, c.level, c.duration_min,
+           co.name AS coach_name, v.name AS venue_name
+    FROM bookings b
+    JOIN course_sessions s ON s.id = b.session_id
+    JOIN courses c ON c.id = s.course_id
+    JOIN coaches co ON co.id = s.coach_id
+    JOIN venues v ON v.id = s.venue_id
+    ${where}
+    ORDER BY s.date DESC, s.start_time DESC
+  `).all(...params);
+}
+
+/**
+ * 退订：取消订单 + 恢复场次余位（事务）
+ */
+function cancelBooking(openid, bookingId) {
+  const booking = db.prepare('SELECT * FROM bookings WHERE id = ? AND user_openid = ?').get(bookingId, openid);
+  if (!booking) return { ok: false, error: '订单不存在' };
+  if (booking.status === 'cancelled') return { ok: false, error: '该订单已退订' };
+
+  db.exec('BEGIN');
+  try {
+    db.prepare("UPDATE bookings SET status = 'cancelled', cancel_reason = '用户退订' WHERE id = ?").run(bookingId);
+    // 仅未签到订单恢复余位
+    if (!booking.checkin_at) {
+      db.prepare('UPDATE course_sessions SET booked_count = MAX(booked_count - 1, 0) WHERE id = ?').run(booking.session_id);
+    }
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+  return { ok: true };
+}
+
+/**
+ * 统计某学员订课数量
+ */
+function countBookingsByUser(openid) {
+  return db.prepare("SELECT COUNT(*) c FROM bookings WHERE user_openid = ? AND status = 'booked'").get(openid).c;
+}
+
 module.exports = {
   db,
   findUserByOpenid,
@@ -384,5 +497,10 @@ module.exports = {
   publishSessions,
   // 场次查询
   listSessionsByDate,
-  getSessionById
+  getSessionById,
+  // 订课
+  createBooking,
+  listBookingsByUser,
+  cancelBooking,
+  countBookingsByUser
 };
