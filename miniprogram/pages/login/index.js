@@ -8,10 +8,7 @@ Page({
     loggingIn: false,
     lang: 'zh',              // 当前语言
     t: i18n.t(),             // 语言字典
-    userCount: 0,            // 当前注册用户数
-    showProfile: false,      // 完善资料弹层
-    tempAvatar: '',          // 待确认头像（空=显示正圆占位）
-    tempNick: ''              // 待确认昵称
+    userCount: 0             // 当前注册用户数
   },
 
   onLoad() {
@@ -207,47 +204,13 @@ Page({
     return true;
   },
 
-  // 登录完成：昵称是默认值时弹出完善资料（用户选择头像昵称），否则直接进入
+  // 登录完成：默认使用「田立」身份直接登录（测试模式，跳过完善资料弹层）
   finishLogin(profile) {
-    const needProfile = !profile.name || profile.name === '微信用户' || profile.name === '小陈同学';
-    if (needProfile) {
-      // 弹出完善资料（微信官方头像昵称填写能力）
-      // 默认头像图（2_556.png）带深色圆环，在弹层里看起来像黑色椭圆，改为空值显示正圆占位
-      const avatar = (profile.avatar && profile.avatar !== '/images/2_556.png') ? profile.avatar : '';
-      this.setData({
-        loggingIn: false,
-        showProfile: true,
-        tempAvatar: avatar,
-        tempNick: ''
-      });
-    } else {
-      this.doLogin(profile);
-    }
-  },
-
-  // ===== 完善资料 =====
-  // 选择微信头像（open-type="chooseAvatar"）
-  onChooseAvatar(e) {
-    const url = e.detail.avatarUrl;
-    if (url) {
-      this.setData({ tempAvatar: url });
-    }
-  },
-  // 输入昵称（type="nickname"，键盘上方可一键使用微信昵称）
-  onNickInput(e) {
-    this.setData({ tempNick: e.detail.value });
-  },
-  // 完成完善资料
-  confirmProfile() {
-    const nick = (this.data.tempNick || '').trim();
-    if (!nick) {
-      wx.showToast({ title: '请输入昵称', icon: 'none' });
-      return;
-    }
-    this.setData({ showProfile: false });
+    const name = (!profile.name || profile.name === '微信用户' || profile.name === '小陈同学') ? '田立' : profile.name;
     this.doLogin({
-      avatar: this.data.tempAvatar,
-      name: nick
+      ...profile,
+      name,
+      avatar: profile.avatar || '/images/2_556.png'
     });
   },
 
