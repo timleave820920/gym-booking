@@ -14,13 +14,18 @@
  *   5. app.js 中 wx.cloud.init({ env: '你的环境ID' })
  *
  * 当前状态：本地模式（等正式小程序注册 + 工商主体后切云开发）
+ *
+ * 本地后端地址说明：
+ * - 模拟器可用 127.0.0.1；真机预览必须用电脑局域网 IP（同 WiFi）
+ * - 若 IP 变化，可用 ipconfig 查询后更新
  */
 const USE_CLOUD = false;
 
 const CLOUD_ENV = 'gym-prod-timleave001'; // 云环境 ID（注册正式小程序后启用）
 
 // 本地后端地址（USE_CLOUD=false 时使用）
-const LOCAL_BASE_URL = 'http://127.0.0.1:3000';
+// 真机预览需用电脑局域网 IP；电脑 IP 变了改这里
+const LOCAL_BASE_URL = 'http://192.168.194.11:3000';
 
 // ===== 本地后端请求 =====
 function localRequest(path, method = 'GET', data = {}) {
