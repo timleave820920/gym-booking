@@ -25,7 +25,7 @@ const CLOUD_ENV = 'gym-prod-timleave001'; // 云环境 ID（注册正式小程�
 
 // 本地后端地址（USE_CLOUD=false 时使用）
 // 真机预览需用电脑局域网 IP；电脑 IP 变了改这里
-const LOCAL_BASE_URL = 'http://192.168.194.11:3000';
+const LOCAL_BASE_URL = 'http://192.168.101.10:3000';
 
 // ===== 本地后端请求 =====
 function localRequest(path, method = 'GET', data = {}) {
