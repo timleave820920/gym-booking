@@ -25,6 +25,6 @@
     <view class="view-btn" bindtap="goProfile">
       <text>查看</text>
     </view>
-    <text class="tip-txt">可前往「我的」查看已订课程</text>
+    <text class="tip-txt">可前往「我的课」查看已订课程</text>
   </view>
 </view>
