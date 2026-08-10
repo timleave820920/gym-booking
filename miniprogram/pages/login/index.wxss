@@ -4,6 +4,9 @@
   display: flex;
   flex-direction: column;
   padding-top: calc(88rpx + env(safe-area-inset-top));
+  /* 内容超高时允许滚动（演示身份入口在底部，需可滚动查看） */
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 /* 品牌区 */
@@ -11,12 +14,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 60rpx 0 40rpx;
+  padding: 40rpx 0 24rpx;
 }
 .logo-badge {
-  width: 200rpx;
-  height: 200rpx;
-  border-radius: 56rpx;
+  width: 168rpx;
+  height: 168rpx;
+  border-radius: 48rpx;
   background: #1A1A23;
   box-shadow: 0 16rpx 44rpx rgba(0,0,0,0.12);
   display: flex;
@@ -24,25 +27,25 @@
   justify-content: center;
 }
 .logo-icon {
-  width: 116rpx;
-  height: 116rpx;
+  width: 100rpx;
+  height: 100rpx;
   background: #B9FF66;
-  border-radius: 28rpx;
+  border-radius: 24rpx;
   background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none"><path d="M8.5 8.5V23.5M5 11.5V20.5M23.5 8.5V23.5M27 11.5V20.5M8.5 16H23.5" stroke="%231A1A23" stroke-width="2.4" stroke-linecap="round"/></svg>');
   background-repeat: no-repeat;
   background-position: center;
-  background-size: 64rpx;
+  background-size: 56rpx;
 }
 .brand-name {
-  font-size: 68rpx;
+  font-size: 56rpx;
   font-weight: 800;
   color: #1A1A23;
-  margin-top: 40rpx;
+  margin-top: 24rpx;
 }
 .brand-slogan {
-  font-size: 28rpx;
+  font-size: 26rpx;
   color: #6B6B76;
-  margin-top: 16rpx;
+  margin-top: 12rpx;
 }
 
 /* 登录表单区 */
