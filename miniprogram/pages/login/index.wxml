@@ -78,7 +78,8 @@
       <!-- 头像：open-type="chooseAvatar" -->
       <view class="avatar-row flex-row">
         <button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
-          <image class="avatar-img" src="{{tempAvatar}}" mode="aspectFill"></image>
+          <image wx:if="{{tempAvatar}}" class="avatar-img" src="{{tempAvatar}}" mode="aspectFill"></image>
+          <view wx:else class="avatar-ph"></view>
           <view class="avatar-plus">+</view>
         </button>
         <view class="flex-col flex-1 avatar-hint">

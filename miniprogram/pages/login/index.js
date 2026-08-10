@@ -10,7 +10,7 @@ Page({
     t: i18n.t(),             // 语言字典
     userCount: 0,            // 当前注册用户数
     showProfile: false,      // 完善资料弹层
-    tempAvatar: '/images/2_556.png',  // 待确认头像
+    tempAvatar: '',          // 待确认头像（空=显示正圆占位）
     tempNick: ''              // 待确认昵称
   },
 
@@ -212,10 +212,12 @@ Page({
     const needProfile = !profile.name || profile.name === '微信用户' || profile.name === '小陈同学';
     if (needProfile) {
       // 弹出完善资料（微信官方头像昵称填写能力）
+      // 默认头像图（2_556.png）带深色圆环，在弹层里看起来像黑色椭圆，改为空值显示正圆占位
+      const avatar = (profile.avatar && profile.avatar !== '/images/2_556.png') ? profile.avatar : '';
       this.setData({
         loggingIn: false,
         showProfile: true,
-        tempAvatar: profile.avatar || '/images/2_556.png',
+        tempAvatar: avatar,
         tempNick: ''
       });
     } else {

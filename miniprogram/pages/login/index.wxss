@@ -225,6 +225,13 @@
   position: relative;
   overflow: visible;
   flex-shrink: 0;
+  /* 确保任何环境下都是正圆（覆盖 button 默认样式） */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 1;
+  font-size: 0;
 }
 .avatar-btn::after {
   border: none;
@@ -233,6 +240,17 @@
   width: 152rpx;
   height: 152rpx;
   border-radius: 50%;
+}
+/* 未选择头像时的正圆占位（与选完后的头像同尺寸） */
+.avatar-ph {
+  width: 152rpx;
+  height: 152rpx;
+  border-radius: 50%;
+  background-color: #E5E1D4;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="%23B0AFA8" stroke-width="2"/><path d="M4.5 20C4.5 16.13 7.86 13.5 12 13.5C16.14 13.5 19.5 16.13 19.5 20" stroke="%23B0AFA8" stroke-width="2" stroke-linecap="round"/></svg>');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 64rpx;
 }
 .avatar-plus {
   position: absolute;
