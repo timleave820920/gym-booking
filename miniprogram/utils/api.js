@@ -12,10 +12,12 @@
  *   3. 右键 cloudfunctions/login、cloudfunctions/users → 「上传并部署：云端安装依赖」
  *   4. 将 USE_CLOUD 设为 true
  *   5. app.js 中 wx.cloud.init({ env: '你的环境ID' })
+ *
+ * 当前状态：本地模式（等正式小程序注册 + 工商主体后切云开发）
  */
 const USE_CLOUD = false;
 
-const CLOUD_ENV = 'gym-prod'; // TODO: 改为你的云环境 ID
+const CLOUD_ENV = 'gym-prod-timleave001'; // 云环境 ID（注册正式小程序后启用）
 
 // 本地后端地址（USE_CLOUD=false 时使用）
 const LOCAL_BASE_URL = 'http://127.0.0.1:3000';
