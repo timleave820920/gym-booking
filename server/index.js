@@ -12,6 +12,7 @@
  *   GET  /api/health        健康检查
  */
 const http = require('node:http');
+const https = require('node:https');
 const path = require('node:path');
 const fs = require('node:fs');
 const db = require('./db');
@@ -19,7 +20,43 @@ const db = require('./db');
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0'; // 允许局域网访问（真机调试）
 
+// ===== 微信小程序配置（从环境变量读取，勿硬编码 secret）=====
+// 启动方式：WX_APPID=xxx WX_SECRET=yyy node server/index.js
+const WX_APPID = process.env.WX_APPID || 'wx509088154a505409'; // 你的 AppID
+const WX_SECRET = process.env.WX_SECRET || '';                  // AppSecret（开发环境可临时填入）
+
 // ===== 工具函数 =====
+
+/**
+ * 微信 code2session：用 wx.login 的 code 换取真实 openid
+ * 文档: https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/code2Session.html
+ * @returns {Promise<{openid?: string, errcode?: number, errmsg?: string}>}
+ */
+function code2Session(code) {
+  return new Promise((resolve) => {
+    if (!code || !WX_SECRET) {
+      // 未配置 secret → 无法换取，返回空（调用方回退演示模式）
+      return resolve({});
+    }
+    const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${WX_APPID}&secret=${WX_SECRET}&js_code=${encodeURIComponent(code)}&grant_type=authorization_code`;
+    const req = https.get(url, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          resolve({ errcode: -1, errmsg: '响应解析失败' });
+        }
+      });
+    });
+    req.on('error', (e) => resolve({ errcode: -2, errmsg: e.message }));
+    req.setTimeout(8000, () => {
+      req.destroy();
+      resolve({ errcode: -3, errmsg: '请求微信超时' });
+    });
+  });
+}
 
 function sendJson(res, status, data) {
   const body = JSON.stringify(data);
@@ -61,14 +98,28 @@ async function handleLogin(req, res) {
   const body = await readBody(req);
   const { code, openid, nickname, avatar, phone } = body;
 
-  // 真实环境：用 code 调微信 jscode2session 接口换取 openid
-  // 演示环境：客户端直接传模拟 openid（或由 wx.login code 生成的稳定标识）
-  const finalOpenid = openid || (code ? `demo_${code.slice(0, 20)}` : null);
+  // 1. 优先用 code 调微信接口换真实 openid（真实微信身份）
+  let finalOpenid = null;
+  let wechatVerified = false;
+  if (code) {
+    const session = await code2Session(code);
+    if (session.openid) {
+      finalOpenid = session.openid;   // 真实微信 openid
+      wechatVerified = true;
+    } else if (session.errcode) {
+      console.warn('[wechat] code2session 失败:', session.errcode, session.errmsg);
+      // 换取失败：若客户端传了 openid 则回退（演示/离线场景）
+      finalOpenid = openid || null;
+    }
+  } else {
+    finalOpenid = openid || null;     // 无 code（演示环境直接传 openid）
+  }
+
   if (!finalOpenid) {
     return sendJson(res, 400, { code: 400, message: '缺少 openid 或 code' });
   }
 
-  // 1. 查库：是否已注册
+  // 2. 查库：是否已注册
   let user = db.findUserByOpenid(finalOpenid);
 
   if (user) {
@@ -78,11 +129,12 @@ async function handleLogin(req, res) {
       code: 200,
       message: '登录成功',
       isNewUser: false,
+      wechatVerified,
       user: toPublicUser(user)
     });
   }
 
-  // 2. 未注册 → 注册
+  // 3. 未注册 → 注册
   user = db.createUser({
     openid: finalOpenid,
     nickname: nickname || '',
@@ -93,6 +145,7 @@ async function handleLogin(req, res) {
     code: 201,
     message: '注册成功',
     isNewUser: true,
+    wechatVerified,
     user: toPublicUser(user)
   });
 }
