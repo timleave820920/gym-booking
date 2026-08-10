@@ -6,9 +6,6 @@ Page({
   data: {
     agreed: true,          // 默认勾选协议
     loggingIn: false,
-    showProfile: false,    // 完善资料弹层
-    tempAvatar: '/images/2_556.png',  // 待确认头像
-    tempNick: '',            // 待确认昵称
     lang: 'zh',              // 当前语言
     t: i18n.t()              // 语言字典
   },
@@ -155,43 +152,9 @@ Page({
     return true;
   },
 
-  // 登录完成：昵称是默认值时弹出完善资料，否则直接进首页
+  // 登录完成：自动使用微信头像昵称，直接进入（无需手动完善资料）
   finishLogin(profile) {
-    const needProfile = !profile.name || profile.name === '微信用户' || profile.name === '小陈同学';
-    if (needProfile) {
-      // 弹出完善资料（使用微信昵称填写能力）
-      this.setData({
-        loggingIn: false,
-        showProfile: true,
-        tempAvatar: profile.avatar || '/images/2_556.png',
-        tempNick: ''
-      });
-    } else {
-      this.doLogin(profile);
-    }
-  },
-
-  // ===== 完善资料 =====
-  onChooseAvatar(e) {
-    const url = e.detail.avatarUrl;
-    if (url) {
-      this.setData({ tempAvatar: url });
-    }
-  },
-  onNickInput(e) {
-    this.setData({ tempNick: e.detail.value });
-  },
-  confirmProfile() {
-    const nick = (this.data.tempNick || '').trim();
-    if (!nick) {
-      wx.showToast({ title: '请输入昵称', icon: 'none' });
-      return;
-    }
-    this.setData({ showProfile: false });
-    this.doLogin({
-      avatar: this.data.tempAvatar,
-      name: nick
-    });
+    this.doLogin(profile);
   },
 
   // ===== 执行登录（对接后端：首次=注册，再次=登录）=====
