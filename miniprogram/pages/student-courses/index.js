@@ -21,6 +21,11 @@ Page({
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 1 });
     }
+    // 每次回到本页重新拉取数据（订课后余位/席位实时更新）
+    if (this.data.selectedDate && this.data.weekDays.length > 0) {
+      const current = this.data.weekDays.find(d => d.date === this.data.selectedDate);
+      if (current) this.loadSessions(current.full);
+    }
   },
 
   // 生成本周（周一~周日）真实日期
