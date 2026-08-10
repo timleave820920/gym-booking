@@ -2,6 +2,7 @@ const mock = require('../../utils/mock.js');
 const api = require('../../utils/api.js');
 const app = getApp();
 const i18n = require('../../utils/i18n.js');
+const courseStatus = require('../../utils/course-status.js');
 
 const DEFAULT_COVER = '/images/2_193.png'; // 课程未设封面时的占位图
 
@@ -66,15 +67,11 @@ Page({
   },
 
   // 课程状态：upcoming 未开始（可约）/ ongoing 进行中（红色不可点）/ ended 已结束（灰色）
+  // 统一走公共工具 course-status（与本周列表一致）
   getStatus(startTime, endTime) {
     const now = new Date();
-    const [sh, sm] = (startTime || '00:00').split(':').map(Number);
-    const [eh, em] = (endTime || '00:00').split(':').map(Number);
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sh, sm, 0);
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), eh, em, 0);
-    if (now < start) return 'upcoming';
-    if (now < end) return 'ongoing';
-    return 'ended';
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return courseStatus.getSessionStatus(today, startTime, endTime, now);
   },
 
   // 组装课程卡片文案（i18n 模板替换占位符）；recheck 时重算课程状态

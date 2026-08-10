@@ -140,3 +140,43 @@
 }
 
 .list-spacer { height: 60rpx; }
+
+/* 课程状态标签（与今日首页一致） */
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 0;
+}
+.course-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.status-tag {
+  font-size: 20rpx;
+  font-weight: 600;
+  padding: 2rpx 12rpx;
+  border-radius: 8rpx;
+  flex-shrink: 0;
+}
+.status-ongoing {
+  background: #FCEBEB;
+  color: #E5484D;
+}
+.status-ended {
+  background: #F0EDDF;
+  color: #8A8A8A;
+}
+
+/* 按钮状态：进行中（红）/ 已结束（灰） */
+.btn-ongoing {
+  background: #E5484D;
+  color: #FFFFFF;
+}
+.btn-ended {
+  background: #E0DCCB;
+  color: #8A8A8A;
+}

@@ -1,6 +1,8 @@
 const mock = require('../../utils/mock.js');
 const api = require('../../utils/api.js');
 const app = getApp();
+const i18n = require('../../utils/i18n.js');
+const courseStatus = require('../../utils/course-status.js');
 
 const DEFAULT_COVER = '/images/2_193.png'; // 课程未设封面时的占位图
 const WEEK_LABELS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
@@ -11,10 +13,12 @@ Page({
     selectedDate: '',    // 选中的"几号"（高亮用）
     courseList: [],      // 当天课程
     loading: true,       // 加载中
-    offline: false       // 后端不可用回退演示数据
+    offline: false,      // 后端不可用回退演示数据
+    t: i18n.t()          // 语言字典
   },
 
   onLoad() {
+    this.setData({ t: i18n.t() });
     this.buildWeek();
   },
 
@@ -63,6 +67,7 @@ Page({
         name: s.course_name,
         category: s.category,
         coach: s.coach_name,
+        date: full,               // 场次所属日期
         start: s.start_time,
         end: s.end_time,
         remaining: s.remaining,
@@ -79,6 +84,7 @@ Page({
         .filter(c => c.days.includes(dayIndex))
         .map(c => this.decorateSession({
           id: c.id, name: c.name, category: c.category, coach: c.coach,
+          date: full,
           start: c.start, end: c.end, remaining: c.remaining, price: c.price,
           img: c.img, capacity: c.capacity || 20
         }));
@@ -86,13 +92,15 @@ Page({
     });
   },
 
-  // 装饰场次：计算席位文案（剩余/总席）、满员、已预订状态
+  // 装饰场次：计算席位文案（剩余/总席）、满员、已预订、时间状态
   decorateSession(s) {
     const cap = s.capacity || 20;
     const remaining = s.remaining !== undefined ? s.remaining : cap;
     const booked = Math.max(cap - remaining, 0);
     const isFull = booked >= cap;
     const isBooked = !!s.bookedByMe;
+    // 按日期+时间判断状态（与今日首页一致：upcoming/ongoing/ended）
+    const status = courseStatus.getSessionStatus(s.date, s.start, s.end);
     return {
       ...s,
       booked,
@@ -100,6 +108,9 @@ Page({
       seatText: `${String(remaining).padStart(2, '0')}/${cap}`,
       isFull,
       isBooked,
+      status,
+      // 已预订或进行中或已结束 → 不可点击；满员不可点击
+      disabled: isBooked || status !== 'upcoming' || isFull,
       // 已预订优先于满员显示
       seatFull: !isBooked && remaining <= 2
     };
@@ -107,8 +118,7 @@ Page({
 
   goDetail(e) {
     const id = e.currentTarget.dataset.id;
-    if (e.currentTarget.dataset.full) return; // 满员不可点击
-    if (e.currentTarget.dataset.booked) return; // 已预订不可点击
+    if (e.currentTarget.dataset.disabled) return; // 已预订/进行中/已结束/满员 不可点击
     wx.navigateTo({ url: `/pages/student-course-detail/index?session_id=${id}` });
   },
 

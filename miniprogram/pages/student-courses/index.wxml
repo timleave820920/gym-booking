@@ -23,11 +23,15 @@
     <!-- 课程列表 -->
     <view class="course-list">
       <view class="loading-tip" wx:if="{{loading}}">加载中...</view>
-      <view class="course-card flex-row {{item.isFull || item.isBooked ? 'card-full' : ''}}" wx:for="{{courseList}}" wx:key="id"
-            bindtap="goDetail" data-id="{{item.id}}" data-full="{{item.isFull}}" data-booked="{{item.isBooked}}">
+      <view class="course-card flex-row {{item.disabled && !item.isBooked ? 'card-full' : ''}}" wx:for="{{courseList}}" wx:key="id"
+            bindtap="goDetail" data-id="{{item.id}}" data-disabled="{{item.disabled}}">
         <image class="course-cover" src="{{item.img}}" mode="aspectFill"></image>
         <view class="flex-col flex-1 course-info">
-          <text class="course-name">{{item.name}}</text>
+          <view class="flex-row name-row">
+            <text class="course-name">{{item.name}}</text>
+            <text class="status-tag status-ongoing" wx:if="{{item.status === 'ongoing'}}">{{t.ongoing}}</text>
+            <text class="status-tag status-ended" wx:if="{{item.status === 'ended'}}">{{t.ended}}</text>
+          </view>
           <view class="flex-row course-meta">
             <text class="icon-clock"></text>
             <text class="meta-txt">{{item.start}}-{{item.end}} · {{item.category}}</text>
@@ -35,9 +39,11 @@
           <view class="flex-between coach-row">
             <text class="coach-name">教练 · {{item.coach}}</text>
             <text class="seat-count {{item.isFull ? 'seat-full' : ''}}">{{item.seatText}}</text>
-            <view class="book-btn {{item.isBooked ? 'btn-booked' : (item.isFull ? 'btn-full' : '')}}" catchtap="goDetail" data-id="{{item.id}}" data-full="{{item.isFull}}" data-booked="{{item.isBooked}}">
+            <view class="book-btn {{item.isBooked ? 'btn-booked' : (item.isFull ? 'btn-full' : (item.status === 'ongoing' ? 'btn-ongoing' : (item.status === 'ended' ? 'btn-ended' : '')))}}" catchtap="goDetail" data-id="{{item.id}}" data-disabled="{{item.disabled}}">
               <text wx:if="{{item.isBooked}}">已预订</text>
               <text wx:elif="{{item.isFull}}">已满</text>
+              <text wx:elif="{{item.status === 'ongoing'}}">{{t.ongoing}}</text>
+              <text wx:elif="{{item.status === 'ended'}}">{{t.ended}}</text>
               <text wx:else>¥{{item.price}} 约课</text>
             </view>
           </view>
