@@ -68,10 +68,6 @@ Page({
     return t.greetingLate; // 22:00 - 次日 6:00
   },
 
-  goSearch() {
-    wx.switchTab({ url: '/pages/student-courses/index' });
-  },
-
   goCourses() {
     wx.switchTab({ url: '/pages/student-courses/index' });
   },

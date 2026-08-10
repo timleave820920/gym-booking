@@ -11,12 +11,6 @@
       </view>
     </view>
 
-    <!-- 搜索栏 -->
-    <view class="search-bar flex-row" bindtap="goSearch">
-      <text class="icon-search"></text>
-      <text class="search-ph">{{t.searchCourseHint}}</text>
-    </view>
-
     <!-- 活动 Banner -->
     <view class="banner" bindtap="goCourses">
       <text class="banner-tag">SUMMER BURN</text>
