@@ -17,6 +17,10 @@ App({
   },
 
   onLaunch() {
+    // 初始化语言（默认中文，从缓存恢复用户偏好）
+    const i18n = require('./utils/i18n.js');
+    this.globalData.lang = i18n.loadLang();
+
     // 云开发模式：初始化 wx.cloud（USE_CLOUD=true 时生效）
     try {
       const api = require('./utils/api.js');
@@ -36,6 +40,17 @@ App({
       this.globalData.userInfo = savedUser;
       this.globalData.role = savedUser.role || 'student';
     }
+  },
+
+  // 切换语言（返回 true 表示需要刷新页面）
+  switchLang(lang) {
+    const i18n = require('./utils/i18n.js');
+    const ok = i18n.setLang(lang);
+    if (ok) {
+      this.globalData.lang = lang;
+      wx.setStorageSync('lang', lang);
+    }
+    return ok;
   },
 
   // 是否已登录

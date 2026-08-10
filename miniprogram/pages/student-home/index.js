@@ -1,14 +1,18 @@
 const mock = require('../../utils/mock.js');
 const app = getApp();
+const i18n = require('../../utils/i18n.js');
 
 Page({
   data: {
     user: { name: '小陈', date: '8月10日 星期一 · 今日宜挥汗' },
     hotCourses: [],
-    tab: 0
+    tab: 0,
+    greeting: '',
+    t: i18n.t()
   },
 
   onLoad() {
+    this.setData({ t: i18n.t() });
     // 首页热门课程：取每个课程第一个排课日对应的课程
     this.setData({
       hotCourses: mock.courses.slice(0, 3).map(c => ({
@@ -33,8 +37,22 @@ Page({
     if (u && u.name) {
       name = (u.name === '小陈同学' || u.name === '微信用户') ? '小陈' : u.name.slice(0, 8);
     }
+    // 组装问候语（i18n 模板替换）
+    const t = i18n.t();
+    const greeting = t.morningGreeting.replace('{{name}}', name);
+    // 组装课程卡片文案（模板替换占位符）
+    const hotCourses = this.data.hotCourses.map(c => ({
+      ...c,
+      metaText: t.timeRangeSeats
+        .replace('{{start}}', c.start)
+        .replace('{{end}}', c.end)
+        .replace('{{remaining}}', c.remaining),
+      coachText: t.coachNameMeta.replace('{{coach}}', c.coach)
+    }));
     this.setData({
-      user: { ...this.data.user, name }
+      user: { ...this.data.user, name },
+      greeting,
+      hotCourses
     });
   },
 

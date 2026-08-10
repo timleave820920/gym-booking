@@ -1,5 +1,6 @@
 const app = getApp();
 const api = require('../../utils/api.js');
+const i18n = require('../../utils/i18n.js');
 
 Page({
   data: {
@@ -7,7 +8,25 @@ Page({
     loggingIn: false,
     showProfile: false,    // 完善资料弹层
     tempAvatar: '/images/2_556.png',  // 待确认头像
-    tempNick: ''            // 待确认昵称
+    tempNick: '',            // 待确认昵称
+    lang: 'zh',              // 当前语言
+    t: i18n.t()              // 语言字典
+  },
+
+  onLoad() {
+    this.setData({
+      lang: i18n.getLang() || 'zh',
+      t: i18n.t()
+    });
+  },
+
+  // ===== 语言切换 =====
+  switchLang() {
+    const next = this.data.lang === 'zh' ? 'en' : 'zh';
+    if (app.switchLang(next)) {
+      this.setData({ lang: next, t: i18n.t() });
+      wx.showToast({ title: next === 'en' ? 'English' : '中文', icon: 'none' });
+    }
   },
 
   // 切换协议勾选

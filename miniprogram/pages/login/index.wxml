@@ -1,11 +1,16 @@
 <view class="page">
+  <!-- 语言切换（左上角） -->
+  <view class="lang-switch" bindtap="switchLang">
+    <text class="lang-txt">{{lang === 'zh' ? 'EN' : '中'}}</text>
+  </view>
+
   <!-- 品牌区 -->
   <view class="brand-area">
     <view class="logo-badge">
       <view class="logo-icon"></view>
     </view>
-    <text class="brand-name">综合训练馆</text>
-    <text class="brand-slogan">挥洒汗水，遇见更好的自己</text>
+    <text class="brand-name">{{t.gymName}}</text>
+    <text class="brand-slogan">{{t.brandSlogan}}</text>
   </view>
 
   <!-- 登录表单区 -->
@@ -15,13 +20,13 @@
       <view class="wx-icon flex-center">
         <text class="wx-icon-in">微</text>
       </view>
-      <text class="wx-btn-txt">{{loggingIn ? '登录中...' : '微信一键登录'}}</text>
+      <text class="wx-btn-txt">{{loggingIn ? t.wxLoggingIn : t.wxLogin}}</text>
     </view>
 
     <!-- 或分隔线 -->
     <view class="or-divider flex-row">
       <view class="or-line"></view>
-      <text class="or-txt">或</text>
+      <text class="or-txt">{{t.or}}</text>
       <view class="or-line"></view>
     </view>
 
@@ -30,7 +35,7 @@
       <view class="phone-icon flex-center">
         <view class="phone-svg"></view>
       </view>
-      <text class="phone-btn-txt">手机号快捷登录</text>
+      <text class="phone-btn-txt">{{t.phoneLogin}}</text>
     </button>
 
     <!-- 协议勾选 -->
@@ -38,39 +43,40 @@
       <view class="agree-box flex-center {{agreed ? 'agree-on' : ''}}">
         <text class="agree-check" wx:if="{{agreed}}">✓</text>
       </view>
-      <text class="agree-txt">我已阅读并同意《用户协议》和《隐私政策》</text>
+      <text class="agree-txt">{{t.agreeText}}</text>
     </view>
 
-    <text class="login-hint">登录即代表同意以学员身份使用本服务</text>
-    <text class="login-hint2">首次登录将引导完善微信头像与昵称</text>
+    <text class="login-hint">{{t.loginAsStudent}}</text>
+    <text class="login-hint2">{{t.firstLoginHint}}</text>
 
-    <!-- 演示身份快捷入口 -->
+    <!-- 演示身份入口 -->
     <view class="demo-divider flex-row">
       <view class="demo-line"></view>
-      <text class="demo-txt">演示身份入口</text>
+      <text class="demo-txt">{{t.demoEntry}}</text>
       <view class="demo-line"></view>
     </view>
     <view class="demo-roles flex-row">
       <view class="demo-role" data-role="student" bindtap="quickLogin">
         <view class="demo-ico demo-ico-student"></view>
-        <text class="demo-role-txt">学员</text>
+        <text class="demo-role-txt">{{t.roleStudent}}</text>
       </view>
       <view class="demo-role" data-role="coach" bindtap="quickLogin">
         <view class="demo-ico demo-ico-coach"></view>
-        <text class="demo-role-txt">教练</text>
+        <text class="demo-role-txt">{{t.roleCoach}}</text>
       </view>
       <view class="demo-role" data-role="admin" bindtap="quickLogin">
         <view class="demo-ico demo-ico-admin"></view>
-        <text class="demo-role-txt">管理员</text>
+        <text class="demo-role-txt">{{t.roleAdmin}}</text>
       </view>
     </view>
+    <text class="demo-hint">{{t.demoHint}}</text>
   </view>
 
   <!-- 完善资料弹层 -->
   <view class="profile-mask" wx:if="{{showProfile}}">
     <view class="profile-card">
-      <text class="profile-title">完善资料</text>
-      <text class="profile-sub">点击使用微信昵称，一键填写真实名字</text>
+      <text class="profile-title">{{t.completeProfile}}</text>
+      <text class="profile-sub">{{t.profileSub}}</text>
 
       <!-- 头像：微信官方 chooseAvatar -->
       <view class="avatar-row flex-row">
@@ -79,20 +85,20 @@
           <view class="avatar-plus">+</view>
         </button>
         <view class="flex-col flex-1 avatar-hint">
-          <text class="avatar-hint-t">点击上方圆圈选择微信头像</text>
-          <text class="avatar-hint-s">已授权时自动使用微信头像</text>
+          <text class="avatar-hint-t">{{t.chooseAvatarHint1}}</text>
+          <text class="avatar-hint-s">{{t.chooseAvatarHint2}}</text>
         </view>
       </view>
 
       <!-- 昵称：微信官方 nickname 填写能力 -->
       <view class="nick-row flex-row">
-        <text class="nick-label">昵称</text>
-        <input class="nick-input" type="nickname" placeholder="点击输入，键盘上方可一键使用微信昵称"
+        <text class="nick-label">{{t.nickname}}</text>
+        <input class="nick-input" type="nickname" placeholder="{{t.nicknamePh}}"
                placeholder-class="nick-ph" value="{{tempNick}}" bindinput="onNickInput" />
       </view>
 
       <view class="profile-btn" bindtap="confirmProfile">
-        <text>完成，进入训练馆</text>
+        <text>{{t.finishEnter}}</text>
       </view>
     </view>
   </view>

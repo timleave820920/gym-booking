@@ -352,3 +352,32 @@
   color: #6B6B76;
   font-weight: 600;
 }
+
+/* 语言切换（左上角） */
+.lang-switch {
+  position: fixed;
+  top: calc(120rpx + env(safe-area-inset-top));
+  left: 32rpx;
+  z-index: 100;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: #1A1A23;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.2);
+}
+.lang-txt {
+  color: #B9FF66;
+  font-size: 26rpx;
+  font-weight: 800;
+}
+
+/* 演示入口提示 */
+.demo-hint {
+  font-size: 20rpx;
+  color: #C9C4AE;
+  text-align: center;
+  margin-top: 8rpx;
+}

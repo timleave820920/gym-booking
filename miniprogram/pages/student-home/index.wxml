@@ -3,7 +3,7 @@
   <view class="page-pad pt-safe">
     <view class="flex-between">
       <view class="flex-col">
-        <text class="greet-title">早上好，{{user.name}}</text>
+        <text class="greet-title">{{greeting}}</text>
         <text class="greet-date">{{user.date}}</text>
       </view>
       <view class="bell-btn flex-center" bindtap="goProfile">
@@ -14,24 +14,24 @@
     <!-- 搜索栏 -->
     <view class="search-bar flex-row" bindtap="goSearch">
       <text class="icon-search"></text>
-      <text class="search-ph">搜索课程 / 教练 / 场地</text>
+      <text class="search-ph">{{t.searchCourseHint}}</text>
     </view>
 
     <!-- 活动 Banner -->
     <view class="banner" bindtap="goCourses">
       <text class="banner-tag">SUMMER BURN</text>
-      <text class="banner-title">夏日燃脂季</text>
-      <text class="banner-sub">全场团课 5 折起，立即开练</text>
-      <view class="banner-btn">去抢课</view>
+      <text class="banner-title">{{t.summerPromo}}</text>
+      <text class="banner-sub">{{t.promoSub}}</text>
+      <view class="banner-btn">{{t.grabCourse}}</view>
       <image class="banner-img" src="/images/2_166.png" mode="aspectFill"></image>
       <view class="banner-deco"></view>
     </view>
 
     <!-- 热门课程 -->
     <view class="flex-between hot-head">
-      <text class="section-title">热门课程</text>
+      <text class="section-title">{{t.hotCourses}}</text>
       <view class="flex-row more" bindtap="goCourses">
-        <text class="more-txt">查看全部</text>
+        <text class="more-txt">{{t.viewAll}}</text>
         <text class="icon-chevron"></text>
       </view>
     </view>
@@ -44,12 +44,12 @@
           <text class="course-name">{{item.name}}</text>
           <view class="flex-row course-meta">
             <text class="icon-clock"></text>
-            <text class="meta-txt">{{item.start}}-{{item.end}} · 余 {{item.remaining}} 席</text>
+            <text class="meta-txt">{{item.metaText}}</text>
           </view>
           <view class="flex-between coach-row">
-            <text class="coach-name">教练 · {{item.coach}}</text>
+            <text class="coach-name">{{item.coachText}}</text>
             <view class="book-btn" catchtap="goDetail" data-id="{{item.id}}">
-              <text>¥{{item.price}} 约课</text>
+              <text>¥{{item.price}} {{t.bookClass}}</text>
             </view>
           </view>
         </view>
