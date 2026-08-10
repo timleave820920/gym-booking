@@ -4,7 +4,7 @@ const i18n = require('../../utils/i18n.js');
 
 Page({
   data: {
-    user: { name: '小陈', date: '8月10日 星期一 · 今日宜挥汗' },
+    user: { name: '小陈', date: '' },
     hotCourses: [],
     tab: 0,
     greeting: '',
@@ -13,8 +13,13 @@ Page({
 
   onLoad() {
     this.setData({ t: i18n.t() });
+    // 首页日期：动态生成，带年份（如 2026年8月10日 星期一 · 今日宜挥汗）
+    const today = new Date();
+    const week = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+    const dateText = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日 ${week[today.getDay()]} · 今日宜挥汗`;
     // 首页热门课程：取每个课程第一个排课日对应的课程
     this.setData({
+      'user.date': dateText,
       hotCourses: mock.courses.slice(0, 3).map(c => ({
         id: c.id, name: c.name, coach: c.coach, venue: c.venue,
         start: c.start, end: c.end, remaining: c.remaining, price: c.price, img: c.img
