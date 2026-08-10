@@ -26,23 +26,6 @@
       <text class="agree-txt">我已阅读并同意《用户协议》和《隐私政策》</text>
     </view>
 
-    <!-- 演示模式分割线 -->
-    <view class="role-divider flex-row">
-      <view class="divider-line"></view>
-      <text class="divider-txt">演示模式 · 选择登录身份</text>
-      <view class="divider-line"></view>
-    </view>
-
-    <!-- 身份选择 -->
-    <view class="role-row flex-row">
-      <view class="role-card flex-col {{item.selected ? 'role-on' : ''}}"
-            wx:for="{{roles}}" wx:key="id"
-            data-id="{{item.id}}" bindtap="selectRole">
-        <view class="role-icon {{'ic-' + item.icon}}"></view>
-        <text class="role-name">{{item.name}}</text>
-      </view>
-    </view>
-
-    <text class="role-hint">正式版将默认使用微信登录，此处仅用于演示各角色界面</text>
+    <text class="login-hint">登录即代表同意以学员身份使用本服务</text>
   </view>
 </view>

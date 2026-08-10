@@ -109,60 +109,7 @@
   flex: 1;
 }
 
-/* 分割线 */
-.role-divider {
-  align-items: center;
-  gap: 20rpx;
-}
-.divider-line {
-  flex: 1;
-  height: 2rpx;
-  background: #D9D4C0;
-}
-.divider-txt {
-  font-size: 24rpx;
-  color: #B0AFA8;
-  white-space: nowrap;
-}
-
-/* 身份选择 */
-.role-row {
-  gap: 20rpx;
-}
-.role-card {
-  flex: 1;
-  height: 180rpx;
-  border-radius: 32rpx;
-  background: #FFFFFF;
-  align-items: center;
-  justify-content: center;
-  border: 4rpx solid transparent;
-  box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.06);
-}
-.role-on {
-  border-color: #1A1A23;
-  background: #FFFFFF;
-  box-shadow: 0 12rpx 28rpx rgba(0,0,0,0.1);
-}
-.role-icon {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 32rpx;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 36rpx;
-}
-.ic-role-student { background-color: #DCD8FF; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="%231A1A23" stroke-width="2"/><path d="M4 21C4 16.58 7.58 13 12 13C16.42 13 20 16.58 20 21" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>'); }
-.ic-role-coach { background-color: #E5FFC9; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M5 8V16M3 10V14M19 8V16M21 10V14M5 12H19" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>'); }
-.ic-role-admin { background-color: #FFF0D6; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M4 20V10M10 20V4M16 20V13M21 20H3" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>'); }
-.role-name {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #1A1A23;
-  margin-top: 12rpx;
-}
-
-.role-hint {
+.login-hint {
   font-size: 22rpx;
   color: #B0AFA8;
   text-align: center;

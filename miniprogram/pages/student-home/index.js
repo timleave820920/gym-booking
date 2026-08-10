@@ -16,9 +16,12 @@ Page({
         start: c.start, end: c.end, remaining: c.remaining, price: c.price, img: c.img
       }))
     });
-    // 从登录态读取用户名
+    // 从登录态读取用户名（微信真实昵称；默认占位名简化展示）
     const u = app.globalData.userInfo;
-    const name = (u && u.name) ? u.name.replace(/同学|教练|管理员$/, '') : '小陈';
+    let name = '小陈';
+    if (u && u.name) {
+      name = (u.name === '小陈同学' || u.name === '微信用户') ? '小陈' : u.name.slice(0, 8);
+    }
     this.setData({
       user: { ...this.data.user, name }
     });

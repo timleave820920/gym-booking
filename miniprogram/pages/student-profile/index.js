@@ -39,6 +39,13 @@ Page({
     }
   },
 
+  // 头像加载失败（如微信头像域名未配置）→ 回退默认头像
+  avatarError() {
+    this.setData({
+      user: { ...this.data.user, avatar: '/images/2_556.png' }
+    });
+  },
+
   // 退出登录
   logout() {
     wx.showModal({
