@@ -36,13 +36,11 @@ Page({
     const role = e.currentTarget.dataset.role;
     const urls = {
       student: '/pages/student-home/index',
-      coach: '/pages/coach-schedule/index',
-      admin: '/pages/admin-dashboard/index'
+      coach: '/pages/coach-schedule/index'
     };
     const names = {
       student: '学员',
-      coach: '教练',
-      admin: '管理员'
+      coach: '教练'
     };
     const token = 'demo_' + role + '_' + Date.now();
     const userInfo = {
@@ -66,6 +64,44 @@ Page({
         fail: () => wx.redirectTo({ url: urls[role] })
       });
     }, 400);
+  },
+
+  // ===== 一键清空数据库（管理员入口改造）=====
+  clearDb() {
+    wx.showModal({
+      title: '清空数据库',
+      content: '将永久删除数据库中的所有用户，且无法恢复！确定继续？',
+      confirmText: '清空',
+      confirmColor: '#E5484D',
+      success: (res) => {
+        if (res.confirm) {
+          // 二次确认（危险操作）
+          wx.showModal({
+            title: '再次确认',
+            content: '这是不可逆操作，所有用户数据将被清空。是否继续？',
+            confirmText: '确认清空',
+            confirmColor: '#E5484D',
+            success: (res2) => {
+              if (res2.confirm) {
+                wx.showLoading({ title: '清空中...' });
+                api.clearUsers().then((r) => {
+                  wx.hideLoading();
+                  wx.showToast({ title: r.message || '已清空', icon: 'none' });
+                }).catch((err) => {
+                  wx.hideLoading();
+                  wx.showModal({
+                    title: '清空失败',
+                    content: err.message || '无法连接服务器',
+                    showCancel: false,
+                    confirmText: '知道了'
+                  });
+                });
+              }
+            }
+          });
+        }
+      }
+    });
   },
 
   // ===== 微信一键登录 =====

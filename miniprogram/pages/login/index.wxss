@@ -344,13 +344,17 @@
 .demo-ico-coach {
   background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="14" rx="3" stroke="%231A1A23" stroke-width="2"/><path d="M12 4V18" stroke="%231A1A23" stroke-width="2"/><path d="M8 10H10" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/><path d="M8 14H10" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain #F0EDDF;
 }
-.demo-ico-admin {
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M12 3L20 6.5V11C20 15.5 16.6 19.7 12 21C7.4 19.7 4 15.5 4 11V6.5L12 3Z" stroke="%231A1A23" stroke-width="2" stroke-linejoin="round"/><path d="M9 12L11 14L15 9.5" stroke="%231A1A23" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center/contain #F0EDDF;
+.demo-ico-clear {
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M4 7H20" stroke="%23E5484D" stroke-width="2" stroke-linecap="round"/><path d="M9.5 7V5C9.5 4.45 9.95 4 10.5 4H13.5C14.05 4 14.5 4.45 14.5 5V7" stroke="%23E5484D" stroke-width="2" stroke-linecap="round"/><path d="M6.5 7L7.5 20C7.55 20.55 8 21 8.55 21H15.45C16 21 16.45 20.55 16.5 20L17.5 7" stroke="%23E5484D" stroke-width="2" stroke-linecap="round"/><path d="M10 11V17" stroke="%23E5484D" stroke-width="2" stroke-linecap="round"/><path d="M14 11V17" stroke="%23E5484D" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain #FFE3E3;
+  border-color: #E5484D;
 }
 .demo-role-txt {
   font-size: 26rpx;
   color: #6B6B76;
   font-weight: 600;
+}
+.demo-txt-danger {
+  color: #E5484D;
 }
 
 /* 语言切换（左上角） */

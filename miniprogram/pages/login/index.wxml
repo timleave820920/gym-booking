@@ -64,9 +64,9 @@
         <view class="demo-ico demo-ico-coach"></view>
         <text class="demo-role-txt">{{t.roleCoach}}</text>
       </view>
-      <view class="demo-role" data-role="admin" bindtap="quickLogin">
-        <view class="demo-ico demo-ico-admin"></view>
-        <text class="demo-role-txt">{{t.roleAdmin}}</text>
+      <view class="demo-role" bindtap="clearDb">
+        <view class="demo-ico demo-ico-clear"></view>
+        <text class="demo-role-txt demo-txt-danger">清空数据库</text>
       </view>
     </view>
     <text class="demo-hint">{{t.demoHint}}</text>
