@@ -37,11 +37,11 @@
     "list": [
       {
         "pagePath": "pages/student-home/index",
-        "text": "首页"
+        "text": "今日"
       },
       {
         "pagePath": "pages/student-courses/index",
-        "text": "课程"
+        "text": "本周"
       },
       {
         "pagePath": "pages/student-my-courses/index",
