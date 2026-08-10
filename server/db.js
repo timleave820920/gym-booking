@@ -38,6 +38,108 @@ db.exec(`
   );
 `);
 
+// ===== 课程相关表（结构见 DATA-MODEL.md）=====
+
+// 教练资料表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS coaches (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_openid TEXT,
+    name        TEXT NOT NULL,
+    avatar      TEXT DEFAULT '',
+    skills      TEXT DEFAULT '',
+    rating      REAL DEFAULT 5.0,
+    status      TEXT DEFAULT 'active'
+  );
+`);
+
+// 场地表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS venues (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    name     TEXT NOT NULL,
+    location TEXT DEFAULT '',
+    capacity INTEGER DEFAULT 20,
+    status   TEXT DEFAULT 'active'
+  );
+`);
+
+// 课程模板表（价格存"分"）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS courses (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    name         TEXT NOT NULL,
+    category     TEXT NOT NULL,
+    level        INTEGER DEFAULT 3,
+    duration_min INTEGER DEFAULT 60,
+    price_fen    INTEGER DEFAULT 6800,
+    cover        TEXT DEFAULT '',
+    description  TEXT DEFAULT '',
+    status       TEXT DEFAULT 'published',
+    created_at   TEXT DEFAULT (datetime('now','localtime')),
+    updated_at   TEXT DEFAULT (datetime('now','localtime'))
+  );
+`);
+
+// 每周重复排课规则表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS schedule_templates (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    course_id  INTEGER NOT NULL,
+    weekday    INTEGER NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time   TEXT NOT NULL,
+    venue_id   INTEGER NOT NULL,
+    coach_id   INTEGER NOT NULL,
+    capacity   INTEGER DEFAULT 20,
+    FOREIGN KEY (course_id) REFERENCES courses(id),
+    FOREIGN KEY (venue_id)  REFERENCES venues(id),
+    FOREIGN KEY (coach_id)  REFERENCES coaches(id)
+  );
+`);
+
+// 课程场次表（排课实例，余位 = capacity - booked_count）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS course_sessions (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    course_id    INTEGER NOT NULL,
+    coach_id     INTEGER NOT NULL,
+    venue_id     INTEGER NOT NULL,
+    date         TEXT NOT NULL,
+    start_time   TEXT NOT NULL,
+    end_time     TEXT NOT NULL,
+    capacity     INTEGER DEFAULT 20,
+    booked_count INTEGER DEFAULT 0,
+    status       TEXT DEFAULT 'published',
+    source       TEXT DEFAULT 'manual',
+    created_at   TEXT DEFAULT (datetime('now','localtime')),
+    FOREIGN KEY (course_id) REFERENCES courses(id),
+    FOREIGN KEY (coach_id)  REFERENCES coaches(id),
+    FOREIGN KEY (venue_id)  REFERENCES venues(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_sessions_date ON course_sessions(date, status);
+  CREATE INDEX IF NOT EXISTS idx_sessions_course ON course_sessions(course_id, date);
+`);
+
+// 预约/订单表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS bookings (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    booking_no    TEXT UNIQUE NOT NULL,
+    user_openid   TEXT NOT NULL,
+    session_id    INTEGER NOT NULL,
+    amount_fen    INTEGER DEFAULT 0,
+    status        TEXT DEFAULT 'booked',
+    pay_status    TEXT DEFAULT 'unpaid',
+    checkin_at    TEXT,
+    cancel_reason TEXT DEFAULT '',
+    created_at    TEXT DEFAULT (datetime('now','localtime')),
+    FOREIGN KEY (user_openid) REFERENCES users(openid),
+    FOREIGN KEY (session_id)  REFERENCES course_sessions(id),
+    UNIQUE (user_openid, session_id)
+  );
+`);
+
 /**
  * 根据 openid 查找用户
  */
