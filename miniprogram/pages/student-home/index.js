@@ -34,7 +34,7 @@ Page({
     }
   },
 
-  // 加载今日课程：从后端拉当天场次，按当前时间标记"已结束"
+  // 加载今日课程：从后端拉当天场次，按当前时间标记状态
   loadTodayCourses() {
     const today = new Date();
     const full = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -49,34 +49,38 @@ Page({
         remaining: s.remaining,
         price: (s.price_fen / 100).toFixed(0),
         img: s.cover || DEFAULT_COVER,
-        ended: this.isEnded(s.end_time)
+        status: this.getStatus(s.start_time, s.end_time)
       }));
       this.setData({ hotCourses: this.decorate(list), offline: false, loaded: true });
     }).catch(() => {
-      // 后端不可用 → 用演示数据（取前 3 门课，按当日时间判断结束）
+      // 后端不可用 → 用演示数据（取前 3 门课，按当日时间判断状态）
       const list = mock.courses.slice(0, 3).map(c => ({
         id: c.id, name: c.name, coach: c.coach, venue: c.venue,
         start: c.start, end: c.end, remaining: c.remaining, price: c.price, img: c.img,
-        ended: this.isEnded(c.end)
+        status: this.getStatus(c.start, c.end)
       }));
       this.setData({ hotCourses: this.decorate(list), offline: true, loaded: true });
     });
   },
 
-  // 判断课程是否已结束：当前时间晚于当天结束时间
-  isEnded(endTime) {
-    const [h, m] = (endTime || '00:00').split(':').map(Number);
+  // 课程状态：upcoming 未开始（可约）/ ongoing 进行中（红色不可点）/ ended 已结束（灰色）
+  getStatus(startTime, endTime) {
     const now = new Date();
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
-    return now > end;
+    const [sh, sm] = (startTime || '00:00').split(':').map(Number);
+    const [eh, em] = (endTime || '00:00').split(':').map(Number);
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sh, sm, 0);
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), eh, em, 0);
+    if (now < start) return 'upcoming';
+    if (now < end) return 'ongoing';
+    return 'ended';
   },
 
-  // 组装课程卡片文案（i18n 模板替换占位符）；recheck 时重算已结束标记
+  // 组装课程卡片文案（i18n 模板替换占位符）；recheck 时重算课程状态
   decorate(list, recheck) {
     const t = i18n.t();
     return (list || []).map(c => ({
       ...c,
-      ended: recheck ? this.isEnded(c.end) : c.ended,
+      status: recheck ? this.getStatus(c.start, c.end) : c.status,
       metaText: t.timeRangeSeats
         .replace('{{start}}', c.start)
         .replace('{{end}}', c.end)
@@ -122,6 +126,15 @@ Page({
 
   goDetail(e) {
     const id = e.currentTarget.dataset.id;
+    const item = this.data.hotCourses.find(c => c.id === id);
+    // 进行中 / 已结束的课程不可点击
+    if (item && item.status !== 'upcoming') {
+      wx.showToast({
+        title: item.status === 'ongoing' ? '课程进行中，无法预约' : '课程已结束，无法预约',
+        icon: 'none'
+      });
+      return;
+    }
     wx.navigateTo({ url: `/pages/student-course-detail/index?session_id=${id}` });
   },
 

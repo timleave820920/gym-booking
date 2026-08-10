@@ -119,6 +119,35 @@
   background: #E0DCCB;
   color: #8A8A8A;
 }
+/* 进行中课程：按钮红色 */
+.book-ongoing {
+  background: #E5484D;
+  color: #FFFFFF;
+}
+/* 进行中/已结束课程卡片整体弱化 */
+.card-off {
+  opacity: 0.72;
+}
+/* 课程名旁状态标签 */
+.name-row {
+  align-items: center;
+}
+.status-tag {
+  font-size: 20rpx;
+  font-weight: 600;
+  padding: 2rpx 12rpx;
+  border-radius: 16rpx;
+  margin-left: 12rpx;
+  flex-shrink: 0;
+}
+.status-ongoing {
+  background: #FCEBEB;
+  color: #E5484D;
+}
+.status-ended {
+  background: #F0EDDF;
+  color: #8A8A8A;
+}
 .offline-tip {
   display: block;
   text-align: center;
