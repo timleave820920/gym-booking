@@ -69,6 +69,7 @@
         <text class="demo-role-txt demo-txt-danger">清空数据库</text>
       </view>
     </view>
+    <text class="db-count">当前注册用户人数：{{userCount}} 人</text>
     <text class="demo-hint">{{t.demoHint}}</text>
   </view>
 </view>

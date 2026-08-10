@@ -385,3 +385,11 @@
   text-align: center;
   margin-top: 8rpx;
 }
+
+/* 注册用户数统计 */
+.db-count {
+  font-size: 22rpx;
+  color: #6B6B76;
+  text-align: center;
+  margin-top: 16rpx;
+}

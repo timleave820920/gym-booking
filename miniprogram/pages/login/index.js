@@ -7,13 +7,29 @@ Page({
     agreed: true,          // 默认勾选协议
     loggingIn: false,
     lang: 'zh',              // 当前语言
-    t: i18n.t()              // 语言字典
+    t: i18n.t(),             // 语言字典
+    userCount: 0             // 当前注册用户数
   },
 
   onLoad() {
     this.setData({
       lang: i18n.getLang() || 'zh',
       t: i18n.t()
+    });
+    this.loadUserCount();
+  },
+
+  onShow() {
+    // 每次回到登录页刷新用户数（清空后立即更新）
+    this.loadUserCount();
+  },
+
+  // 拉取当前注册用户数
+  loadUserCount() {
+    api.getUsersStats().then((res) => {
+      this.setData({ userCount: res.totalUsers || 0 });
+    }).catch(() => {
+      this.setData({ userCount: 0 });
     });
   },
 
