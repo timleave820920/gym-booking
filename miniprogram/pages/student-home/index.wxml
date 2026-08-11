@@ -44,11 +44,10 @@
         <view class="cb-bar"></view>
 
         <view class="cb-main">
-          <!-- 顶行：教练头像 + 课程名 + 会员价徽章 -->
+          <!-- 顶行：教练头像 + 课程名 -->
           <view class="cb-top">
             <image class="cb-avatar" src="{{item.coachAvatar}}" mode="aspectFill" data-idx="{{index}}" binderror="avatarError"></image>
             <text class="cb-name">{{item.name}}</text>
-            <text class="cb-member">会员价</text>
           </view>
 
           <!-- 中行：大数字时间 + 剩余席位读数 -->

@@ -99,15 +99,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.cb-member {
-  font-size: 20rpx;
-  font-weight: 700;
-  background: #1A1A23;
-  color: #B9FF66;
-  padding: 6rpx 16rpx;
-  border-radius: 999rpx;
-  flex-shrink: 0;
-}
 /* 中行：大数字时间 + 剩余席位读数 */
 .cb-mid {
   display: flex;
