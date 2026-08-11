@@ -48,6 +48,7 @@ Page({
         return {
           id: s.id,
           name: s.course_name,
+          description: s.course_desc || '',
           coach: s.coach_name,
           venue: s.venue_name,
           coachAvatar: s.coach_avatar || DEFAULT_COACH_AVATAR,
@@ -68,7 +69,7 @@ Page({
     }).catch(() => {
       // 后端不可用 → 用演示数据（取前 3 门课，按当日时间判断状态）
       const list = mock.courses.slice(0, 3).map(c => ({
-        id: c.id, name: c.name, coach: c.coach, venue: c.venue,
+        id: c.id, name: c.name, description: c.desc || c.description || '', coach: c.coach, venue: c.venue,
         coachAvatar: DEFAULT_COACH_AVATAR, level: c.level,
         start: c.start, end: c.end, remaining: c.remaining, capacity: c.capacity || 20,
         price: c.price, memberPrice: Math.floor(Number(c.price) * 0.9),

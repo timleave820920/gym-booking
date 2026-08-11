@@ -100,6 +100,7 @@ Page({
       const list = (res.sessions || []).map(s => ({
         id: s.id,
         name: s.course_name,
+        description: s.course_desc || '',
         category: s.category,
         coach: s.coach_name,
         coachAvatar: s.coach_avatar || DEFAULT_COACH_AVATAR,
@@ -123,7 +124,7 @@ Page({
       const list = mock.courses
         .filter(c => c.days.includes(dayIndex))
         .map(c => this.decorateSession({
-          id: c.id, name: c.name, category: c.category, coach: c.coach,
+          id: c.id, name: c.name, description: c.desc || c.description || '', category: c.category, coach: c.coach,
           coachAvatar: DEFAULT_COACH_AVATAR, level: c.level,
           date: full,
           start: c.start, end: c.end, remaining: c.remaining, price: c.price,

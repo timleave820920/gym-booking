@@ -127,14 +127,25 @@
   background: #F0EDDF;
   flex-shrink: 0;
 }
+.cb-title {
+  flex: 1;
+  min-width: 0;
+  padding-right: 230rpx;   /* 给右上角火焰让位 */
+}
 .cb-name {
   font-size: 40rpx;
   font-weight: 800;
   letter-spacing: 1rpx;
   color: #1A1A23;
-  flex: 1;
-  min-width: 0;
-  padding-right: 230rpx;   /* 给右上角火焰让位（40rpx 字号） */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 课程描述：小一号 + 灰色 */
+.cb-desc {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #8A8A8A;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
