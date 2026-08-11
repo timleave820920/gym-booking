@@ -12,8 +12,8 @@ Page({
     totalPrice: 0,         // 当前选中支付方式的结算价
     payText: '含课程费用',   // 结算价说明
     payMethods: [
-      { id: 1, name: '微信支付', desc: '推荐使用', icon: 'wallet', selected: true },
-      { id: 2, name: '余额支付', desc: '余额 ¥ 0.00', icon: 'card', selected: false }
+      { id: 2, name: '余额支付', desc: '余额 ¥ 0.00', icon: 'card', selected: false },
+      { id: 1, name: '微信支付', desc: '推荐使用', icon: 'wallet', selected: true }
     ]
   },
 
