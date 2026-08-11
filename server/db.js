@@ -552,12 +552,12 @@ function applyRecharge({ user_openid, order_id, amount_fen, bonus_fen }) {
   return { rechargeNo, total: amount_fen + bonus_fen };
 }
 
-/** 查询充值记录（附带每条是否该档首充，供前端展示「首充/复充」文案） */
-function listRecharges(openid) {
+/** 查询充值记录（分页：offset/limit，附带每条是否该档首充） */
+function listRecharges(openid, offset = 0, limit = 10) {
   const list = db.prepare(`
     SELECT id, recharge_no, amount_fen, bonus_fen, status, created_at
-    FROM member_recharges WHERE user_openid = ? ORDER BY created_at DESC, id DESC
-  `).all(openid);
+    FROM member_recharges WHERE user_openid = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?
+  `).all(openid, limit, offset);
   return list.map(r => {
     // 同档（金额相同）更早的记录数 = 0 → 首充
     const earlier = db.prepare('SELECT COUNT(*) c FROM member_recharges WHERE user_openid = ? AND amount_fen = ? AND id < ?')

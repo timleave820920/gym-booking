@@ -477,8 +477,11 @@ function handleMemberRecharges(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid');
   if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
-  const recharges = db.listRecharges(openid);
-  return sendJson(res, 200, { code: 200, recharges });
+  // 分页参数（默认最近 10 笔）
+  const offset = parseInt(url.searchParams.get('offset') || '0', 10) || 0;
+  const limit = parseInt(url.searchParams.get('limit') || '10', 10) || 10;
+  const recharges = db.listRecharges(openid, offset, limit);
+  return sendJson(res, 200, { code: 200, recharges, hasMore: recharges.length >= limit });
 }
 
 // 邀请绑定（POST /api/invite）

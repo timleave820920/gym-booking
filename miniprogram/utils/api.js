@@ -228,8 +228,8 @@ module.exports = {
   getMemberConfig() {
     return localRequest('/api/member/config', 'GET');
   },
-  getMyRecharges(openid) {
-    return localRequest('/api/member/recharges?openid=' + openid, 'GET');
+  getMyRecharges(openid, offset = 0, limit = 10) {
+    return localRequest('/api/member/recharges?openid=' + openid + '&offset=' + offset + '&limit=' + limit, 'GET');
   },
   getInviteStats(openid) {
     return localRequest('/api/invite/stats?openid=' + openid, 'GET');

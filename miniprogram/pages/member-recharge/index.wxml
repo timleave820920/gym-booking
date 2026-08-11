@@ -37,5 +37,11 @@
       </view>
     </view>
     <view class="rec-empty" wx:else>暂无充值记录，快去充值解锁会员价吧</view>
+    <!-- 分页提示：有更多 → 下拉刷出更早10笔；加载完 → 没有了 -->
+    <view class="rec-more" wx:if="{{recharges.length > 0}}">
+      <text wx:if="{{loadingMore}}">加载中...</text>
+      <text wx:elif="{{hasMore}}">下拉刷出更早10笔</text>
+      <text wx:else>没有了</text>
+    </view>
   </view>
 </view>

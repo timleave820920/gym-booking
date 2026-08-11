@@ -6,7 +6,11 @@ Page({
     balance: '0.00',
     plans: [],
     selectedId: 2,       // 默认选中间档（1500）
-    recharges: []
+    recharges: [],
+    pageSize: 10,        // 每页条数
+    offset: 0,           // 当前已加载条数（下一页偏移）
+    hasMore: true,       // 是否还有更早记录
+    loadingMore: false   // 加载中标记
   },
 
   onLoad() {
@@ -17,6 +21,11 @@ Page({
   onShow() {
     this.loadPlans();   // 充值后刷新首充状态
     this.loadInfo();
+  },
+
+  // 上拉触底 → 加载更早 10 笔
+  onReachBottom() {
+    this.loadRecharges(false);
   },
 
   loadPlans() {
@@ -56,16 +65,36 @@ Page({
     api.getMemberLevel(openid).then((res) => {
       this.setData({ balance: (res.level.balanceFen / 100).toFixed(2) });
     }).catch(() => {});
-    api.getMyRecharges(openid).then((res) => {
-      const list = (res.recharges || []).map(r => ({
+    this.loadRecharges(true);
+  },
+
+  // 加载充值记录（reset=true 重新拉第一页；false 追加更早一页）
+  loadRecharges(reset) {
+    if (this.data.loadingMore) return;
+    if (!reset && !this.data.hasMore) return;   // 已全部加载完
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+    if (!openid) return;
+    const offset = reset ? 0 : this.data.offset;
+    this.setData({ loadingMore: true });
+    api.getMyRecharges(openid, offset, this.data.pageSize).then((res) => {
+      const newList = (res.recharges || []).map(r => ({
         // 有趣的记录描述：首充能量补给 / 复充能量补给（隐藏内部单号）
         title: r.is_first ? '⚡ 首充能量补给' : '⚡ 复充能量补给',
         sub: `充¥${(r.amount_fen / 100).toFixed(0)} 送¥${(r.bonus_fen / 100).toFixed(0)}`,
         total: ((r.amount_fen + r.bonus_fen) / 100).toFixed(0),
         time: r.created_at
       }));
-      this.setData({ recharges: list });
-    }).catch(() => {});
+      const list = reset ? newList : this.data.recharges.concat(newList);
+      this.setData({
+        recharges: list,
+        offset: offset + newList.length,
+        hasMore: !!res.hasMore && newList.length >= this.data.pageSize,
+        loadingMore: false
+      });
+    }).catch(() => {
+      this.setData({ loadingMore: false });
+    });
   },
 
   selectPlan(e) {
