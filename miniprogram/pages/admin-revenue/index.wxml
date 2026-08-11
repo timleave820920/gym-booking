@@ -25,6 +25,7 @@
   </scroll-view>
 
   <view class="admin-content">
+    <text class="offline-tip" wx:if="{{offline}}">后端未连接，展示空数据</text>
     <view class="flex-between">
       <text class="page-title">营收统计</text>
       <view class="seg-mini flex-row">

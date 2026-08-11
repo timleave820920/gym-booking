@@ -1,20 +1,49 @@
-const mock = require('../../utils/mock.js');
+const api = require('../../utils/api.js');
 
 Page({
   data: {
     stats: [],
     sources: [],
     monthly: [],
-    maxValue: 200
+    maxValue: 200,
+    loaded: false,
+    offline: false
   },
 
   onLoad() {
-    const maxValue = Math.max(...mock.monthlyRevenue.map(m => m.value));
-    this.setData({
-      stats: mock.revenueStats,
-      sources: mock.revenueSources,
-      monthly: mock.monthlyRevenue,
-      maxValue
+    this.loadRevenue();
+  },
+
+  // 从后端拉取真实营收数据
+  loadRevenue() {
+    api.getRevenueStats().then((res) => {
+      const monthly = res.monthly || [];
+      const maxValue = monthly.length > 0
+        ? Math.max(...monthly.map(m => m.value), 1)
+        : 200;
+      this.setData({
+        stats: res.stats || [],
+        sources: res.sources || [],
+        monthly,
+        maxValue,
+        loaded: true,
+        offline: false
+      });
+    }).catch(() => {
+      // 后端不可用：显示空数据（避免假数据误导）
+      this.setData({
+        stats: [
+          { label: '本月营收', value: '¥ 0', trend: '后端未连接', dark: true },
+          { label: '本月订单', value: '0', trend: '暂无数据' },
+          { label: '累计营收', value: '¥ 0', trend: '暂无数据' },
+          { label: '退款总额', value: '¥ 0', trend: '暂无数据' }
+        ],
+        sources: [],
+        monthly: [],
+        maxValue: 200,
+        loaded: true,
+        offline: true
+      });
     });
   },
 

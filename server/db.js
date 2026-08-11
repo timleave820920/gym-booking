@@ -513,6 +513,9 @@ function cancelBooking(openid, bookingId) {
   let promoted = null;
   try {
     db.prepare("UPDATE bookings SET status = 'cancelled', cancel_reason = '用户退订' WHERE id = ?").run(bookingId);
+    // 关联订单标记退款（仅已支付的订单）
+    db.prepare(`UPDATE orders SET status = 'refunded', refunded_at = datetime('now','localtime'), cancel_reason = '用户退订'
+                WHERE booking_id = ? AND status = 'paid'`).run(bookingId);
     // 仅未签到订单恢复余位
     if (!booking.checkin_at) {
       db.prepare('UPDATE course_sessions SET booked_count = MAX(booked_count - 1, 0) WHERE id = ?').run(booking.session_id);
@@ -663,6 +666,83 @@ function getOrderByNo(orderNo) {
 }
 
 /**
+ * 营收统计（管理后台营收页，基于真实订单）
+ * @returns {object} { stats, monthly, sources }
+ */
+function getRevenueStats() {
+  const fen = (n) => Number(n || 0);
+
+  // 本月营收（已支付订单，按支付时间当月）
+  const thisMonth = db.prepare(`
+    SELECT COALESCE(SUM(amount_fen), 0) revenue, COUNT(*) cnt
+    FROM orders WHERE status = 'paid'
+      AND strftime('%Y-%m', paid_at) = strftime('%Y-%m', 'now', 'localtime')
+  `).get();
+  // 总营收 + 总订单数 + 退款总额
+  const totals = db.prepare(`
+    SELECT
+      COALESCE(SUM(CASE WHEN status = 'paid' THEN amount_fen ELSE 0 END), 0) paid_revenue,
+      COALESCE(SUM(CASE WHEN status = 'refunded' THEN amount_fen ELSE 0 END), 0) refund_revenue,
+      COUNT(*) total_orders
+    FROM orders
+  `).get();
+  // 客单价（已支付订单）
+  const paidCnt = db.prepare("SELECT COUNT(*) c FROM orders WHERE status = 'paid'").get().c;
+  const avgPrice = paidCnt > 0 ? totals.paid_revenue / paidCnt : 0;
+
+  // 近 8 个月月度营收
+  const monthlyRows = db.prepare(`
+    SELECT strftime('%Y-%m', paid_at) ym, COALESCE(SUM(amount_fen), 0) revenue
+    FROM orders WHERE status = 'paid' AND paid_at IS NOT NULL
+    GROUP BY ym ORDER BY ym DESC LIMIT 8
+  `).all();
+  const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const monthly = monthlyRows.reverse().map(r => {
+    const m = Number(r.ym.split('-')[1]);
+    return { month: monthNames[m - 1], value: Number((r.revenue / 10000).toFixed(1)) };
+  });
+
+  // 收入来源（按订单类型 book/waitlist 分组占比）
+  const srcRows = db.prepare(`
+    SELECT order_type, COALESCE(SUM(amount_fen), 0) revenue
+    FROM orders WHERE status = 'paid'
+    GROUP BY order_type
+  `).all();
+  const srcTotal = srcRows.reduce((s, r) => s + fen(r.revenue), 0);
+  const srcMeta = {
+    book: { name: '单次课程', color: '#5B57EB' },
+    waitlist: { name: '候补排位', color: '#B9FF66' }
+  };
+  const sources = srcRows.map(r => {
+    const meta = srcMeta[r.order_type] || { name: r.order_type, color: '#F8D044' };
+    const pct = srcTotal > 0 ? (fen(r.revenue) / srcTotal * 100).toFixed(1) : '0';
+    return { name: meta.name, pct: pct + '%', color: meta.color };
+  });
+
+  // 上月营收（算环比）
+  const lastMonth = db.prepare(`
+    SELECT COALESCE(SUM(amount_fen), 0) revenue
+    FROM orders WHERE status = 'paid'
+      AND strftime('%Y-%m', paid_at) = strftime('%Y-%m', 'now', 'localtime', '-1 month')
+  `).get().revenue;
+
+  const thisRev = fen(thisMonth.revenue);
+  const lastRev = fen(lastMonth);
+  const trendPct = lastRev > 0 ? ((thisRev - lastRev) / lastRev * 100).toFixed(1) : 0;
+
+  return {
+    stats: [
+      { label: '本月营收', value: '¥ ' + (thisRev / 100).toLocaleString(), trend: (trendPct >= 0 ? '↑ ' : '↓ ') + Math.abs(trendPct) + '% 较上月', dark: true },
+      { label: '本月订单', value: String(thisMonth.cnt), trend: '已支付订单' },
+      { label: '累计营收', value: '¥ ' + (fen(totals.paid_revenue) / 100).toLocaleString(), trend: '累计 ' + totals.total_orders + ' 笔' },
+      { label: '退款总额', value: '¥ ' + (fen(totals.refund_revenue) / 100).toLocaleString(), trend: '客单价 ¥' + (avgPrice / 100).toFixed(1) }
+    ],
+    monthly,
+    sources
+  };
+}
+
+/**
  * 候补转正：把某场次最早的 waiting 排位者转正为正式订课（需在事务内调用）
  * @returns {object|null} 转正的排位记录（含用户/场次信息）
  */
@@ -675,10 +755,14 @@ function promoteFromWaitlist(sessionId) {
   db.prepare(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status)
               VALUES (?, ?, ?, ?, 'booked', 'paid')`)
     .run(bookingNo, waiting.user_openid, waiting.session_id, waiting.amount_fen);
+  const bookingId = db.prepare('SELECT id FROM bookings WHERE booking_no = ?').get(bookingNo).id;
   // 扣减余位（退订时已 +1，这里 -1 抵消，保持满员状态）
   db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(sessionId);
   // 更新排位记录为已转正
   db.prepare("UPDATE waitlist SET status = 'promoted', promoted_at = datetime('now','localtime') WHERE id = ?").run(waiting.id);
+  // 订单联动：原排位订单关联到新 booking（订单保持 paid，即排位费转为订课费）
+  db.prepare("UPDATE orders SET booking_id = ?, wait_id = ?, order_type = 'book' WHERE wait_id = ? AND status = 'paid'")
+    .run(bookingId, waiting.id, waiting.id);
 
   return {
     id: waiting.id,
@@ -740,7 +824,17 @@ function cancelWaitlist(openid, waitId) {
   const wait = db.prepare('SELECT * FROM waitlist WHERE id = ? AND user_openid = ?').get(waitId, openid);
   if (!wait) return { ok: false, error: '排位记录不存在' };
   if (wait.status !== 'waiting') return { ok: false, error: '该排位已不在队列中' };
-  db.prepare("UPDATE waitlist SET status = 'cancelled', cancel_reason = '用户退出候补', refunded_at = datetime('now','localtime') WHERE id = ?").run(waitId);
+  db.exec('BEGIN');
+  try {
+    db.prepare("UPDATE waitlist SET status = 'cancelled', cancel_reason = '用户退出候补', refunded_at = datetime('now','localtime') WHERE id = ?").run(waitId);
+    // 关联订单标记退款
+    db.prepare(`UPDATE orders SET status = 'refunded', refunded_at = datetime('now','localtime'), cancel_reason = '用户退出候补'
+                WHERE wait_id = ? AND status = 'paid'`).run(waitId);
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
   return { ok: true };
 }
 
@@ -776,7 +870,16 @@ function refundExpiredWaitlist() {
            OR (s.date = date('now','localtime') AND s.start_time < time('now','localtime')))
   `).all();
   for (const row of expired) {
-    db.prepare("UPDATE waitlist SET status = 'refunded', cancel_reason = '课程开始未排到，自动退款', refunded_at = datetime('now','localtime') WHERE id = ?").run(row.id);
+    db.exec('BEGIN');
+    try {
+      db.prepare("UPDATE waitlist SET status = 'refunded', cancel_reason = '课程开始未排到，自动退款', refunded_at = datetime('now','localtime') WHERE id = ?").run(row.id);
+      db.prepare(`UPDATE orders SET status = 'refunded', refunded_at = datetime('now','localtime'), cancel_reason = '课程开始未排到，自动退款'
+                  WHERE wait_id = ? AND status = 'paid'`).run(row.id);
+      db.exec('COMMIT');
+    } catch (e) {
+      db.exec('ROLLBACK');
+      throw e;
+    }
   }
   return expired.length;
 }
@@ -860,5 +963,7 @@ module.exports = {
   createOrder,
   payOrder,
   listOrdersByUser,
-  getOrderByNo
+  getOrderByNo,
+  // 营收统计
+  getRevenueStats
 };

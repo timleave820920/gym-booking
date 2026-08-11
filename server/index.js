@@ -393,6 +393,12 @@ function handleListOrders(req, res) {
   return sendJson(res, 200, { code: 200, orders });
 }
 
+// 营收统计（GET /api/revenue，管理后台）
+function handleRevenue(req, res) {
+  const stats = db.getRevenueStats();
+  return sendJson(res, 200, { code: 200, ...stats });
+}
+
 // ===== 课程管理（电脑端课程编辑网页用）=====
 
 // 下拉选项元数据
@@ -565,6 +571,8 @@ const server = http.createServer(async (req, res) => {
       await handlePayOrder(req, res);
     } else if (req.method === 'GET' && pathname === '/api/orders') {
       handleListOrders(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/revenue') {
+      handleRevenue(req, res);
     } else if (req.method === 'GET' && pathname === '/api/health') {
       sendJson(res, 200, { code: 200, status: 'ok', time: new Date().toISOString() });
     } else if (req.method === 'GET' && pathname === '/api/meta') {

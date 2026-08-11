@@ -7,6 +7,7 @@
     "pages/student-pay/index",
     "pages/pay-success/index",
     "pages/student-my-courses/index",
+    "pages/student-orders/index",
     "pages/student-checkin/index",
     "pages/student-achievements/index",
     "pages/student-profile/index",

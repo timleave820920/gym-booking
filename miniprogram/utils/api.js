@@ -181,5 +181,10 @@ module.exports = {
     let qs = 'openid=' + openid;
     if (status) qs += '&status=' + status;
     return localRequest('/api/orders?' + qs, 'GET');
+  },
+
+  // 营收统计（管理后台）
+  getRevenueStats() {
+    return localRequest('/api/revenue', 'GET');
   }
 };

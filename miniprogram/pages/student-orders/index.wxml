@@ -1,0 +1,39 @@
+<view class="page">
+  <view class="page-pad pt-safe">
+    <view class="flex-between head-row">
+      <text class="page-title">我的订单</text>
+      <text class="head-date">{{orders.length}} 笔</text>
+    </view>
+
+    <view class="loading-tip" wx:if="{{loading}}">加载中...</view>
+
+    <!-- 订单列表 -->
+    <view class="order-list" wx:if="{{!loading && orders.length > 0}}">
+      <view class="order-card" wx:for="{{orders}}" wx:key="id">
+        <view class="flex-between order-top">
+          <text class="order-no">{{item.orderNo}}</text>
+          <text class="order-status {{item.statusCls}}">{{item.statusText}}</text>
+        </view>
+        <view class="flex-between order-mid">
+          <text class="order-name">{{item.name}}</text>
+          <text class="order-price">¥{{item.price}}</text>
+        </view>
+        <view class="order-meta">{{item.date}} {{item.time}} · {{item.type}}</view>
+        <view class="order-meta">教练 {{item.coach}} · {{item.venue}}</view>
+        <view class="order-foot flex-between">
+          <text class="order-meta">{{item.payMethod}} · {{item.payTime || item.createdTime}}</text>
+          <text class="order-meta" wx:if="{{item.status === 'refunded'}}">退款 {{item.refundTime}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state flex-col" wx:if="{{!loading && orders.length === 0}}">
+      <text class="empty-icon">▦</text>
+      <text class="empty-txt">暂无订单</text>
+      <text class="empty-sub">订课后这里会显示每一笔支付记录</text>
+    </view>
+
+    <view class="list-spacer"></view>
+  </view>
+</view>
