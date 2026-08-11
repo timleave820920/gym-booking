@@ -1,383 +1,425 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>课程编辑 · 综合训练馆订课系统</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>综合训练馆 · 课程管理</title>
 <style>
-  :root {
-    --cream: #F9F4DF; --lime: #B9FF66; --purple: #5B57EB;
-    --dark: #1A1A23; --gray: #6B6B76; --light: #B0AFA8; --white: #FFFFFF;
-    --danger: #E5484D;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; background: var(--cream); color: var(--dark); }
-  header { background: var(--dark); color: #fff; padding: 18px 32px; display: flex; align-items: center; justify-content: space-between; }
-  header h1 { font-size: 20px; font-weight: 500; letter-spacing: 1px; }
-  header h1 span { color: var(--lime); }
-  header .sub { font-size: 13px; color: #B0AFA8; margin-top: 2px; }
-  .status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #D9D4C0; }
-  .dot { width: 10px; height: 10px; border-radius: 50%; background: #F09595; }
-  .dot.ok { background: #97C459; }
-  main { display: flex; gap: 24px; padding: 24px 32px; align-items: flex-start; }
-  aside { width: 320px; flex-shrink: 0; background: var(--white); border-radius: 16px; padding: 20px; }
-  aside h2 { font-size: 15px; font-weight: 500; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
-  .btn-new { background: var(--lime); border: none; border-radius: 10px; padding: 6px 14px; font-size: 13px; color: var(--dark); cursor: pointer; font-weight: 500; }
-  .btn-new:hover { filter: brightness(0.96); }
-  .course-item { border: 1.5px solid #E8E4D5; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; cursor: pointer; transition: border-color .15s, background .15s; position: relative; }
-  .course-item:hover { border-color: var(--purple); }
-  .course-item.active { border-color: var(--purple); background: #F4F3FF; }
-  .course-item .nm { font-size: 14px; font-weight: 500; padding-right: 26px; }
-  .course-item .mt { font-size: 12px; color: var(--gray); margin-top: 4px; }
-  .course-item .st { display: inline-block; font-size: 11px; border-radius: 8px; padding: 1px 8px; margin-top: 6px; }
-  .st.published { background: #EAF3DE; color: #3B6D11; }
-  .st.draft { background: #FAEEDA; color: #854F0B; }
-  .course-item .del { position: absolute; top: 8px; right: 10px; border: none; background: none; color: var(--light); font-size: 15px; cursor: pointer; }
-  .course-item .del:hover { color: var(--danger); }
-  section { flex: 1; background: var(--white); border-radius: 16px; padding: 24px 28px; min-width: 0; }
-  .block { margin-bottom: 22px; }
-  .block > h3 { font-size: 14px; font-weight: 500; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #F0EDDF; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px 16px; }
-  .field label { display: block; font-size: 12px; color: var(--gray); margin-bottom: 5px; }
-  .field input[type=text], .field select { width: 100%; height: 36px; border: 1.5px solid #E0DCCB; border-radius: 9px; padding: 0 10px; font-size: 13px; color: var(--dark); background: #FCFAF2; outline: none; }
-  .field input:focus, .field select:focus { border-color: var(--purple); background: #fff; }
-  .field.wide { grid-column: 1 / -1; }
-  .cover-preview { margin-top: 8px; }
-  .cover-preview img { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--dark); object-fit: cover; display: none; background: #F0EDDF; }
-  .rules { margin-top: 4px; }
-  .rule-row { display: grid; grid-template-columns: 96px 1fr 1fr 1fr 1fr 84px 30px; gap: 8px; margin-bottom: 8px; align-items: center; }
-  .rule-row select { width: 100%; height: 34px; border: 1.5px solid #E0DCCB; border-radius: 8px; padding: 0 6px; font-size: 12px; background: #FCFAF2; color: var(--dark); outline: none; }
-  .rule-row select:focus { border-color: var(--purple); }
-  .rule-row .rm { border: none; background: none; color: var(--light); font-size: 16px; cursor: pointer; }
-  .rule-row .rm:hover { color: var(--danger); }
-  .btn-add { border: 1.5px dashed #C9C7BC; background: none; border-radius: 9px; padding: 8px 0; width: 100%; font-size: 13px; color: var(--gray); cursor: pointer; }
-  .btn-add:hover { border-color: var(--purple); color: var(--purple); }
-  .publish-bar { background: #F4F3FF; border-radius: 12px; padding: 16px; display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
-  .publish-bar .field { flex: 1; min-width: 150px; }
-  .btn { border: none; border-radius: 10px; padding: 10px 20px; font-size: 14px; cursor: pointer; font-weight: 500; }
-  .btn-save { background: var(--lime); color: var(--dark); }
-  .btn-save:hover { filter: brightness(0.96); }
-  .btn-del { background: none; border: 1.5px solid var(--danger); color: var(--danger); }
-  .btn-del:hover { background: #FCEBEB; }
-  .btn-publish { background: var(--purple); color: #fff; padding: 12px 28px; font-size: 15px; }
-  .btn-publish:hover { filter: brightness(1.08); }
-  .ops { display: flex; gap: 12px; margin-bottom: 20px; }
-  .msg { font-size: 13px; margin-top: 10px; min-height: 18px; }
-  .msg.ok { color: #3B6D11; }
-  .msg.err { color: var(--danger); }
-  .empty { color: var(--light); font-size: 13px; padding: 20px 0; text-align: center; }
-  footer { text-align: center; color: var(--light); font-size: 12px; padding: 10px 0 20px; }
+:root {
+  --bg: #F9F4DF; --card: #FFFFFF; --dark: #1A1A23; --lime: #B9FF66;
+  --purple: #5B57EB; --gray: #8A8A8A; --line: #E8E2CC; --red: #E5484D;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--dark); min-height: 100vh; }
+header { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; background: var(--dark); color: #fff; }
+.brand { font-size: 17px; font-weight: 700; letter-spacing: 1px; }
+.tabs { display: flex; gap: 8px; }
+.tab { border: none; background: rgba(255,255,255,0.12); color: #ddd; padding: 8px 22px; border-radius: 20px; font-size: 14px; cursor: pointer; }
+.tab.active { background: var(--lime); color: var(--dark); font-weight: 700; }
+.panel { display: flex; gap: 24px; padding: 24px 28px; max-width: 1200px; margin: 0 auto; }
+.panel.hidden { display: none; }
+h2 { font-size: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+h3 { font-size: 14px; margin-bottom: 12px; }
+.block { background: var(--card); border-radius: 14px; padding: 18px; margin-bottom: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.05); }
+.course-list { width: 260px; flex-shrink: 0; }
+.editor { flex: 1; min-width: 0; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field.wide { grid-column: 1 / -1; }
+label { font-size: 12px; color: #6B6B76; }
+input[type=text], input[type=number], select, textarea {
+  border: 1.5px solid var(--line); border-radius: 10px; padding: 9px 12px; font-size: 14px; background: #fff; width: 100%; outline: none;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--purple); }
+textarea { resize: vertical; min-height: 72px; }
+.member-hint { font-size: 12px; color: var(--purple); }
+.cover-area { display: flex; gap: 14px; align-items: flex-start; }
+.cover-preview { width: 120px; height: 120px; border-radius: 12px; border: 2px solid var(--dark); object-fit: cover; background: #F0EDDF; display: none; }
+.cover-controls { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.upload-btn { display: inline-block; padding: 8px 16px; border-radius: 18px; background: var(--dark); color: var(--lime); font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; }
+.spec-hint { font-size: 12px; color: var(--gray); line-height: 1.6; }
+.ops { display: flex; gap: 12px; align-items: center; }
+.btn { border: none; padding: 10px 24px; border-radius: 22px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.btn-save { background: var(--dark); color: var(--lime); }
+.btn-del { background: #FCEBEB; color: var(--red); }
+.btn-new { background: var(--lime); color: var(--dark); }
+.btn-add { background: var(--purple); color: #fff; }
+.btn-publish { background: var(--dark); color: var(--lime); }
+.msg { font-size: 13px; color: #3D9970; margin-left: 10px; }
+.msg.err { color: var(--red); }
+.list-item { background: #fff; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; border: 2px solid transparent; }
+.list-item.active { border-color: var(--purple); }
+.list-item .li-name { font-size: 14px; font-weight: 700; }
+.list-item .li-meta { font-size: 12px; color: var(--gray); margin-top: 2px; }
+.badge { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 8px; margin-left: 6px; }
+.badge-pub { background: #E5FFC9; color: #3D9970; }
+.badge-draft { background: #F0EDDF; color: var(--gray); }
+.sch-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.sch-bar select { width: 280px; }
+.sch-bar span { font-size: 13px; color: var(--gray); }
+.rules-row { display: grid; grid-template-columns: 90px 1fr 1fr 1fr 1fr 90px 30px; gap: 8px; margin-bottom: 8px; }
+.rules-row select { padding: 7px 6px; font-size: 13px; }
+.row-del { border: none; background: none; color: var(--red); font-size: 18px; cursor: pointer; }
+.publish-bar { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.publish-bar .field { flex: 1; min-width: 160px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+th { color: var(--gray); font-weight: 500; background: #FAF7EC; }
+td .cap-input { width: 64px; padding: 4px 6px; font-size: 12px; }
+.cap-save { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
+.st-pub { color: #3D9970; } .st-ongoing { color: var(--red); } .st-end { color: var(--gray); } .st-cancel { color: var(--gray); }
+.op-cancel { border: 1px solid #F7C1C1; color: var(--red); background: #FCEBEB; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+.op-cancel[disabled] { opacity: 0.4; cursor: not-allowed; }
+.empty-tip { text-align: center; color: var(--gray); padding: 30px 0; font-size: 13px; }
+.member-line { font-size: 12px; color: var(--purple); margin-top: 6px; }
 </style>
 </head>
 <body>
 <header>
-  <div>
-    <h1>课程编辑 <span>·</span> 综合训练馆订课系统</h1>
-    <div class="sub">新增 / 编辑 / 删除课程 · 下拉式属性 · 一键发布课表</div>
-  </div>
-  <div class="status"><span class="dot" id="connDot"></span><span id="connTxt">连接后端中…</span></div>
+  <div class="brand">综合训练馆 · 课程管理</div>
+  <nav class="tabs">
+    <button class="tab active" id="tab-set" onclick="switchTab('set')">课程设定</button>
+    <button class="tab" id="tab-sch" onclick="switchTab('sch')">排表管理</button>
+  </nav>
 </header>
 
-<main>
-  <aside>
-    <h2>课程列表 <button class="btn-new" onclick="newCourse()">+ 新增课程</button></h2>
+<!-- ============ 课程设定 ============ -->
+<section class="panel" id="panel-set">
+  <aside class="course-list">
+    <h2>课程列表 <button class="btn btn-new" onclick="newCourse()">+ 新增</button></h2>
     <div id="courseList"></div>
   </aside>
 
-  <section>
-    <!-- 课程信息 -->
+  <main class="editor">
     <div class="block">
-      <h3>课程信息</h3>
+      <h3>基本信息</h3>
       <div class="grid">
-        <div class="field wide">
-          <label>课程名称 *</label>
-          <input type="text" id="f-name" placeholder="如：Hyrox冲冲冲">
-        </div>
+        <div class="field wide"><label>课程名称 *</label><input type="text" id="f-name" placeholder="如：Hyrox冲冲冲"></div>
         <div class="field"><label>分类</label><select id="f-category"></select></div>
         <div class="field"><label>难度（1-5）</label><select id="f-level"></select></div>
         <div class="field"><label>时长（分钟）</label><select id="f-duration"></select></div>
-        <div class="field"><label>价格（元）</label><select id="f-price"></select></div>
+        <div class="field"><label>价格（元）</label><select id="f-price"></select><div class="member-line" id="memberHint"></div></div>
         <div class="field"><label>状态</label><select id="f-status"></select></div>
-        <div class="field wide"><label>封面图</label>
-          <select id="f-cover" onchange="previewCover()"></select>
-          <div class="cover-preview"><img id="coverImg" alt="封面预览"></div>
-        </div>
-        <div class="field wide"><label>课程描述</label><select id="f-description"></select></div>
       </div>
     </div>
 
-    <!-- 每周排课规则 -->
     <div class="block">
-      <h3>每周排课规则（发布时按此生成场次）</h3>
-      <div class="rules" id="rulesBox"></div>
-      <button class="btn-add" onclick="addRule()">+ 添加一条排课规则</button>
+      <h3>图片与描述</h3>
+      <div class="field wide">
+        <label>封面图（详情页顶部大图 · 建议 1:1 方图 ≥750×750px · 单张 ≤512KB · JPG/PNG/WebP）</label>
+        <div class="cover-area">
+          <img class="cover-preview" id="coverImg" alt="封面预览">
+          <div class="cover-controls">
+            <span class="upload-btn" onclick="document.getElementById('fileInput').click()">⬆ 上传本地图片</span>
+            <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="uploadImage(this)">
+            <select id="f-cover" onchange="previewCover()"></select>
+          </div>
+        </div>
+      </div>
+      <div class="field wide" style="margin-top:12px"><label>课程描述（显示在课程条第二行 + 详情页介绍区）</label><textarea id="f-description" placeholder="如：高强度进阶，挑战极限"></textarea></div>
+      <div class="field wide" style="margin-top:12px"><label>卖点标签（逗号分隔，显示在详情页副标题）</label><input type="text" id="f-tags" placeholder="如：高效燃脂, 新手友好, 器械混合"></div>
     </div>
 
-    <!-- 操作 -->
     <div class="ops">
       <button class="btn btn-save" onclick="saveCourse()">保存课程</button>
       <button class="btn btn-del" onclick="deleteCourse()">删除课程</button>
-      <div class="msg" id="saveMsg"></div>
+      <span class="msg" id="saveMsg"></span>
+    </div>
+  </main>
+</section>
+
+<!-- ============ 排表管理 ============ -->
+<section class="panel hidden" id="panel-sch">
+  <main style="flex:1; min-width:0">
+    <div class="sch-bar">
+      <select id="s-course" onchange="loadSchedule()"></select>
+      <span>选择课程后配置排课规则 / 发布 / 管理场次</span>
     </div>
 
-    <!-- 发布课程（末尾） -->
     <div class="block">
-      <h3>发布课程</h3>
+      <h3>每周排课规则（发布时按此批量生成场次）</h3>
+      <div id="rulesBox"></div>
+      <div style="display:flex; gap:10px; align-items:center; margin-top:10px">
+        <button class="btn btn-add" onclick="addRule()">+ 添加一条规则</button>
+        <button class="btn btn-save" onclick="saveRules()">保存规则</button>
+        <span class="msg" id="rulesMsg"></span>
+      </div>
+    </div>
+
+    <div class="block">
+      <h3>发布场次（按上面规则生成，已存在自动跳过）</h3>
       <div class="publish-bar">
         <div class="field"><label>起始日期</label><select id="f-date-from"></select></div>
         <div class="field"><label>结束日期</label><select id="f-date-to"></select></div>
         <button class="btn btn-publish" onclick="publishCourse()">发布课程</button>
+        <span class="msg" id="pubMsg"></span>
       </div>
-      <div class="msg" id="pubMsg"></div>
     </div>
-  </section>
-</main>
-<footer>本地后端 · 127.0.0.1:3000</footer>
+
+    <div class="block">
+      <h3>场次列表 <span id="sessionCount" style="font-size:12px;color:var(--gray);font-weight:400"></span></h3>
+      <table>
+        <thead><tr><th>日期</th><th>时间</th><th>课程</th><th>教练</th><th>场地</th><th>已约/容量</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody id="sessionBody"></tbody>
+      </table>
+      <div class="empty-tip" id="sessionEmpty">选择日期范围后加载场次</div>
+    </div>
+  </main>
+</section>
 
 <script>
-const API = 'http://127.0.0.1:3000';
-let meta = null, courses = [], editingId = null;
+var meta = { coaches: [], venues: [], categories: [], images: [], timeSlots: [], weekdays: [], capacities: [], statusLabels: {}, levels: [], durations: [], prices: [] };
+var courses = [];
+var editingId = 0;
 
-const $ = id => document.getElementById(id);
-const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const toast = (id, text, ok) => { $(id).textContent = text; $(id).className = 'msg ' + (ok ? 'ok' : 'err'); };
-
-async function api(path, method = 'GET', body) {
-  const opt = { method, headers: { 'Content-Type': 'application/json' } };
-  if (body) opt.body = JSON.stringify(body);
-  const res = await fetch(API + path, opt);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || data.code >= 400) throw new Error(data.message || ('请求失败 ' + res.status));
-  return data;
+function $(id) { return document.getElementById(id); }
+function toast(el, text, isErr) { el.textContent = text; el.className = 'msg' + (isErr ? ' err' : ''); if (text) setTimeout(function () { el.textContent = ''; }, 4000); }
+function api(path, method, body) {
+  var opt = { method: method || 'GET', headers: { 'Content-Type': 'application/json' } };
+  if (body !== undefined) opt.body = JSON.stringify(body);
+  return fetch('/api' + path, opt).then(function (r) { return r.json().catch(function () { return {}; }); }).then(function (j) { if (j.code && j.code !== 200) throw new Error(j.message || '请求失败'); return j; });
 }
 
-function optFill(sel, items, map, selected, placeholder) {
-  sel.innerHTML = '';
-  if (placeholder !== undefined) {
-    const o = document.createElement('option'); o.value = ''; o.textContent = placeholder; sel.appendChild(o);
+// ===== 工具 =====
+function fillSel(id, items, val, txt, empty) {
+  var s = $(id), html = '';
+  if (empty) html += '<option value="">' + empty + '</option>';
+  (items || []).forEach(function (it) { html += '<option value="' + it[val] + '">' + it[txt] + '</option>'; });
+  s.innerHTML = html;
+}
+function daysOptions(from, to, selected) {
+  var html = '', d = new Date(from), end = new Date(to);
+  while (d <= end) {
+    var iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    html += '<option value="' + iso + '"' + (iso === selected ? ' selected' : '') + '>' + iso + '</option>';
+    d.setDate(d.getDate() + 1);
   }
-  for (const it of items) {
-    const o = document.createElement('option');
-    o.value = map.val(it); o.textContent = map.txt(it);
-    if (String(selected) === String(o.value)) o.selected = true;
-    sel.appendChild(o);
-  }
+  return html;
 }
 
-function fillSelect(sel, values, selected, label) {
-  sel.innerHTML = '';
-  for (const v of values) {
-    const o = document.createElement('option');
-    o.value = v; o.textContent = label ? label(v) : v;
-    if (String(selected) === String(v)) o.selected = true;
-    sel.appendChild(o);
-  }
+// ===== Tab =====
+function switchTab(name) {
+  $('panel-set').classList.toggle('hidden', name !== 'set');
+  $('panel-sch').classList.toggle('hidden', name !== 'sch');
+  $('tab-set').classList.toggle('active', name === 'set');
+  $('tab-sch').classList.toggle('active', name === 'sch');
+  if (name === 'sch') loadSchedule();
 }
 
-// ===== 初始化 =====
-async function init() {
-  try {
-    const h = await fetch(API + '/api/health').then(r => r.json());
-    $('connDot').classList.add('ok'); $('connTxt').textContent = '已连接本地后端';
-  } catch (e) {
-    $('connTxt').textContent = '无法连接后端（请运行 node server/index.js）';
-  }
-  try {
-    const [m, c] = await Promise.all([api('/api/meta'), api('/api/courses')]);
-    meta = m; courses = c.courses || [];
-    buildMetaForm();
-    renderList();
-    buildDateOptions();
-    if (courses.length) editCourse(courses[0].id);
-    else newCourse();
-  } catch (e) {
-    toast('saveMsg', '加载失败：' + e.message, false);
-  }
+// ===== 加载元数据 & 课程 =====
+function init() {
+  return Promise.all([api('/meta'), api('/courses')]).then(function (res) {
+    meta = res[0]; courses = res[1].courses || [];
+    fillSel('f-category', meta.categories.map(function (c) { return { v: c, t: c }; }), 'v', 't', '请选择分类');
+    fillSel('f-level', meta.levels.map(function (v) { return { v: v, t: v + ' 级' }; }), 'v', 't');
+    fillSel('f-duration', meta.durations.map(function (v) { return { v: v, t: v + ' 分钟' }; }), 'v', 't');
+    fillSel('f-price', meta.prices.map(function (v) { return { v: v, t: '¥' + v }; }), 'v', 't');
+    fillSel('f-status', Object.keys(meta.statusLabels).map(function (k) { return { v: k, t: meta.statusLabels[k] }; }), 'v', 't');
+    fillSel('f-cover', meta.images.map(function (p) { return { v: p, t: p.split('/').pop() }; }), 'v', 't', '无封面');
+    renderCourseList();
+    fillScheduleCourse();
+    $('f-date-from').innerHTML = daysOptions(new Date(), new Date(new Date().getTime() + 60 * 864e5), today());
+    $('f-date-to').innerHTML = daysOptions(new Date(), new Date(new Date().getTime() + 60 * 864e5), todayPlus(20));
+  });
 }
+function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function todayPlus(n) { var d = new Date(Date.now() + n * 864e5); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
-function buildMetaForm() {
-  optFill($('f-category'), meta.categories, { val: v => v, txt: v => v });
-  fillSelect($('f-level'), meta.levels);
-  fillSelect($('f-duration'), meta.durations, undefined, v => v + ' 分钟');
-  fillSelect($('f-price'), meta.prices, undefined, v => '¥' + v);
-  optFill($('f-status'), meta.statuses, { val: v => v, txt: v => meta.statusLabels[v] || v });
-  optFill($('f-cover'), meta.images, { val: v => v, txt: v => v.split('/').pop() }, '', '无封面');
-  optFill($('f-description'), meta.descriptions, { val: v => v, txt: v => (v || '无描述') }, '', undefined);
+// ===== 课程设定 =====
+function renderCourseList() {
+  $('courseList').innerHTML = courses.map(function (c) {
+    return '<div class="list-item' + (c.id === editingId ? ' active' : '') + '" onclick="selectCourse(' + c.id + ')">' +
+      '<div class="li-name">' + esc(c.name) + '<span class="badge ' + (c.status === 'published' ? 'badge-pub' : 'badge-draft') + '">' + (meta.statusLabels[c.status] || c.status) + '</span></div>' +
+      '<div class="li-meta">' + esc(c.category) + ' · 难度' + c.level + ' · ¥' + (c.price_fen / 100) + ' · ' + (c.rules ? c.rules.length : 0) + ' 条规则</div>' +
+      '</div>';
+  }).join('');
 }
-
-function buildDateOptions() {
-  const now = new Date();
-  const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const lbl = d => `${d.getMonth() + 1}月${d.getDate()}日 周${'日一二三四五六'[d.getDay()]}`;
-  const days = [];
-  for (let i = 0; i < 60; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
-    days.push({ v: fmt(d), t: lbl(d) });
-  }
-  fillSelect($('f-date-from'), days, days[0].v, d => d.t);
-  fillSelect($('f-date-to'), days, days[20].v, d => d.t);
-}
-
-// ===== 列表 =====
-function renderList() {
-  const box = $('courseList');
-  if (!courses.length) { box.innerHTML = '<div class="empty">暂无课程，点击右上角新增</div>'; return; }
-  box.innerHTML = courses.map(c => `
-    <div class="course-item ${c.id === editingId ? 'active' : ''}" onclick="editCourse(${c.id})">
-      <button class="del" onclick="event.stopPropagation();askDelete(${c.id})" title="删除">×</button>
-      <div class="nm">${esc(c.name)}</div>
-      <div class="mt">${esc(c.category)} · 难度${c.level} · ${c.duration_min}分钟 · ¥${(c.price_fen / 100).toFixed(0)} · ${c.rules.length}条规则</div>
-      <span class="st ${c.status}">${c.status === 'published' ? '已发布' : '草稿'}</span>
-    </div>`).join('');
-}
-
-// ===== 表单 =====
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]; }); }
 function newCourse() {
-  editingId = null;
-  $('f-name').value = '';
-  $('f-status').value = 'published';
-  $('f-cover').value = '';
-  $('f-description').value = '';
-  previewCover();
-  $('rulesBox').innerHTML = '';
-  addRule();
-  renderList();
-  toast('saveMsg', '新增模式：填写属性后点「保存课程」', true);
-  $('f-name').focus();
+  editingId = 0;
+  ['f-name'].forEach(function (id) { $(id).value = ''; });
+  ['f-category', 'f-level', 'f-duration', 'f-price', 'f-status', 'f-cover'].forEach(function (id) { $(id).value = ''; });
+  $('f-description').value = ''; $('f-tags').value = '';
+  $('coverImg').style.display = 'none'; $('coverImg').removeAttribute('src');
+  updateMemberHint(); renderCourseList();
 }
-
-function editCourse(id) {
-  const c = courses.find(x => x.id === id);
+function selectCourse(id) {
+  var c = courses.find(function (x) { return x.id === id; });
   if (!c) return;
   editingId = id;
-  $('f-name').value = c.name || '';
-  $('f-category').value = c.category;
-  $('f-level').value = c.level;
-  $('f-duration').value = c.duration_min;
-  $('f-price').value = (c.price_fen / 100);
-  $('f-status').value = c.status;
+  $('f-name').value = c.name;
+  $('f-category').value = c.category; $('f-level').value = c.level; $('f-duration').value = c.duration_min;
+  $('f-price').value = c.price_fen / 100; $('f-status').value = c.status;
+  $('f-description').value = c.description || ''; $('f-tags').value = c.tags || '';
   $('f-cover').value = c.cover || '';
-  $('f-description').value = c.description || '';
-  previewCover();
-  $('rulesBox').innerHTML = '';
-  (c.rules && c.rules.length ? c.rules : [{}]).forEach(r => addRule(r));
-  renderList();
-  toast('saveMsg', '', true);
+  updateMemberHint(); previewCover(); renderCourseList();
 }
-
-function ruleRowHtml(r = {}) {
-  const mk = (name, items, map, val) => {
-    const opts = items.map(it => `<option value="${map.val(it)}" ${String(map.val(it)) === String(val) ? 'selected' : ''}>${esc(map.txt(it))}</option>`).join('');
-    return `<select data-rule="${name}">${opts}</select>`;
-  };
-  const wd = meta.weekdays.map(w => `<option value="${w.v}" ${Number(r.weekday || 1) === w.v ? 'selected' : ''}>${w.label}</option>`).join('');
-  const co = meta.coaches.map(c => `<option value="${c.id}" ${Number(r.coach_id || meta.coaches[0].id) === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
-  const ve = meta.venues.map(v => `<option value="${v.id}" ${Number(r.venue_id || meta.venues[0].id) === v.id ? 'selected' : ''}>${esc(v.name)}</option>`).join('');
-  const ts = t => meta.timeSlots.map(s => `<option value="${s}" ${(r.start_time || '10:00') === s ? 'selected' : ''}>${s}</option>`).join('');
-  const te = t => meta.timeSlots.map(s => `<option value="${s}" ${(r.end_time || '11:00') === s ? 'selected' : ''}>${s}</option>`).join('');
-  const cp = meta.capacities.map(c => `<option value="${c}" ${Number(r.capacity || 20) === c ? 'selected' : ''}>${c}人</option>`).join('');
-  return `<div class="rule-row">
-    <select data-rule="weekday">${wd}</select>
-    <select data-rule="start_time">${ts()}</select>
-    <select data-rule="end_time">${te()}</select>
-    <select data-rule="coach_id">${co}</select>
-    <select data-rule="venue_id">${ve}</select>
-    <select data-rule="capacity">${cp}</select>
-    <button class="rm" onclick="this.closest('.rule-row').remove()" title="删除规则">×</button>
-  </div>`;
+function updateMemberHint() {
+  var p = Number($('f-price').value);
+  $('memberHint').textContent = p ? '会员价 = ¥' + Math.floor(p * 0.9) + '（正价 9 折向下取整，自动计算）' : '';
 }
-
-function addRule(r) {
-  const div = document.createElement('div');
-  div.innerHTML = ruleRowHtml(r);
-  $('rulesBox').appendChild(div.firstElementChild);
-}
-
 function previewCover() {
-  const v = $('f-cover').value;
-  $('coverImg').style.display = v ? 'block' : 'none';
-  if (v) $('coverImg').src = API + v;
+  var v = $('f-cover').value;
+  if (v) { $('coverImg').src = v; $('coverImg').style.display = 'block'; }
+  else { $('coverImg').style.display = 'none'; $('coverImg').removeAttribute('src'); }
 }
-
-function collectRules() {
-  return [...document.querySelectorAll('#rulesBox .rule-row')].map(row => ({
-    weekday: +row.querySelector('[data-rule=weekday]').value,
-    start_time: row.querySelector('[data-rule=start_time]').value,
-    end_time: row.querySelector('[data-rule=end_time]').value,
-    coach_id: +row.querySelector('[data-rule=coach_id]').value,
-    venue_id: +row.querySelector('[data-rule=venue_id]').value,
-    capacity: +row.querySelector('[data-rule=capacity]').value
-  })).filter(r => r.coach_id && r.venue_id);
-}
-
-function collectCourse() {
-  return {
-    name: $('f-name').value.trim(),
-    category: $('f-category').value,
-    level: +$('f-level').value,
-    duration_min: +$('f-duration').value,
-    price_fen: Math.round(+$('f-price').value * 100),
-    cover: $('f-cover').value,
-    description: $('f-description').value,
-    status: $('f-status').value,
-    rules: collectRules()
+function uploadImage(input) {
+  var file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  if (file.size > 512 * 1024) { alert('图片超过 512KB 限制，请压缩后上传'); return; }
+  var reader = new FileReader();
+  reader.onload = function () {
+    api('/upload', 'POST', { name: file.name, data: reader.result }).then(function (j) {
+      meta.images.push(j.path);
+      fillSel('f-cover', meta.images.map(function (p) { return { v: p, t: p.split('/').pop() }; }), 'v', 't', '无封面');
+      $('f-cover').value = j.path;
+      previewCover();
+      toast($('saveMsg'), '图片已上传：' + j.path);
+    }).catch(function (e) { toast($('saveMsg'), e.message, true); });
   };
+  reader.readAsDataURL(file);
 }
-
-// ===== 操作 =====
-async function saveCourse() {
-  const data = collectCourse();
-  if (!data.name) return toast('saveMsg', '请填写课程名称', false);
-  try {
-    if (editingId) {
-      await api('/api/courses/' + editingId, 'PUT', data);
-      toast('saveMsg', '课程已保存', true);
-    } else {
-      const r = await api('/api/courses', 'POST', data);
-      editingId = r.course.id;
-      toast('saveMsg', '课程已创建，可继续添加规则并发布', true);
-    }
-    courses = (await api('/api/courses')).courses || [];
-    renderList();
-  } catch (e) { toast('saveMsg', e.message, false); }
+function saveCourse() {
+  var name = $('f-name').value.trim();
+  if (!name) return toast($('saveMsg'), '请填写课程名称', true);
+  var data = {
+    name: name, category: $('f-category').value, level: Number($('f-level').value),
+    duration_min: Number($('f-duration').value), price_fen: Math.round(Number($('f-price').value) * 100),
+    cover: $('f-cover').value || '', description: $('f-description').value.trim(),
+    tags: $('f-tags').value.trim(), status: $('f-status').value, rules: []
+  };
+  var req = editingId ? api('/courses/' + editingId, 'PUT', data).then(function () { return editingId; }) : api('/courses', 'POST', data).then(function (j) { return j.id; });
+  req.then(function (id) {
+    toast($('saveMsg'), '保存成功');
+    return api('/courses').then(function (res) { courses = res.courses; editingId = id; renderCourseList(); fillScheduleCourse(); });
+  }).catch(function (e) { toast($('saveMsg'), e.message, true); });
 }
-
-async function deleteCourse() {
-  if (!editingId) return toast('saveMsg', '当前无课程可删除', false);
+function deleteCourse() {
+  if (!editingId) return toast($('saveMsg'), '请先选择课程', true);
   if (!confirm('确定删除该课程？其排课规则与未预约场次将一并删除。')) return;
-  try {
-    await api('/api/courses/' + editingId, 'DELETE');
-    courses = (await api('/api/courses')).courses || [];
-    toast('saveMsg', '课程已删除', true);
-    courses.length ? editCourse(courses[0].id) : newCourse();
-  } catch (e) { toast('saveMsg', e.message, false); }
+  api('/courses/' + editingId, 'DELETE').then(function () {
+    toast($('saveMsg'), '已删除'); editingId = 0; newCourse();
+    return api('/courses').then(function (res) { courses = res.courses; renderCourseList(); fillScheduleCourse(); });
+  }).catch(function (e) { toast($('saveMsg'), e.message, true); });
 }
 
-async function askDelete(id) {
-  const c = courses.find(x => x.id === id);
-  if (!confirm(`确定删除「${c.name}」？其排课规则与未预约场次将一并删除。`)) return;
-  try {
-    await api('/api/courses/' + id, 'DELETE');
-    courses = (await api('/api/courses')).courses || [];
-    toast('saveMsg', '课程已删除', true);
-    if (editingId === id) courses.length ? editCourse(courses[0].id) : newCourse();
-    else renderList();
-  } catch (e) { toast('saveMsg', e.message, false); }
+// ===== 排表管理 =====
+function fillScheduleCourse() {
+  fillSel('s-course', courses.map(function (c) { return { v: c.id, t: c.name + (c.status === 'draft' ? '（草稿）' : '') }; }), 'v', 't', '');
+}
+function currentScheduleCourse() { return Number($('s-course').value) || 0; }
+function loadSchedule() {
+  var cid = currentScheduleCourse();
+  renderRules(cid);
+  loadSessions();
+}
+function renderRules(cid) {
+  var c = courses.find(function (x) { return x.id === cid; });
+  $('rulesBox').innerHTML = '';
+  if (!c) { $('rulesBox').innerHTML = '<div class="empty-tip">请先选择课程（或到「课程设定」新增）</div>'; return; }
+  var rules = c.rules || [];
+  if (rules.length === 0) { addRule(); return; }
+  rules.forEach(function (r) { addRule(r); });
+}
+function addRule(r) {
+  r = r || {};
+  var row = document.createElement('div');
+  row.className = 'rules-row';
+  row.innerHTML =
+    '<select class="r-weekday">' + meta.weekdays.map(function (w) { return '<option value="' + w.v + '"' + (w.v === r.weekday ? ' selected' : '') + '>' + w.label + '</option>'; }).join('') + '</select>' +
+    '<select class="r-start">' + meta.timeSlots.map(function (t) { return '<option' + (t === r.start_time ? ' selected' : '') + '>' + t + '</option>'; }).join('') + '</select>' +
+    '<select class="r-end">' + meta.timeSlots.map(function (t) { return '<option' + (t === r.end_time ? ' selected' : '') + '>' + t + '</option>'; }).join('') + '</select>' +
+    '<select class="r-coach">' + meta.coaches.map(function (c) { return '<option value="' + c.id + '"' + (c.id === r.coach_id ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select>' +
+    '<select class="r-venue">' + meta.venues.map(function (v) { return '<option value="' + v.id + '"' + (v.id === r.venue_id ? ' selected' : '') + '>' + esc(v.name) + '</option>'; }).join('') + '</select>' +
+    '<select class="r-cap">' + meta.capacities.map(function (cp) { return '<option value="' + cp + '"' + (cp === r.capacity ? ' selected' : '') + '>' + cp + '人</option>'; }).join('') + '</select>' +
+    '<button class="row-del" onclick="this.parentNode.remove()">✕</button>';
+  $('rulesBox').appendChild(row);
+}
+function collectRules() {
+  var list = [];
+  document.querySelectorAll('#rulesBox .rules-row').forEach(function (row) {
+    list.push({
+      weekday: Number(row.querySelector('.r-weekday').value),
+      start_time: row.querySelector('.r-start').value,
+      end_time: row.querySelector('.r-end').value,
+      coach_id: Number(row.querySelector('.r-coach').value),
+      venue_id: Number(row.querySelector('.r-venue').value),
+      capacity: Number(row.querySelector('.r-cap').value)
+    });
+  });
+  return list;
+}
+function saveRules() {
+  var cid = currentScheduleCourse();
+  if (!cid) return toast($('rulesMsg'), '请先选择课程', true);
+  var rules = collectRules();
+  if (rules.length === 0) return toast($('rulesMsg'), '请至少保留一条规则', true);
+  api('/courses/' + cid + '/rules', 'PUT', { rules: rules }).then(function () {
+    toast($('rulesMsg'), '规则已保存');
+    return api('/courses').then(function (res) { courses = res.courses; fillScheduleCourse(); $('s-course').value = cid; });
+  }).catch(function (e) { toast($('rulesMsg'), e.message, true); });
+}
+function publishCourse() {
+  var cid = currentScheduleCourse();
+  if (!cid) return toast($('pubMsg'), '请先选择课程', true);
+  var from = $('f-date-from').value, to = $('f-date-to').value;
+  if (from > to) return toast($('pubMsg'), '起始日期不能晚于结束日期', true);
+  if (!confirm('发布「' + (courses.find(function (c) { return c.id === cid; }) || {}).name + '」\n' + from + ' ~ ' + to + '\n按排课规则生成场次（已存在的自动跳过）。确定？')) return;
+  api('/courses/' + cid + '/publish', 'POST', { start_date: from, end_date: to }).then(function (j) {
+    toast($('pubMsg'), j.message); loadSessions();
+  }).catch(function (e) { toast($('pubMsg'), e.message, true); });
+}
+function loadSessions() {
+  var cid = currentScheduleCourse();
+  var from = $('f-date-from').value, to = $('f-date-to').value;
+  var qs = '?from=' + from + '&to=' + to + (cid ? '&course_id=' + cid : '');
+  api('/admin/sessions' + qs).then(function (j) {
+    var list = j.sessions || [];
+    $('sessionCount').textContent = '共 ' + list.length + ' 场';
+    $('sessionEmpty').style.display = list.length ? 'none' : 'block';
+    $('sessionBody').innerHTML = list.map(function (s) {
+      var st = sessionStatus(s);
+      return '<tr>' +
+        '<td>' + s.date + '</td>' +
+        '<td>' + s.start_time + '-' + s.end_time + '</td>' +
+        '<td>' + esc(s.course_name) + '</td>' +
+        '<td>' + esc(s.coach_name) + '</td>' +
+        '<td>' + esc(s.venue_name) + '</td>' +
+        '<td>' + s.booked_count + '/' + s.capacity + ' <input class="cap-input" id="cap-' + s.id + '" type="number" min="' + s.booked_count + '" value="' + s.capacity + '"> <button class="cap-save" onclick="saveCap(' + s.id + ')">改</button></td>' +
+        '<td class="' + st.cls + '">' + st.text + '</td>' +
+        '<td><button class="op-cancel" ' + (s.booked_count > 0 ? 'disabled title="已有学员预约，无法取消"' : '') + ' onclick="cancelSession(' + s.id + ')">取消场次</button></td>' +
+        '</tr>';
+    }).join('');
+  }).catch(function () { $('sessionEmpty').style.display = 'block'; $('sessionEmpty').textContent = '加载失败，请确认后端已启动'; });
+}
+function sessionStatus(s) {
+  if (s.status === 'cancelled') return { text: '已取消', cls: 'st-cancel' };
+  var now = new Date();
+  var today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+  if (s.date > today) return { text: '未开始', cls: 'st-pub' };
+  if (s.date < today) return { text: '已结束', cls: 'st-end' };
+  var h = now.getHours(), m = now.getMinutes(), cur = h * 60 + m;
+  var sh = Number(s.start_time.split(':')[0]) * 60 + Number(s.start_time.split(':')[1]);
+  var eh = Number(s.end_time.split(':')[0]) * 60 + Number(s.end_time.split(':')[1]);
+  if (cur < sh) return { text: '未开始', cls: 'st-pub' };
+  if (cur >= eh) return { text: '已结束', cls: 'st-end' };
+  return { text: '进行中', cls: 'st-ongoing' };
+}
+function saveCap(id) {
+  var v = $('cap-' + id).value;
+  api('/sessions/' + id, 'PUT', { capacity: Number(v) }).then(function () {
+    toast($('pubMsg'), '容量已更新'); loadSessions();
+  }).catch(function (e) { toast($('pubMsg'), e.message, true); });
+}
+function cancelSession(id) {
+  if (!confirm('确定取消该场次？')) return;
+  api('/sessions/' + id, 'DELETE').then(function () {
+    toast($('pubMsg'), '场次已取消'); loadSessions();
+  }).catch(function (e) { toast($('pubMsg'), e.message, true); });
 }
 
-async function publishCourse() {
-  if (!editingId) return toast('pubMsg', '请先选择或新增一个课程', false);
-  const from = $('f-date-from').value, to = $('f-date-to').value;
-  if (from > to) return toast('pubMsg', '起始日期不能晚于结束日期', false);
-  if (!collectRules().length) return toast('pubMsg', '请先添加至少一条每周排课规则并保存', false);
-  if (!confirm(`发布「${$('f-name').value || '该课程'}」\n${from} ~ ${to}\n将按排课规则生成场次（已存在的自动跳过）。确定？`)) return;
-  try {
-    const r = await api('/api/courses/' + editingId + '/publish', 'POST', { start_date: from, end_date: to });
-    toast('pubMsg', r.message || '发布完成', true);
-  } catch (e) { toast('pubMsg', e.message, false); }
-}
-
-init();
+init().catch(function (e) { alert('加载失败：' + e.message); });
 </script>
 </body>
 </html>

@@ -558,6 +558,58 @@ function handlePublishCourse(req, res, id, body) {
   });
 }
 
+// ===== 图片上传（课程封面等，存到 miniprogram/images/）=====
+function handleUpload(req, res, body) {
+  const { name, data } = body || {};
+  if (!name || !data) return sendJson(res, 400, { code: 400, message: '缺少文件名称或内容' });
+  const ext = path.extname(name).toLowerCase();
+  if (!['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
+    return sendJson(res, 400, { code: 400, message: '仅支持 png/jpg/jpeg/webp 图片' });
+  }
+  // data 形如 data:image/png;base64,xxxx
+  const m = /^data:image\/[\w.+-]+;base64,(.+)$/.exec(String(data));
+  if (!m) return sendJson(res, 400, { code: 400, message: '图片内容格式不正确' });
+  const buf = Buffer.from(m[1], 'base64');
+  if (buf.length === 0 || buf.length > 512 * 1024) {
+    return sendJson(res, 400, { code: 400, message: '图片为空或超过 512KB 限制' });
+  }
+  const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}${ext}`;
+  const imgDir = path.join(__dirname, '..', 'miniprogram', 'images');
+  if (!fs.existsSync(imgDir)) fs.mkdirSync(imgDir, { recursive: true });
+  fs.writeFileSync(path.join(imgDir, fileName), buf);
+  return sendJson(res, 200, { code: 200, path: `/images/${fileName}`, message: '上传成功' });
+}
+
+// ===== 排表管理：范围场次 / 取消 / 改容量 / 规则替换 =====
+function handleSessionsByRange(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const from = url.searchParams.get('from');
+  const to = url.searchParams.get('to');
+  const courseId = url.searchParams.get('course_id') ? Number(url.searchParams.get('course_id')) : 0;
+  if (!from || !to) return sendJson(res, 400, { code: 400, message: '缺少 from/to 日期参数' });
+  const sessions = db.listSessionsByRange(from, to, courseId || null);
+  return sendJson(res, 200, { code: 200, sessions });
+}
+
+function handleCancelSession(req, res, id) {
+  const result = db.cancelSession(Number(id));
+  if (!result.ok) return sendJson(res, 400, { code: 400, message: result.error });
+  return sendJson(res, 200, { code: 200, message: '场次已取消' });
+}
+
+function handleUpdateSession(req, res, id, body) {
+  const result = db.updateSessionCapacity(Number(id), body.capacity);
+  if (!result.ok) return sendJson(res, 400, { code: 400, message: result.error });
+  return sendJson(res, 200, { code: 200, message: '容量已更新' });
+}
+
+function handleReplaceRules(req, res, id, body) {
+  const course = db.listCourses().find(c => c.id === Number(id));
+  if (!course) return sendJson(res, 404, { code: 404, message: '课程不存在' });
+  db.replaceRules(Number(id), body.rules || []);
+  return sendJson(res, 200, { code: 200, message: '排课规则已保存' });
+}
+
 // ===== 静态资源（课程编辑网页 + 图片）=====
 function serveStatic(res, filePath) {
   fs.readFile(filePath, (err, data) => {
@@ -677,6 +729,21 @@ const server = http.createServer(async (req, res) => {
       const id = pathname.split('/')[3];
       const body = await readBody(req);
       handlePublishCourse(req, res, id, body);
+    } else if (req.method === 'PUT' && /^\/api\/courses\/\d+\/rules$/.test(pathname)) {
+      const id = pathname.split('/')[3];
+      const body = await readBody(req);
+      handleReplaceRules(req, res, id, body);
+    } else if (req.method === 'POST' && pathname === '/api/upload') {
+      const body = await readBody(req);
+      handleUpload(req, res, body);
+    } else if (req.method === 'GET' && pathname === '/api/admin/sessions') {
+      handleSessionsByRange(req, res);
+    } else if (req.method === 'DELETE' && /^\/api\/sessions\/\d+$/.test(pathname)) {
+      handleCancelSession(req, res, pathname.split('/')[3]);
+    } else if (req.method === 'PUT' && /^\/api\/sessions\/\d+$/.test(pathname)) {
+      const id = pathname.split('/')[3];
+      const body = await readBody(req);
+      handleUpdateSession(req, res, id, body);
     } else if (req.method === 'GET' && pathname === '/api/sessions') {
       const date = url.searchParams.get('date');
       if (!date) {

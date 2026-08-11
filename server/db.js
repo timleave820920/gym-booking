@@ -75,11 +75,19 @@ db.exec(`
     price_fen    INTEGER DEFAULT 6800,
     cover        TEXT DEFAULT '',
     description  TEXT DEFAULT '',
+    tags         TEXT DEFAULT '',          -- 卖点标签（逗号分隔，如 "高效燃脂,新手友好"）
     status       TEXT DEFAULT 'published',
     created_at   TEXT DEFAULT (datetime('now','localtime')),
     updated_at   TEXT DEFAULT (datetime('now','localtime'))
   );
 `);
+
+// 旧库迁移：为已存在的 courses 表补 tags 列（幂等）
+const courseCols = db.prepare("PRAGMA table_info(courses)").all().map(c => c.name);
+if (!courseCols.includes('tags')) {
+  db.exec("ALTER TABLE courses ADD COLUMN tags TEXT DEFAULT ''");
+  console.log('[db] courses 表已迁移：新增 tags 列');
+}
 
 // 每周重复排课规则表
 db.exec(`
@@ -314,9 +322,9 @@ function replaceRules(courseId, rules) {
 
 /** 新增课程（含规则） @returns 新课程对象 */
 function createCourse(data) {
-  const res = db.prepare(`INSERT INTO courses (name, category, level, duration_min, price_fen, cover, description, status)
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(data.name, data.category, data.level, data.duration_min, data.price_fen, data.cover || '', data.description || '', data.status || 'published');
+  const res = db.prepare(`INSERT INTO courses (name, category, level, duration_min, price_fen, cover, description, tags, status)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(data.name, data.category, data.level, data.duration_min, data.price_fen, data.cover || '', data.description || '', data.tags || '', data.status || 'published');
   const id = res.lastInsertRowid;
   replaceRules(id, data.rules || []);
   return { id, ...data };
@@ -324,9 +332,9 @@ function createCourse(data) {
 
 /** 更新课程（含规则） @returns 是否成功 */
 function updateCourse(id, data) {
-  const res = db.prepare(`UPDATE courses SET name=?, category=?, level=?, duration_min=?, price_fen=?, cover=?, description=?, status=?, updated_at=datetime('now','localtime')
+  const res = db.prepare(`UPDATE courses SET name=?, category=?, level=?, duration_min=?, price_fen=?, cover=?, description=?, tags=?, status=?, updated_at=datetime('now','localtime')
                           WHERE id = ?`)
-    .run(data.name, data.category, data.level, data.duration_min, data.price_fen, data.cover || '', data.description || '', data.status || 'published', id);
+    .run(data.name, data.category, data.level, data.duration_min, data.price_fen, data.cover || '', data.description || '', data.tags || '', data.status || 'published', id);
   if (res.changes === 0) return false;
   replaceRules(id, data.rules || []);
   return true;
@@ -389,7 +397,7 @@ const SESSION_SELECT = `
   SELECT s.id, s.date, s.start_time, s.end_time, s.capacity, s.booked_count, s.status,
          (s.capacity - s.booked_count) AS remaining,
          c.id AS course_id, c.name AS course_name, c.category, c.level, c.duration_min, c.price_fen, c.cover,
-         c.description AS course_desc, co.name AS coach_name, co.avatar AS coach_avatar, v.name AS venue_name
+         c.description AS course_desc, c.tags AS course_tags, co.name AS coach_name, co.avatar AS coach_avatar, v.name AS venue_name
   FROM course_sessions s
   JOIN courses c ON c.id = s.course_id
   JOIN coaches co ON co.id = s.coach_id
@@ -404,6 +412,48 @@ function listSessionsByDate(date) {
 function listSessionsByCoach(date, coachId) {
   return db.prepare(`${SESSION_SELECT} WHERE s.date = ? AND s.coach_id = ? AND s.status = 'published' ORDER BY s.start_time`)
     .all(date, coachId);
+}
+
+/** 按日期范围 + 课程查场次（排表管理页，含全部状态） */
+function listSessionsByRange(from, to, courseId) {
+  let sql = `${SESSION_SELECT} WHERE s.date >= ? AND s.date <= ?`;
+  const params = [from, to];
+  if (courseId) {
+    sql += ' AND s.course_id = ?';
+    params.push(courseId);
+  }
+  sql += ' ORDER BY s.date, s.start_time';
+  return db.prepare(sql).all(...params);
+}
+
+/**
+ * 取消场次：仅允许无人预约的场次（booked_count=0 且无订单记录）
+ * @returns {{ok:boolean, error?:string}}
+ */
+function cancelSession(id) {
+  const s = db.prepare('SELECT id, booked_count, status FROM course_sessions WHERE id = ?').get(id);
+  if (!s) return { ok: false, error: '场次不存在' };
+  if (s.status === 'cancelled') return { ok: false, error: '该场次已取消' };
+  const orders = db.prepare('SELECT COUNT(*) c FROM bookings WHERE session_id = ? AND status = \'booked\'').get(id).c;
+  const total = s.booked_count || 0;
+  if (orders > 0 || total > 0) return { ok: false, error: `该场次已有 ${Math.max(orders, total)} 名学员预约，无法取消` };
+  db.prepare("UPDATE course_sessions SET status = 'cancelled' WHERE id = ?").run(id);
+  return { ok: true };
+}
+
+/**
+ * 调整场次容量：新容量不能小于已约数
+ * @returns {{ok:boolean, error?:string}}
+ */
+function updateSessionCapacity(id, capacity) {
+  const cap = Number(capacity);
+  if (!Number.isFinite(cap) || cap <= 0) return { ok: false, error: '容量必须为正整数' };
+  const s = db.prepare('SELECT id, booked_count, status FROM course_sessions WHERE id = ?').get(id);
+  if (!s) return { ok: false, error: '场次不存在' };
+  if (s.status !== 'published') return { ok: false, error: '该场次已取消，无法调整' };
+  if (cap < (s.booked_count || 0)) return { ok: false, error: `容量不能小于已预约人数（${s.booked_count}）` };
+  db.prepare('UPDATE course_sessions SET capacity = ? WHERE id = ?').run(cap, id);
+  return { ok: true };
 }
 
 /** 按日期查场次，并标记当前用户是否已预订/已排位（openid 可选） */
@@ -1024,6 +1074,9 @@ module.exports = {
   listSessionsByDate,
   listSessionsByDateForUser,
   listSessionsByCoach,
+  listSessionsByRange,
+  cancelSession,
+  updateSessionCapacity,
   getSessionById,
   // 订课
   createBooking,

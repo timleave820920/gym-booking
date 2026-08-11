@@ -50,7 +50,9 @@ Page({
           end: s.end_time,
           price: (s.price_fen / 100).toFixed(0),
           img: s.cover || DEFAULT_COVER,
-          date: s.date
+          date: s.date,
+          // 副标题：卖点标签（逗号分隔 → · 连接），未配置则用默认文案
+          sub: this.buildSub(s.course_tags)
         },
         remaining: s.remaining,
         capacity: s.capacity,
@@ -76,9 +78,15 @@ Page({
     return t.descUpcoming;
   },
 
+  // 卖点标签 → 副标题（如 "高效燃脂, 器械混合" → "高效燃脂 · 器械混合"）
+  buildSub(tags) {
+    const list = String(tags || '').split(/[,，]/).map(t => t.trim()).filter(Boolean);
+    return list.length ? list.join(' · ') : '全身循环训练 · 高效燃脂 · 暴汗体验';
+  },
+
   showMock(course, offline) {
     this.setData({
-      course,
+      course: { ...course, sub: this.buildSub(course.tags) },
       remaining: course.remaining,
       capacity: course.capacity,
       status: 'upcoming',

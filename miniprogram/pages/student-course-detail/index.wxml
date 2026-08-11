@@ -20,7 +20,7 @@
       <text class="status-tag status-ongoing" wx:if="{{status === 'ongoing'}}">{{t.ongoing}}</text>
       <text class="status-tag status-ended" wx:if="{{status === 'ended'}}">{{t.ended}}</text>
     </view>
-    <text class="course-sub">全身循环训练 · 高效燃脂 · 暴汗体验</text>
+    <text class="course-sub">{{course.sub}}</text>
 
     <!-- 课程介绍（管理员配置描述为主；三态提示为状态小字） -->
     <view class="desc-card">
