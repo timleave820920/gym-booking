@@ -8,7 +8,7 @@
     "postcss": true,
     "minified": true,
     "compileWorklet": false,
-    "uglifyFileName": false,
+    "uglifyFileName": true,
     "uploadWithSourceMap": true,
     "packNpmManually": false,
     "packNpmRelationList": [],
