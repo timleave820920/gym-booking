@@ -9,11 +9,6 @@ Page({
     rewards: 0,          // 未读储值奖励数
     menus: [
       [
-        { icon: 'card', name: '我的会员卡', url: '/pages/member-card/index' },
-        { icon: 'lv', name: '会员等级', url: '/pages/member-level/index' },
-        { icon: 'recharge', name: '储值充值', url: '/pages/member-recharge/index' }
-      ],
-      [
         { icon: 'check', name: '我的课程', url: '/pages/student-my-courses/index' },
         { icon: 'trophy', name: '成就与记录', url: '/pages/student-achievements/index' }
       ],
