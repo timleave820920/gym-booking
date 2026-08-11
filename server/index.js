@@ -430,6 +430,35 @@ function handleMemberPlans(req, res) {
   return sendJson(res, 200, { code: 200, plans });
 }
 
+// 会员配置（GET /api/member/config，前端统一读取数值）
+function handleMemberConfig(req, res) {
+  const config = require('./member-config.js');
+  // 组装前端友好格式
+  return sendJson(res, 200, {
+    code: 200,
+    config: {
+      levels: config.levels.map(l => {
+        const pct = Math.round(l.discount * 100);   // 90 / 85 / 80 / 75
+        const discountText = (pct % 10 === 0) ? (pct / 10) + ' 折' : pct + ' 折';  // 90→9折 85→85折
+        return { ...l, discountText };
+      }),
+      rechargePlans: config.rechargePlans.map(p => ({
+        ...p,
+        amountYuan: p.amount / 100,
+        bonusYuan: p.bonus / 100,
+        totalYuan: (p.amount + p.bonus) / 100
+      })),
+      inviteRewards: config.inviteRewards.map(r => ({
+        ...r,
+        rewardYuan: r.fen / 100,
+        label: r.at + ' 人'
+      })),
+      memberPrice: config.memberPrice,
+      levelStyles: config.levelStyles
+    }
+  });
+}
+
 // 充值记录（GET /api/member/recharges?openid=xxx）
 function handleMemberRecharges(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
@@ -786,6 +815,8 @@ const server = http.createServer(async (req, res) => {
       handleMemberLevel(req, res);
     } else if (req.method === 'GET' && pathname === '/api/member/plans') {
       handleMemberPlans(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/member/config') {
+      handleMemberConfig(req, res);
     } else if (req.method === 'GET' && pathname === '/api/member/recharges') {
       handleMemberRecharges(req, res);
     } else if (req.method === 'GET' && pathname === '/api/member/rewards') {

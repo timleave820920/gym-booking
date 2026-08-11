@@ -34,15 +34,15 @@
     <view class="grid">
       <view class="grid-item" bindtap="go" data-url="/pages/member-level/index">
         <view class="g-icon gi-lime"><text class="g-icon-txt">Lv</text></view>
-        <view class="g-info"><text class="g-name">会员等级</text><text class="g-sub">黄金85折</text></view>
+        <view class="g-info"><text class="g-name">会员等级</text><text class="g-sub">{{gridSubs.level}}</text></view>
       </view>
       <view class="grid-item" bindtap="go" data-url="/pages/member-recharge/index">
         <view class="g-icon gi-purple"><text class="g-icon-txt">¥</text></view>
-        <view class="g-info"><text class="g-name">储值会员</text><text class="g-sub">充500送80</text></view>
+        <view class="g-info"><text class="g-name">储值会员</text><text class="g-sub">{{gridSubs.recharge}}</text></view>
       </view>
       <view class="grid-item" bindtap="go" data-url="/pages/invite/index">
         <view class="g-icon gi-red"><text class="g-icon-txt">+</text></view>
-        <view class="g-info"><text class="g-name">邀请好友</text><text class="g-sub">各得储值</text></view>
+        <view class="g-info"><text class="g-name">邀请好友</text><text class="g-sub">{{gridSubs.invite}}</text></view>
       </view>
       <view class="grid-item" bindtap="go" data-url="/pages/about-us/index">
         <view class="g-icon gi-green"><text class="g-icon-txt">理</text></view>
@@ -50,7 +50,7 @@
       </view>
       <view class="grid-item" bindtap="go" data-url="/pages/honors/index">
         <view class="g-icon gi-gold"><text class="g-icon-txt">奖</text></view>
-        <view class="g-info"><text class="g-name">参赛荣誉</text><text class="g-sub">32项荣誉</text></view>
+        <view class="g-info"><text class="g-name">参赛荣誉</text><text class="g-sub">{{gridSubs.honor}}</text></view>
       </view>
       <view class="grid-item" bindtap="go" data-url="/pages/student-orders/index">
         <view class="g-icon gi-indigo"><text class="g-icon-txt">≡</text></view>

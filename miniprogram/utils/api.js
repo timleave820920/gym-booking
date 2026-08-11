@@ -225,6 +225,9 @@ module.exports = {
   getMemberPlans() {
     return localRequest('/api/member/plans', 'GET');
   },
+  getMemberConfig() {
+    return localRequest('/api/member/config', 'GET');
+  },
   getMyRecharges(openid) {
     return localRequest('/api/member/recharges?openid=' + openid, 'GET');
   },

@@ -283,14 +283,12 @@ function updateProfile(openid, { nickname, avatar }) {
 }
 
 // ===== 会员体系（等级/储值/奖励/邀请）=====
+// 数值统一从 member-config.js 读取（唯一数据源，改配置即全局生效）
 
-// 等级配置：青铜(0节/9折) 黄金(20节/85折) 铂金(50节/8折) 钻石(100节/75折)
-const LEVELS = [
-  { name: '青铜', min: 0,  discount: 0.9,  lv: 1 },
-  { name: '黄金', min: 20, discount: 0.85, lv: 2 },
-  { name: '铂金', min: 50, discount: 0.8,  lv: 3 },
-  { name: '钻石', min: 100, discount: 0.75, lv: 4 }
-];
+const MEMBER_CONFIG = require('./member-config.js');
+const LEVELS = MEMBER_CONFIG.levels;
+const RECHARGE_PLANS = MEMBER_CONFIG.rechargePlans;
+const INVITE_REWARDS = MEMBER_CONFIG.inviteRewards;
 
 /** 计算会员等级信息 */
 function getMemberLevel(openid) {
@@ -338,13 +336,6 @@ function applyRecharge({ user_openid, order_id, amount_fen, bonus_fen }) {
   return { rechargeNo, total: amount_fen + bonus_fen };
 }
 
-/** 充值套餐定义 */
-const RECHARGE_PLANS = [
-  { id: 1, amount: 30000, bonus: 3000 },
-  { id: 2, amount: 50000, bonus: 8000 },
-  { id: 3, amount: 100000, bonus: 20000 }
-];
-
 /** 查询充值记录 */
 function listRecharges(openid) {
   return db.prepare(`
@@ -370,13 +361,8 @@ function rewardInviter(invitee) {
   db.prepare("UPDATE invitations SET status = 'ordered' WHERE id = ?").run(inv.id);
   // 统计邀请人当前有效邀请数（含本次）
   const cnt = db.prepare("SELECT COUNT(*) c FROM invitations WHERE inviter = ? AND status = 'ordered'").get(inv.inviter).c;
-  // 阶梯奖励
-  const REWARDS = [
-    { at: 1, fen: 10000 },   // 1人 → ¥100（1节课）
-    { at: 3, fen: 50000 },   // 3人 → ¥500（5节课）
-    { at: 5, fen: 100000 }   // 5人 → ¥1000（10节课）
-  ];
-  const reward = REWARDS.find(r => r.at === cnt);
+  // 阶梯奖励（从 member-config.js 读取）
+  const reward = INVITE_REWARDS.find(r => r.at === cnt);
   if (!reward) return null;
   // 发放储值奖励（只发增量奖励，阶梯不重复累计）
   const already = db.prepare('SELECT COALESCE(SUM(reward_fen),0) s FROM invitations WHERE inviter = ?').get(inv.inviter).s;
@@ -393,11 +379,13 @@ function getInviteStats(openid) {
   return {
     invited,
     ordered,
-    rewards: [
-      { at: 1, label: '1 人', rewardText: '¥100', fen: 10000, achieved: ordered >= 1 },
-      { at: 3, label: '3 人', rewardText: '¥500', fen: 50000, achieved: ordered >= 3 },
-      { at: 5, label: '5 人', rewardText: '¥1000', fen: 100000, achieved: ordered >= 5 }
-    ]
+    rewards: INVITE_REWARDS.map(r => ({
+      at: r.at,
+      label: r.at + ' 人',
+      rewardText: '¥' + (r.fen / 100),
+      fen: r.fen,
+      achieved: ordered >= r.at
+    }))
   };
 }
 
