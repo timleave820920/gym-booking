@@ -33,19 +33,22 @@ Page({
     }
   },
 
-  // 生成本周（周一~周日）真实日期
+  // 生成本周（周一~周日）真实日期，默认选中今天
   buildWeek() {
     const now = new Date();
     const day = now.getDay() || 7; // 周日=7
     const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day + 1);
+    const todayFull = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const weekDays = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
       const full = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      weekDays.push({ weekday: WEEK_LABELS[i], date: d.getDate(), full, selected: i === 0 });
+      weekDays.push({ weekday: WEEK_LABELS[i], date: d.getDate(), full, selected: full === todayFull });
     }
-    this.setData({ weekDays, selectedDate: weekDays[0].date });
-    this.loadSessions(weekDays[0].full);
+    // 默认选中今天（若不在本周则回退周一）
+    const initial = weekDays.find(d => d.selected) || weekDays[0];
+    this.setData({ weekDays, selectedDate: initial.date });
+    this.loadSessions(initial.full);
   },
 
   selectDate(e) {
@@ -76,6 +79,8 @@ Page({
         img: s.cover || DEFAULT_COVER,
         bookedByMe: !!s.booked_by_me
       })).map(s => this.decorateSession(s));
+      // 排序：未开始（最早的排第一）→ 进行中 → 已结束，同状态按开始时间
+      list.sort(this.sortSessions);
       this.setData({ courseList: list, loading: false, offline: false });
     }).catch(() => {
       // 后端不可用 → 用 mock 演示数据（当日映射：日期数-9 → 周一..周日）
@@ -88,8 +93,18 @@ Page({
           start: c.start, end: c.end, remaining: c.remaining, price: c.price,
           img: c.img, capacity: c.capacity || 20
         }));
+      list.sort(this.sortSessions);
       this.setData({ courseList: list, loading: false, offline: true });
     });
+  },
+
+  // 排序：未开始在前（最早的未开始排第一），再进行中，最后已结束；同状态按开始时间升序
+  sortSessions(a, b) {
+    const rank = { upcoming: 0, ongoing: 1, ended: 2 };
+    const ra = rank[a.status] !== undefined ? rank[a.status] : 3;
+    const rb = rank[b.status] !== undefined ? rank[b.status] : 3;
+    if (ra !== rb) return ra - rb;
+    return (a.start || '').localeCompare(b.start || '');
   },
 
   // 装饰场次：计算席位文案（剩余/总席）、满员、已预订、时间状态
