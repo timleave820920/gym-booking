@@ -5,6 +5,22 @@
       <text class="page-title">活动中心</text>
     </view>
 
+    <!-- 宣传视频位：videoUrl 为空时显示占位图（点击提示即将上线）；放入视频后自动切换播放 -->
+    <view class="promo" bindtap="onPromoTap">
+      <image class="promo-poster" src="{{videoUrl ? videoPoster : '/images/hyrox_adv_sled.jpg'}}" mode="aspectFill" wx:if="{{!playing}}"></image>
+      <video class="promo-video" wx:if="{{videoUrl && playing}}"
+             src="{{videoUrl}}" poster="{{videoPoster}}" controls
+             object-fit="cover" bindended="onVideoEnd"></video>
+      <view class="promo-play" wx:if="{{!videoUrl}}">
+        <view class="promo-play-btn">▶</view>
+        <text class="promo-play-txt">宣传片制作中 · 敬请期待</text>
+      </view>
+      <view class="promo-tag" wx:if="{{videoUrl && !playing}}">
+        <view class="promo-play-btn-sm">▶</view>
+        <text class="promo-play-txt">点击播放宣传片</text>
+      </view>
+    </view>
+
     <!-- 功能宫格 -->
     <view class="grid">
       <view class="grid-item" bindtap="go" data-url="/pages/member-level/index">

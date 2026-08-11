@@ -819,7 +819,7 @@ function serveStatic(res, filePath) {
   fs.readFile(filePath, (err, data) => {
     if (err) return sendJson(res, 404, { code: 404, message: '资源不存在' });
     const ext = path.extname(filePath).toLowerCase();
-    const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
+    const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.mp4': 'video/mp4', '.mov': 'video/quicktime' };
     res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream' });
     res.end(data);
   });
@@ -1016,6 +1016,9 @@ const server = http.createServer(async (req, res) => {
     } else if (pathname.startsWith('/images/')) {
       const name = path.basename(pathname);
       serveStatic(res, path.join(__dirname, '..', 'miniprogram', 'images', name));
+    } else if (pathname.startsWith('/video/')) {
+      const name = path.basename(pathname);
+      serveStatic(res, path.join(__dirname, 'video', name));
     } else {
       sendJson(res, 404, { code: 404, message: '接口不存在' });
     }
