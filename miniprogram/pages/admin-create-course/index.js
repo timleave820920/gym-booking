@@ -50,19 +50,19 @@ Page({
 
   // 选择类型
   pickType(e) {
-    this.setData({ selectedType: e.currentTarget.dataset.idx });
+    this.setData({ selectedType: Number(e.currentTarget.dataset.idx) });
   },
   // 选择教练
   pickCoach(e) {
-    this.setData({ selectedCoach: e.currentTarget.dataset.idx });
+    this.setData({ selectedCoach: Number(e.currentTarget.dataset.idx) });
   },
   // 选择场地
   pickVenue(e) {
-    this.setData({ selectedVenue: e.currentTarget.dataset.idx });
+    this.setData({ selectedVenue: Number(e.currentTarget.dataset.idx) });
   },
   // 选择日期
   pickDate(e) {
-    this.setData({ selectedDate: e.currentTarget.dataset.idx });
+    this.setData({ selectedDate: Number(e.currentTarget.dataset.idx) });
   },
   // 开始时间
   onStartTime(e) {

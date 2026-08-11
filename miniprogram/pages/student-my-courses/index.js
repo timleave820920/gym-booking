@@ -136,7 +136,8 @@ Page({
   },
 
   switchTab(e) {
-    this.setData({ tab: e.currentTarget.dataset.idx });
+    // 注意：dataset.idx 是字符串，必须转数字（WXML 用 tab === 0/1 严格比较）
+    this.setData({ tab: Number(e.currentTarget.dataset.idx) });
   },
 
   // 退订（真实调用后端）
