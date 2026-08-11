@@ -6,13 +6,12 @@
         <text class="page-title">消息中心</text>
         <text class="unread-badge" wx:if="{{unread > 0}}">{{unread > 99 ? '99+' : unread}}</text>
       </view>
-      <text class="read-all" bindtap="markAll">全部已读</text>
+      <view class="read-all-btn" bindtap="markAll">全部已读</view>
     </view>
 
-    <!-- 消息列表 -->
+    <!-- 消息列表（仅展示，不可点击；已读状态由"全部已读"一键清除） -->
     <view class="msg-list">
-      <view class="msg-item {{item.isRead ? 'msg-read' : ''}}" wx:for="{{messages}}" wx:key="id"
-            data-id="{{item.id}}" data-url="{{item.jumpUrl}}" data-read="{{item.isRead}}" bindtap="tapMessage">
+      <view class="msg-item {{item.isRead ? 'msg-read' : ''}}" wx:for="{{messages}}" wx:key="id">
         <view class="msg-icon {{'mi-' + item.type}}">{{item.icon}}</view>
         <view class="msg-main">
           <view class="msg-top">

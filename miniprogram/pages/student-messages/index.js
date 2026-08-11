@@ -1,7 +1,6 @@
 const app = getApp();
 const api = require('../../utils/api.js');
 
-const TAB_PAGES = ['/pages/student-courses/index', '/pages/student-my-courses/index', '/pages/member-center/index', '/pages/student-profile/index'];
 // 类型图标
 const TYPE_ICONS = {
   booking: '课',
@@ -85,30 +84,7 @@ Page({
     return `${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   },
 
-  // 点击消息：标记已读 + 跳转
-  tapMessage(e) {
-    const id = e.currentTarget.dataset.id;
-    const url = e.currentTarget.dataset.url;
-    const isRead = e.currentTarget.dataset.read;
-    if (!isRead) {
-      const user = app.globalData.userInfo || {};
-      const openid = user.openid || wx.getStorageSync('openid');
-      if (openid) {
-        api.markMessageRead(id, openid).catch(() => {});
-        const messages = this.data.messages.map(m => m.id === id ? { ...m, isRead: true } : m);
-        this.setData({ messages, unread: Math.max(this.data.unread - 1, 0) });
-      }
-    }
-    if (url) {
-      if (TAB_PAGES.includes(url)) {
-        wx.switchTab({ url });
-      } else {
-        wx.navigateTo({ url });
-      }
-    }
-  },
-
-  // 全部已读
+  // 全部已读：一键消除所有小红点
   markAll() {
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');

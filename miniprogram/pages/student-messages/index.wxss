@@ -29,10 +29,14 @@
   justify-content: center;
   box-sizing: border-box;
 }
-.read-all {
+.read-all-btn {
+  padding: 12rpx 30rpx;
+  border-radius: 40rpx;
+  background: #1A1A23;
+  color: #B9FF66;
   font-size: 26rpx;
-  color: #5B57EB;
-  font-weight: 600;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 /* 消息列表 */
