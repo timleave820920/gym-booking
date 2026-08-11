@@ -212,12 +212,8 @@
   flex-shrink: 0;
 }
 .cb-star {
-  font-size: 30rpx;          /* 与课程名字号相当 */
+  font-size: 28rpx;          /* 火焰难度：与课程名字号相当，emoji 自带配色 */
   line-height: 1;
-  color: #E0DCCB;            /* 空星 */
-}
-.cb-star-on {
-  color: #EF9F27;          /* 实星金色 */
 }
 /* 预约按钮 */
 .cb-btn {

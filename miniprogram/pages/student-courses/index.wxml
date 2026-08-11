@@ -37,9 +37,10 @@
           <view class="cb-top">
             <image class="cb-avatar" src="{{item.coachAvatar}}" mode="aspectFill" data-idx="{{index}}" binderror="avatarError"></image>
             <text class="cb-name">{{item.name}}</text>
-            <view class="cb-stars">
-              <text class="cb-star {{sIdx <= item.level ? 'cb-star-on' : ''}}"
-                    wx:for="{{[1,2,3,4,5]}}" wx:for-item="sIdx" wx:key="*this">{{sIdx <= item.level ? '★' : '☆'}}</text>
+            <!-- 难度火焰：余位>=5时显示；满员(0)/紧张(<5)斜条出现时隐藏 -->
+            <view class="cb-stars" wx:if="{{item.remaining >= 5}}">
+              <text class="cb-star" wx:for="{{[1,2,3,4,5]}}" wx:for-item="sIdx" wx:key="*this"
+                    wx:if="{{sIdx <= item.level}}">🔥</text>
             </view>
           </view>
 
