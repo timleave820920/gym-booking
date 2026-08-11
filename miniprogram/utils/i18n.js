@@ -251,7 +251,14 @@ const DICT = {
   enrolledMeta: { zh: '{{venue}} · 已报名 {{enrolled}}/{{capacity}}', en: '{{venue}} · Enrolled {{enrolled}}/{{capacity}}' },
   todayTag: { zh: '今天', en: 'Today' },
   timeRangeSeats: { zh: '{{start}}-{{end}} · {{remaining}}/{{capacity}}', en: '{{start}}-{{end}} · {{remaining}}/{{capacity}}' },
-  bookPrice: { zh: '¥{{price}} 约课', en: '¥{{price}} Book' }
+  bookPrice: { zh: '¥{{price}} 约课', en: '¥{{price}} Book' },
+  descTitle: { zh: '课程介绍', en: 'About' },
+  descUpcoming: { zh: '本课程为高效团体训练课，融合力量、心肺与核心训练，教练全程指导。名额有限，报名从速，开课前 30 分钟可入馆热身。', en: 'A high-intensity group workout blending strength, cardio and core. Coached throughout. Limited seats - book now, warm up 30 min before class.' },
+  descOngoing: { zh: '本课程正在进行中！请提前到达场馆，跟随教练完成训练。中途加入请注意热身充分，听从教练口令。', en: 'This class is in progress! Arrive on time and follow the coach. Warm up properly if joining late.' },
+  descEnded: { zh: '本场课程已结束。感谢参与！训练后记得拉伸放松，补充水分。可在「我的 - 成就与记录」查看训练数据。', en: 'This class has ended. Thanks for joining! Stretch and hydrate after training. View your workout records in Profile > Achievements.' },
+  bookImmediate: { zh: '立即预订', en: 'Book Now' },
+  bookedLabel: { zh: '已预订', en: 'Booked' },
+  sessionTimeLabel: { zh: '本场时间', en: 'Session Time' }
 };
 
 module.exports = {

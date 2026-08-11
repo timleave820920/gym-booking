@@ -168,3 +168,49 @@
   color: #B9FF66;
   box-shadow: 0 12rpx 28rpx rgba(0,0,0,0.2);
 }
+
+/* 课程介绍（三态文案）卡片 */
+.title-row {
+  align-items: center;
+  gap: 16rpx;
+}
+.flex-1 { flex: 1; }
+.course-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.status-tag {
+  font-size: 20rpx;
+  font-weight: 600;
+  padding: 2rpx 12rpx;
+  border-radius: 8rpx;
+  flex-shrink: 0;
+}
+.status-ongoing {
+  background: #FCEBEB;
+  color: #E5484D;
+}
+.status-ended {
+  background: #F0EDDF;
+  color: #8A8A8A;
+}
+.desc-card {
+  margin-top: 24rpx;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 24rpx 28rpx;
+}
+.desc-title {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #1A1A23;
+}
+.desc-text {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  line-height: 1.7;
+  color: #6B6B76;
+}

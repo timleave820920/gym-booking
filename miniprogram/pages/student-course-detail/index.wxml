@@ -15,8 +15,18 @@
 
   <!-- 内容区 -->
   <view class="detail-content">
-    <text class="course-title">{{course.name}}</text>
+    <view class="flex-row title-row">
+      <text class="course-title flex-1">{{course.name}}</text>
+      <text class="status-tag status-ongoing" wx:if="{{status === 'ongoing'}}">{{t.ongoing}}</text>
+      <text class="status-tag status-ended" wx:if="{{status === 'ended'}}">{{t.ended}}</text>
+    </view>
     <text class="course-sub">全身循环训练 · 高效燃脂 · 暴汗体验</text>
+
+    <!-- 课程介绍（三态文案：未开始=介绍/报名，进行中=提示，已结束=复盘） -->
+    <view class="desc-card">
+      <text class="desc-title">{{t.descTitle}}</text>
+      <text class="desc-text">{{descText}}</text>
+    </view>
 
     <!-- 信息卡：时长/强度/剩余席位/场地 -->
     <view class="info-card flex-row">
@@ -71,9 +81,11 @@
       <text class="price-value">¥ {{course.price}}</text>
       <text class="price-sub">单次 ¥{{course.price}} · 约课后直接支付</text>
     </view>
-    <view class="book-btn {{isBooked ? 'booked' : ''}}" bindtap="bookNow" data-booked="{{isBooked}}">
+    <view class="book-btn {{isBooked ? 'booked' : (status === 'ongoing' || status === 'ended' ? 'booked' : '')}}" bindtap="bookNow" data-booked="{{isBooked}}">
       <text wx:if="{{isBooked}}">已预订</text>
-      <text wx:else>立即预订</text>
+      <text wx:elif="{{status === 'ongoing'}}">{{t.ongoing}}</text>
+      <text wx:elif="{{status === 'ended'}}">{{t.ended}}</text>
+      <text wx:else>{{t.bookImmediate}}</text>
     </view>
   </view>
 </view>
