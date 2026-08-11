@@ -104,14 +104,8 @@ Page({
     this.setData({ showCode: null });
   },
 
-  // 获取规则说明
+  // 获取规则说明 → 独立规则页
   showRules() {
-    const r = this.data.earnRules || {};
-    wx.showModal({
-      title: '获取能量币',
-      content: `签到 +${r.checkin || 0} 币 · 完成课程 +${r.attendClass || 0} 币\n邀请好友 +${r.invite || 0} 币 · 充值每¥100 +${r.recharge || 0} 币\n会员升级 +${r.levelUp || 0} 币\n每日上限 ${this.data.dailyLimit || '不限'} 币`,
-      showCancel: false,
-      confirmText: '知道了'
-    });
+    wx.navigateTo({ url: '/pages/coin-rules/index' });
   }
 });

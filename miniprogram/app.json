@@ -10,6 +10,7 @@
     "pages/student-orders/index",
     "pages/student-checkin/index",
     "pages/student-messages/index",
+    "pages/coin-rules/index",
     "pages/student-achievements/index",
     "pages/member-center/index",
     "pages/member-level/index",
