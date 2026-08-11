@@ -1145,7 +1145,8 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
   if (order.order_type === 'book' && pay_method === 'balance'
       && MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {
     const lv = getMemberLevel(order.user_openid);
-    const payFen = lv ? Math.round(order.amount_fen * lv.discount) : order.amount_fen;
+    // 会员价 = 原价 × 折扣率，向下取整到元（无角分）
+    const payFen = lv ? Math.floor(order.amount_fen * lv.discount / 100) * 100 : order.amount_fen;
     const user = findUserByOpenid(order.user_openid);
     if ((user.balance_fen || 0) < payFen) {
       return { ok: false, error: '储值余额不足，请先充值或改用微信支付' };
@@ -1191,7 +1192,8 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
       if (pay_method === 'balance' && MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {
         const lv = getMemberLevel(order.user_openid);
         if (lv) {
-          payFen = Math.round(order.amount_fen * lv.discount);
+          // 会员价 = 原价 × 折扣率，向下取整到元（无角分）
+          payFen = Math.floor(order.amount_fen * lv.discount / 100) * 100;
           // 扣减余额 + 消费流水（余额不足时 addBalance 会让余额为负，事务回滚兜底）
           addBalance(order.user_openid, -payFen, '订课消费', order.order_no);
         }

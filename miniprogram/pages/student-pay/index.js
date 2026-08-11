@@ -36,7 +36,8 @@ Page({
     api.getMemberLevel(openid).then((res) => {
       const lv = res.level;
       const price = Number(this.data.course.price || 68);
-      const memberPrice = Math.round(price * lv.discount * 100) / 100;
+      // 会员价 = 原价 × 折扣率，向下取整到元（无角分）
+      const memberPrice = Math.floor(price * lv.discount);
       const balance = (lv.balanceFen / 100);
       const canBalancePay = balance >= memberPrice;
       // 折扣文案：0.98 → 98折（整十转 X 折，如 0.9 → 9折）
@@ -76,7 +77,7 @@ Page({
     if (selected && selected.id === 2 && !this.data.canBalancePay) {
       wx.showModal({
         title: '余额不足',
-        content: `当前余额 ¥${this.data.balance.toFixed(2)}，本次储值支付需 ¥${(this.data.memberPrice || 0).toFixed(2)}。请先充值或改用微信支付。`,
+        content: `当前余额 ¥${this.data.balance.toFixed(2)}，本次储值支付需 ¥${this.data.memberPrice || 0}。请先充值或改用微信支付。`,
         confirmText: '去充值',
         cancelText: '知道了',
         success: (r) => {
