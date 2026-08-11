@@ -52,6 +52,19 @@
   font-size: 26rpx;
   font-weight: 700;
   color: #1A1A23;
+  line-height: 1.4;
+  margin: 0;            /* 重置 button 默认样式 */
+  text-align: center;
+}
+.inv-btn::after {
+  border: none;         /* 去掉 button 自带边框 */
+}
+.copy-link {
+  margin-top: 20rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: #5B57EB;
+  text-decoration: underline;
 }
 .steps {
   margin-top: 28rpx;

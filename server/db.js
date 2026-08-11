@@ -600,7 +600,9 @@ function listRecharges(openid, offset = 0, limit = 10) {
 
 /** 绑定邀请关系（被邀请人注册时调用） */
 function bindInvitation({ inviter, invitee }) {
+  if (!inviter) return { ok: false, error: '邀请码不能为空' };
   if (inviter === invitee) return { ok: false, error: '不能邀请自己' };
+  if (!findUserByOpenid(inviter)) return { ok: false, error: '邀请码无效' };
   const exists = db.prepare('SELECT id FROM invitations WHERE invitee = ?').get(invitee);
   if (exists) return { ok: false, error: '已存在邀请关系' };
   db.prepare('INSERT INTO invitations (inviter, invitee, status) VALUES (?, ?, \'registered\')').run(inviter, invitee);

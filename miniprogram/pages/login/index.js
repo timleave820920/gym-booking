@@ -11,7 +11,8 @@ Page({
     userCount: 0,            // 当前注册用户数
     showCelebrate: false,    // 储值奖励庆祝弹框
     celebrateAmount: '0',    // 奖励金额
-    celebrateBalance: '0.00' // 奖励后余额
+    celebrateBalance: '0.00', // 奖励后余额
+    inviterCode: ''          // 邀请码（分享卡片自动带入，可手动修改）
   },
 
   onLoad() {
@@ -20,6 +21,13 @@ Page({
       t: i18n.t()
     });
     this.loadUserCount();
+    // 分享卡片携带的邀请人 → 预填邀请码
+    const code = wx.getStorageSync('pending_inviter') || '';
+    if (code) this.setData({ inviterCode: code });
+  },
+
+  onInviteInput(e) {
+    this.setData({ inviterCode: e.detail.value });
   },
 
   onShow() {
@@ -269,6 +277,9 @@ Page({
 
           this.setData({ loggingIn: false });
 
+          // 邀请追踪：登录后绑定邀请关系（分享卡片携带或手动填写的邀请码）
+          this.bindInvite(userInfo.openid);
+
           // 区分注册/登录提示
           wx.showToast({
             title: isNewUser ? '注册成功' : '欢迎回来',
@@ -292,6 +303,20 @@ Page({
         this.setData({ loggingIn: false });
         wx.showToast({ title: '微信登录失败', icon: 'none' });
       }
+    });
+  },
+
+  // 邀请追踪：用邀请码绑定邀请关系（防刷由后端校验；失败不阻断登录）
+  bindInvite(openid) {
+    const code = String(this.data.inviterCode || '').trim();
+    if (!code) return;
+    const api = require('../../utils/api.js');
+    api.bindInvite({ inviter: code, invitee: openid }).then(() => {
+      wx.removeStorageSync('pending_inviter');
+      this.setData({ inviterCode: '' });
+      wx.showToast({ title: '邀请关系绑定成功', icon: 'none' });
+    }).catch((err) => {
+      console.warn('[invite] 绑定失败', err && err.message);
     });
   },
 

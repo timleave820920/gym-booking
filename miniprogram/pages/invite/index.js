@@ -12,6 +12,19 @@ Page({
 
   onLoad() {
     this.load();
+    // 打开右上角转发菜单，支持转发分享卡片（携带邀请人参数）
+    wx.showShareMenu({ withShareTicket: false });
+  },
+
+  // 分享卡片：path 带 ?inviter=openid → 好友点开后由 app.onLaunch 捕获 → 登录后绑定
+  onShareAppMessage() {
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+    return {
+      title: '综合训练馆邀你一起练！注册并完成首订，双方各得储值奖励',
+      path: '/pages/login/index?inviter=' + (openid || ''),
+      imageUrl: '/images/2_166.png'
+    };
   },
 
   load() {
@@ -34,6 +47,7 @@ Page({
   },
 
   // 生成邀请分享（简化：复制邀请码）
+  // 复制邀请码（兜底：好友手动填写）
   invite() {
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
@@ -41,7 +55,7 @@ Page({
     wx.setClipboardData({
       data: '综合训练馆邀你一起练！注册并完成首订，双方各得储值奖励。邀请码：' + openid,
       success: () => {
-        wx.showToast({ title: '邀请文案已复制，发给好友吧', icon: 'none' });
+        wx.showToast({ title: '邀请码已复制，发给好友填写吧', icon: 'none' });
       }
     });
   },

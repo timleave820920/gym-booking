@@ -481,3 +481,29 @@
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-16rpx); }
 }
+
+/* 邀请码输入框 */
+.invite-field {
+  margin: 24rpx 0 0;
+  background: #FFFFFF;
+  border: 3rpx solid #1A1A23;
+  border-radius: 44rpx;
+  padding: 18rpx 30rpx;
+  align-items: center;
+  gap: 20rpx;
+}
+.invite-label {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #1A1A23;
+  flex-shrink: 0;
+}
+.invite-input {
+  flex: 1;
+  font-size: 26rpx;
+  color: #1A1A23;
+}
+.invite-ph {
+  color: #B0AFA8;
+  font-size: 24rpx;
+}

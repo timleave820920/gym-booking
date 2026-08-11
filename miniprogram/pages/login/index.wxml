@@ -38,6 +38,13 @@
       <text class="phone-btn-txt">{{t.phoneLogin}}</text>
     </button>
 
+    <!-- 邀请码（选填）：好友分享卡片自动带入，也可手动填写 -->
+    <view class="invite-field flex-row">
+      <text class="invite-label">邀请码</text>
+      <input class="invite-input" placeholder="选填，填好友的邀请码双方得奖励"
+             placeholder-class="invite-ph" value="{{inviterCode}}" bindinput="onInviteInput" />
+    </view>
+
     <!-- 协议勾选 -->
     <view class="agree-row flex-row" bindtap="toggleAgree">
       <view class="agree-box flex-center {{agreed ? 'agree-on' : ''}}">

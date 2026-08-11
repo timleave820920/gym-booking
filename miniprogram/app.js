@@ -16,7 +16,11 @@ App({
     cloudInited: false
   },
 
-  onLaunch() {
+  onLaunch(options) {
+    // 邀请追踪：从分享卡片打开时捕获邀请人（path 带 ?inviter=xxx），登录后绑定
+    if (options && options.query && options.query.inviter) {
+      wx.setStorageSync('pending_inviter', options.query.inviter);
+    }
     // 初始化语言（默认中文，从缓存恢复用户偏好）
     const i18n = require('./utils/i18n.js');
     this.globalData.lang = i18n.loadLang();
