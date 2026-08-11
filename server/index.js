@@ -482,8 +482,12 @@ async function handleMemberRewardsRead(req, res) {
 async function handleCreateOrder(req, res) {
   const body = await readBody(req);
   const { openid, sessionId, amountFen, orderType } = body;
-  if (!openid || !sessionId) {
-    return sendJson(res, 400, { code: 400, message: '缺少 openid 或 sessionId' });
+  // 充值订单无场次（sessionId 可省略或为 0）
+  if (!openid) {
+    return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  }
+  if (orderType !== 'recharge' && !sessionId) {
+    return sendJson(res, 400, { code: 400, message: '缺少 sessionId' });
   }
   const result = db.createOrder({
     user_openid: openid,
@@ -522,7 +526,9 @@ async function handlePayOrder(req, res) {
     already: !!result.already,
     order: result.order,
     booking: result.booking,
-    wait: result.wait
+    wait: result.wait,
+    recharge: result.recharge || null,
+    reward: result.reward || null
   });
 }
 
