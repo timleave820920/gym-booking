@@ -47,7 +47,7 @@
           <view class="cb-mid">
             <text class="cb-time">{{item.start}} – {{item.end}}</text>
             <view class="cb-seats">
-              <text class="cb-seat-num {{item.isFull ? 'cb-seat-zero' : ''}}">{{item.remaining}}/{{item.capacity}}</text>
+              <text class="cb-seat-num {{item.isFull ? 'cb-seat-zero' : ''}}">{{item.booked}}/{{item.capacity}}</text>
             </view>
           </view>
 

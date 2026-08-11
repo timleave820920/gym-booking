@@ -85,12 +85,17 @@ Page({
   decorate(list, recheck) {
     return (list || []).map(c => {
       const status = recheck ? this.getStatus(c.start, c.end) : c.status;
-      const isFull = (c.remaining !== undefined ? c.remaining : c.capacity) <= 0;
+      const capacity = c.capacity || 20;
+      const remaining = c.remaining !== undefined ? c.remaining : capacity;
+      const isFull = remaining <= 0;
       const isBooked = !!c.bookedByMe;
       const waitlisted = !!c.waitlisted;
       return {
         ...c,
         status,
+        capacity,
+        remaining,
+        booked: Math.max(capacity - remaining, 0),  // 已订席位（显示 已订/总数）
         isFull,
         isBooked,
         waitlisted,
