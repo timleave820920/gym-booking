@@ -56,7 +56,10 @@ Page({
         capacity: s.capacity,
         isBooked: !!s.booked_by_me,
         status,
-        descText: this.getStatusDesc(status),
+        // 课程介绍：优先用管理员配置的描述；未配置时回退三态文案
+        descText: s.course_desc || this.getStatusDesc(status),
+        // 三态提示降级为状态小字（仅当有真实描述时显示）
+        statusNote: s.course_desc ? this.getStatusDesc(status) : '',
         offline: false
       });
     }).catch(() => {
@@ -80,6 +83,7 @@ Page({
       capacity: course.capacity,
       status: 'upcoming',
       descText: i18n.t().descUpcoming,
+      statusNote: '',
       offline
     });
   },

@@ -22,10 +22,11 @@
     </view>
     <text class="course-sub">全身循环训练 · 高效燃脂 · 暴汗体验</text>
 
-    <!-- 课程介绍（三态文案：未开始=介绍/报名，进行中=提示，已结束=复盘） -->
+    <!-- 课程介绍（管理员配置描述为主；三态提示为状态小字） -->
     <view class="desc-card">
       <text class="desc-title">{{t.descTitle}}</text>
       <text class="desc-text">{{descText}}</text>
+      <text class="status-note" wx:if="{{statusNote}}">{{statusNote}}</text>
     </view>
 
     <!-- 信息卡：时长/强度/剩余席位/场地 -->
