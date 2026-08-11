@@ -95,12 +95,16 @@
   align-items: stretch;
   gap: 24rpx;
 }
-/* 左侧能量条（紫→青柠渐变） */
-.cb-bar {
-  width: 12rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(180deg, #5B57EB 0%, #B9FF66 100%);
-  flex-shrink: 0;
+/* 左上角圆点徽章（方案C） */
+.cb-dot {
+  position: absolute;
+  top: 14rpx;
+  left: 14rpx;
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 50%;
+  background: #5B57EB;
+  border: 3rpx solid #1A1A23;
 }
 .cb-main {
   flex: 1;
