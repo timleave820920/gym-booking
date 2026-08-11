@@ -83,79 +83,117 @@
 
 .hot-list { margin-top: 24rpx; display: flex; flex-direction: column; gap: 28rpx; }
 .course-card {
+  position: relative;
+  overflow: hidden;
   background: #FFFFFF;
   border-radius: 32rpx;
-  padding: 20rpx;
+  padding: 28rpx 24rpx;
   box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
 }
-.course-cover {
-  width: 176rpx; height: 176rpx;
-  border-radius: 24rpx;
-  margin-right: 24rpx;
+/* 教练圆形头像 */
+.coach-avatar {
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 50%;
+  border: 3rpx solid #1A1A23;
+  background: #F0EDDF;
   flex-shrink: 0;
 }
-.course-info { justify-content: center; }
+.course-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* 顶部：课程名（大字号） */
 .course-name {
-  font-size: 30rpx; font-weight: 700; color: #1A1A23;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 36rpx;
+  font-weight: 800;
+  color: #1A1A23;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.course-meta { margin-top: 12rpx; align-items: center; }
-.icon-clock {
-  width: 26rpx; height: 26rpx; margin-right: 8rpx;
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="%236B6B76" stroke-width="2"/><path d="M12 7V12L15 14" stroke="%236B6B76" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
+/* 时间（中等字号） */
+.time-txt {
+  margin-top: 10rpx;
+  font-size: 28rpx;
+  color: #6B6B76;
 }
-.meta-txt { color: #6B6B76; font-size: 24rpx; }
-.coach-row { margin-top: 16rpx; }
-.coach-name { color: #6B6B76; font-size: 24rpx; }
+/* 价格 + 会员价（中等字号） */
+.price-row {
+  margin-top: 8rpx;
+  display: flex;
+  align-items: baseline;
+  gap: 10rpx;
+}
+.price-txt {
+  font-size: 28rpx;
+  font-weight: 800;
+  color: #1A1A23;
+}
+.member-txt {
+  font-size: 24rpx;
+  color: #B0AFA8;
+}
+/* 难度与席位（小字号） */
+.meta-small {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #B0AFA8;
+}
 .book-btn {
   background: #B9FF66;
   color: #1A1A23;
   font-size: 24rpx; font-weight: 700;
-  padding: 10rpx 24rpx;
-  border-radius: 26rpx;
+  padding: 12rpx 28rpx;
+  border-radius: 28rpx;
+  flex-shrink: 0;
 }
-/* 已结束课程：按钮灰化 */
-.book-ended {
-  background: #E0DCCB;
-  color: #8A8A8A;
+/* 已预订：按钮用品牌深色 */
+.btn-booked {
+  background: #1A1A23;
+  color: #B9FF66;
 }
-/* 进行中课程：按钮红色 */
-.book-ongoing {
-  background: #E5484D;
-  color: #FFFFFF;
-}
-/* 已排位课程：按钮紫色 */
-.book-wait {
+/* 已排位 / 候补排位：按钮紫色 */
+.btn-waitlist {
   background: #5B57EB;
   color: #FFFFFF;
 }
-/* 进行中/已结束/已排位课程卡片整体弱化 */
+/* 满员：按钮置灰 */
+.btn-full {
+  background: #E5E2D4;
+  color: #B0AFA8;
+}
+/* 进行中（红）/ 已结束（灰） */
+.btn-ongoing {
+  background: #E5484D;
+  color: #FFFFFF;
+}
+.btn-ended {
+  background: #E0DCCB;
+  color: #8A8A8A;
+}
+/* 不可约状态：整卡弱化 */
 .card-off {
   opacity: 0.72;
 }
-/* 课程名旁状态标签 */
-.name-row {
-  align-items: center;
-}
-.status-tag {
+/* 剩余席位 <5：右上角"紧张"斜条 */
+.ribbon {
+  position: absolute;
+  top: 22rpx;
+  right: -76rpx;
+  transform: rotate(45deg);
+  background: #E5484D;
+  color: #FFFFFF;
   font-size: 20rpx;
   font-weight: 600;
-  padding: 2rpx 12rpx;
-  border-radius: 16rpx;
-  margin-left: 12rpx;
-  flex-shrink: 0;
-}
-.status-ongoing {
-  background: #FCEBEB;
-  color: #E5484D;
-}
-.status-ended {
-  background: #F0EDDF;
-  color: #8A8A8A;
-}
-.status-wait {
-  background: #F0EBFF;
-  color: #5B57EB;
+  padding: 6rpx 90rpx;
+  text-align: center;
+  box-shadow: 0 2rpx 8rpx rgba(229,72,77,0.3);
 }
 .offline-tip {
   display: block;

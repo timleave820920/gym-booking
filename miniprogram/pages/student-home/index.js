@@ -4,7 +4,8 @@ const app = getApp();
 const i18n = require('../../utils/i18n.js');
 const courseStatus = require('../../utils/course-status.js');
 
-const DEFAULT_COVER = '/images/2_193.png'; // 课程未设封面时的占位图
+const DEFAULT_COVER = '/images/2_193.png';       // 课程未设封面时的占位图
+const DEFAULT_COACH_AVATAR = '/images/2_1468.png'; // 教练未设头像时的占位图
 
 Page({
   data: {
@@ -42,32 +43,68 @@ Page({
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
     api.getSessionsByDate(full, openid).then((res) => {
-      const list = (res.sessions || []).map(s => ({
-        id: s.id,
-        name: s.course_name,
-        coach: s.coach_name,
-        venue: s.venue_name,
-        start: s.start_time,
-        end: s.end_time,
-        remaining: s.remaining,
-        capacity: s.capacity,
-        price: (s.price_fen / 100).toFixed(0),
-        img: s.cover || DEFAULT_COVER,
-        status: this.getStatus(s.start_time, s.end_time),
-        waitlisted: !!s.waitlisted_by_me   // 已排位标记
-      }));
+      const list = (res.sessions || []).map(s => {
+        const price = (s.price_fen / 100).toFixed(0);
+        return {
+          id: s.id,
+          name: s.course_name,
+          coach: s.coach_name,
+          venue: s.venue_name,
+          coachAvatar: s.coach_avatar || DEFAULT_COACH_AVATAR,
+          level: s.level,
+          start: s.start_time,
+          end: s.end_time,
+          remaining: s.remaining,
+          capacity: s.capacity,
+          price,
+          memberPrice: Math.floor(Number(price) * 0.9),  // 会员价 = 正价×90% 向下取整
+          img: s.cover || DEFAULT_COVER,
+          status: this.getStatus(s.start_time, s.end_time),
+          waitlisted: !!s.waitlisted_by_me,   // 已排位标记
+          bookedByMe: !!s.booked_by_me        // 已预订标记
+        };
+      });
       this.setData({ hotCourses: this.decorate(list), offline: false, loaded: true });
     }).catch(() => {
       // 后端不可用 → 用演示数据（取前 3 门课，按当日时间判断状态）
       const list = mock.courses.slice(0, 3).map(c => ({
         id: c.id, name: c.name, coach: c.coach, venue: c.venue,
-        start: c.start, end: c.end, remaining: c.remaining, price: c.price, img: c.img,
-        capacity: c.capacity || 20,
+        coachAvatar: DEFAULT_COACH_AVATAR, level: c.level,
+        start: c.start, end: c.end, remaining: c.remaining, capacity: c.capacity || 20,
+        price: c.price, memberPrice: Math.floor(Number(c.price) * 0.9),
+        img: c.img,
         status: this.getStatus(c.start, c.end),
-        waitlisted: false
+        waitlisted: false,
+        bookedByMe: false
       }));
       this.setData({ hotCourses: this.decorate(list), offline: true, loaded: true });
     });
+  },
+
+  // 派生状态（与本周列表一致）：满员 / 可候补 / 不可点击
+  decorate(list, recheck) {
+    return (list || []).map(c => {
+      const status = recheck ? this.getStatus(c.start, c.end) : c.status;
+      const isFull = (c.remaining !== undefined ? c.remaining : c.capacity) <= 0;
+      const isBooked = !!c.bookedByMe;
+      const waitlisted = !!c.waitlisted;
+      return {
+        ...c,
+        status,
+        isFull,
+        isBooked,
+        waitlisted,
+        canWaitlist: isFull && status === 'upcoming' && !isBooked && !waitlisted,
+        disabled: isBooked || waitlisted || status !== 'upcoming'
+      };
+    });
+  },
+
+  // 教练头像加载失败 → 回退默认头像
+  avatarError(e) {
+    const idx = e.currentTarget.dataset.idx;
+    if (idx === undefined) return;
+    this.setData({ [`hotCourses[${idx}].coachAvatar`]: DEFAULT_COACH_AVATAR });
   },
 
   // 课程状态：upcoming 未开始（可约）/ ongoing 进行中（红色不可点）/ ended 已结束（灰色）
@@ -76,21 +113,6 @@ Page({
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     return courseStatus.getSessionStatus(today, startTime, endTime, now);
-  },
-
-  // 组装课程卡片文案（i18n 模板替换占位符）；recheck 时重算课程状态
-  decorate(list, recheck) {
-    const t = i18n.t();
-    return (list || []).map(c => ({
-      ...c,
-      status: recheck ? this.getStatus(c.start, c.end) : c.status,
-      metaText: t.timeRangeSeats
-        .replace('{{start}}', c.start)
-        .replace('{{end}}', c.end)
-        .replace('{{remaining}}', String(c.remaining || 0).padStart(2, '0'))
-        .replace('{{capacity}}', c.capacity || 20),
-      coachText: t.coachNameMeta.replace('{{coach}}', c.coach)
-    }));
   },
 
   // 读取微信昵称 + 按时段问候（{时段问候}，{昵称}）
@@ -131,13 +153,23 @@ Page({
   goDetail(e) {
     const id = e.currentTarget.dataset.id;
     const item = this.data.hotCourses.find(c => c.id === id);
+    if (!item) return;
+    // 满员未开始 → 候补排位（跳支付页，模式=waitlist）
+    if (item.canWaitlist) {
+      this.goWaitlist(id);
+      return;
+    }
+    if (item.isBooked) {
+      wx.showToast({ title: '已预订', icon: 'none' });
+      return;
+    }
     // 已排位 → 不可再次排位/预约
-    if (item && item.waitlisted) {
+    if (item.waitlisted) {
       wx.showToast({ title: '已排位，等待转正', icon: 'none' });
       return;
     }
     // 进行中 / 已结束的课程不可点击
-    if (item && item.status !== 'upcoming') {
+    if (item.status !== 'upcoming') {
       wx.showToast({
         title: item.status === 'ongoing' ? '课程进行中，无法预约' : '课程已结束，无法预约',
         icon: 'none'
@@ -145,6 +177,24 @@ Page({
       return;
     }
     wx.navigateTo({ url: `/pages/student-course-detail/index?session_id=${id}` });
+  },
+
+  // 满员课程 → 候补排位支付（与本周列表一致）
+  goWaitlist(sessionId) {
+    const course = this.data.hotCourses.find(c => c.id === sessionId);
+    if (!course) return;
+    app.globalData.currentCourse = {
+      session_id: course.id,
+      id: course.id,
+      name: course.name,
+      coach: course.coach,
+      venue: course.venue,
+      time: `${course.start}-${course.end}`,
+      price: course.price,
+      img: course.img,
+      mode: 'waitlist'          // 标记为候补排位模式
+    };
+    wx.navigateTo({ url: '/pages/student-pay/index' });
   },
 
   switchTab(e) {
