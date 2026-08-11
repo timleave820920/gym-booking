@@ -71,6 +71,16 @@ td .cap-input { width: 64px; padding: 4px 6px; font-size: 12px; }
 .op-cancel { border: 1px solid #F7C1C1; color: var(--red); background: #FCEBEB; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
 .op-cancel[disabled] { opacity: 0.4; cursor: not-allowed; }
 .empty-tip { text-align: center; color: var(--gray); padding: 30px 0; font-size: 13px; }
+/* 邀请看板 */
+.board-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 16px; }
+.bc { background: var(--dark); border-radius: 12px; padding: 14px 16px; }
+.bc-v { font-size: 22px; font-weight: 700; color: var(--lime); }
+.bc-l { font-size: 12px; color: #bbb; margin-top: 4px; }
+.trend { display: flex; align-items: flex-end; gap: 8px; height: 130px; padding-top: 6px; overflow-x: auto; }
+.tr-col { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 26px; }
+.tr-bar { width: 14px; background: var(--purple); border-radius: 4px 4px 0 0; }
+.tr-day { font-size: 10px; color: var(--gray); }
+.tr-num { font-size: 10px; color: var(--gray); }
 .member-line { font-size: 12px; color: var(--purple); margin-top: 6px; }
 </style>
 </head>
@@ -80,6 +90,7 @@ td .cap-input { width: 64px; padding: 4px 6px; font-size: 12px; }
   <nav class="tabs">
     <button class="tab active" id="tab-set" onclick="switchTab('set')">课程设定</button>
     <button class="tab" id="tab-sch" onclick="switchTab('sch')">排表管理</button>
+    <button class="tab" id="tab-board" onclick="switchTab('board')">邀请看板</button>
   </nav>
 </header>
 
@@ -167,6 +178,47 @@ td .cap-input { width: 64px; padding: 4px 6px; font-size: 12px; }
   </main>
 </section>
 
+<!-- ============ 邀请看板 ============ -->
+<section class="panel hidden" id="panel-board">
+  <main style="flex:1; min-width:0">
+    <!-- 总览指标 -->
+    <div class="board-cards">
+      <div class="bc"><div class="bc-v" id="bd-total">-</div><div class="bc-l">总邀请</div></div>
+      <div class="bc"><div class="bc-v" id="bd-ordered">-</div><div class="bc-l">已首订</div></div>
+      <div class="bc"><div class="bc-v" id="bd-rate">-</div><div class="bc-l">转化率</div></div>
+      <div class="bc"><div class="bc-v" id="bd-inviters">-</div><div class="bc-l">参与邀请人</div></div>
+      <div class="bc"><div class="bc-v" id="bd-reward">-</div><div class="bc-l">已发放奖励</div></div>
+    </div>
+
+    <div style="display:flex; gap:16px; align-items:flex-start;">
+      <div class="block" style="flex:1.2">
+        <h3>近 14 天每日新增邀请</h3>
+        <div class="trend" id="bd-trend"></div>
+      </div>
+      <div class="block" style="flex:1">
+        <h3>邀请人 Top 10</h3>
+        <table>
+          <thead><tr><th>#</th><th>邀请人</th><th>邀请数</th><th>已首订</th></tr></thead>
+          <tbody id="bd-top"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="block">
+      <h3>邀请明细 <span style="font-size:12px;color:var(--gray);font-weight:400">（选择用户查看其带来的新用户）</span></h3>
+      <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px">
+        <select id="bd-user" onchange="loadInviteDetails()" style="width:300px"></select>
+        <span style="font-size:12px;color:var(--gray)" id="bd-user-count"></span>
+      </div>
+      <table>
+        <thead><tr><th>被邀请人</th><th>状态</th><th>绑定时间</th><th>已发奖励</th></tr></thead>
+        <tbody id="bd-details"></tbody>
+      </table>
+      <div class="empty-tip" id="bd-details-empty" style="display:none">该用户暂无邀请记录</div>
+    </div>
+  </main>
+</section>
+
 <script>
 var meta = { coaches: [], venues: [], categories: [], images: [], timeSlots: [], weekdays: [], capacities: [], statusLabels: {}, levels: [], durations: [], prices: [] };
 var courses = [];
@@ -201,9 +253,12 @@ function daysOptions(from, to, selected) {
 function switchTab(name) {
   $('panel-set').classList.toggle('hidden', name !== 'set');
   $('panel-sch').classList.toggle('hidden', name !== 'sch');
+  $('panel-board').classList.toggle('hidden', name !== 'board');
   $('tab-set').classList.toggle('active', name === 'set');
   $('tab-sch').classList.toggle('active', name === 'sch');
+  $('tab-board').classList.toggle('active', name === 'board');
   if (name === 'sch') loadSchedule();
+  if (name === 'board') loadInviteBoard();
 }
 
 // ===== 加载元数据 & 课程 =====
@@ -417,6 +472,51 @@ function cancelSession(id) {
   api('/sessions/' + id, 'DELETE').then(function () {
     toast($('pubMsg'), '场次已取消'); loadSessions();
   }).catch(function (e) { toast($('pubMsg'), e.message, true); });
+}
+
+// ===== 邀请看板 =====
+var boardUsers = [];
+function loadInviteBoard() {
+  api('/admin/invite-board').then(function (j) {
+    var b = j.board || {};
+    $('bd-total').textContent = b.total || 0;
+    $('bd-ordered').textContent = b.ordered || 0;
+    $('bd-rate').textContent = (b.conversion || '0') + '%';
+    $('bd-inviters').textContent = b.inviters || 0;
+    $('bd-reward').textContent = '¥' + ((b.rewardFen || 0) / 100).toLocaleString();
+    // 趋势条
+    var max = Math.max.apply(null, (b.daily || []).map(function (d) { return d.c; }).concat([1]));
+    $('bd-trend').innerHTML = (b.daily || []).map(function (d) {
+      var h = Math.max(4, Math.round(d.c / max * 90));
+      return '<div class="tr-col"><div class="tr-bar" style="height:' + h + 'px"></div><div class="tr-day">' + d.d.slice(5) + '</div><div class="tr-num">' + d.c + '</div></div>';
+    }).join('') || '<span style="color:var(--gray);font-size:13px">暂无邀请数据</span>';
+    // Top 邀请人
+    $('bd-top').innerHTML = (b.top || []).map(function (t, i) {
+      return '<tr><td>' + (i + 1) + '</td><td>' + esc(t.inviter_name || t.inviter) + '</td><td>' + t.invited + '</td><td>' + t.ordered_cnt + '</td></tr>';
+    }).join('') || '<tr><td colspan="4" class="empty-tip">暂无数据</td></tr>';
+  }).catch(function (e) { alert('看板加载失败：' + e.message); });
+  // 用户下拉
+  api('/users').then(function (j) {
+    boardUsers = (j.users || []).filter(function (u) { return u.role !== 'admin'; });
+    var html = boardUsers.map(function (u) {
+      return '<option value="' + u.openid + '">' + esc(u.nickname || u.openid) + '（' + (u.openid || '').slice(0, 10) + '）</option>';
+    }).join('');
+    $('bd-user').innerHTML = html || '<option value="">暂无用户</option>';
+    $('bd-user-count').textContent = '共 ' + boardUsers.length + ' 位用户';
+    loadInviteDetails();
+  }).catch(function () {});
+}
+function loadInviteDetails() {
+  var openid = $('bd-user').value;
+  if (!openid) return;
+  api('/invite/details?openid=' + openid).then(function (j) {
+    var list = j.details || [];
+    $('bd-details').innerHTML = list.map(function (d) {
+      var st = d.status === 'ordered' ? '<span style="color:#3D9970">已首订</span>' : '<span style="color:var(--gray)">已注册</span>';
+      return '<tr><td>' + esc(d.invitee_name || d.invitee) + '</td><td>' + st + '</td><td>' + d.created_at + '</td><td>' + (d.reward_fen ? '¥' + (d.reward_fen / 100) : '-') + '</td></tr>';
+    }).join('');
+    $('bd-details-empty').style.display = list.length ? 'none' : 'block';
+  }).catch(function () {});
 }
 
 init().catch(function (e) { alert('加载失败：' + e.message); });

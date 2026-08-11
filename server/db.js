@@ -598,6 +598,52 @@ function listRecharges(openid, offset = 0, limit = 10) {
   });
 }
 
+/** 邀请明细：某邀请人带动的所有被邀请人（含昵称/状态/时间） */
+function listInvitationDetails(inviterOpenid) {
+  return db.prepare(`
+    SELECT i.id, i.invitee, i.status, i.reward_fen, i.created_at,
+           u.nickname AS invitee_name, u.avatar AS invitee_avatar
+    FROM invitations i
+    LEFT JOIN users u ON u.openid = i.invitee
+    WHERE i.inviter = ?
+    ORDER BY i.created_at DESC, i.id DESC
+  `).all(inviterOpenid);
+}
+
+/** 邀请数据看板：总量/转化/奖励/排行/近14天趋势 */
+function inviteBoardStats() {
+  const total = db.prepare('SELECT COUNT(*) c FROM invitations').get().c;
+  const ordered = db.prepare("SELECT COUNT(*) c FROM invitations WHERE status = 'ordered'").get().c;
+  const reward = db.prepare('SELECT COALESCE(SUM(reward_fen), 0) s FROM invitations').get().s;
+  const inviters = db.prepare('SELECT COUNT(DISTINCT inviter) c FROM invitations').get().c;
+  const top = db.prepare(`
+    SELECT i.inviter, u.nickname AS inviter_name, u.avatar AS inviter_avatar,
+           COUNT(*) AS invited,
+           COALESCE(SUM(CASE WHEN i.status = 'ordered' THEN 1 ELSE 0 END), 0) AS ordered_cnt
+    FROM invitations i
+    LEFT JOIN users u ON u.openid = i.inviter
+    GROUP BY i.inviter
+    ORDER BY ordered_cnt DESC, invited DESC
+    LIMIT 10
+  `).all();
+  const daily = db.prepare(`
+    SELECT date(created_at) AS d, COUNT(*) AS c
+    FROM invitations
+    WHERE created_at >= datetime('now', 'localtime', '-13 days')
+    GROUP BY date(created_at)
+    ORDER BY d
+  `).all();
+  return {
+    total,
+    ordered,
+    conversion: total > 0 ? (ordered / total * 100).toFixed(1) : '0',
+    rewardFen: reward,
+    inviters,
+    top,
+    daily
+  };
+}
+
 /** 绑定邀请关系（被邀请人注册时调用） */
 function bindInvitation({ inviter, invitee }) {
   if (!inviter) return { ok: false, error: '邀请码不能为空' };
@@ -1678,6 +1724,8 @@ module.exports = {
   updateProfile,
   countUsers,
   listUsers,
+  listInvitationDetails,
+  inviteBoardStats,
   deleteUserById,
   deleteUserByOpenid,
   clearUsers,

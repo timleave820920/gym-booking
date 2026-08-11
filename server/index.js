@@ -929,6 +929,12 @@ const server = http.createServer(async (req, res) => {
       await handleInvite(req, res);
     } else if (req.method === 'GET' && pathname === '/api/invite/stats') {
       handleInviteStats(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/invite/details') {
+      const openid = url.searchParams.get('openid');
+      if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+      sendJson(res, 200, { code: 200, details: db.listInvitationDetails(openid) });
+    } else if (req.method === 'GET' && pathname === '/api/admin/invite-board') {
+      sendJson(res, 200, { code: 200, board: db.inviteBoardStats() });
     } else if (req.method === 'GET' && pathname === '/api/coin/balance') {
       handleCoinBalance(req, res);
     } else if (req.method === 'GET' && pathname === '/api/coin/logs') {
