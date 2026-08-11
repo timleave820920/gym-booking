@@ -1,12 +1,14 @@
 const app = getApp();
 
 Page({
-  data: {
-    qrAssistant: '',   // 小助理微信二维码（留空，待补充后填图片路径）
-    qrGroup: ''        // 用户群二维码（留空，待补充后填图片路径）
-  },
+  data: {},
 
-  goBack() {
-    wx.navigateBack();
+  onLoad() {},
+
+  onShareAppMessage() {
+    return {
+      title: '综合训练馆 · 联系客服',
+      path: '/pages/contact-us/index'
+    };
   }
 });

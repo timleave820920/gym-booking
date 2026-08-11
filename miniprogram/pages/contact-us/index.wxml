@@ -1,54 +1,31 @@
 <view class="page">
-  <view class="page-pad pt-safe">
-    <view class="head-row">
-      <view class="flex-row back-wrap" bindtap="goBack">
-        <text class="icon-back"></text>
-        <text class="page-title">联系客服</text>
-      </view>
+  <view class="page-pad">
+    <!-- 使用说明 -->
+    <view class="tip-card">
+      <text class="tip-icon">👆</text>
+      <text class="tip-text">长按下方二维码，点击「识别图中二维码」即可添加微信 / 进群</text>
     </view>
 
-    <!-- 小助理二维码 -->
+    <!-- 小助理微信 -->
     <view class="qr-card">
       <view class="qr-head">
-        <view class="qr-icon qi-assist">助</view>
-        <view class="flex-col flex-1">
-          <text class="qr-name">微信小助理</text>
-          <text class="qr-desc">课程咨询 · 订课问题 · 反馈建议</text>
-        </view>
+        <text class="qr-title">小助理微信</text>
+        <text class="qr-badge">咨询 · 售后 · 约课协助</text>
       </view>
-      <view class="qr-body">
-        <image class="qr-img" src="{{qrAssistant}}" mode="aspectFit" show-menu-by-longpress="{{true}}"></image>
-        <view class="qr-placeholder" wx:if="{{!qrAssistant}}">
-          <text class="ph-icon">▦</text>
-          <text class="ph-text">二维码待添加</text>
-        </view>
-      </view>
-      <view class="qr-tip">长按二维码即可识别添加</view>
+      <image class="qr-img" src="/images/qr-assistant.png" mode="aspectFit"
+             show-menu-by-longpress="true"></image>
+      <text class="qr-hint">长按二维码识别，添加小助理微信</text>
     </view>
 
-    <!-- 用户群二维码 -->
+    <!-- 用户群 -->
     <view class="qr-card">
       <view class="qr-head">
-        <view class="qr-icon qi-group">群</view>
-        <view class="flex-col flex-1">
-          <text class="qr-name">训练馆交流群</text>
-          <text class="qr-desc">约课搭子 · 训练打卡 · 活动通知</text>
-        </view>
+        <text class="qr-title">用户交流群</text>
+        <text class="qr-badge">约课搭子 · 训练交流 · 活动通知</text>
       </view>
-      <view class="qr-body">
-        <image class="qr-img" src="{{qrGroup}}" mode="aspectFit" show-menu-by-longpress="{{true}}"></image>
-        <view class="qr-placeholder" wx:if="{{!qrGroup}}">
-          <text class="ph-icon">▦</text>
-          <text class="ph-text">二维码待添加</text>
-        </view>
-      </view>
-      <view class="qr-tip">长按二维码即可扫码进群</view>
-    </view>
-
-    <!-- 底部说明 -->
-    <view class="bottom-note">
-      <text class="note-dot"></text>
-      <text class="note-txt">长按屏幕上的二维码图片，选择「识别图中二维码」即可添加小助理或加入用户群</text>
+      <image class="qr-img" src="/images/qr-group.png" mode="aspectFit"
+             show-menu-by-longpress="true"></image>
+      <text class="qr-hint">长按二维码识别，扫码加入用户群</text>
     </view>
 
     <view class="list-spacer"></view>
