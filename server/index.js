@@ -106,9 +106,11 @@ async function handleLogin(req, res) {
     if (session.openid) {
       finalOpenid = session.openid;   // 真实微信 openid
       wechatVerified = true;
-    } else if (session.errcode) {
-      console.warn('[wechat] code2session 失败:', session.errcode, session.errmsg);
-      // 换取失败：若客户端传了 openid 则回退（演示/离线场景）
+    } else {
+      // 换取失败（errcode）或未配置 secret（空对象）→ 回退客户端 openid
+      if (session.errcode) {
+        console.warn('[wechat] code2session 失败:', session.errcode, session.errmsg);
+      }
       finalOpenid = openid || null;
     }
   } else {
