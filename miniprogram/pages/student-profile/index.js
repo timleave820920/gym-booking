@@ -95,9 +95,9 @@ Page({
     }).catch(() => {});
   },
 
-  // 活动中心入口
+  // 活动中心入口（tab 页 → switchTab）
   goMemberCenter() {
-    wx.navigateTo({ url: '/pages/member-center/index' });
+    wx.switchTab({ url: '/pages/member-center/index' });
   },
 
   // 头像加载失败（如微信头像域名未配置）→ 回退默认头像
@@ -139,7 +139,7 @@ Page({
     wx.showToast({ title: '设置开发中', icon: 'none' });
   },
 
-  goHome() { wx.switchTab({ url: '/pages/student-activity/index' }); },
+  goHome() { wx.switchTab({ url: '/pages/member-center/index' }); },
   goCourses() { wx.switchTab({ url: '/pages/student-courses/index' }); },
   goMy() { wx.switchTab({ url: '/pages/student-my-courses/index' }); }
 });

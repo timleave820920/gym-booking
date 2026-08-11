@@ -9,8 +9,12 @@ Page({
     gridSubs: { level: '会员折扣', recharge: '充值优惠', invite: '各得储值', honor: '荣誉展示' }
   },
 
-  onLoad() {
+  onShow() {
+    // tab 页：每次显示刷新数据 + 高亮 tabBar
     this.loadData();
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 2 });
+    }
   },
 
   onShow() {

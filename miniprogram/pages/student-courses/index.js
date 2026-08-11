@@ -207,7 +207,7 @@ Page({
     wx.navigateTo({ url: '/pages/student-pay/index' });
   },
 
-  goHome() { wx.switchTab({ url: '/pages/student-activity/index' }); },
+  goHome() { wx.switchTab({ url: '/pages/member-center/index' }); },
   goMy() { wx.switchTab({ url: '/pages/student-my-courses/index' }); },
   goProfile() { wx.switchTab({ url: '/pages/student-profile/index' }); }
 });

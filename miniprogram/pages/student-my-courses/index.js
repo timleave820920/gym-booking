@@ -167,7 +167,7 @@ Page({
     wx.navigateTo({ url: '/pages/student-checkin/index?id=' + id });
   },
 
-  goHome() { wx.switchTab({ url: '/pages/student-activity/index' }); },
+  goHome() { wx.switchTab({ url: '/pages/member-center/index' }); },
   goCourses() { wx.switchTab({ url: '/pages/student-courses/index' }); },
   goProfile() { wx.switchTab({ url: '/pages/student-profile/index' }); }
 });
