@@ -156,6 +156,11 @@ Page({
     wx.switchTab({ url: '/pages/student-courses/index' });
   },
 
+  // 活动 Banner → 直达活动中心
+  goMemberCenter() {
+    wx.navigateTo({ url: '/pages/member-center/index' });
+  },
+
   goDetail(e) {
     const id = e.currentTarget.dataset.id;
     const item = this.data.hotCourses.find(c => c.id === id);

@@ -912,6 +912,17 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
     return { ok: false, error: '订单已失效，无法支付' };
   }
 
+  // 会员价预校验：储值支付需余额充足（不足直接拒绝，避免事务回滚）
+  if (order.order_type === 'book' && pay_method === 'balance'
+      && MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {
+    const lv = getMemberLevel(order.user_openid);
+    const payFen = lv ? Math.round(order.amount_fen * lv.discount) : order.amount_fen;
+    const user = findUserByOpenid(order.user_openid);
+    if ((user.balance_fen || 0) < payFen) {
+      return { ok: false, error: '储值余额不足，请先充值或改用微信支付' };
+    }
+  }
+
   let booking = null, wait = null, recharge = null;
   db.exec('BEGIN');
   try {
@@ -941,6 +952,16 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
       `).get(waitId);
     } else {
       // 订课：复用订课逻辑（事务内调用，不再嵌套 BEGIN）
+      // 会员价：仅储值支付享受等级折扣（member-config.js 配置）
+      let payFen = order.amount_fen;
+      if (pay_method === 'balance' && MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {
+        const lv = getMemberLevel(order.user_openid);
+        if (lv) {
+          payFen = Math.round(order.amount_fen * lv.discount);
+          // 扣减余额 + 消费流水（余额不足时 addBalance 会让余额为负，事务回滚兜底）
+          addBalance(order.user_openid, -payFen, '订课消费', order.order_no);
+        }
+      }
       const bookingNo = 'BK' + Date.now() + Math.random().toString(36).slice(2, 8).toUpperCase();
       const exists = db.prepare("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ?").get(order.user_openid, order.session_id);
       if (exists) {
@@ -950,7 +971,7 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
       } else {
         db.prepare(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status)
                     VALUES (?, ?, ?, ?, 'booked', 'paid')`)
-          .run(bookingNo, order.user_openid, order.session_id, order.amount_fen);
+          .run(bookingNo, order.user_openid, order.session_id, payFen);
         booking = db.prepare('SELECT id, booking_no FROM bookings WHERE id = last_insert_rowid()').get();
         db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(order.session_id);
       }

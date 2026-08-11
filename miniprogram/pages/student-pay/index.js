@@ -5,9 +5,13 @@ Page({
   data: {
     course: null,
     order: null,
+    memberLevel: null,     // 会员等级（折扣）
+    balance: 0,            // 储值余额
+    memberPrice: 0,        // 储值支付折扣价
+    canBalancePay: false,  // 余额是否够
     payMethods: [
       { id: 1, name: '微信支付', desc: '推荐使用', icon: 'wallet', selected: true },
-      { id: 2, name: '余额支付', desc: '余额 ¥ 128.50', icon: 'card', selected: false }
+      { id: 2, name: '余额支付', desc: '余额 ¥ 0.00', icon: 'card', selected: false }
     ]
   },
 
@@ -21,6 +25,31 @@ Page({
       img: '/images/3_24.png'
     };
     this.setData({ course });
+    this.loadMemberInfo();
+  },
+
+  // 加载会员等级 + 储值余额 → 计算折扣价
+  loadMemberInfo() {
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+    if (!openid) return;
+    api.getMemberLevel(openid).then((res) => {
+      const lv = res.level;
+      const price = Number(this.data.course.price || 68);
+      const memberPrice = Math.round(price * lv.discount * 100) / 100;
+      const balance = (lv.balanceFen / 100);
+      const canBalancePay = balance >= memberPrice;
+      this.setData({
+        memberLevel: lv,
+        balance,
+        memberPrice,
+        canBalancePay,
+        payMethods: this.data.payMethods.map(m => ({
+          ...m,
+          desc: m.id === 2 ? `余额 ¥ ${balance.toFixed(2)}` : m.desc
+        }))
+      });
+    }).catch(() => {});
   },
 
   selectMethod(e) {
@@ -37,6 +66,20 @@ Page({
     const openid = user.openid || wx.getStorageSync('openid');
     if (!openid) {
       wx.showToast({ title: '未登录，请先登录', icon: 'none' });
+      return;
+    }
+    // 余额支付预校验（余额不足拦截）
+    const selected = this.data.payMethods.find(m => m.selected);
+    if (selected && selected.id === 2 && !this.data.canBalancePay) {
+      wx.showModal({
+        title: '余额不足',
+        content: `当前余额 ¥${this.data.balance.toFixed(2)}，本次储值支付需 ¥${(this.data.memberPrice || 0).toFixed(2)}。请先充值或改用微信支付。`,
+        confirmText: '去充值',
+        cancelText: '知道了',
+        success: (r) => {
+          if (r.confirm) wx.navigateTo({ url: '/pages/member-recharge/index' });
+        }
+      });
       return;
     }
     wx.showLoading({ title: '下单中...' });

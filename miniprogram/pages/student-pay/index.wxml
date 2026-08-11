@@ -27,6 +27,10 @@
           <view class="flex-col">
             <text class="method-name">{{item.name}}</text>
             <text class="method-desc">{{item.desc}}</text>
+            <!-- 会员折扣提示：余额支付享等级折扣 -->
+            <text class="member-tip" wx:if="{{item.id === 2 && memberLevel && memberLevel.discount < 1}}">
+              {{memberLevel.levelName}}会员价 ¥{{memberPrice}}（{{memberLevel.discount * 10}}折）
+            </text>
           </view>
         </view>
         <view class="radio {{item.selected ? 'radio-on' : ''}}">

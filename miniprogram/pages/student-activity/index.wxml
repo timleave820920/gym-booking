@@ -8,12 +8,12 @@
       </view>
     </view>
 
-    <!-- 活动 Banner -->
-    <view class="banner" bindtap="goCourses">
-      <text class="banner-tag">SUMMER BURN</text>
-      <text class="banner-title">{{t.summerPromo}}</text>
-      <text class="banner-sub">{{t.promoSub}}</text>
-      <view class="banner-btn">{{t.grabCourse}}</view>
+    <!-- 活动 Banner → 活动中心 -->
+    <view class="banner" bindtap="goMemberCenter">
+      <text class="banner-tag">MEMBER CENTER</text>
+      <text class="banner-title">会员活动中心</text>
+      <text class="banner-sub">会员特权 · 储值优惠 · 邀请有礼</text>
+      <view class="banner-btn">进入</view>
       <image class="banner-img" src="/images/2_166.png" mode="aspectFill"></image>
       <view class="banner-deco"></view>
     </view>

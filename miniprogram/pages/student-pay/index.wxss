@@ -141,3 +141,12 @@
   justify-content: center;
   box-shadow: 0 12rpx 28rpx rgba(185,255,102,0.5);
 }
+
+/* 会员折扣提示 */
+.member-tip {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 20rpx;
+  color: #5B57EB;
+  font-weight: 600;
+}
