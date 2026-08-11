@@ -44,20 +44,6 @@
       </view>
     </view>
 
-    <!-- 测试入口（演示用） -->
-    <view class="test-section">
-      <text class="test-title">角色入口 · 演示</text>
-      <view class="menu-group">
-        <view class="menu-row flex-row" wx:for="{{testEntries}}" wx:key="name"
-              data-url="{{item.url}}" bindtap="goMenu">
-          <view class="menu-icon {{'icon-' + item.icon}}"></view>
-          <text class="menu-name">{{item.name}}</text>
-          <text class="icon-chevron-sm"></text>
-        </view>
-      </view>
-      <text class="test-hint">正式版将按角色登录分流，此入口仅用于演示</text>
-    </view>
-
     <!-- 退出登录 -->
     <view class="logout-btn" bindtap="logout">
       <text>退出登录</text>

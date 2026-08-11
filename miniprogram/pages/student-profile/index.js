@@ -19,10 +19,6 @@ Page({
       [
         { icon: 'edit', name: '联系客服', url: '/pages/contact-us/index' }
       ]
-    ],
-    testEntries: [
-      { icon: 'coach', name: '教练端 · 今日课表', url: '/pages/coach-schedule/index', color: '#5B57EB' },
-      { icon: 'admin', name: '管理后台 · 数据仪表盘', url: '/pages/admin-dashboard/index', color: '#1A1A23' }
     ]
   },
 
