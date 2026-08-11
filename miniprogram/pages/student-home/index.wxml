@@ -64,8 +64,9 @@
           <text wx:else>预约</text>
         </view>
 
-        <!-- 剩余席位 <5：右上角"紧张"斜条 -->
-        <view class="ribbon" wx:if="{{item.remaining < 5}}">紧张</view>
+        <!-- 剩余席位 0：右上角金色"满员"斜条；1~5：红色"紧张"斜条 -->
+        <view class="ribbon ribbon-full" wx:if="{{item.remaining === 0}}">满员</view>
+        <view class="ribbon" wx:if="{{item.remaining > 0 && item.remaining < 5}}">紧张</view>
       </view>
 
       <!-- 今日暂无课程 -->

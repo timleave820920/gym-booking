@@ -162,6 +162,11 @@
   text-align: center;
   box-shadow: 0 2rpx 8rpx rgba(229,72,77,0.3);
 }
+/* 满员：金色斜条 */
+.ribbon-full {
+  background: #EF9F27;
+  box-shadow: 0 2rpx 8rpx rgba(239,159,39,0.35);
+}
 
 /* 空状态 */
 .empty-state {
