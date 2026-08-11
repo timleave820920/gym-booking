@@ -261,25 +261,34 @@
 /* 剩余席位 <5：右上角"紧张"斜条 */
 .ribbon {
   position: absolute;
-  top: 22rpx;
-  right: -76rpx;
+  top: 16rpx;
+  right: -58rpx;
   transform: rotate(45deg);
   background: #E5484D;
   color: #FFFFFF;
   font-size: 20rpx;
   font-weight: 600;
-  padding: 6rpx 90rpx;
+  padding: 5rpx 70rpx;
   text-align: center;
   box-shadow: 0 2rpx 8rpx rgba(229,72,77,0.3);
 }
-/* 满员：铺满右上角的深金斜条（深色文字保证可读） */
+/* 满员：旋转方块覆盖右上角（深金底 + 深色文字），面积较满铺版小40%（与预约页一致） */
 .ribbon-full {
-  top: 6rpx;
-  right: -130rpx;
-  padding: 16rpx 180rpx;
-  font-size: 24rpx;
-  letter-spacing: 2rpx;
+  position: absolute;
+  top: -92rpx;
+  right: -92rpx;
+  width: 184rpx;
+  height: 184rpx;
+  transform: rotate(45deg);
   background: #BA7517;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 0 20rpx 0;      /* 覆盖 .ribbon 的 6rpx 90rpx，避免文字被挤 */
+  box-sizing: border-box;
+  font-size: 22rpx;
+  font-weight: 800;
+  letter-spacing: 2rpx;
   color: #4A3200;
   box-shadow: none;
 }
