@@ -24,14 +24,20 @@ Page({
     const openid = user.openid || wx.getStorageSync('openid');
     // 带 openid：后端按首充/复充状态返回赠送金额
     api.getMemberPlans(openid).then((res) => {
-      const plans = (res.plans || []).map(p => ({
-        ...p,
-        // 展示文案：首充送30%（送¥X） / 复充送10%（送¥X）
-        bonusText: p.isFirst
-          ? `首充送30% 送¥${p.bonusYuan}`
-          : `复充送10% 送¥${p.bonusYuan}`,
-        tag: p.isFirst ? '首充高赠' : '已充过'
-      }));
+      const plans = (res.plans || []).map(p => {
+        // 百分比从配置读取（firstBonusRate / repeatBonusRate），不写死
+        const firstPct = Math.round((p.firstBonusRate || 0) * 100);
+        const repeatPct = Math.round((p.repeatBonusRate || 0) * 100);
+        return {
+          ...p,
+          // 标签：未首充 →「首充送30%」；已充过 →「送10%」
+          tag: p.isFirst ? `首充送${firstPct}%` : `送${repeatPct}%`,
+          // 赠送行文案
+          bonusText: p.isFirst
+            ? `首充送${firstPct}% 送¥${p.bonusYuan}`
+            : `复充送${repeatPct}% 送¥${p.bonusYuan}`
+        };
+      });
       this.setData({ plans });
       // 默认选中未首充的中间档；若中间档已充过则选最大档
       if (plans.length) {
