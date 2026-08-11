@@ -17,15 +17,24 @@
  *
  * 本地后端地址说明：
  * - 模拟器可用 127.0.0.1；真机预览必须用电脑局域网 IP（同 WiFi）
- * - 若 IP 变化，可用 ipconfig 查询后更新
+ * - IP 自动适配：后端启动时探测本机 IP 并写入 net-config.json（gitignore），
+ *   本文件运行时读取；未生成时回退到 127.0.0.1。手动启动后端同样生效。
  */
 const USE_CLOUD = false;
 
 const CLOUD_ENV = 'gym-prod-timleave001'; // 云环境 ID（注册正式小程序后启用）
 
+// 局域网 IP 自动适配：优先读取后端启动时生成的 net-config.json
+// （由 server/index.js 探测本机 IP 写入，不入库；IP 变了重新启动后端即可）
+let NET_CONFIG = null;
+try {
+  NET_CONFIG = require('./net-config.json');
+} catch (e) {
+  /* 后端从未启动过，首次运行；回退默认地址 */
+}
+
 // 本地后端地址（USE_CLOUD=false 时使用）
-// 真机预览需用电脑局域网 IP；电脑 IP 变了改这里
-const LOCAL_BASE_URL = 'http://192.168.194.11:3000';
+const LOCAL_BASE_URL = (NET_CONFIG && NET_CONFIG.baseUrl) || 'http://127.0.0.1:3000';
 
 // ===== 本地后端请求 =====
 function localRequest(path, method = 'GET', data = {}) {

@@ -18,6 +18,9 @@ node_modules/
 
 # 后端数据库（本地数据，不入库）
 server/data/*.db
+
+# 局域网 IP 自动适配（后端启动时生成，随机器/网络变化）
+miniprogram/utils/net-config.json
 server/data/*.db-shm
 server/data/*.db-wal
 server/data/*.db.bak

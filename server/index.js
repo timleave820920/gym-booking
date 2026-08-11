@@ -22,12 +22,52 @@
  */
 const http = require('node:http');
 const https = require('node:https');
+const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs');
 const db = require('./db');
 
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0'; // 允许局域网访问（真机调试）
+
+// ===== 局域网 IP 自动适配 =====
+// 启动时探测本机局域网 IPv4，写入小程序可读取的 net-config.json（gitignore）
+// 优先无线网卡（WLAN/Wi-Fi/无线），取第一个非内部地址
+function detectLanIP() {
+  const ifaces = os.networkInterfaces();
+  const candidates = [];
+  for (const [name, list] of Object.entries(ifaces)) {
+    for (const item of list || []) {
+      if (item.family === 'IPv4' && !item.internal) {
+        candidates.push({ name, addr: item.address });
+      }
+    }
+  }
+  if (candidates.length === 0) return null;
+  const wireless = candidates.find(c => /wlan|wi-?fi|wireless|无线|wifi_v/i.test(c.name));
+  return (wireless || candidates[0]).addr;
+}
+
+function writeNetConfig() {
+  const ip = detectLanIP();
+  const file = path.join(__dirname, '..', 'miniprogram', 'utils', 'net-config.json');
+  try {
+    if (!ip) {
+      console.warn('[net] 未探测到局域网 IP，跳过 net-config 写入（前端将回退 127.0.0.1）');
+      return null;
+    }
+    const payload = {
+      ip,
+      baseUrl: `http://${ip}:${PORT}`,
+      updatedAt: new Date().toISOString()
+    };
+    fs.writeFileSync(file, JSON.stringify(payload, null, 2), 'utf8');
+    return payload;
+  } catch (e) {
+    console.warn('[net] 写入 net-config.json 失败:', e.message);
+    return null;
+  }
+}
 
 // ===== 微信小程序配置（从环境变量读取，勿硬编码 secret）=====
 // 启动方式：WX_APPID=xxx WX_SECRET=yyy node server/index.js
@@ -670,10 +710,13 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
+  // 启动时探测局域网 IP 并写入前端配置（IP 自动适配）
+  const net = writeNetConfig();
   console.log('========================================');
   console.log('  综合训练馆订课系统 - 后端服务已启动');
   console.log(`  地址: http://127.0.0.1:${PORT}`);
-  console.log(`  局域网: http://<本机IP>:${PORT}`);
+  console.log(`  局域网: http://${net ? net.ip : '<未探测到>'}:${PORT}`);
+  console.log(`  前端适配: ${net ? '已写入 miniprogram/utils/net-config.json（重新编译小程序生效）' : '回退 127.0.0.1'}`);
   console.log(`  数据库: server/data/gym.db`);
   console.log('========================================');
 });
