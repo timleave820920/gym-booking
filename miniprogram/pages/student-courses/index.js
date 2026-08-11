@@ -15,11 +15,18 @@ Page({
     courseList: [],      // 当天课程
     loading: true,       // 加载中
     offline: false,      // 后端不可用回退演示数据
+    greeting: '',        // 时段问候 + 昵称
+    user: { date: '' },  // 当前日期（年月日 + 星期）
     t: i18n.t()          // 语言字典
   },
 
   onLoad() {
     this.setData({ t: i18n.t() });
+    // 当前时间：年月日 + 星期（如 2026年8月11日 星期二）
+    const today = new Date();
+    const week = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+    const dateText = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日 ${week[today.getDay()]}`;
+    this.setData({ 'user.date': dateText });
     this.buildWeek();
   },
 
@@ -27,11 +34,35 @@ Page({
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 0 });
     }
+    // 每次显示刷新问候语（登录授权后立即生效）
+    this.refreshUser();
     // 每次回到本页重新拉取数据（订课后余位/席位实时更新）
     if (this.data.selectedDate !== '' && this.data.selectedDate !== undefined && this.data.weekDays.length > 0) {
       const current = this.data.weekDays.find(d => d.date === Number(this.data.selectedDate));
       if (current) this.loadSessions(current.full);
     }
+  },
+
+  // 读取微信昵称 + 按时段问候（{时段问候}，{昵称}），与活动页一致
+  refreshUser() {
+    const u = app.globalData.userInfo;
+    let name = '微信用户';
+    if (u && u.name && u.name !== '小陈同学') {
+      name = u.name.slice(0, 8);
+    }
+    const t = i18n.t();
+    const greeting = `${this.getGreetingWord(t)}，${name}`;
+    this.setData({ greeting });
+  },
+
+  // 根据当前时间返回对应时段问候词（6-12早 / 12-13午 / 13-18下午 / 18-22晚 / 22-次日6夜深）
+  getGreetingWord(t) {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 12) return t.greetingMorning;
+    if (hour >= 12 && hour < 13) return t.greetingNoon;
+    if (hour >= 13 && hour < 18) return t.greetingAfternoon;
+    if (hour >= 18 && hour < 22) return t.greetingEvening;
+    return t.greetingLate;
   },
 
   // 生成本周（周一~周日）真实日期，默认选中今天

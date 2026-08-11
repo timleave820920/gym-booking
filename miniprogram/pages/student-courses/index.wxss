@@ -1,24 +1,42 @@
 .page {
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: #F9F4DF;
-  padding-bottom: 220rpx;
 }
 .pt-safe {
   padding-top: calc(88rpx + env(safe-area-inset-top));
 }
-.head-row { align-items: center; }
-.page-title {
-  font-size: 48rpx; font-weight: 800; color: #1A1A23;
+/* 固定顶部：问候语 + 当前时间 + 周选择条（下滑时保持不动） */
+.courses-head {
+  flex-shrink: 0;
+  background: #F9F4DF;
+  z-index: 10;
+  box-shadow: 0 6rpx 16rpx rgba(0,0,0,0.04);
 }
-.filter-btn {
-  width: 72rpx; height: 72rpx;
+.greet-title {
+  font-size: 44rpx;
+  font-weight: 800;
+  color: #1A1A23;
+}
+.greet-date {
+  font-size: 26rpx;
+  color: #6B6B76;
+  margin-top: 8rpx;
+  display: block;
+}
+.bell-btn {
+  width: 80rpx;
+  height: 80rpx;
   border-radius: 50%;
   background: #FFFFFF;
-  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+  box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.06);
 }
-.icon-filter {
-  width: 36rpx; height: 36rpx;
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" fill="none"><path d="M2 5H16M5 9H13M8 13H10" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
+.icon-bell {
+  width: 40rpx; height: 40rpx;
+  border-radius: 12rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M6 8C6 4.69 8.69 2 12 2C15.31 2 18 4.69 18 8V11C18 14.5 19.5 16 19.5 16H4.5C4.5 16 6 14.5 6 11V8Z" stroke="%231A1A23" stroke-width="2"/><path d="M10.3 20C10.73 20.61 11.31 21 12 21C12.69 21 13.27 20.61 13.7 20" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
 }
 
 /* 日期选择条 */
@@ -46,6 +64,15 @@
   margin-top: 4rpx;
 }
 .num-active { color: #FFFFFF; font-weight: 800; }
+
+/* 可滚动列表区（仅课程列表滚动，头部固定） */
+.list-scroll {
+  flex: 1;
+  min-height: 0;
+}
+.list-pad {
+  padding: 0 40rpx 240rpx;   /* 底部留白给自定义 TabBar */
+}
 
 /* 课程列表 */
 .course-list { margin-top: 32rpx; display: flex; flex-direction: column; gap: 28rpx; }

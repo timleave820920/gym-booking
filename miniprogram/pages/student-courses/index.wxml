@@ -1,27 +1,37 @@
 <view class="page">
-  <view class="page-pad pt-safe">
-    <view class="flex-between head-row">
-      <text class="page-title">全部课程</text>
-      <view class="filter-btn flex-center">
-        <text class="icon-filter"></text>
+  <!-- 固定顶部：问候语 + 当前时间 + 周日期选择条（下滑时保持不动） -->
+  <view class="courses-head">
+    <view class="page-pad pt-safe">
+      <view class="flex-between">
+        <view class="flex-col">
+          <text class="greet-title">{{greeting}}</text>
+          <text class="greet-date">{{user.date}}</text>
+        </view>
+        <view class="bell-btn flex-center" bindtap="goProfile">
+          <text class="icon-bell"></text>
+        </view>
+      </view>
+
+      <!-- 周日期选择条 -->
+      <view class="date-bar flex-row">
+        <view class="date-item flex-col {{item.selected ? 'date-active' : ''}}"
+              wx:for="{{weekDays}}" wx:key="full"
+              data-full="{{item.full}}" data-date="{{item.date}}" bindtap="selectDate">
+          <text class="date-week {{item.selected ? 'week-active' : ''}}">{{item.weekday}}</text>
+          <text class="date-num {{item.selected ? 'num-active' : ''}}">{{item.date}}</text>
+        </view>
       </view>
     </view>
+  </view>
 
-    <!-- 周日期选择条 -->
-    <view class="date-bar flex-row">
-      <view class="date-item flex-col {{item.selected ? 'date-active' : ''}}"
-            wx:for="{{weekDays}}" wx:key="full"
-            data-full="{{item.full}}" data-date="{{item.date}}" bindtap="selectDate">
-        <text class="date-week {{item.selected ? 'week-active' : ''}}">{{item.weekday}}</text>
-        <text class="date-num {{item.selected ? 'num-active' : ''}}">{{item.date}}</text>
-      </view>
-    </view>
+  <!-- 可滚动区：仅课程列表滚动 -->
+  <scroll-view scroll-y class="list-scroll" enhanced show-scrollbar="{{false}}">
+    <view class="list-pad">
+      <!-- 后端不可用提示 -->
+      <text class="offline-tip" wx:if="{{offline}}">后端未连接，当前展示演示数据</text>
 
-    <!-- 后端不可用提示 -->
-    <text class="offline-tip" wx:if="{{offline}}">后端未连接，当前展示演示数据</text>
-
-    <!-- 课程列表 -->
-    <view class="course-list">
+      <!-- 课程列表 -->
+      <view class="course-list">
       <view class="loading-tip" wx:if="{{loading}}">加载中...</view>
       <view class="course-card {{item.disabled && !item.isBooked ? 'card-full' : ''}}" wx:for="{{courseList}}" wx:key="id"
             bindtap="goDetail" data-id="{{item.id}}" data-disabled="{{item.disabled}}" data-waitlist="{{item.canWaitlist}}">
@@ -74,8 +84,9 @@
         <text class="empty-txt">当天暂无排课</text>
         <text class="empty-sub">试试选择其他日期</text>
       </view>
-    </view>
+      </view>
 
-    <view class="list-spacer"></view>
-  </view>
+      <view class="list-spacer"></view>
+    </view>
+  </scroll-view>
 </view>
