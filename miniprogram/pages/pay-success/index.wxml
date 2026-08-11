@@ -2,8 +2,10 @@
   <view class="success-wrap flex-col">
     <!-- 成功图标（SVG） -->
     <view class="success-ico"></view>
-    <text class="success-title">支付成功！</text>
-    <text class="success-sub">已成功预订课程</text>
+    <text class="success-title" wx:if="{{!isWaitlist}}">支付成功！</text>
+    <text class="success-title" wx:else>排位成功！</text>
+    <text class="success-sub" wx:if="{{!isWaitlist}}">已成功预订课程</text>
+    <text class="success-sub" wx:else>已进入候补队列，有人退订将自动转正</text>
 
     <!-- 课程信息卡 -->
     <view class="course-card" wx:if="{{course}}">
@@ -21,10 +23,16 @@
       </view>
     </view>
 
+    <!-- 候补提示条 -->
+    <view class="wait-tip" wx:if="{{isWaitlist}}">
+      <text class="wait-tip-txt">候补说明：开课前有学员退订，将按排队顺序自动转正并保留席位；课程开始仍未排到将自动原路退款。</text>
+    </view>
+
     <!-- 查看按钮 -->
     <view class="view-btn" bindtap="goProfile">
       <text>查看</text>
     </view>
-    <text class="tip-txt">可前往「我的课」查看已订课程</text>
+    <text class="tip-txt" wx:if="{{!isWaitlist}}">可前往「上课」查看已订课程</text>
+    <text class="tip-txt" wx:else>可前往「上课」查看候补进度</text>
   </view>
 </view>

@@ -109,8 +109,9 @@ Page({
       isFull,
       isBooked,
       status,
-      // 已预订或进行中或已结束 → 不可点击；满员不可点击
-      disabled: isBooked || status !== 'upcoming' || isFull,
+      // 已预订/进行中/已结束 → 不可点击；满员未开始 → 可点（进候补）
+      canWaitlist: isFull && status === 'upcoming',
+      disabled: isBooked || status !== 'upcoming' || (isFull && status !== 'upcoming'),
       // 已预订优先于满员显示
       seatFull: !isBooked && remaining <= 2
     };
@@ -118,8 +119,32 @@ Page({
 
   goDetail(e) {
     const id = e.currentTarget.dataset.id;
-    if (e.currentTarget.dataset.disabled) return; // 已预订/进行中/已结束/满员 不可点击
+    const canWaitlist = e.currentTarget.dataset.waitlist;
+    if (canWaitlist) {
+      // 满员 → 候补排位（跳支付页，模式=waitlist）
+      this.goWaitlist(id);
+      return;
+    }
+    if (e.currentTarget.dataset.disabled) return; // 已预订/进行中/已结束 不可点击
     wx.navigateTo({ url: `/pages/student-course-detail/index?session_id=${id}` });
+  },
+
+  // 满员课程 → 候补排位支付
+  goWaitlist(sessionId) {
+    const course = this.data.courseList.find(c => c.id === sessionId);
+    if (!course) return;
+    app.globalData.currentCourse = {
+      session_id: course.id,
+      id: course.id,
+      name: course.name,
+      coach: course.coach,
+      venue: course.venue,
+      time: `${course.start}-${course.end}`,
+      price: course.price,
+      img: course.img,
+      mode: 'waitlist'          // 标记为候补排位模式
+    };
+    wx.navigateTo({ url: '/pages/student-pay/index' });
   },
 
   goHome() { wx.switchTab({ url: '/pages/student-home/index' }); },

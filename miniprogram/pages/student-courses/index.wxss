@@ -180,3 +180,9 @@
   background: #E0DCCB;
   color: #8A8A8A;
 }
+
+/* 候补排位按钮（紫色强调） */
+.btn-waitlist {
+  background: #5B57EB;
+  color: #FFFFFF;
+}

@@ -150,5 +150,20 @@ module.exports = {
   // 退订
   cancelBooking(openid, bookingId) {
     return localRequest('/api/bookings/' + bookingId + '?openid=' + openid, 'DELETE');
+  },
+
+  // 候补排位（满员课付费排队）
+  joinWaitlist(data) {
+    return localRequest('/api/waitlist', 'POST', data);
+  },
+
+  // 查询我的候补（附带过期退款任务）
+  getMyWaitlist(openid) {
+    return localRequest('/api/waitlist?openid=' + openid, 'GET');
+  },
+
+  // 退出候补（退款）
+  cancelWaitlist(openid, waitId) {
+    return localRequest('/api/waitlist/' + waitId + '?openid=' + openid, 'DELETE');
   }
 };

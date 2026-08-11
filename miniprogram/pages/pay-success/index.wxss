@@ -112,3 +112,17 @@
   font-size: 24rpx;
   color: #B0AFA8;
 }
+
+/* 候补提示条 */
+.wait-tip {
+  margin-top: 32rpx;
+  width: 100%;
+  background: #F0EBFF;
+  border-radius: 20rpx;
+  padding: 24rpx 28rpx;
+}
+.wait-tip-txt {
+  font-size: 22rpx;
+  line-height: 1.7;
+  color: #5B57EB;
+}

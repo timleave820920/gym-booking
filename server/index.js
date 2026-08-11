@@ -265,7 +265,60 @@ function handleCancelBooking(req, res) {
   if (!result.ok) {
     return sendJson(res, 400, { code: 400, message: result.error });
   }
-  return sendJson(res, 200, { code: 200, message: '已退订' });
+  return sendJson(res, 200, {
+    code: 200,
+    message: '已退订',
+    promoted: result.promoted ? { openid: result.promoted.user_openid, waitNo: result.promoted.wait_no } : null
+  });
+}
+
+// ===== 候补排位（waitlist）=====
+
+// 满员付费排位（POST /api/waitlist）
+async function handleJoinWaitlist(req, res) {
+  const body = await readBody(req);
+  const { openid, sessionId, amountFen } = body;
+  if (!openid || !sessionId) {
+    return sendJson(res, 400, { code: 400, message: '缺少 openid 或 sessionId' });
+  }
+  const result = db.joinWaitlist({
+    user_openid: openid,
+    session_id: sessionId,
+    amount_fen: amountFen || 0
+  });
+  if (!result.ok) {
+    return sendJson(res, 400, { code: 400, message: result.error });
+  }
+  return sendJson(res, 201, { code: 201, message: '候补排位成功', wait: result.wait });
+}
+
+// 查询我的候补（GET /api/waitlist?openid=xxx，附带过期退款任务）
+function handleListWaitlist(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  if (!openid) {
+    return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  }
+  // 顺带执行过期退款任务（课程已开始未排到 → 自动退款）
+  const refunded = db.refundExpiredWaitlist();
+  const waits = db.listWaitlistByUser(openid);
+  return sendJson(res, 200, { code: 200, waits, refunded });
+}
+
+// 退出候补（DELETE /api/waitlist/:id?openid=xxx）
+function handleCancelWaitlist(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const pathParts = url.pathname.split('/');
+  const waitId = parseInt(pathParts[pathParts.length - 1], 10);
+  const openid = url.searchParams.get('openid');
+  if (!waitId || !openid) {
+    return sendJson(res, 400, { code: 400, message: '缺少排位ID或openid' });
+  }
+  const result = db.cancelWaitlist(openid, waitId);
+  if (!result.ok) {
+    return sendJson(res, 400, { code: 400, message: result.error });
+  }
+  return sendJson(res, 200, { code: 200, message: '已退出候补，费用已原路退回' });
 }
 
 // ===== 课程管理（电脑端课程编辑网页用）=====
@@ -428,6 +481,12 @@ const server = http.createServer(async (req, res) => {
       handleListBookings(req, res);
     } else if (req.method === 'DELETE' && pathname.startsWith('/api/bookings/')) {
       handleCancelBooking(req, res);
+    } else if (req.method === 'POST' && pathname === '/api/waitlist') {
+      await handleJoinWaitlist(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/waitlist') {
+      handleListWaitlist(req, res);
+    } else if (req.method === 'DELETE' && pathname.startsWith('/api/waitlist/')) {
+      handleCancelWaitlist(req, res);
     } else if (req.method === 'GET' && pathname === '/api/health') {
       sendJson(res, 200, { code: 200, status: 'ok', time: new Date().toISOString() });
     } else if (req.method === 'GET' && pathname === '/api/meta') {

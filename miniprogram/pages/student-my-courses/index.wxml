@@ -53,6 +53,25 @@
       <view class="empty-btn" bindtap="goCourses">去选课</view>
     </view>
 
+    <!-- 候补排位区 -->
+    <view class="wait-section" wx:if="{{waits.length > 0}}">
+      <view class="wait-head flex-between">
+        <text class="wait-title">候补排位</text>
+        <text class="wait-count">{{waits.length}} 个</text>
+      </view>
+      <view class="wait-card" wx:for="{{waits}}" wx:key="id">
+        <view class="flex-between wait-top">
+          <text class="wait-name">{{item.name}}</text>
+          <text class="wait-status {{item.status === 'waiting' ? 'ws-waiting' : (item.status === 'promoted' ? 'ws-promoted' : 'ws-done')}}">{{item.statusText}}</text>
+        </view>
+        <view class="wait-meta">{{item.date}} {{item.time}}-{{item.end}} · 教练 {{item.coach}}</view>
+        <view class="flex-between wait-foot">
+          <text class="wait-price">¥{{item.price}}</text>
+          <view class="btn-sm btn-outline" wx:if="{{item.status === 'waiting'}}" bindtap="exitWaitlist" data-id="{{item.id}}" data-name="{{item.name}}">退出候补</view>
+        </view>
+      </view>
+    </view>
+
     <view class="list-spacer"></view>
   </view>
 </view>

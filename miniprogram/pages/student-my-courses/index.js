@@ -5,16 +5,19 @@ Page({
   data: {
     tab: 0,
     courses: [],
+    waits: [],
     loading: true
   },
 
   onLoad() {
     this.loadBookings();
+    this.loadWaitlist();
   },
 
   onShow() {
-    // 每次显示刷新（支付/退订后立即更新）
+    // 每次显示刷新（支付/退订/转正后立即更新）
     this.loadBookings();
+    this.loadWaitlist();
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 2 });
     }
@@ -50,6 +53,68 @@ Page({
       this.setData({ courses, loading: false });
     }).catch(() => {
       this.setData({ courses: [], loading: false });
+    });
+  },
+
+  // 从后端加载候补排位（附带过期退款任务）
+  loadWaitlist() {
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+    if (!openid) {
+      this.setData({ waits: [] });
+      return;
+    }
+    api.getMyWaitlist(openid).then((res) => {
+      const waits = (res.waits || []).map(w => ({
+        id: w.id,
+        sessionId: w.session_id,
+        name: w.course_name,
+        coach: w.coach_name,
+        venue: w.venue_name,
+        date: w.date,
+        time: w.start_time,
+        end: w.end_time,
+        price: (w.amount_fen / 100).toFixed(0),
+        status: w.status,          // waiting/promoted/refunded/cancelled
+        statusText: this.waitStatusText(w.status)
+      }));
+      this.setData({ waits, loading: false });
+    }).catch(() => {
+      this.setData({ waits: [], loading: false });
+    });
+  },
+
+  // 候补状态文案
+  waitStatusText(status) {
+    const map = {
+      waiting: '候补中',
+      promoted: '已转正',
+      refunded: '已退款',
+      cancelled: '已退出'
+    };
+    return map[status] || status;
+  },
+
+  // 退出候补（退款）
+  exitWaitlist(e) {
+    const id = e.currentTarget.dataset.id;
+    const name = e.currentTarget.dataset.name;
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+    wx.showModal({
+      title: '退出候补',
+      content: `退出「${name}」候补后费用将原路退回，确定退出吗？`,
+      confirmColor: '#E5484D',
+      success: (res) => {
+        if (res.confirm) {
+          api.cancelWaitlist(openid, id).then(() => {
+            wx.showToast({ title: '已退出候补', icon: 'success' });
+            this.loadWaitlist();
+          }).catch((err) => {
+            wx.showToast({ title: err.message || '操作失败', icon: 'none' });
+          });
+        }
+      }
     });
   },
 

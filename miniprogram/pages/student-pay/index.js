@@ -37,7 +37,7 @@ Page({
     }, 800);
   },
 
-  // 支付成功 → 真实订课落库
+  // 支付成功 → 真实订课落库（或候补排位）
   confirmBook() {
     const course = this.data.course;
     const user = app.globalData.userInfo || {};
@@ -46,6 +46,27 @@ Page({
     if (!openid) {
       wx.hideLoading();
       wx.showToast({ title: '未登录，请先登录', icon: 'none' });
+      return;
+    }
+
+    // 候补排位模式：满员课付费排队
+    if (course.mode === 'waitlist') {
+      api.joinWaitlist({
+        openid,
+        sessionId: course.session_id || course.id,
+        amountFen: Math.round((course.price || 68) * 100)
+      }).then(() => {
+        wx.hideLoading();
+        wx.redirectTo({ url: '/pages/pay-success/index?mode=waitlist' });
+      }).catch((err) => {
+        wx.hideLoading();
+        wx.showModal({
+          title: '排位失败',
+          content: err.message || '无法连接服务器，请稍后重试',
+          showCancel: false,
+          confirmText: '知道了'
+        });
+      });
       return;
     }
 

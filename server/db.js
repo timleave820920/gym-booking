@@ -140,6 +140,26 @@ db.exec(`
   );
 `);
 
+// 候补排位表（满员课付费排位，有人退订自动转正）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS waitlist (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    wait_no       TEXT UNIQUE NOT NULL,
+    user_openid   TEXT NOT NULL,
+    session_id    INTEGER NOT NULL,
+    amount_fen    INTEGER DEFAULT 0,
+    status        TEXT DEFAULT 'waiting',    -- waiting 排位中 / promoted 已转正 / refunded 已退款 / cancelled 主动退出
+    created_at    TEXT DEFAULT (datetime('now','localtime')),
+    promoted_at   TEXT,
+    refunded_at   TEXT,
+    cancel_reason TEXT DEFAULT '',
+    FOREIGN KEY (user_openid) REFERENCES users(openid),
+    FOREIGN KEY (session_id)  REFERENCES course_sessions(id),
+    UNIQUE (user_openid, session_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_waitlist_status ON waitlist(status, created_at);
+`);
+
 /**
  * 根据 openid 查找用户
  */
@@ -463,18 +483,140 @@ function cancelBooking(openid, bookingId) {
   if (booking.status === 'cancelled') return { ok: false, error: '该订单已退订' };
 
   db.exec('BEGIN');
+  let promoted = null;
   try {
     db.prepare("UPDATE bookings SET status = 'cancelled', cancel_reason = '用户退订' WHERE id = ?").run(bookingId);
     // 仅未签到订单恢复余位
     if (!booking.checkin_at) {
       db.prepare('UPDATE course_sessions SET booked_count = MAX(booked_count - 1, 0) WHERE id = ?').run(booking.session_id);
+      // 有候补者 → 最早排位者自动转正（候补队列先进先出）
+      promoted = promoteFromWaitlist(booking.session_id);
     }
     db.exec('COMMIT');
   } catch (e) {
     db.exec('ROLLBACK');
     throw e;
   }
+  return { ok: true, promoted };
+}
+
+/**
+ * 候补转正：把某场次最早的 waiting 排位者转正为正式订课（需在事务内调用）
+ * @returns {object|null} 转正的排位记录（含用户/场次信息）
+ */
+function promoteFromWaitlist(sessionId) {
+  const waiting = db.prepare("SELECT * FROM waitlist WHERE session_id = ? AND status = 'waiting' ORDER BY created_at, id LIMIT 1").get(sessionId);
+  if (!waiting) return null;
+
+  // 生成订课单号并创建 booking
+  const bookingNo = 'BK' + Date.now() + Math.random().toString(36).slice(2, 8).toUpperCase();
+  db.prepare(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status)
+              VALUES (?, ?, ?, ?, 'booked', 'paid')`)
+    .run(bookingNo, waiting.user_openid, waiting.session_id, waiting.amount_fen);
+  // 扣减余位（退订时已 +1，这里 -1 抵消，保持满员状态）
+  db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(sessionId);
+  // 更新排位记录为已转正
+  db.prepare("UPDATE waitlist SET status = 'promoted', promoted_at = datetime('now','localtime') WHERE id = ?").run(waiting.id);
+
+  return {
+    id: waiting.id,
+    wait_no: waiting.wait_no,
+    user_openid: waiting.user_openid,
+    session_id: waiting.session_id,
+    amount_fen: waiting.amount_fen
+  };
+}
+
+/**
+ * 满员付费排位
+ * @param {object} p { user_openid, session_id, amount_fen }
+ * @returns {{ok:true, wait:{}}|{ok:false, error:string}}
+ */
+function joinWaitlist({ user_openid, session_id, amount_fen = 0 }) {
+  const user = findUserByOpenid(user_openid);
+  if (!user) return { ok: false, error: '用户不存在，请先登录' };
+
+  const session = getSessionById(session_id);
+  if (!session) return { ok: false, error: '课程场次不存在' };
+  if (session.status !== 'published') return { ok: false, error: '课程已下线' };
+
+  // 已订过 → 无需排位
+  const existing = db.prepare("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ? AND status = 'booked'").get(user_openid, session_id);
+  if (existing) return { ok: false, error: '您已预订该课程' };
+
+  // 已在排位 → 防重复
+  const queued = db.prepare("SELECT id FROM waitlist WHERE user_openid = ? AND session_id = ? AND status = 'waiting'").get(user_openid, session_id);
+  if (queued) return { ok: false, error: '您已在候补队列中' };
+
+  // 有余位 → 直接订课更合适（前端应引导，这里兜底拒绝排位）
+  if (session.remaining > 0) {
+    return { ok: false, error: '该课程仍有余位，请直接预订' };
+  }
+
+  const waitNo = 'WL' + Date.now() + Math.random().toString(36).slice(2, 6).toUpperCase();
+  db.prepare(`INSERT INTO waitlist (wait_no, user_openid, session_id, amount_fen, status)
+              VALUES (?, ?, ?, ?, 'waiting')`)
+    .run(waitNo, user_openid, session_id, amount_fen);
+  const wait = db.prepare(`
+    SELECT w.id, w.wait_no, w.session_id, w.amount_fen, w.status, w.created_at,
+           s.date, s.start_time, s.end_time, c.name AS course_name, c.level, c.duration_min,
+           co.name AS coach_name, v.name AS venue_name
+    FROM waitlist w
+    JOIN course_sessions s ON s.id = w.session_id
+    JOIN courses c ON c.id = s.course_id
+    JOIN coaches co ON co.id = s.coach_id
+    JOIN venues v ON v.id = s.venue_id
+    WHERE w.id = last_insert_rowid()
+  `).get();
+  return { ok: true, wait };
+}
+
+/**
+ * 主动退出候补（退款）
+ */
+function cancelWaitlist(openid, waitId) {
+  const wait = db.prepare('SELECT * FROM waitlist WHERE id = ? AND user_openid = ?').get(waitId, openid);
+  if (!wait) return { ok: false, error: '排位记录不存在' };
+  if (wait.status !== 'waiting') return { ok: false, error: '该排位已不在队列中' };
+  db.prepare("UPDATE waitlist SET status = 'cancelled', cancel_reason = '用户退出候补', refunded_at = datetime('now','localtime') WHERE id = ?").run(waitId);
   return { ok: true };
+}
+
+/**
+ * 查询某学员的全部候补记录
+ */
+function listWaitlistByUser(openid) {
+  return db.prepare(`
+    SELECT w.id, w.wait_no, w.session_id, w.amount_fen, w.status, w.created_at, w.promoted_at, w.refunded_at,
+           s.date, s.start_time, s.end_time, s.capacity, s.booked_count,
+           c.id AS course_id, c.name AS course_name, c.level, c.duration_min,
+           co.name AS coach_name, v.name AS venue_name
+    FROM waitlist w
+    JOIN course_sessions s ON s.id = w.session_id
+    JOIN courses c ON c.id = s.course_id
+    JOIN coaches co ON co.id = s.coach_id
+    JOIN venues v ON v.id = s.venue_id
+    WHERE w.user_openid = ?
+    ORDER BY w.created_at DESC
+  `).all(openid);
+}
+
+/**
+ * 过期退款任务：课程已开始仍未排到 → 自动退款（标记 refunded）
+ * @returns {number} 退款的条数
+ */
+function refundExpiredWaitlist() {
+  const expired = db.prepare(`
+    SELECT w.id FROM waitlist w
+    JOIN course_sessions s ON s.id = w.session_id
+    WHERE w.status = 'waiting'
+      AND (s.date < date('now','localtime')
+           OR (s.date = date('now','localtime') AND s.start_time < time('now','localtime')))
+  `).all();
+  for (const row of expired) {
+    db.prepare("UPDATE waitlist SET status = 'refunded', cancel_reason = '课程开始未排到，自动退款', refunded_at = datetime('now','localtime') WHERE id = ?").run(row.id);
+  }
+  return expired.length;
 }
 
 /**
@@ -546,5 +688,10 @@ module.exports = {
   cancelBooking,
   countBookingsByUser,
   countFinishedWorkouts,
-  countUpcomingBookings
+  countUpcomingBookings,
+  // 候补排位
+  joinWaitlist,
+  cancelWaitlist,
+  listWaitlistByUser,
+  refundExpiredWaitlist
 };
