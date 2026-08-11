@@ -6,9 +6,6 @@
         <text class="greet-title">{{greeting}}</text>
         <text class="greet-date">{{user.date}}</text>
       </view>
-      <view class="bell-btn flex-center" bindtap="goProfile">
-        <text class="icon-bell"></text>
-      </view>
     </view>
 
     <!-- 活动 Banner -->

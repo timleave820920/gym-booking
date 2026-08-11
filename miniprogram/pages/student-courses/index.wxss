@@ -26,18 +26,6 @@
   margin-top: 8rpx;
   display: block;
 }
-.bell-btn {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 50%;
-  background: #FFFFFF;
-  box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.06);
-}
-.icon-bell {
-  width: 40rpx; height: 40rpx;
-  border-radius: 12rpx;
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M6 8C6 4.69 8.69 2 12 2C15.31 2 18 4.69 18 8V11C18 14.5 19.5 16 19.5 16H4.5C4.5 16 6 14.5 6 11V8Z" stroke="%231A1A23" stroke-width="2"/><path d="M10.3 20C10.73 20.61 11.31 21 12 21C12.69 21 13.27 20.61 13.7 20" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
-}
 
 /* 日期选择条 */
 .date-bar {
