@@ -18,12 +18,13 @@ module.exports = {
     { name: '钻石', lv: 4, min: 100, discount: 0.88 }
   ],
 
-  // 储值套餐：amount 充值金额（分）｜ bonus 赠送金额（分）
-  // 例：30000 = ¥300 送 3000 = ¥30
+  // 储值套餐：amount 充值金额（分）｜ firstBonusRate 每档首次充值赠送比例（0.3 = 送30%）
+  //                          ｜ repeatBonusRate 复充赠送比例（0.1 = 送10%）
+  // 例：50000 = ¥500，首充送 ¥150，之后每次送 ¥50
   rechargePlans: [
-    { id: 1, amount: 30000,  bonus: 3000 },
-    { id: 2, amount: 50000,  bonus: 8000 },
-    { id: 3, amount: 100000, bonus: 20000 }
+    { id: 1, amount: 50000,  firstBonusRate: 0.30, repeatBonusRate: 0.10 },
+    { id: 2, amount: 150000, firstBonusRate: 0.30, repeatBonusRate: 0.10 },
+    { id: 3, amount: 300000, firstBonusRate: 0.30, repeatBonusRate: 0.10 }
   ],
 
   // 邀请奖励阶梯（储值发放，单位：分）：好友完成首订后按累计人数发放

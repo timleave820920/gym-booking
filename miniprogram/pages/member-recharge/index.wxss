@@ -150,3 +150,22 @@
   font-size: 24rpx;
   color: #B0AFA8;
 }
+
+/* 套餐副标题 */
+.sec-sub {
+  margin: -10rpx 0 20rpx;
+  font-size: 22rpx;
+  color: #6B6B76;
+}
+
+/* 套餐标签：首充高赠（荧光绿）/ 已充过（灰色） */
+.tag-first {
+  background: #B9FF66;
+  border: 3rpx solid #1A1A23;
+  color: #1A1A23;
+}
+.tag-repeat {
+  background: #F0EDDF;
+  border: 3rpx solid #8A8A8A;
+  color: #8A8A8A;
+}

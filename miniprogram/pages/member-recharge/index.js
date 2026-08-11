@@ -5,7 +5,7 @@ Page({
   data: {
     balance: '0.00',
     plans: [],
-    selectedId: 2,       // 默认选推荐档（500送80）
+    selectedId: 2,       // 默认选中间档（1500）
     recharges: []
   },
 
@@ -15,12 +15,31 @@ Page({
   },
 
   onShow() {
+    this.loadPlans();   // 充值后刷新首充状态
     this.loadInfo();
   },
 
   loadPlans() {
-    api.getMemberPlans().then((res) => {
-      this.setData({ plans: res.plans || [] });
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+    // 带 openid：后端按首充/复充状态返回赠送金额
+    api.getMemberPlans(openid).then((res) => {
+      const plans = (res.plans || []).map(p => ({
+        ...p,
+        // 展示文案：首充送30%（送¥X） / 复充送10%（送¥X）
+        bonusText: p.isFirst
+          ? `首充送30% 送¥${p.bonusYuan}`
+          : `复充送10% 送¥${p.bonusYuan}`,
+        tag: p.isFirst ? '首充高赠' : '已充过'
+      }));
+      this.setData({ plans });
+      // 默认选中未首充的中间档；若中间档已充过则选最大档
+      if (plans.length) {
+        const mid = plans.find(p => p.id === 2);
+        const max = plans[plans.length - 1];
+        const target = (mid && !mid.isFirst) ? mid : (max && !max.isFirst ? max : plans[0]);
+        if (target) this.setData({ selectedId: target.id });
+      }
     }).catch(() => {});
   },
 

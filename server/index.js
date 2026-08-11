@@ -421,12 +421,25 @@ function handleMemberLevel(req, res) {
   return sendJson(res, 200, { code: 200, level });
 }
 
-// 充值套餐（GET /api/member/plans）
+// 充值套餐（GET /api/member/plans?openid=xxx，带 openid 时按用户首充状态计算赠送）
 function handleMemberPlans(req, res) {
-  const plans = db.RECHARGE_PLANS.map(p => ({
-    id: p.id, amount: p.amount, bonus: p.bonus,
-    amountYuan: p.amount / 100, bonusYuan: p.bonus / 100, totalYuan: (p.amount + p.bonus) / 100
-  }));
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  const plans = db.RECHARGE_PLANS.map(p => {
+    // 每档首充送 30% / 复充送 10%（配置在 member-config.js）
+    const { bonus, isFirst } = openid
+      ? db.calcRechargeBonus(openid, p.amount)
+      : { bonus: Math.round(p.amount * p.firstBonusRate), isFirst: true };
+    return {
+      id: p.id, amount: p.amount,
+      amountYuan: p.amount / 100,
+      firstBonusRate: p.firstBonusRate,
+      repeatBonusRate: p.repeatBonusRate,
+      isFirst,
+      bonus, bonusYuan: bonus / 100,
+      totalYuan: (p.amount + bonus) / 100
+    };
+  });
   return sendJson(res, 200, { code: 200, plans });
 }
 
@@ -445,8 +458,8 @@ function handleMemberConfig(req, res) {
       rechargePlans: config.rechargePlans.map(p => ({
         ...p,
         amountYuan: p.amount / 100,
-        bonusYuan: p.bonus / 100,
-        totalYuan: (p.amount + p.bonus) / 100
+        firstBonusYuan: Math.round(p.amount * p.firstBonusRate) / 100,
+        repeatBonusYuan: Math.round(p.amount * p.repeatBonusRate) / 100
       })),
       inviteRewards: config.inviteRewards.map(r => ({
         ...r,

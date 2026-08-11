@@ -9,14 +9,14 @@
 
     <!-- 充值套餐 -->
     <view class="sec-title">选择充值套餐</view>
+    <view class="sec-sub">每档首次充值送 30%，之后每次充值送 10%</view>
     <view class="plans">
       <view class="plan {{item.id === selectedId ? 'plan-active' : ''}}" wx:for="{{plans}}" wx:key="id"
             bindtap="selectPlan" data-id="{{item.id}}">
-        <view class="plan-amount" wx:if="{{!item.id === 2}}">充 ¥{{item.amountYuan}}</view>
-        <view class="plan-amount {{item.id === 2 ? 'plan-amount-active' : ''}}">充 ¥{{item.amountYuan}}</view>
-        <view class="plan-bonus {{item.id === 2 ? 'plan-bonus-active' : ''}}">送 ¥{{item.bonusYuan}}</view>
-        <view class="plan-total {{item.id === 2 ? 'plan-total-active' : ''}}">共 ¥{{item.totalYuan}}</view>
-        <view class="plan-tag" wx:if="{{item.id === 2}}">最划算</view>
+        <view class="plan-amount {{item.id === selectedId ? 'plan-amount-active' : ''}}">充 ¥{{item.amountYuan}}</view>
+        <view class="plan-bonus {{item.id === selectedId ? 'plan-bonus-active' : ''}}">{{item.bonusText}}</view>
+        <view class="plan-total {{item.id === selectedId ? 'plan-total-active' : ''}}">共 ¥{{item.totalYuan}}</view>
+        <view class="plan-tag {{item.isFirst ? 'tag-first' : 'tag-repeat'}}">{{item.tag}}</view>
       </view>
     </view>
 

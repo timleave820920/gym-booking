@@ -521,6 +521,21 @@ function rewardInviterCoins(invitee) {
   return { inviter: inv.inviter, coins: ENERGY_CONFIG.earnRules.invite };
 }
 
+/** 判断用户是否已充值过该档位（金额相同即视为同档） */
+function hasRechargedPlan(openid, amountFen) {
+  const row = db.prepare("SELECT id FROM member_recharges WHERE user_openid = ? AND amount_fen = ?").get(openid, amountFen);
+  return !!row;
+}
+
+/** 计算充值赠送：每档首充 firstBonusRate / 复充 repeatBonusRate */
+function calcRechargeBonus(openid, amountFen) {
+  const plan = RECHARGE_PLANS.find(p => p.amount === amountFen);
+  if (!plan) return { plan: null, bonus: 0, isFirst: false };
+  const isFirst = !hasRechargedPlan(openid, amountFen);
+  const rate = isFirst ? plan.firstBonusRate : plan.repeatBonusRate;
+  return { plan, bonus: Math.round(amountFen * rate), isFirst };
+}
+
 /** 充值（订单支付后调用） */
 function applyRecharge({ user_openid, order_id, amount_fen, bonus_fen }) {
   const rechargeNo = 'RC' + Date.now() + Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -1139,9 +1154,14 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
       .run(pay_method, orderId);
 
     if (order.order_type === 'recharge') {
-      // 储值充值：发放储值 + 写充值记录（套餐按金额匹配赠送）
-      const plan = RECHARGE_PLANS.find(p => p.amount === order.amount_fen) || { bonus: 0 };
-      recharge = applyRecharge({ user_openid: order.user_openid, order_id: orderId, amount_fen: order.amount_fen, bonus_fen: plan.bonus });
+      // 储值充值：发放储值 + 写充值记录（每档首充送30% / 复充送10%，比例在配置）
+      const { plan, bonus, isFirst } = calcRechargeBonus(order.user_openid, order.amount_fen);
+      if (!plan) {
+        db.exec('ROLLBACK');
+        return { ok: false, error: '无效的充值套餐' };
+      }
+      recharge = applyRecharge({ user_openid: order.user_openid, order_id: orderId, amount_fen: order.amount_fen, bonus_fen: bonus });
+      recharge = { ...recharge, isFirst, bonus, rate: isFirst ? plan.firstBonusRate : plan.repeatBonusRate };
     } else if (order.order_type === 'waitlist') {
       // 候补排位：写 waitlist
       const waitNo = 'WL' + Date.now() + Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -1531,6 +1551,8 @@ module.exports = {
   getMemberLevel,
   addBalance,
   applyRecharge,
+  hasRechargedPlan,
+  calcRechargeBonus,
   RECHARGE_PLANS,
   listRecharges,
   bindInvitation,
