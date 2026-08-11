@@ -29,20 +29,20 @@
   background: linear-gradient(120deg, #FF6B35 0%, #FFCB47 100%);
 }
 .banner-tag {
-  position: absolute; top: 36rpx; left: 40rpx;
+  position: absolute; top: 36rpx; left: 0;   /* 与页面正文左对齐 */
   color: #FFFFFF; font-size: 24rpx; font-weight: 700;
   letter-spacing: 4rpx;
 }
 .banner-title {
-  position: absolute; top: 88rpx; left: 40rpx;
-  color: #1A1A23; font-size: 56rpx; font-weight: 900;
+  position: absolute; top: 88rpx; left: 0;   /* 与页面正文左对齐 */
+  color: #1A1A23; font-size: 60rpx; font-weight: 900;
 }
 .banner-sub {
-  position: absolute; top: 164rpx; left: 40rpx;
+  position: absolute; top: 164rpx; left: 0;   /* 与页面正文左对齐 */
   color: #FFFFFF; font-size: 26rpx;
 }
 .banner-btn {
-  position: absolute; top: 216rpx; left: 40rpx;
+  position: absolute; top: 216rpx; left: 0;   /* 与页面正文左对齐 */
   background: #1A1A23; color: #FFFFFF;
   font-size: 26rpx; font-weight: 600;
   padding: 12rpx 32rpx; border-radius: 30rpx;
