@@ -126,6 +126,12 @@ module.exports = {
     return localRequest('/api/sessions?' + qs, 'GET');
   },
 
+  // 教练端今日课表（按日期 + 教练）
+  getCoachSchedule(date, coachId) {
+    if (USE_CLOUD) return Promise.reject({ code: -1, message: '云函数暂未实现教练课表' });
+    return localRequest('/api/coach/schedule?date=' + date + '&coach_id=' + coachId, 'GET');
+  },
+
   // 场次详情（学员端课程详情；传 openid 可标记已预订）
   getSession(id, openid) {
     if (USE_CLOUD) return Promise.reject({ code: -1, message: '云函数暂未实现场次详情' });

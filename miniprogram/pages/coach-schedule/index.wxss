@@ -81,3 +81,36 @@
 }
 
 .list-spacer { height: 60rpx; }
+
+/* 加载/空态/提示 */
+.loading-tip {
+  text-align: center;
+  color: #B0AFA8;
+  font-size: 26rpx;
+  padding: 60rpx 0;
+}
+.offline-tip {
+  display: block;
+  text-align: center;
+  font-size: 22rpx;
+  color: #B0AFA8;
+  padding: 16rpx 0 0;
+}
+.empty-state {
+  align-items: center;
+  padding: 100rpx 0;
+}
+.empty-icon {
+  font-size: 96rpx;
+  color: #D9D4C0;
+}
+.empty-txt {
+  margin-top: 24rpx;
+  color: #6B6B76;
+  font-size: 30rpx;
+}
+.empty-sub {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #B0AFA8;
+}

@@ -400,6 +400,12 @@ function listSessionsByDate(date) {
   return db.prepare(`${SESSION_SELECT} WHERE s.date = ? AND s.status = 'published' ORDER BY s.start_time`).all(date);
 }
 
+/** 按日期 + 教练查已发布场次（教练端今日课表） */
+function listSessionsByCoach(date, coachId) {
+  return db.prepare(`${SESSION_SELECT} WHERE s.date = ? AND s.coach_id = ? AND s.status = 'published' ORDER BY s.start_time`)
+    .all(date, coachId);
+}
+
 /** 按日期查场次，并标记当前用户是否已预订/已排位（openid 可选） */
 function listSessionsByDateForUser(date, openid) {
   const sessions = listSessionsByDate(date);
@@ -1017,6 +1023,7 @@ module.exports = {
   // 场次查询
   listSessionsByDate,
   listSessionsByDateForUser,
+  listSessionsByCoach,
   getSessionById,
   // 订课
   createBooking,

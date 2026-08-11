@@ -2,8 +2,8 @@
   <view class="page-pad pt-safe">
     <view class="flex-between head-row">
       <view class="flex-col">
-        <text class="greet-title">{{coach.name}}教练，早上好</text>
-        <text class="greet-sub">今天有 3 节课 · 20 名学员</text>
+        <text class="greet-title">{{greeting}}</text>
+        <text class="greet-sub">{{summary}}</text>
       </view>
       <image class="coach-avatar" src="/images/2_645.png" mode="aspectFill"></image>
     </view>
@@ -12,14 +12,19 @@
     <view class="today-card flex-row" bindtap="goScan">
       <view class="icon-calendar"></view>
       <view class="flex-col flex-1">
-        <text class="today-title">8月10日 星期一</text>
-        <text class="today-sub">10:00 第一节课 · 记得提前到场</text>
+        <text class="today-title">{{dateText}}</text>
+        <text class="today-sub">{{firstTime || '记得提前到场'}}</text>
       </view>
       <text class="icon-chevron"></text>
     </view>
 
+    <!-- 后端不可用提示 -->
+    <text class="offline-tip" wx:if="{{offline}}">后端未连接，当前无法加载真实课表</text>
+
     <!-- 课表列表 -->
     <view class="schedule-list">
+      <view class="loading-tip" wx:if="{{loading}}">加载中...</view>
+
       <view class="schedule-card flex-row" wx:for="{{schedule}}" wx:key="id"
             data-id="{{item.id}}" bindtap="goStudents">
         <view class="flex-col time-box">
@@ -30,9 +35,16 @@
           <text class="course-name">{{item.name}}</text>
           <text class="course-meta">{{item.venue}} · 已报名 {{item.enrolled}}/{{item.capacity}}</text>
         </view>
-        <view class="tag {{item.statusType === 'green' ? 'tag-green' : 'tag-orange'}}">
+        <view class="tag {{item.statusType === 'green' ? 'tag-green' : (item.statusType === 'orange' ? 'tag-orange' : 'tag-gray')}}">
           {{item.status}}
         </view>
+      </view>
+
+      <!-- 空状态：今日无课 -->
+      <view class="empty-state flex-col" wx:if="{{!loading && schedule.length === 0 && !offline}}">
+        <text class="empty-icon">▦</text>
+        <text class="empty-txt">今天没有排课</text>
+        <text class="empty-sub">休息日也要好好放松</text>
       </view>
     </view>
 

@@ -643,6 +643,14 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 400, { code: 400, message: '缺少 date 参数（YYYY-MM-DD）' });
       }
       handleSessionsByDate(req, res, date);
+    } else if (req.method === 'GET' && pathname === '/api/coach/schedule') {
+      const date = url.searchParams.get('date');
+      const coachId = Number(url.searchParams.get('coach_id') || 0);
+      if (!date || !coachId) {
+        return sendJson(res, 400, { code: 400, message: '缺少 date 或 coach_id 参数' });
+      }
+      const sessions = db.listSessionsByCoach(date, coachId);
+      sendJson(res, 200, { code: 200, sessions });
     } else if (req.method === 'GET' && /^\/api\/sessions\/\d+$/.test(pathname)) {
       handleSessionDetail(req, res, pathname.split('/')[3]);
     } else if (pathname === '/' || pathname === '/courses.html') {

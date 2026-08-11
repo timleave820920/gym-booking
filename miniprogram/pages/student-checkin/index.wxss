@@ -108,20 +108,18 @@
   color: #B0AFA8;
 }
 
-/* 凭证码 */
+/* 签到二维码 */
 .code-box {
   margin-top: 32rpx;
-  width: 360rpx;
-  height: 120rpx;
-  background: #1A1A23;
+  width: 400rpx;
+  height: 400rpx;
+  background: #FFFFFF;
+  border: 3rpx solid #1A1A23;
   border-radius: 24rpx;
 }
-.code-text {
-  font-size: 44rpx;
-  font-weight: 800;
-  letter-spacing: 6rpx;
-  color: #B9FF66;
-  font-family: monospace;
+.qr-canvas {
+  width: 360rpx;
+  height: 360rpx;
 }
 
 /* 已签到横幅 */

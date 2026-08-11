@@ -68,6 +68,12 @@ Page({
       totalCalories: '12,480',
       streak: 12
     };
+    // 教练演示身份：绑定真实教练档案（喻馥雅 id=1，当前 126 场次全由其带课）
+    if (role === 'coach') {
+      userInfo.name = '喻馥雅';
+      userInfo.avatar = '/images/2_1468.png';
+      userInfo.coach_id = 1;
+    }
     wx.setStorageSync('token', token);
     wx.setStorageSync('userInfo', userInfo);
     app.globalData.userInfo = userInfo;

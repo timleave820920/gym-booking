@@ -27,13 +27,13 @@
         <text class="checked-sub">训练愉快，记得拉伸放松</text>
       </view>
 
-      <!-- 凭证码卡 -->
+      <!-- 签到二维码卡 -->
       <view class="qr-card flex-col" wx:if="{{!checked}}">
         <text class="qr-tip">出示签到码给教练核销</text>
         <view class="code-box flex-center">
-          <text class="code-text">{{checkinCode}}</text>
+          <canvas canvas-id="checkinQr" id="checkinQr" class="qr-canvas"></canvas>
         </view>
-        <text class="qr-sub">签到码：请向教练出示</text>
+        <text class="qr-sub">签到码：{{checkinCode}}</text>
         <view class="qr-hint flex-row">
           <view class="hint-icon"></view>
           <text class="hint-txt">开课前 30 分钟可签到；签到后可在「我的」查看锻炼记录</text>

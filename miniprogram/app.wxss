@@ -107,6 +107,7 @@ button::after {
 .tag-green { background: #E5FFC9; color: #3D9970; }
 .tag-orange { background: #FFF0D6; color: #D97706; }
 .tag-purple { background: #DCD8FF; color: #5B57EB; }
+.tag-gray { background: #F0EDDF; color: #8A8A8A; }
 .tag-dark { background: #1A1A23; color: #B9FF66; }
 
 /* ===== 胶囊 TabBar ===== */
