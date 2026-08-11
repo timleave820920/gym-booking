@@ -6,24 +6,7 @@
   padding: 24rpx 24rpx 60rpx;
 }
 .pt-safe {
-  padding-top: 24rpx;
-}
-
-/* 页头 */
-.head {
-  margin-bottom: 28rpx;
-}
-.head-title {
-  display: block;
-  font-size: 40rpx;
-  font-weight: 800;
-  color: #1A1A23;
-}
-.head-sub {
-  display: block;
-  margin-top: 8rpx;
-  font-size: 24rpx;
-  color: #6B6B76;
+  padding-top: 8rpx;
 }
 
 /* 会员卡预览 */
