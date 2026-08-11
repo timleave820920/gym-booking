@@ -19,8 +19,8 @@
     </view>
   </view>
 
-  <!-- 可滚动区：仅课程卡片滚动 -->
-  <scroll-view scroll-y class="list-scroll">
+  <!-- 可滚动区：仅课程卡片滚动（页面级滚动，sticky 头部固定） -->
+  <view class="list-scroll">
     <view class="list-pad">
       <!-- 加载中 -->
       <view class="empty-state flex-col" wx:if="{{loading}}">
@@ -98,5 +98,5 @@
 
     <view class="list-spacer"></view>
     </view>
-  </scroll-view>
+  </view>
 </view>
