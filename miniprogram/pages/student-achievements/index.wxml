@@ -11,8 +11,13 @@
       </view>
     </view>
 
+    <!-- 加载中 -->
+    <view class="empty-state flex-col" wx:if="{{loading}}">
+      <text class="empty-txt">加载中...</text>
+    </view>
+
     <!-- 数据卡组 -->
-    <view class="stats-row flex-row">
+    <view class="stats-row flex-row" wx:if="{{!loading}}">
       <view class="stat-card flex-col stat-dark" wx:for="{{stats}}" wx:key="label">
         <text class="stat-value {{index === 0 ? 'value-lime' : (index === 1 ? 'value-purple' : 'value-orange')}}">{{item.value}}</text>
         <text class="stat-label">{{item.label}}</text>
@@ -30,10 +35,10 @@
     </view>
 
     <!-- 本周记录 -->
-    <view class="week-card">
+    <view class="week-card" wx:if="{{!loading}}">
       <view class="flex-between">
         <text class="card-title">本周锻炼记录</text>
-        <view class="tag tag-green">4 次 · 达标</view>
+        <view class="tag {{weekGoal ? 'tag-green' : 'tag-orange'}}">{{weekCount}} 次 · {{weekGoal ? '达标' : '未达标'}}</view>
       </view>
       <view class="week-row flex-row">
         <view class="day-item flex-col {{item.today ? 'day-today' : (item.active ? 'day-on' : '')}}"
@@ -45,7 +50,7 @@
     </view>
 
     <!-- 成就徽章 -->
-    <view class="ach-section">
+    <view class="ach-section" wx:if="{{!loading}}">
       <text class="card-title">成就徽章</text>
       <view class="ach-grid flex-row">
         <view class="ach-item flex-col" wx:for="{{achievements}}" wx:key="name">
@@ -55,6 +60,13 @@
           <text class="ach-name">{{item.name}}</text>
         </view>
       </view>
+    </view>
+
+    <!-- 后端不可用 -->
+    <view class="empty-state flex-col" wx:if="{{offline}}">
+      <text class="empty-icon">▦</text>
+      <text class="empty-txt">后端未连接</text>
+      <text class="empty-sub">无法加载成就数据，请确认服务已启动</text>
     </view>
 
     <view class="list-spacer"></view>
