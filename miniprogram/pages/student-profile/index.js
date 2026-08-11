@@ -4,9 +4,10 @@ const api = require('../../utils/api.js');
 Page({
   data: {
     user: { name: '微信用户', avatar: '/images/2_556.png', desc: '累计锻炼 0 节课' },
-    balance: '0.00',
+    member: null,        // 会员卡数据（等级/余额/升级提示）
     balanceAnim: false,
     coinBalance: 0,
+    rewards: 0,          // 未读储值奖励数
     menus: [
       [
         { icon: 'card', name: '我的会员卡', url: '/pages/member-card/index' },
@@ -79,26 +80,56 @@ Page({
     });
   },
 
-  // 加载储值余额（进入页面时静默加载，有奖励则播余额动画）
+  // 加载会员卡数据（等级/余额/能量币/未读奖励；有奖励时播余额动画）
   loadBalance(animate) {
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
     if (!openid) return;
     api.getMemberLevel(openid).then((res) => {
-      const balance = (res.level.balanceFen / 100).toFixed(2);
-      this.setData({ balance, balanceAnim: false, coinBalance: res.level.coinBalance || 0 });
+      const lv = res.level;
+      const balance = (lv.balanceFen / 100).toFixed(2);
+      this.setData({
+        member: {
+          name: lv.levelName,
+          lv: lv.levelLv,
+          icon: lv.levelIcon || '🏅',
+          balance,
+          hint: lv.next ? `再上 ${lv.next.min - lv.totalClasses} 节课升级${lv.next.name} · 会员价 ${Math.round(lv.next.discount * 100)} 折` : '已达最高等级'
+        },
+        balanceAnim: false,
+        coinBalance: lv.coinBalance || 0
+      });
       if (animate && Number(balance) > 0) {
-        // 触发余额增加动画（滚动数字效果）
+        // 触发余额增加动画（庆祝弹框跳转后播放）
         setTimeout(() => {
           this.setData({ balanceAnim: true });
         }, 300);
       }
     }).catch(() => {});
+    // 未读储值奖励数
+    api.getMyRewards(openid).then((res) => {
+      this.setData({ rewards: (res.rewards || []).length });
+    }).catch(() => {});
   },
 
-  // 活动中心入口（tab 页 → switchTab）
-  goMemberCenter() {
-    wx.switchTab({ url: '/pages/member-center/index' });
+  // 电子会员卡
+  goMemberCard() {
+    wx.navigateTo({ url: '/pages/member-card/index' });
+  },
+
+  // 去充值
+  goRecharge() {
+    wx.navigateTo({ url: '/pages/member-recharge/index' });
+  },
+
+  // 能量商店
+  goCoinShop() {
+    wx.navigateTo({ url: '/pages/coin-shop/index' });
+  },
+
+  // 领取奖励 → 跳电子卡页看余额
+  claimReward() {
+    wx.navigateTo({ url: '/pages/member-card/index' });
   },
 
   // 头像加载失败（如微信头像域名未配置）→ 回退默认头像

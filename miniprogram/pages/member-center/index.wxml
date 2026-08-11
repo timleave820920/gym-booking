@@ -1,39 +1,6 @@
 <view class="page">
   <view class="page-pad pt-safe">
-    <!-- 页标题（与上课页一致：48rpx 左对齐） -->
-    <text class="page-title">活动中心</text>
-
-    <!-- 会员卡预览 -->
-    <view class="vip-preview" bindtap="go" data-url="/pages/member-card/index">
-      <view class="vip-top">
-        <text class="vip-name">我的会员卡</text>
-        <view class="vip-lv" wx:if="{{level}}">
-          <text class="vip-lv-txt">{{level.icon}} Lv.{{level.lv}}</text>
-        </view>
-      </view>
-      <view class="vip-mid" wx:if="{{level}}">
-        <view class="vip-bal">
-          <text class="vip-bal-label">储值余额</text>
-          <text class="vip-bal-value">¥ {{level.balance}}</text>
-        </view>
-        <view class="vip-btn" catchtap="goRecharge">去充值</view>
-      </view>
-      <view class="vip-hint" wx:if="{{level}}">{{level.hint}}</view>
-      <view class="vip-loading" wx:else>加载中...</view>
-      <!-- 能量币行 -->
-      <view class="vip-coins" wx:if="{{coins !== null}}" bindtap="goCoinShop">
-        <text class="vip-coins-label">⚡ 能量币</text>
-        <text class="vip-coins-value">{{coins}}</text>
-        <text class="vip-coins-go">去商店 →</text>
-      </view>
-      <!-- 未读奖励提示 -->
-      <view class="reward-ribbon" wx:if="{{rewards > 0}}" bindtap="claimReward">
-        <text>🎉 有 {{rewards}} 笔储值奖励待领取</text>
-      </view>
-    </view>
-
     <!-- 功能宫格 -->
-    <view class="sec-title">全部功能</view>
     <view class="grid">
       <view class="grid-item" bindtap="go" data-url="/pages/member-level/index">
         <view class="g-icon gi-lime"><text class="g-icon-txt">Lv</text></view>
@@ -63,15 +30,6 @@
         <view class="g-icon gi-indigo"><text class="g-icon-txt">≡</text></view>
         <view class="g-info"><text class="g-name">我的订单</text><text class="g-sub">支付记录</text></view>
       </view>
-    </view>
-
-    <!-- 活动横幅 -->
-    <view class="banner" bindtap="goCourses">
-      <view class="banner-l">
-        <text class="banner-title">夏日燃脂季</text>
-        <text class="banner-sub">全场团课 5 折起 · 立即开练</text>
-      </view>
-      <view class="banner-btn">去抢</view>
     </view>
   </view>
 </view>
