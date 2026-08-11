@@ -4,95 +4,81 @@ const api = require('../../utils/api.js');
 Page({
   data: {
     tab: 0,
-    courses: [],
-    waits: [],
+    courses: [],        // 订课 + 候补排位（同一列表，界面一致）
     loading: true
   },
 
   onLoad() {
-    this.loadBookings();
-    this.loadWaitlist();
+    this.loadAll();
   },
 
   onShow() {
-    // 每次显示刷新（支付/退订/转正后立即更新）
-    this.loadBookings();
-    this.loadWaitlist();
+    // 每次显示刷新（支付/退订/退出候补/转正后立即更新）
+    this.loadAll();
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 2 });
     }
   },
 
-  // 从后端加载真实订课
-  loadBookings() {
+  // 加载订课 + 候补排位，合并到同一列表（候补排在订课后）
+  loadAll() {
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
     if (!openid) {
       this.setData({ courses: [], loading: false });
       return;
     }
-    api.getMyBookings(openid).then((res) => {
-      // 只显示已订课（booked），退订的(cancelled)不显示
-      const courses = (res.bookings || [])
-        .filter(b => b.status === 'booked')
-        .map(b => ({
-          id: b.id,
-          sessionId: b.session_id,
-          name: b.course_name,
-          coach: b.coach_name,
-          venue: b.venue_name,
-          date: b.date,
-          time: b.start_time,
-          end: b.end_time,
-          duration: `${b.duration_min}分钟`,
-          price: (b.amount_fen / 100).toFixed(0),
-          status: '待上课',
-          statusType: 'pending',
-          checked: b.checkin_at ? true : false
-        }));
-      this.setData({ courses, loading: false });
-    }).catch(() => {
-      this.setData({ courses: [], loading: false });
-    });
+    this.setData({ loading: true });
+    Promise.all([api.getMyBookings(openid), api.getMyWaitlist(openid)])
+      .then(([bRes, wRes]) => {
+        // 已订课（booked），退订的(cancelled)不显示
+        const booked = (bRes.bookings || [])
+          .filter(b => b.status === 'booked')
+          .map(b => ({
+            id: b.id,
+            sessionId: b.session_id,
+            name: b.course_name,
+            coach: b.coach_name,
+            venue: b.venue_name,
+            date: b.date,
+            time: b.start_time,
+            end: b.end_time,
+            duration: `${b.duration_min}分钟`,
+            price: (b.amount_fen / 100).toFixed(0),
+            status: '待上课',
+            statusType: 'pending',
+            isWait: false,
+            checked: b.checkin_at ? true : false
+          }));
+        // 候补排位中（waiting）→ 与订课同列表展示，按钮显示"排位"
+        const waits = (wRes.waits || [])
+          .filter(w => w.status === 'waiting')
+          .map(w => ({
+            id: w.id,
+            sessionId: w.session_id,
+            name: w.course_name,
+            coach: w.coach_name,
+            venue: w.venue_name,
+            date: w.date,
+            time: w.start_time,
+            end: w.end_time,
+            duration: '候补',
+            price: (w.amount_fen / 100).toFixed(0),
+            status: '候补中',
+            statusType: 'waiting',
+            isWait: true,
+            checked: false
+          }));
+        this.setData({ courses: booked.concat(waits), loading: false });
+      })
+      .catch(() => {
+        this.setData({ courses: [], loading: false });
+      });
   },
 
-  // 从后端加载候补排位（附带过期退款任务）
-  loadWaitlist() {
-    const user = app.globalData.userInfo || {};
-    const openid = user.openid || wx.getStorageSync('openid');
-    if (!openid) {
-      this.setData({ waits: [] });
-      return;
-    }
-    api.getMyWaitlist(openid).then((res) => {
-      const waits = (res.waits || []).map(w => ({
-        id: w.id,
-        sessionId: w.session_id,
-        name: w.course_name,
-        coach: w.coach_name,
-        venue: w.venue_name,
-        date: w.date,
-        time: w.start_time,
-        end: w.end_time,
-        price: (w.amount_fen / 100).toFixed(0),
-        status: w.status,          // waiting/promoted/refunded/cancelled
-        statusText: this.waitStatusText(w.status)
-      }));
-      this.setData({ waits, loading: false });
-    }).catch(() => {
-      this.setData({ waits: [], loading: false });
-    });
-  },
-
-  // 候补状态文案
-  waitStatusText(status) {
-    const map = {
-      waiting: '候补中',
-      promoted: '已转正',
-      refunded: '已退款',
-      cancelled: '已退出'
-    };
-    return map[status] || status;
+  // 排位按钮提示（候补状态说明）
+  showWaitHint() {
+    wx.showToast({ title: '已进入候补队列，有人取消将自动转正', icon: 'none' });
   },
 
   // 退出候补（退款）
@@ -109,7 +95,7 @@ Page({
         if (res.confirm) {
           api.cancelWaitlist(openid, id).then(() => {
             wx.showToast({ title: '已退出候补', icon: 'success' });
-            this.loadWaitlist();
+            this.loadAll();
           }).catch((err) => {
             wx.showToast({ title: err.message || '操作失败', icon: 'none' });
           });
@@ -136,7 +122,7 @@ Page({
         if (res.confirm) {
           api.cancelBooking(openid, id).then(() => {
             wx.showToast({ title: '已退订', icon: 'success' });
-            this.loadBookings();
+            this.loadAll();
           }).catch((err) => {
             wx.showToast({ title: err.message || '退订失败', icon: 'none' });
           });

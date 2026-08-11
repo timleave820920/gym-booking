@@ -20,11 +20,11 @@
       <text class="empty-txt">加载中...</text>
     </view>
 
-    <!-- 课程卡片 -->
+    <!-- 课程卡片（订课 + 候补排位，界面一致） -->
     <view class="my-list" wx:if="{{!loading && courses.length > 0}}">
       <view class="my-card" wx:for="{{courses}}" wx:key="id">
         <view class="flex-between card-top">
-          <view class="tag tag-green">{{item.status}}</view>
+          <view class="tag {{item.isWait ? 'tag-purple' : 'tag-green'}}">{{item.status}}</view>
           <text class="card-date">{{item.date}}</text>
         </view>
         <view class="flex-row card-body">
@@ -39,8 +39,10 @@
           </view>
         </view>
         <view class="flex-row card-actions">
-          <view class="btn-sm btn-outline" bindtap="refund" data-id="{{item.id}}" data-name="{{item.name}}">退订</view>
-          <view class="btn-sm btn-primary" bindtap="checkin" wx:if="{{item.statusType === 'pending'}}">签到</view>
+          <view class="btn-sm btn-outline" wx:if="{{!item.isWait}}" bindtap="refund" data-id="{{item.id}}" data-name="{{item.name}}">退订</view>
+          <view class="btn-sm btn-outline" wx:if="{{item.isWait}}" bindtap="exitWaitlist" data-id="{{item.id}}" data-name="{{item.name}}">退出候补</view>
+          <view class="btn-sm btn-primary" wx:if="{{!item.isWait && item.statusType === 'pending'}}" bindtap="checkin">签到</view>
+          <view class="btn-sm btn-purple" wx:if="{{item.isWait}}" bindtap="showWaitHint">排位</view>
         </view>
       </view>
     </view>
@@ -51,25 +53,6 @@
       <text class="empty-txt">您尚未订课</text>
       <text class="empty-sub">去课程列表挑一节喜欢的课吧</text>
       <view class="empty-btn" bindtap="goCourses">去选课</view>
-    </view>
-
-    <!-- 候补排位区 -->
-    <view class="wait-section" wx:if="{{waits.length > 0}}">
-      <view class="wait-head flex-between">
-        <text class="wait-title">候补排位</text>
-        <text class="wait-count">{{waits.length}} 个</text>
-      </view>
-      <view class="wait-card" wx:for="{{waits}}" wx:key="id">
-        <view class="flex-between wait-top">
-          <text class="wait-name">{{item.name}}</text>
-          <text class="wait-status {{item.status === 'waiting' ? 'ws-waiting' : (item.status === 'promoted' ? 'ws-promoted' : 'ws-done')}}">{{item.statusText}}</text>
-        </view>
-        <view class="wait-meta">{{item.date}} {{item.time}}-{{item.end}} · 教练 {{item.coach}}</view>
-        <view class="flex-between wait-foot">
-          <text class="wait-price">¥{{item.price}}</text>
-          <view class="btn-sm btn-outline" wx:if="{{item.status === 'waiting'}}" bindtap="exitWaitlist" data-id="{{item.id}}" data-name="{{item.name}}">退出候补</view>
-        </view>
-      </view>
     </view>
 
     <view class="list-spacer"></view>
