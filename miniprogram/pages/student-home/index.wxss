@@ -124,7 +124,12 @@
   background: #E5484D;
   color: #FFFFFF;
 }
-/* 进行中/已结束课程卡片整体弱化 */
+/* 已排位课程：按钮紫色 */
+.book-wait {
+  background: #5B57EB;
+  color: #FFFFFF;
+}
+/* 进行中/已结束/已排位课程卡片整体弱化 */
 .card-off {
   opacity: 0.72;
 }
@@ -147,6 +152,10 @@
 .status-ended {
   background: #F0EDDF;
   color: #8A8A8A;
+}
+.status-wait {
+  background: #F0EBFF;
+  color: #5B57EB;
 }
 .offline-tip {
   display: block;

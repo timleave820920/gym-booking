@@ -34,14 +34,15 @@
     <text class="offline-tip" wx:if="{{offline}}">后端未连接，当前展示演示数据</text>
 
     <view class="hot-list">
-      <view class="course-card flex-row {{item.status !== 'upcoming' ? 'card-off' : ''}}" wx:for="{{hotCourses}}" wx:key="id"
+      <view class="course-card flex-row {{(item.status !== 'upcoming' || item.waitlisted) ? 'card-off' : ''}}" wx:for="{{hotCourses}}" wx:key="id"
             bindtap="goDetail" data-id="{{item.id}}">
         <image class="course-cover" src="{{item.img}}" mode="aspectFill"></image>
         <view class="flex-col flex-1 course-info">
           <view class="flex-row name-row">
             <text class="course-name">{{item.name}}</text>
-            <text class="status-tag status-ongoing" wx:if="{{item.status === 'ongoing'}}">{{t.ongoing}}</text>
-            <text class="status-tag status-ended" wx:if="{{item.status === 'ended'}}">{{t.ended}}</text>
+            <text class="status-tag status-wait" wx:if="{{item.waitlisted}}">{{t.waitlisted}}</text>
+            <text class="status-tag status-ongoing" wx:if="{{!item.waitlisted && item.status === 'ongoing'}}">{{t.ongoing}}</text>
+            <text class="status-tag status-ended" wx:if="{{!item.waitlisted && item.status === 'ended'}}">{{t.ended}}</text>
           </view>
           <view class="flex-row course-meta">
             <text class="icon-clock"></text>
@@ -49,8 +50,8 @@
           </view>
           <view class="flex-between coach-row">
             <text class="coach-name">{{item.coachText}}</text>
-            <view class="book-btn {{item.status === 'ongoing' ? 'book-ongoing' : (item.status === 'ended' ? 'book-ended' : '')}}" catchtap="goDetail" data-id="{{item.id}}">
-              <text>{{item.status === 'ongoing' ? t.ongoing : (item.status === 'ended' ? t.ended : '¥' + item.price + ' ' + t.bookClass)}}</text>
+            <view class="book-btn {{item.waitlisted ? 'book-wait' : (item.status === 'ongoing' ? 'book-ongoing' : (item.status === 'ended' ? 'book-ended' : ''))}}" catchtap="goDetail" data-id="{{item.id}}">
+              <text>{{item.waitlisted ? t.waitlisted : (item.status === 'ongoing' ? t.ongoing : (item.status === 'ended' ? t.ended : '¥' + item.price + ' ' + t.bookClass))}}</text>
             </view>
           </view>
         </view>

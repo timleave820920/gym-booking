@@ -39,7 +39,9 @@ Page({
   loadTodayCourses() {
     const today = new Date();
     const full = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    api.getSessionsByDate(full).then((res) => {
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+    api.getSessionsByDate(full, openid).then((res) => {
       const list = (res.sessions || []).map(s => ({
         id: s.id,
         name: s.course_name,
@@ -51,7 +53,8 @@ Page({
         capacity: s.capacity,
         price: (s.price_fen / 100).toFixed(0),
         img: s.cover || DEFAULT_COVER,
-        status: this.getStatus(s.start_time, s.end_time)
+        status: this.getStatus(s.start_time, s.end_time),
+        waitlisted: !!s.waitlisted_by_me   // 已排位标记
       }));
       this.setData({ hotCourses: this.decorate(list), offline: false, loaded: true });
     }).catch(() => {
@@ -60,7 +63,8 @@ Page({
         id: c.id, name: c.name, coach: c.coach, venue: c.venue,
         start: c.start, end: c.end, remaining: c.remaining, price: c.price, img: c.img,
         capacity: c.capacity || 20,
-        status: this.getStatus(c.start, c.end)
+        status: this.getStatus(c.start, c.end),
+        waitlisted: false
       }));
       this.setData({ hotCourses: this.decorate(list), offline: true, loaded: true });
     });
@@ -127,6 +131,11 @@ Page({
   goDetail(e) {
     const id = e.currentTarget.dataset.id;
     const item = this.data.hotCourses.find(c => c.id === id);
+    // 已排位 → 不可再次排位/预约
+    if (item && item.waitlisted) {
+      wx.showToast({ title: '已排位，等待转正', icon: 'none' });
+      return;
+    }
     // 进行中 / 已结束的课程不可点击
     if (item && item.status !== 'upcoming') {
       wx.showToast({

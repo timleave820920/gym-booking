@@ -117,6 +117,7 @@ const DICT = {
   noTodayCourse: { zh: '今日暂无课程', en: 'No classes today' },
   ended: { zh: '已结束', en: 'Ended' },
   ongoing: { zh: '进行中', en: 'In Progress' },
+  waitlisted: { zh: '已排位', en: 'Waitlisted' },
   hotTop5: { zh: '热门课程 TOP5', en: 'Hot Courses TOP5' },
   summerPromo: { zh: '夏日燃脂季', en: 'Summer Fat-Burn Season' },
   promoSub: { zh: '全场团课 5 折起，立即开练', en: 'All group classes up to 50% off, start now' },

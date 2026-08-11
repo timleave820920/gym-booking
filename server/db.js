@@ -376,14 +376,17 @@ function listSessionsByDate(date) {
   return db.prepare(`${SESSION_SELECT} WHERE s.date = ? AND s.status = 'published' ORDER BY s.start_time`).all(date);
 }
 
-/** 按日期查场次，并标记当前用户是否已预订（openid 可选） */
+/** 按日期查场次，并标记当前用户是否已预订/已排位（openid 可选） */
 function listSessionsByDateForUser(date, openid) {
   const sessions = listSessionsByDate(date);
   if (!openid) return sessions;
   // 查该用户已预订的场次 id 集合（仅 booked 状态）
   const bookedRows = db.prepare("SELECT session_id FROM bookings WHERE user_openid = ? AND status = 'booked'").all(openid);
   const bookedSet = new Set(bookedRows.map(r => r.session_id));
-  return sessions.map(s => ({ ...s, booked_by_me: bookedSet.has(s.id) }));
+  // 查该用户候补排位中的场次 id 集合（仅 waiting 状态）
+  const waitRows = db.prepare("SELECT session_id FROM waitlist WHERE user_openid = ? AND status = 'waiting'").all(openid);
+  const waitSet = new Set(waitRows.map(r => r.session_id));
+  return sessions.map(s => ({ ...s, booked_by_me: bookedSet.has(s.id), waitlisted_by_me: waitSet.has(s.id) }));
 }
 
 /** 场次详情（学员端课程详情） */
