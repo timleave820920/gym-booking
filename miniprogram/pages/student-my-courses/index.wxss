@@ -1,10 +1,19 @@
 .page {
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: #F9F4DF;
-  padding-bottom: 220rpx;
 }
 .pt-safe {
   padding-top: calc(88rpx + env(safe-area-inset-top));
+}
+/* 固定顶部：标题 + 分段切换（下滑时保持不动） */
+.my-head {
+  flex-shrink: 0;
+  background: #F9F4DF;
+  z-index: 10;
+  box-shadow: 0 6rpx 16rpx rgba(0,0,0,0.04);
 }
 .head-row { align-items: center; }
 .page-title {
@@ -33,6 +42,15 @@
   background: #1A1A23;
   color: #FFFFFF;
   font-weight: 600;
+}
+
+/* 可滚动列表区（仅课程卡片滚动，头部固定） */
+.list-scroll {
+  flex: 1;
+  min-height: 0;
+}
+.list-pad {
+  padding: 0 40rpx 240rpx;   /* 底部留白给自定义 TabBar */
 }
 
 /* 课程卡片 */
