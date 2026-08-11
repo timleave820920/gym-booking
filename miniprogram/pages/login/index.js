@@ -51,7 +51,7 @@ Page({
   quickLogin(e) {
     const role = e.currentTarget.dataset.role;
     const urls = {
-      student: '/pages/student-home/index',
+      student: '/pages/student-courses/index',
       coach: '/pages/coach-schedule/index'
     };
     const names = {
@@ -264,7 +264,7 @@ Page({
             icon: 'none'
           });
           setTimeout(() => {
-            wx.switchTab({ url: '/pages/student-home/index' });
+            wx.switchTab({ url: '/pages/student-courses/index' });
           }, 800);
         }).catch((err) => {
           this.setData({ loggingIn: false });
