@@ -83,24 +83,25 @@
 .cb-top {
   display: flex;
   align-items: center;
-  gap: 16rpx;
+  gap: 20rpx;
+  margin-bottom: 18rpx;      /* 标题行（头像+课程名）压场，与内容行分层 */
 }
 .cb-avatar {
-  width: 72rpx;
-  height: 72rpx;
+  width: 96rpx;
+  height: 96rpx;
   border-radius: 50%;
-  border: 4rpx solid #1A1A23;
+  border: 5rpx solid #1A1A23;
   background: #F0EDDF;
   flex-shrink: 0;
 }
 .cb-name {
-  font-size: 34rpx;
+  font-size: 40rpx;
   font-weight: 800;
   letter-spacing: 1rpx;
   color: #1A1A23;
   flex: 1;
   min-width: 0;
-  padding-right: 180rpx;   /* 给右上角星标让位（星标加大后） */
+  padding-right: 200rpx;   /* 给右上角星标让位 */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
