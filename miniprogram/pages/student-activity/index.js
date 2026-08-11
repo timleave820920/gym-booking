@@ -29,10 +29,10 @@ Page({
   },
 
   onShow() {
-    // 每次显示首页都刷新用户昵称 + 重新标记已结束课程（登录授权后立即生效）
+    // 每次显示都刷新用户昵称 + 重新标记课程状态（登录授权后立即生效）
     this.refreshUser();
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 0 });
+      this.getTabBar().setData({ selected: 2 });
     }
   },
 

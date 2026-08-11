@@ -16,7 +16,7 @@ Page({
     // 每次显示刷新（支付/退订/退出候补/转正后立即更新）
     this.loadAll();
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 2 });
+      this.getTabBar().setData({ selected: 1 });
     }
   },
 
@@ -136,7 +136,7 @@ Page({
     wx.navigateTo({ url: '/pages/student-checkin/index?id=' + id });
   },
 
-  goHome() { wx.switchTab({ url: '/pages/student-home/index' }); },
+  goHome() { wx.switchTab({ url: '/pages/student-activity/index' }); },
   goCourses() { wx.switchTab({ url: '/pages/student-courses/index' }); },
   goProfile() { wx.switchTab({ url: '/pages/student-profile/index' }); }
 });

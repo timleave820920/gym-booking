@@ -109,7 +109,7 @@ Page({
     wx.showToast({ title: '设置开发中', icon: 'none' });
   },
 
-  goHome() { wx.switchTab({ url: '/pages/student-home/index' }); },
+  goHome() { wx.switchTab({ url: '/pages/student-activity/index' }); },
   goCourses() { wx.switchTab({ url: '/pages/student-courses/index' }); },
   goMy() { wx.switchTab({ url: '/pages/student-my-courses/index' }); }
 });

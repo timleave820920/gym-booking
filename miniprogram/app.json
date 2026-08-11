@@ -1,8 +1,8 @@
 {
   "pages": [
     "pages/login/index",
-    "pages/student-home/index",
     "pages/student-courses/index",
+    "pages/student-activity/index",
     "pages/student-course-detail/index",
     "pages/student-pay/index",
     "pages/pay-success/index",
@@ -38,16 +38,16 @@
     "borderStyle": "white",
     "list": [
       {
-        "pagePath": "pages/student-home/index",
-        "text": "今日"
-      },
-      {
         "pagePath": "pages/student-courses/index",
         "text": "预约"
       },
       {
         "pagePath": "pages/student-my-courses/index",
         "text": "上课"
+      },
+      {
+        "pagePath": "pages/student-activity/index",
+        "text": "活动"
       },
       {
         "pagePath": "pages/student-profile/index",

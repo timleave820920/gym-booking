@@ -25,7 +25,7 @@ Page({
 
   onShow() {
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 1 });
+      this.getTabBar().setData({ selected: 0 });
     }
     // 每次回到本页重新拉取数据（订课后余位/席位实时更新）
     if (this.data.selectedDate !== '' && this.data.selectedDate !== undefined && this.data.weekDays.length > 0) {
@@ -175,7 +175,7 @@ Page({
     wx.navigateTo({ url: '/pages/student-pay/index' });
   },
 
-  goHome() { wx.switchTab({ url: '/pages/student-home/index' }); },
+  goHome() { wx.switchTab({ url: '/pages/student-activity/index' }); },
   goMy() { wx.switchTab({ url: '/pages/student-my-courses/index' }); },
   goProfile() { wx.switchTab({ url: '/pages/student-profile/index' }); }
 });
