@@ -9,6 +9,15 @@
  *   POST /api/auth/profile  更新用户资料（昵称/头像）
  *   GET  /api/users         用户列表（后台用）
  *   GET  /api/users/stats   用户统计
+ *   POST /api/bookings      订课
+ *   GET  /api/bookings      查询我的订课
+ *   DELETE /api/bookings/:id 退订
+ *   POST /api/waitlist      候补排位
+ *   GET  /api/waitlist      查询我的候补（含过期退款）
+ *   DELETE /api/waitlist/:id 退出候补
+ *   POST /api/orders        下单（创建待支付订单）
+ *   POST /api/orders/:id/pay 支付回写
+ *   GET  /api/orders        查询我的订单
  *   GET  /api/health        健康检查
  */
 const http = require('node:http');
@@ -323,6 +332,67 @@ function handleCancelWaitlist(req, res) {
   return sendJson(res, 200, { code: 200, message: '已退出候补，费用已原路退回' });
 }
 
+// ===== 订单（orders）=====
+
+// 下单（POST /api/orders）→ 创建待支付订单
+async function handleCreateOrder(req, res) {
+  const body = await readBody(req);
+  const { openid, sessionId, amountFen, orderType } = body;
+  if (!openid || !sessionId) {
+    return sendJson(res, 400, { code: 400, message: '缺少 openid 或 sessionId' });
+  }
+  const result = db.createOrder({
+    user_openid: openid,
+    session_id: sessionId,
+    amount_fen: amountFen || 0,
+    order_type: orderType || 'book'
+  });
+  if (!result.ok) {
+    return sendJson(res, 400, { code: 400, message: result.error });
+  }
+  return sendJson(res, 201, { code: 201, message: '下单成功', order: result.order });
+}
+
+// 支付回写（POST /api/orders/:id/pay）→ 模拟支付成功后调用
+async function handlePayOrder(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const pathParts = url.pathname.split('/');
+  // /api/orders/:id/pay → id 在倒数第二段
+  const orderId = parseInt(pathParts[pathParts.length - 2], 10);
+  const body = await readBody(req);
+  const { openid, payMethod } = body;
+  if (!orderId || !openid) {
+    return sendJson(res, 400, { code: 400, message: '缺少订单ID或openid' });
+  }
+  const result = db.payOrder({
+    openid,
+    orderId,
+    pay_method: payMethod || 'balance'
+  });
+  if (!result.ok) {
+    return sendJson(res, 400, { code: 400, message: result.error });
+  }
+  return sendJson(res, 200, {
+    code: 200,
+    message: result.already ? '订单已支付' : '支付成功',
+    order: result.order,
+    booking: result.booking,
+    wait: result.wait
+  });
+}
+
+// 查询我的订单（GET /api/orders?openid=xxx&status=paid）
+function handleListOrders(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  const status = url.searchParams.get('status') || undefined;
+  if (!openid) {
+    return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  }
+  const orders = db.listOrdersByUser(openid, status);
+  return sendJson(res, 200, { code: 200, orders });
+}
+
 // ===== 课程管理（电脑端课程编辑网页用）=====
 
 // 下拉选项元数据
@@ -489,6 +559,12 @@ const server = http.createServer(async (req, res) => {
       handleListWaitlist(req, res);
     } else if (req.method === 'DELETE' && pathname.startsWith('/api/waitlist/')) {
       handleCancelWaitlist(req, res);
+    } else if (req.method === 'POST' && pathname === '/api/orders') {
+      await handleCreateOrder(req, res);
+    } else if (req.method === 'POST' && /^\/api\/orders\/\d+\/pay$/.test(pathname)) {
+      await handlePayOrder(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/orders') {
+      handleListOrders(req, res);
     } else if (req.method === 'GET' && pathname === '/api/health') {
       sendJson(res, 200, { code: 200, status: 'ok', time: new Date().toISOString() });
     } else if (req.method === 'GET' && pathname === '/api/meta') {

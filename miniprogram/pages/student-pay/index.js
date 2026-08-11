@@ -4,6 +4,7 @@ const api = require('../../utils/api.js');
 Page({
   data: {
     course: null,
+    order: null,
     payMethods: [
       { id: 1, name: '微信支付', desc: '推荐使用', icon: 'wallet', selected: true },
       { id: 2, name: '余额支付', desc: '余额 ¥ 128.50', icon: 'card', selected: false }
@@ -31,58 +32,50 @@ Page({
   },
 
   pay() {
-    wx.showLoading({ title: '支付中...' });
-    setTimeout(() => {
-      this.confirmBook();
-    }, 800);
-  },
-
-  // 支付成功 → 真实订课落库（或候补排位）
-  confirmBook() {
     const course = this.data.course;
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
-
     if (!openid) {
-      wx.hideLoading();
       wx.showToast({ title: '未登录，请先登录', icon: 'none' });
       return;
     }
+    wx.showLoading({ title: '下单中...' });
 
-    // 候补排位模式：满员课付费排队
-    if (course.mode === 'waitlist') {
-      api.joinWaitlist({
-        openid,
-        sessionId: course.session_id || course.id,
-        amountFen: Math.round((course.price || 68) * 100)
-      }).then(() => {
-        wx.hideLoading();
-        wx.redirectTo({ url: '/pages/pay-success/index?mode=waitlist' });
-      }).catch((err) => {
-        wx.hideLoading();
-        wx.showModal({
-          title: '排位失败',
-          content: err.message || '无法连接服务器，请稍后重试',
-          showCancel: false,
-          confirmText: '知道了'
-        });
-      });
-      return;
-    }
-
-    api.bookCourse({
+    // 第一步：创建待支付订单
+    api.createOrder({
       openid,
       sessionId: course.session_id || course.id,
       amountFen: Math.round((course.price || 68) * 100),
-      payStatus: 'paid'
+      orderType: course.mode === 'waitlist' ? 'waitlist' : 'book'
     }).then((res) => {
-      wx.hideLoading();
-      // 跳转支付成功落地页
-      wx.redirectTo({ url: '/pages/pay-success/index' });
+      this.setData({ order: res.order });
+      wx.showLoading({ title: '支付中...' });
+      // 第二步：模拟支付成功后，支付回写落库
+      setTimeout(() => this.confirmPay(res.order.id, openid), 800);
     }).catch((err) => {
       wx.hideLoading();
       wx.showModal({
-        title: '预订失败',
+        title: '下单失败',
+        content: err.message || '无法连接服务器，请稍后重试',
+        showCancel: false,
+        confirmText: '知道了'
+      });
+    });
+  },
+
+  // 支付回写：订单 pending → paid + 生成订课/候补
+  confirmPay(orderId, openid) {
+    const selected = this.data.payMethods.find(m => m.selected);
+    const payMethod = selected && selected.id === 1 ? 'wxpay' : 'balance';
+    api.payOrder(orderId, { openid, payMethod }).then((res) => {
+      wx.hideLoading();
+      const isWaitlist = this.data.course.mode === 'waitlist';
+      // 跳转支付成功落地页（携带模式）
+      wx.redirectTo({ url: '/pages/pay-success/index' + (isWaitlist ? '?mode=waitlist' : '') });
+    }).catch((err) => {
+      wx.hideLoading();
+      wx.showModal({
+        title: '支付失败',
         content: err.message || '无法连接服务器，请稍后重试',
         showCancel: false,
         confirmText: '知道了'

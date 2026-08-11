@@ -160,6 +160,30 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_waitlist_status ON waitlist(status, created_at);
 `);
 
+// 订单表（每笔钱的记账：订课/候补排位/退款都挂订单号）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS orders (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_no     TEXT UNIQUE NOT NULL,
+    user_openid  TEXT NOT NULL,
+    session_id   INTEGER NOT NULL,
+    booking_id   INTEGER,                -- 关联订课记录（支付后生成）
+    wait_id      INTEGER,                -- 关联候补记录（排位支付后生成）
+    order_type   TEXT DEFAULT 'book',    -- book 订课 / waitlist 候补排位
+    amount_fen   INTEGER DEFAULT 0,
+    status       TEXT DEFAULT 'pending', -- pending 待支付 / paid 已支付 / cancelled 已取消 / refunded 已退款
+    pay_method   TEXT DEFAULT 'balance', -- wxpay 微信支付 / balance 余额
+    paid_at      TEXT,
+    refunded_at  TEXT,
+    cancel_reason TEXT DEFAULT '',
+    created_at   TEXT DEFAULT (datetime('now','localtime')),
+    FOREIGN KEY (user_openid) REFERENCES users(openid),
+    FOREIGN KEY (session_id)  REFERENCES course_sessions(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_openid, status);
+  CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status, created_at);
+`);
+
 /**
  * 根据 openid 查找用户
  */
@@ -503,6 +527,141 @@ function cancelBooking(openid, bookingId) {
   return { ok: true, promoted };
 }
 
+// ===== 订单（orders）=====
+
+const ORDER_SELECT = `
+  SELECT o.id, o.order_no, o.user_openid, o.session_id, o.booking_id, o.wait_id, o.order_type,
+         o.amount_fen, o.status, o.pay_method, o.paid_at, o.refunded_at, o.cancel_reason, o.created_at,
+         s.date, s.start_time, s.end_time,
+         c.name AS course_name, c.level, c.duration_min,
+         co.name AS coach_name, v.name AS venue_name
+  FROM orders o
+  JOIN course_sessions s ON s.id = o.session_id
+  JOIN courses c ON c.id = s.course_id
+  JOIN coaches co ON co.id = s.coach_id
+  JOIN venues v ON v.id = s.venue_id`;
+
+/** 生成订单号 */
+function genOrderNo() {
+  return 'ORD' + Date.now() + Math.random().toString(36).slice(2, 6).toUpperCase();
+}
+
+/**
+ * 下单（创建待支付订单）
+ * @param {object} p { user_openid, session_id, amount_fen, order_type }
+ * @returns {{ok:true, order:object}|{ok:false, error:string}}
+ */
+function createOrder({ user_openid, session_id, amount_fen = 0, order_type = 'book' }) {
+  const user = findUserByOpenid(user_openid);
+  if (!user) return { ok: false, error: '用户不存在，请先登录' };
+
+  const session = getSessionById(session_id);
+  if (!session) return { ok: false, error: '课程场次不存在' };
+  if (session.status !== 'published') return { ok: false, error: '课程已下线' };
+
+  // 已订过 → 拒绝下单
+  const existing = db.prepare("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ? AND status = 'booked'").get(user_openid, session_id);
+  if (existing) return { ok: false, error: '您已预订该课程，请勿重复下单' };
+
+  if (order_type === 'book') {
+    if (session.remaining <= 0) return { ok: false, error: '该课程已满员，请选择候补排位' };
+  } else if (order_type === 'waitlist') {
+    if (session.remaining > 0) return { ok: false, error: '该课程仍有余位，请直接预订' };
+    const queued = db.prepare("SELECT id FROM waitlist WHERE user_openid = ? AND session_id = ? AND status = 'waiting'").get(user_openid, session_id);
+    if (queued) return { ok: false, error: '您已在候补队列中' };
+  } else {
+    return { ok: false, error: '未知订单类型' };
+  }
+
+  const orderNo = genOrderNo();
+  db.prepare(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status)
+              VALUES (?, ?, ?, ?, ?, 'pending')`)
+    .run(orderNo, user_openid, session_id, order_type, amount_fen);
+
+  const order = db.prepare(`${ORDER_SELECT} WHERE o.id = last_insert_rowid()`).get();
+  return { ok: true, order };
+}
+
+/**
+ * 支付回写（模拟支付成功后调用；幂等：已支付订单重复调用直接返回成功）
+ * 事务：订单 pending→paid + 生成 booking（扣余位）或 waitlist 记录
+ * @param {object} p { openid, orderId, pay_method }
+ * @returns {{ok:true, order:object, booking?:object, wait?:object}|{ok:false, error:string}}
+ */
+function payOrder({ openid, orderId, pay_method = 'balance' }) {
+  const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_openid = ?').get(orderId, openid);
+  if (!order) return { ok: false, error: '订单不存在' };
+  if (order.status === 'paid') {
+    return { ok: true, order: db.prepare(`${ORDER_SELECT} WHERE o.id = ?`).get(orderId), already: true };
+  }
+  if (order.status === 'cancelled' || order.status === 'refunded') {
+    return { ok: false, error: '订单已失效，无法支付' };
+  }
+
+  let booking = null, wait = null;
+  db.exec('BEGIN');
+  try {
+    // 1. 订单标记已支付
+    db.prepare("UPDATE orders SET status = 'paid', pay_method = ?, paid_at = datetime('now','localtime') WHERE id = ?")
+      .run(pay_method, orderId);
+
+    if (order.order_type === 'waitlist') {
+      // 候补排位：写 waitlist
+      const waitNo = 'WL' + Date.now() + Math.random().toString(36).slice(2, 6).toUpperCase();
+      db.prepare(`INSERT INTO waitlist (wait_no, user_openid, session_id, amount_fen, status)
+                  VALUES (?, ?, ?, ?, 'waiting')`)
+        .run(waitNo, order.user_openid, order.session_id, order.amount_fen);
+      const waitId = db.prepare('SELECT id FROM waitlist WHERE wait_no = ?').get(waitNo).id;
+      db.prepare('UPDATE orders SET wait_id = ? WHERE id = ?').run(waitId, orderId);
+      wait = db.prepare(`
+        SELECT w.id, w.wait_no, w.session_id, w.amount_fen, w.status, w.created_at,
+               s.date, s.start_time, s.end_time, c.name AS course_name
+        FROM waitlist w
+        JOIN course_sessions s ON s.id = w.session_id
+        JOIN courses c ON c.id = s.course_id
+        WHERE w.id = ?
+      `).get(waitId);
+    } else {
+      // 订课：复用订课逻辑（事务内调用，不再嵌套 BEGIN）
+      const bookingNo = 'BK' + Date.now() + Math.random().toString(36).slice(2, 8).toUpperCase();
+      const exists = db.prepare("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ?").get(order.user_openid, order.session_id);
+      if (exists) {
+        db.prepare("UPDATE bookings SET status = 'booked', pay_status = 'paid', cancel_reason = '', checkin_at = NULL WHERE id = ?").run(exists.id);
+        db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(order.session_id);
+        booking = db.prepare(`SELECT id, booking_no FROM bookings WHERE id = ?`).get(exists.id);
+      } else {
+        db.prepare(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status)
+                    VALUES (?, ?, ?, ?, 'booked', 'paid')`)
+          .run(bookingNo, order.user_openid, order.session_id, order.amount_fen);
+        booking = db.prepare('SELECT id, booking_no FROM bookings WHERE id = last_insert_rowid()').get();
+        db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(order.session_id);
+      }
+      db.prepare('UPDATE orders SET booking_id = ? WHERE id = ?').run(booking.id, orderId);
+    }
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+
+  const finalOrder = db.prepare(`${ORDER_SELECT} WHERE o.id = ?`).get(orderId);
+  return { ok: true, order: finalOrder, booking, wait };
+}
+
+/**
+ * 查询某学员的全部订单
+ */
+function listOrdersByUser(openid, status) {
+  const where = status ? 'WHERE o.user_openid = ? AND o.status = ?' : 'WHERE o.user_openid = ?';
+  const params = status ? [openid, status] : [openid];
+  return db.prepare(`${ORDER_SELECT} ${where} ORDER BY o.created_at DESC, o.id DESC`).all(...params);
+}
+
+/** 按订单号查订单（支付回调/对账用） */
+function getOrderByNo(orderNo) {
+  return db.prepare(`${ORDER_SELECT} WHERE o.order_no = ?`).get(orderNo) || null;
+}
+
 /**
  * 候补转正：把某场次最早的 waiting 排位者转正为正式订课（需在事务内调用）
  * @returns {object|null} 转正的排位记录（含用户/场次信息）
@@ -696,5 +855,10 @@ module.exports = {
   joinWaitlist,
   cancelWaitlist,
   listWaitlistByUser,
-  refundExpiredWaitlist
+  refundExpiredWaitlist,
+  // 订单
+  createOrder,
+  payOrder,
+  listOrdersByUser,
+  getOrderByNo
 };

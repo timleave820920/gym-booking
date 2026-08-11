@@ -156,7 +156,6 @@ module.exports = {
   joinWaitlist(data) {
     return localRequest('/api/waitlist', 'POST', data);
   },
-
   // 查询我的候补（附带过期退款任务）
   getMyWaitlist(openid) {
     return localRequest('/api/waitlist?openid=' + openid, 'GET');
@@ -165,5 +164,22 @@ module.exports = {
   // 退出候补（退款）
   cancelWaitlist(openid, waitId) {
     return localRequest('/api/waitlist/' + waitId + '?openid=' + openid, 'DELETE');
+  },
+
+  // 下单（创建待支付订单；orderType: book 订课 / waitlist 候补排位）
+  createOrder(data) {
+    return localRequest('/api/orders', 'POST', data);
+  },
+
+  // 支付回写（模拟支付成功后调用）
+  payOrder(orderId, data) {
+    return localRequest('/api/orders/' + orderId + '/pay', 'POST', data);
+  },
+
+  // 查询我的订单
+  getMyOrders(openid, status) {
+    let qs = 'openid=' + openid;
+    if (status) qs += '&status=' + status;
+    return localRequest('/api/orders?' + qs, 'GET');
   }
 };
