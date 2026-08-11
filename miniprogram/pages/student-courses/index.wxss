@@ -222,10 +222,16 @@
   text-align: center;
   box-shadow: 0 2rpx 8rpx rgba(229,72,77,0.3);
 }
-/* 满员：金色斜条 */
+/* 满员：铺满右上角的深金斜条（深色文字保证可读） */
 .ribbon-full {
-  background: #EF9F27;
-  box-shadow: 0 2rpx 8rpx rgba(239,159,39,0.35);
+  top: 6rpx;
+  right: -130rpx;
+  padding: 16rpx 180rpx;
+  font-size: 24rpx;
+  letter-spacing: 2rpx;
+  background: #BA7517;
+  color: #4A3200;
+  box-shadow: none;
 }
 
 /* 空状态 */
