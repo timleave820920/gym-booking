@@ -44,10 +44,14 @@
         <view class="cb-bar"></view>
 
         <view class="cb-main">
-          <!-- 顶行：教练头像 + 课程名 -->
+          <!-- 顶行：教练头像 + 课程名 + 难度点阵 -->
           <view class="cb-top">
             <image class="cb-avatar" src="{{item.coachAvatar}}" mode="aspectFill" data-idx="{{index}}" binderror="avatarError"></image>
             <text class="cb-name">{{item.name}}</text>
+            <view class="cb-dots">
+              <view class="cb-dot {{dotIdx < item.level ? 'cb-dot-on' : ''}}"
+                    wx:for="{{[0,1,2,3,4]}}" wx:for-item="dotIdx" wx:key="*this"></view>
+            </view>
           </view>
 
           <!-- 中行：大数字时间 + 剩余席位读数 -->
@@ -58,16 +62,9 @@
             </view>
           </view>
 
-          <!-- 底行：价格 + 难度点阵 + 按钮 -->
+          <!-- 底行：价格（会员价紧跟右侧）+ 按钮 -->
           <view class="cb-bottom">
-            <view class="cb-price">
-              ¥{{item.price}}
-              <text class="cb-price-mem">（会员 ¥{{item.memberPrice}}）</text>
-            </view>
-            <view class="cb-dots">
-              <view class="cb-dot {{dotIdx < item.level ? 'cb-dot-on' : ''}}"
-                    wx:for="{{[0,1,2,3,4]}}" wx:for-item="dotIdx" wx:key="*this"></view>
-            </view>
+            <view class="cb-price">¥{{item.price}}<text class="cb-price-mem">（会员 ¥{{item.memberPrice}}）</text></view>
             <view class="cb-btn {{item.isBooked ? 'btn-booked' : ((item.waitlisted || item.canWaitlist) ? 'btn-waitlist' : (item.isFull ? 'btn-full' : (item.status === 'ongoing' ? 'btn-ongoing' : (item.status === 'ended' ? 'btn-ended' : ''))))}}" catchtap="goDetail" data-id="{{item.id}}" data-disabled="{{item.disabled}}" data-waitlist="{{item.canWaitlist}}">
               <text wx:if="{{item.isBooked}}">已预订</text>
               <text wx:elif="{{item.waitlisted}}">{{t.waitlisted}}</text>

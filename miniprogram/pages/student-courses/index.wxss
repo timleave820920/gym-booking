@@ -150,6 +150,7 @@
   letter-spacing: 1rpx;
   color: #1A1A23;
   flex-shrink: 0;
+  white-space: nowrap;   /* 会员价与真实价同行不换行 */
 }
 .cb-price-mem {
   font-size: 22rpx;
@@ -159,8 +160,7 @@
 .cb-dots {
   display: flex;
   gap: 6rpx;
-  flex: 1;
-  justify-content: center;
+  flex-shrink: 0;
 }
 .cb-dot {
   width: 16rpx;
