@@ -82,8 +82,8 @@
   gap: 16rpx;
 }
 .cb-avatar {
-  width: 80rpx;
-  height: 80rpx;
+  width: 72rpx;
+  height: 72rpx;
   border-radius: 50%;
   border: 4rpx solid #1A1A23;
   background: #F0EDDF;
@@ -119,18 +119,21 @@
   color: #1A1A23;
 }
 .cb-seats {
-  text-align: right;
+  background: #1A1A23;          /* 右侧深色芯片，平衡左侧头像重量 */
+  border-radius: 12rpx;
+  padding: 12rpx 20rpx;
+  text-align: center;
   flex-shrink: 0;
 }
 /* 纯数字席位（如 4/20） */
 .cb-seat-num {
   font-family: "Bahnschrift", "DIN Alternate", "Roboto Mono", "SF Mono", "Menlo", monospace;
-  font-size: 32rpx;
-  font-weight: 700;
+  font-size: 40rpx;
+  font-weight: 800;
   letter-spacing: 1rpx;
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  color: #E5484D;
+  color: #B9FF66;               /* 深底配青柠数字 */
 }
 .cb-seat-zero {
   color: #EF9F27;   /* 满员时 0/20 金色 */
@@ -227,14 +230,23 @@
   text-align: center;
   box-shadow: 0 2rpx 8rpx rgba(229,72,77,0.3);
 }
-/* 满员：铺满右上角的深金斜条（深色文字保证可读） */
+/* 满员：旋转方块铺满整个右上角（深金底 + 深色文字） */
 .ribbon-full {
-  top: 6rpx;
-  right: -130rpx;
-  padding: 16rpx 180rpx;
-  font-size: 24rpx;
-  letter-spacing: 2rpx;
+  position: absolute;
+  top: -120rpx;
+  right: -120rpx;
+  width: 240rpx;
+  height: 240rpx;
+  transform: rotate(45deg);
   background: #BA7517;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 30rpx;
+  box-sizing: border-box;
+  font-size: 24rpx;
+  font-weight: 800;
+  letter-spacing: 2rpx;
   color: #4A3200;
   box-shadow: none;
 }
