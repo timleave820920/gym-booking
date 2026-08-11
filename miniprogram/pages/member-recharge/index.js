@@ -58,9 +58,9 @@ Page({
     }).catch(() => {});
     api.getMyRecharges(openid).then((res) => {
       const list = (res.recharges || []).map(r => ({
-        no: r.recharge_no,
-        amount: (r.amount_fen / 100).toFixed(0),
-        bonus: (r.bonus_fen / 100).toFixed(0),
+        // 有趣的记录描述：首充能量补给 / 复充能量补给（隐藏内部单号）
+        title: r.is_first ? '⚡ 首充能量补给' : '⚡ 复充能量补给',
+        sub: `充¥${(r.amount_fen / 100).toFixed(0)} 送¥${(r.bonus_fen / 100).toFixed(0)}`,
         total: ((r.amount_fen + r.bonus_fen) / 100).toFixed(0),
         time: r.created_at
       }));

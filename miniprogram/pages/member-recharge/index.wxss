@@ -127,13 +127,13 @@
   align-items: center;
   justify-content: space-between;
 }
-.rec-no {
+.rec-title {
   display: block;
-  font-size: 22rpx;
-  font-weight: 600;
+  font-size: 24rpx;
+  font-weight: 700;
   color: #1A1A23;
 }
-.rec-time {
+.rec-sub {
   display: block;
   margin-top: 4rpx;
   font-size: 20rpx;

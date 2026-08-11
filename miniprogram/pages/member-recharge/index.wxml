@@ -28,10 +28,10 @@
     <!-- 充值记录 -->
     <view class="sec-title">充值记录</view>
     <view class="rec-list" wx:if="{{recharges.length > 0}}">
-      <view class="rec-item" wx:for="{{recharges}}" wx:key="no">
+      <view class="rec-item" wx:for="{{recharges}}" wx:key="time">
         <view class="rec-l">
-          <text class="rec-no">{{item.no}}</text>
-          <text class="rec-time">{{item.time}}</text>
+          <text class="rec-title">{{item.title}}</text>
+          <text class="rec-sub">{{item.sub}} · {{item.time}}</text>
         </view>
         <text class="rec-total">+¥{{item.total}}</text>
       </view>
