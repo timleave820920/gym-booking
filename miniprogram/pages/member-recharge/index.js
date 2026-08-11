@@ -41,10 +41,8 @@ Page({
           ...p,
           // 标签：未首充 →「首充送30%」；已充过 →「送10%」
           tag: p.isFirst ? `首充送${firstPct}%` : `送${repeatPct}%`,
-          // 赠送行文案
-          bonusText: p.isFirst
-            ? `首充送${firstPct}% 送¥${p.bonusYuan}`
-            : `复充送${repeatPct}% 送¥${p.bonusYuan}`
+          // 赠送行文案（百分比已在标签展示，这里只显示金额）
+          bonusText: `送¥${p.bonusYuan}`
         };
       });
       this.setData({ plans });
