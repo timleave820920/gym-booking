@@ -346,11 +346,14 @@ function getMemberLevel(openid) {
   }
   const idx = LEVELS.indexOf(level);
   const next = LEVELS[idx + 1] || null;
+  // 等级图标（奖牌表达，从配置读取：青铜🥉 黄金🥇 铂金🏅 钻石💎）
+  const style = MEMBER_CONFIG.levelStyles.find(s => s.name === level.name);
   return {
     openid,
     totalClasses: total,
     levelName: level.name,
     levelLv: level.lv,
+    levelIcon: style ? style.icon : '🏅',
     discount: level.discount,
     levelMin: level.min,
     next: next ? { name: next.name, min: next.min, discount: next.discount } : null,

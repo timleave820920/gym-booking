@@ -25,6 +25,7 @@ Page({
         return {
           name: l.name,
           roman: st.roman || '',
+          icon: st.icon || '🏅',
           color: st.color || '#888888',
           min: l.min,
           discountText: l.discountText || Math.round(l.discount * 100) + ' 折'
@@ -39,6 +40,7 @@ Page({
           level: {
             name: lv.levelName,
             lv: lv.levelLv,
+            icon: lv.levelIcon || '🏅',
             progress: lv.progress,
             total: lv.totalClasses,
             nextName: lv.next ? lv.next.name : null,

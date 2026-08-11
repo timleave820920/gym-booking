@@ -40,11 +40,12 @@ module.exports = {
     scope: 'balance'         // balance = 仅储值支付享折扣 / all = 所有支付方式
   },
 
-  // 前端展示用元信息（等级颜色等，可随配置调整）
+  // 前端展示用元信息（等级图标/颜色等，可随配置调整）
+  // icon：奖牌表达——青铜🥉 黄金🥇 铂金🏅 钻石💎
   levelStyles: [
-    { name: '青铜', roman: 'Ⅰ', color: '#D89C4C' },
-    { name: '黄金', roman: 'Ⅱ', color: '#F2C43B' },
-    { name: '铂金', roman: 'Ⅲ', color: '#B8CCF2' },
-    { name: '钻石', roman: 'Ⅳ', color: '#8C84F2' }
+    { name: '青铜', roman: 'Ⅰ', icon: '🥉', color: '#D89C4C' },
+    { name: '黄金', roman: 'Ⅱ', icon: '🥇', color: '#F2C43B' },
+    { name: '铂金', roman: 'Ⅲ', icon: '🏅', color: '#B8CCF2' },
+    { name: '钻石', roman: 'Ⅳ', icon: '💎', color: '#8C84F2' }
   ]
 };

@@ -51,6 +51,7 @@ Page({
         level: {
           name: lv.levelName,
           lv: lv.levelLv,
+          icon: lv.levelIcon || '🏅',
           discount: Math.round(lv.discount * 10),
           progress: lv.progress,
           balance: (lv.balanceFen / 100).toFixed(2),

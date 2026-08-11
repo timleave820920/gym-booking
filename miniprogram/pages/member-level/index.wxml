@@ -4,7 +4,7 @@
     <view class="level-card" wx:if="{{level}}">
       <view class="lc-top">
         <text class="lc-name">{{level.name}}学员</text>
-        <text class="lc-lv">LV.{{level.lv}}</text>
+        <text class="lc-lv">{{level.icon}} Lv.{{level.lv}}</text>
       </view>
       <text class="lc-progress-txt">升级进度 {{level.total}} / {{level.nextMin ? level.nextMin : 'MAX'}} 节课</text>
       <view class="lc-bar">
@@ -18,7 +18,7 @@
     <view class="levels-row">
       <view class="level-item {{index === currentIdx ? 'level-current' : ''}}" wx:for="{{levels}}" wx:key="name">
         <view class="level-badge" style="background: {{item.color}};">
-          <text class="level-roman">{{item.roman}}</text>
+          <text class="level-roman">{{item.icon}}</text>
         </view>
         <text class="level-name">{{item.name}}</text>
         <text class="level-discount">{{item.discountText}}</text>

@@ -21,7 +21,7 @@ Page({
     api.getMemberLevel(openid).then((res) => {
       const lv = res.level;
       this.setData({
-        level: { name: lv.levelName, lv: lv.levelLv },
+        level: { name: lv.levelName, lv: lv.levelLv, icon: lv.levelIcon || '🏅' },
         balance: (lv.balanceFen / 100).toFixed(2),
         user: { name },
         cardNo: 'NO. 2026 ' + String(openid.length > 6 ? openid.slice(-4) : openid).padStart(4, '0')

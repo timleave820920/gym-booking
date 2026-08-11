@@ -5,7 +5,7 @@
       <view class="vip-top">
         <text class="vip-name">我的会员卡</text>
         <view class="vip-lv" wx:if="{{level}}">
-          <text class="vip-lv-txt">{{level.name}} LV.{{level.lv}}</text>
+          <text class="vip-lv-txt">{{level.icon}} Lv.{{level.lv}}</text>
         </view>
       </view>
       <view class="vip-mid" wx:if="{{level}}">
