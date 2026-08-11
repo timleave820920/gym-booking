@@ -141,7 +141,7 @@
 }
 .cb-time {
   font-family: "DIN Alternate", "Bahnschrift", monospace;
-  font-size: 52rpx;
+  font-size: 40rpx;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1;
