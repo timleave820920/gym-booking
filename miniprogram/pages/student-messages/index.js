@@ -37,7 +37,8 @@ Page({
 
   // 上拉加载更多 / 首屏加载
   loadMore() {
-    if (this.data.loading || this.data.finished) return;
+    // 守卫：已加载完不再拉；已有数据时防重复加载（首屏 loading 初始为 true 时放行）
+    if (this.data.finished || (this.data.loading && this.data.messages.length > 0)) return;
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
     if (!openid) {
