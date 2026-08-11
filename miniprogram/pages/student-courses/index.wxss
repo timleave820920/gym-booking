@@ -118,19 +118,17 @@
   text-align: right;
   flex-shrink: 0;
 }
+/* 纯数字席位（如 4/20） */
 .cb-seat-num {
   font-family: "DIN Alternate", "Bahnschrift", monospace;
-  font-size: 52rpx;
+  font-size: 32rpx;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
   color: #E5484D;
 }
 .cb-seat-zero {
-  color: #EF9F27;   /* 满员时剩余 0 金色 */
-}
-.cb-seat-txt {
-  font-size: 20rpx;
-  color: #6B6B76;
+  color: #EF9F27;   /* 满员时 0/20 金色 */
 }
 /* 底行：价格 + 难度点阵 + 按钮 */
 .cb-bottom {
