@@ -346,7 +346,7 @@ function getMemberLevel(openid) {
   }
   const idx = LEVELS.indexOf(level);
   const next = LEVELS[idx + 1] || null;
-  // 等级图标（奖牌表达，从配置读取：青铜🥉 黄金🥇 铂金🏅 钻石💎）
+  // 等级图标（奖牌表达，从配置读取：青铜🥉 白银🥈 黄金🥇 钻石💎）
   const style = MEMBER_CONFIG.levelStyles.find(s => s.name === level.name);
   return {
     openid,

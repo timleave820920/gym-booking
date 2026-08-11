@@ -9,12 +9,12 @@
  */
 
 module.exports = {
-  // 会员等级：青铜(0节/9折) 黄金(20节/85折) 铂金(50节/8折) 钻石(100节/75折)
+  // 会员等级：青铜(0节/9折) 白银(20节/85折) 黄金(50节/8折) 钻石(100节/75折)
   // lv: 等级序号（从 1 开始）｜ min: 升级所需累计课时 ｜ discount: 会员折扣（0.9 = 9折）
   levels: [
     { name: '青铜', lv: 1, min: 0,   discount: 0.90 },
-    { name: '黄金', lv: 2, min: 20,  discount: 0.85 },
-    { name: '铂金', lv: 3, min: 50,  discount: 0.80 },
+    { name: '白银', lv: 2, min: 20,  discount: 0.85 },
+    { name: '黄金', lv: 3, min: 50,  discount: 0.80 },
     { name: '钻石', lv: 4, min: 100, discount: 0.75 }
   ],
 
@@ -41,11 +41,11 @@ module.exports = {
   },
 
   // 前端展示用元信息（等级图标/颜色等，可随配置调整）
-  // icon：奖牌表达——青铜🥉 黄金🥇 铂金🏅 钻石💎
+  // icon：奖牌表达——青铜🥉 白银🥈 黄金🥇 钻石💎
   levelStyles: [
     { name: '青铜', roman: 'Ⅰ', icon: '🥉', color: '#D89C4C' },
-    { name: '黄金', roman: 'Ⅱ', icon: '🥇', color: '#F2C43B' },
-    { name: '铂金', roman: 'Ⅲ', icon: '🏅', color: '#B8CCF2' },
+    { name: '白银', roman: 'Ⅱ', icon: '🥈', color: '#B8C4CE' },
+    { name: '黄金', roman: 'Ⅲ', icon: '🥇', color: '#F2C43B' },
     { name: '钻石', roman: 'Ⅳ', icon: '💎', color: '#8C84F2' }
   ]
 };
