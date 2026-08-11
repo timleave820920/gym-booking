@@ -31,10 +31,6 @@
         <view class="g-icon gi-gold"><text class="g-icon-txt">奖</text></view>
         <view class="g-info"><text class="g-name">参赛荣誉</text><text class="g-sub">{{gridSubs.honor}}</text></view>
       </view>
-      <view class="grid-item" bindtap="go" data-url="/pages/student-orders/index">
-        <view class="g-icon gi-indigo"><text class="g-icon-txt">≡</text></view>
-        <view class="g-info"><text class="g-name">我的订单</text><text class="g-sub">支付记录</text></view>
-      </view>
     </view>
   </view>
 </view>
