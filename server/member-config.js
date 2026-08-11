@@ -9,13 +9,13 @@
  */
 
 module.exports = {
-  // 会员等级：青铜(0节/9折) 白银(20节/85折) 黄金(50节/8折) 钻石(100节/75折)
-  // lv: 等级序号（从 1 开始）｜ min: 升级所需累计课时 ｜ discount: 会员折扣（0.9 = 9折）
+  // 会员等级：青铜(0节/98折) 白银(20节/95折) 黄金(50节/92折) 钻石(100节/88折)
+  // lv: 等级序号（从 1 开始）｜ min: 升级所需累计课时 ｜ discount: 会员折扣（0.98 = 98折）
   levels: [
-    { name: '青铜', lv: 1, min: 0,   discount: 0.90 },
-    { name: '白银', lv: 2, min: 20,  discount: 0.85 },
-    { name: '黄金', lv: 3, min: 50,  discount: 0.80 },
-    { name: '钻石', lv: 4, min: 100, discount: 0.75 }
+    { name: '青铜', lv: 1, min: 0,   discount: 0.98 },
+    { name: '白银', lv: 2, min: 20,  discount: 0.95 },
+    { name: '黄金', lv: 3, min: 50,  discount: 0.92 },
+    { name: '钻石', lv: 4, min: 100, discount: 0.88 }
   ],
 
   // 储值套餐：amount 充值金额（分）｜ bonus 赠送金额（分）

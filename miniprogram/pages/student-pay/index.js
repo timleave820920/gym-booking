@@ -39,6 +39,9 @@ Page({
       const memberPrice = Math.round(price * lv.discount * 100) / 100;
       const balance = (lv.balanceFen / 100);
       const canBalancePay = balance >= memberPrice;
+      // 折扣文案：0.98 → 98折（整十转 X 折，如 0.9 → 9折）
+      const dp = Math.round(lv.discount * 100);
+      lv.discountText = dp % 10 === 0 ? (dp / 10) + '折' : dp + '折';
       this.setData({
         memberLevel: lv,
         balance,

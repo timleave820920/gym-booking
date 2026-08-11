@@ -52,13 +52,13 @@ Page({
           name: lv.levelName,
           lv: lv.levelLv,
           icon: lv.levelIcon || '🏅',
-          discount: Math.round(lv.discount * 10),
+          discount: Math.round(lv.discount * 100),
           progress: lv.progress,
           balance: (lv.balanceFen / 100).toFixed(2),
           totalClasses: lv.totalClasses,
           nextName: lv.next ? lv.next.name : 'MAX',
           nextMin: lv.next ? lv.next.min : null,
-          hint: lv.next ? `再上 ${lv.next.min - lv.totalClasses} 节课升级${lv.next.name} · 会员价 ${Math.round(lv.next.discount * 10)} 折` : '已达最高等级'
+          hint: lv.next ? `再上 ${lv.next.min - lv.totalClasses} 节课升级${lv.next.name} · 会员价 ${Math.round(lv.next.discount * 100)} 折` : '已达最高等级'
         },
         loaded: true
       });
