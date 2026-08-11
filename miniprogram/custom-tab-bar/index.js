@@ -9,6 +9,19 @@ Component({
     ]
   },
 
+  // 页面每次显示时，按当前路由自动高亮对应 tab（根治首次进入不高亮问题）
+  pageLifetimes: {
+    show() {
+      const pages = getCurrentPages();
+      const current = pages[pages.length - 1];
+      const route = current && current.route ? '/' + current.route : '';
+      const idx = this.data.list.findIndex(item => item.pagePath === route);
+      if (idx >= 0 && idx !== this.data.selected) {
+        this.setData({ selected: idx });
+      }
+    }
+  },
+
   methods: {
     switchTab(e) {
       const { index, path } = e.currentTarget.dataset;
