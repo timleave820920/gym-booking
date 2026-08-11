@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>课程条 UI 设计提案 · 综合训练馆订课系统</title>
+<style>
+  :root {
+    --cream: #F9F4DF; --lime: #B9FF66; --purple: #5B57EB;
+    --dark: #1A1A23; --gray: #6B6B76; --light: #B0AFA8;
+    --pink: #F8B7B8; --red: #E5484D; --gold: #EF9F27;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; background: var(--cream); color: var(--dark); padding: 32px 40px 60px; }
+  .page-title { font-size: 24px; font-weight: 800; letter-spacing: 1px; }
+  .page-sub { font-size: 13px; color: var(--gray); margin-top: 6px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 28px; margin-top: 28px; }
+  .variant { background: #FFFFFF; border-radius: 16px; padding: 18px; box-shadow: 0 8px 28px rgba(0,0,0,0.07); }
+  .v-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .v-tag { background: var(--dark); color: var(--lime); font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; letter-spacing: 1px; }
+  .v-name { font-size: 15px; font-weight: 700; }
+  .phone { background: #EFEAD6; border-radius: 14px; padding: 14px; border: 1px solid #E3DEC9; }
+  .v-note { font-size: 12px; color: var(--gray); line-height: 1.7; margin-top: 12px; padding: 10px 12px; background: #F7F4E8; border-radius: 10px; }
+  .v-note b { color: var(--dark); }
+
+  img.av { border-radius: 50%; object-fit: cover; }
+
+  /* ===== 版本 A：斜切疾驰 ===== */
+  .card-a {
+    position: relative; overflow: hidden;
+    display: flex; align-items: center; gap: 14px;
+    background: #FFFFFF; border: 1.5px solid var(--dark);
+    border-radius: 14px; padding: 14px 12px 14px 14px;
+  }
+  .ca-avatar { width: 64px; height: 64px; flex-shrink: 0; border-radius: 50%; border: 3px solid var(--lime); outline: 1.5px solid var(--dark); outline-offset: -5px; }
+  .ca-main { flex: 1; min-width: 0; }
+  .ca-name { font-size: 19px; font-weight: 900; letter-spacing: .5px; font-style: italic; transform: skewX(-6deg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ca-time { font-family: "DIN Alternate", "Bahnschrift", monospace; font-size: 22px; font-weight: 800; margin-top: 2px; font-variant-numeric: tabular-nums; color: var(--dark); }
+  .ca-time::before { content: ""; display: inline-block; width: 10px; height: 10px; background: var(--red); margin-right: 8px; clip-path: polygon(50% 0, 100% 100%, 0 100%); vertical-align: 2px; }
+  .ca-price { margin-top: 1px; font-size: 15px; font-weight: 800; }
+  .ca-mem { font-size: 12px; color: var(--light); font-weight: 400; }
+  .ca-meta { margin-top: 3px; font-size: 12px; color: var(--gray); }
+  .ca-meta b { color: var(--dark); }
+  .ca-btn {
+    flex-shrink: 0;
+    background: var(--dark); color: var(--lime);
+    font-size: 14px; font-weight: 800; letter-spacing: 2px;
+    padding: 12px 16px;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  }
+  .ca-btn::before { content: ""; display: block; width: 8px; height: 8px; background: var(--red); clip-path: polygon(50% 0,100% 100%,0 100%); margin: 0 auto 4px; }
+  .ca-ribbon {
+    position: absolute; top: 14px; right: -56px;
+    transform: rotate(45deg);
+    background: var(--red); color: #fff; font-size: 12px; font-weight: 700;
+    padding: 3px 72px; letter-spacing: 3px;
+  }
+
+  /* ===== 版本 B：仪表盘数据 ===== */
+  .card-b {
+    position: relative; overflow: hidden;
+    display: flex; align-items: stretch; gap: 12px;
+    background: #FFFFFF; border: 1.5px solid var(--dark);
+    border-radius: 14px; padding: 12px;
+  }
+  .cb-bar { width: 6px; border-radius: 4px; background: linear-gradient(180deg, var(--purple) 0%, var(--lime) 100%); flex-shrink: 0; }
+  .cb-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .cb-top { display: flex; align-items: center; gap: 8px; }
+  .cb-avatar { width: 40px; height: 40px; border: 2px solid var(--dark); flex-shrink: 0; }
+  .cb-name { font-size: 17px; font-weight: 800; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cb-member { font-size: 10px; font-weight: 700; background: var(--dark); color: var(--lime); padding: 3px 8px; border-radius: 999px; flex-shrink: 0; }
+  .cb-mid { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 6px; }
+  .cb-time { font-family: "DIN Alternate", "Bahnschrift", monospace; font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+  .cb-seats { text-align: right; }
+  .cb-seat-num { font-family: "DIN Alternate", monospace; font-size: 26px; font-weight: 800; line-height: 1; color: var(--red); }
+  .cb-seat-txt { font-size: 10px; color: var(--gray); }
+  .cb-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .cb-price { font-size: 15px; font-weight: 800; }
+  .cb-price small { font-size: 11px; color: var(--light); font-weight: 400; }
+  .cb-dots { display: flex; gap: 3px; }
+  .cb-dot { width: 8px; height: 8px; border-radius: 50%; background: #E5E2D4; }
+  .cb-dot.on { background: var(--purple); }
+  .cb-btn { background: var(--lime); color: var(--dark); font-size: 13px; font-weight: 800; padding: 7px 16px; border-radius: 999px; border: 1.5px solid var(--dark); }
+
+  /* ===== 版本 C：分组卡片 ===== */
+  .card-c {
+    overflow: hidden;
+    background: #FFFFFF; border: 1.5px solid var(--dark);
+    border-radius: 14px;
+  }
+  .cc-top { display: flex; align-items: center; gap: 12px; padding: 14px 14px 12px; }
+  .cc-avatar { width: 56px; height: 56px; border: 3px solid var(--pink); outline: 1.5px solid var(--dark); outline-offset: -4px; flex-shrink: 0; }
+  .cc-info { flex: 1; min-width: 0; }
+  .cc-name { font-size: 17px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cc-time { font-size: 13px; color: var(--gray); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .cc-price { text-align: right; flex-shrink: 0; }
+  .cc-price-num { font-size: 20px; font-weight: 900; }
+  .cc-price-num small { font-size: 12px; font-weight: 700; }
+  .cc-price-mem { font-size: 11px; color: var(--light); }
+  .cc-meta { display: flex; align-items: center; gap: 14px; padding: 10px 14px; background: #F7F4E8; border-top: 1px dashed #E0DAC2; font-size: 12px; color: var(--gray); }
+  .cc-meta b { color: var(--dark); }
+  .cc-foot { display: flex; align-items: center; justify-content: space-between; background: var(--dark); padding: 10px 14px; }
+  .cc-foot-txt { color: #B0AFA8; font-size: 11px; letter-spacing: 1px; }
+  .cc-btn { background: var(--lime); color: var(--dark); font-size: 14px; font-weight: 900; letter-spacing: 2px; padding: 8px 26px; border-radius: 999px; }
+
+  /* ===== 版本 D：紧凑极简 ===== */
+  .card-d {
+    position: relative; overflow: hidden;
+    display: flex; align-items: center; gap: 10px;
+    background: #FFFFFF; border: 1.5px solid var(--dark);
+    border-radius: 10px; padding: 10px 12px;
+  }
+  .cd-avatar { width: 52px; height: 52px; border: 2px solid var(--dark); flex-shrink: 0; }
+  .cd-main { flex: 1; min-width: 0; }
+  .cd-row1 { display: flex; align-items: baseline; gap: 8px; }
+  .cd-name { font-size: 16px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cd-time { font-size: 12px; color: var(--gray); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .cd-row2 { display: flex; align-items: baseline; gap: 6px; margin-top: 3px; }
+  .cd-price { font-size: 16px; font-weight: 800; }
+  .cd-mem { font-size: 11px; color: var(--light); }
+  .cd-meta { font-size: 11px; color: var(--gray); margin-left: auto; }
+  .cd-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+  .cd-seat { font-size: 12px; font-weight: 800; color: var(--dark); background: #F0EDDF; padding: 3px 10px; border-radius: 999px; border: 1px solid #E0DCCB; }
+  .cd-seat.tight { color: var(--red); border-color: var(--red); }
+  .cd-btn { background: var(--dark); color: var(--lime); font-size: 13px; font-weight: 800; padding: 6px 18px; border-radius: 999px; letter-spacing: 1px; }
+
+  /* 满员金色斜条（在 B 上演示） */
+  .ribbon-full {
+    position: absolute; top: 12px; right: -52px;
+    transform: rotate(45deg);
+    background: var(--gold); color: #fff; font-size: 12px; font-weight: 700;
+    padding: 3px 68px; letter-spacing: 3px;
+  }
+</style>
+</head>
+<body>
+  <div class="page-title">课程条 UI 设计提案 · 4 版</div>
+  <div class="page-sub">共同点：整条细边框（1.5px 暖黑描边）· 更紧凑的纵向间距 · 运动感（斜切/大数字/明暗对比/点阵）。内容示例：Hyrox冲冲冲 · 09:00–10:00 · ¥80（会员 ¥72）· 难度3 · 余4/20席</div>
+
+  <div class="grid">
+    <!-- 版本 A -->
+    <div class="variant">
+      <div class="v-head"><span class="v-tag">版本 A</span><span class="v-name">斜切疾驰 Diagonal Sprint</span></div>
+      <div class="phone">
+        <div class="card-a">
+          <div class="ca-ribbon">紧张</div>
+          <img class="ca-avatar av" src="http://127.0.0.1:3000/images/2_1468.png" onerror="this.style.background='#F0EDDF'">
+          <div class="ca-main">
+            <div class="ca-name">Hyrox冲冲冲</div>
+            <div class="ca-time">09:00 – 10:00</div>
+            <div class="ca-price">¥80 <span class="ca-mem">（会员 ¥72）</span></div>
+            <div class="ca-meta">难度 <b>3</b> · 余 <b>4</b>/20 席</div>
+          </div>
+          <div class="ca-btn">预约</div>
+        </div>
+      </div>
+      <div class="v-note"><b>运动感来源</b>：课程名 <b>斜体 + 微倾斜</b>（-6° skew）营造冲刺感；时间前带<b>红色小三角</b>（起跑旗）；按钮 <b>切角</b>（clip-path）像运动号码牌；红色「紧张」斜条。教练头像配<b>青柠描边环</b>。</div>
+    </div>
+
+    <!-- 版本 B -->
+    <div class="variant">
+      <div class="v-head"><span class="v-tag">版本 B</span><span class="v-name">仪表盘数据 Speedometer</span></div>
+      <div class="phone">
+        <div class="card-b">
+          <div class="ribbon-full">满员</div>
+          <div class="cb-bar"></div>
+          <div class="cb-main">
+            <div class="cb-top">
+              <img class="cb-avatar av" src="http://127.0.0.1:3000/images/2_1468.png" onerror="this.style.background='#F0EDDF'">
+              <span class="cb-name">Hyrox冲冲冲</span>
+              <span class="cb-member">会员价</span>
+            </div>
+            <div class="cb-mid">
+              <div class="cb-time">09:00 – 10:00</div>
+              <div class="cb-seats">
+                <div class="cb-seat-num">4</div>
+                <div class="cb-seat-txt">剩余 / 20 席</div>
+              </div>
+            </div>
+            <div class="cb-bottom">
+              <div class="cb-price">¥80 <small>（会员 ¥72）</small></div>
+              <div class="cb-dots">
+                <span class="cb-dot on"></span><span class="cb-dot on"></span><span class="cb-dot on"></span><span class="cb-dot off"></span><span class="cb-dot off"></span>
+              </div>
+              <div class="cb-btn">预约</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="v-note"><b>运动感来源</b>：左侧<b>紫→青柠渐变能量条</b>；时间与剩余席位用<b>等宽大数字</b>（仪表读数感）；剩余席位红色大号字；难度用<b>圆点点阵</b>；右上金色「满员」斜条。会员价做成深色<b>徽章</b>。</div>
+    </div>
+
+    <!-- 版本 C -->
+    <div class="variant">
+      <div class="v-head"><span class="v-tag">版本 C</span><span class="v-name">分组卡片 Stadium</span></div>
+      <div class="phone">
+        <div class="card-c">
+          <div class="cc-top">
+            <img class="cc-avatar av" src="http://127.0.0.1:3000/images/2_1468.png" onerror="this.style.background='#F0EDDF'">
+            <div class="cc-info">
+              <div class="cc-name">Hyrox冲冲冲</div>
+              <div class="cc-time">09:00 – 10:00</div>
+            </div>
+            <div class="cc-price">
+              <div class="cc-price-num">¥<small>80</small></div>
+              <div class="cc-price-mem">会员 ¥72</div>
+            </div>
+          </div>
+          <div class="cc-meta">
+            <span>难度 <b>3</b></span>
+            <span>余 <b style="color:#E5484D">4</b>/20 席</span>
+            <span style="margin-left:auto">教练 · 喻馥雅</span>
+          </div>
+          <div class="cc-foot">
+            <span class="cc-foot-txt">NEXT CLASS</span>
+            <div class="cc-btn">预约</div>
+          </div>
+        </div>
+      </div>
+      <div class="v-note"><b>运动感来源</b>：卡片 <b>上下三分区</b>（信息/元数据/深色操作条）像赛场计分板；头像<b>藕粉描边环</b>；底部深色条 + 青柠大按钮，明暗对比最强；虚线分隔带「NEXT CLASS」标签有赛事感。</div>
+    </div>
+
+    <!-- 版本 D -->
+    <div class="variant">
+      <div class="v-head"><span class="v-tag">版本 D</span><span class="v-name">紧凑极简 Sprint Lite</span></div>
+      <div class="phone">
+        <div class="card-d">
+          <img class="cd-avatar av" src="http://127.0.0.1:3000/images/2_1468.png" onerror="this.style.background='#F0EDDF'">
+          <div class="cd-main">
+            <div class="cd-row1">
+              <span class="cd-name">Hyrox冲冲冲</span>
+              <span class="cd-time">09:00–10:00</span>
+            </div>
+            <div class="cd-row2">
+              <span class="cd-price">¥80</span>
+              <span class="cd-mem">会员 ¥72</span>
+              <span class="cd-meta">难度 3 · 余 4/20</span>
+            </div>
+          </div>
+          <div class="cd-right">
+            <span class="cd-seat tight">余 4 席</span>
+            <div class="cd-btn">预约</div>
+          </div>
+        </div>
+      </div>
+      <div class="v-note"><b>运动感来源</b>：最紧凑（高度约 74px，一屏可多卡）；<b>两行流式排版</b>信息密度最高；席位做成<b>胶囊徽章</b>（紧张时红字红边）；右侧竖向「席位+按钮」列对齐。适合列表很长时使用。</div>
+    </div>
+  </div>
+
+  <div style="margin-top:28px; font-size:13px; color:var(--gray);">
+    说明：以上为静态提案（375px 手机框，浏览器直接查看）。选定后我会按 2rpx=1px 换算成 WXSS 落地到「今日/本周」两页，并保留已预订/已排位/候补/满员/进行中/已结束等全部按钮状态与红/金斜条。
+  </div>
+</body>
+</html>
