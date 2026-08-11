@@ -3,14 +3,21 @@
   background: #F9F4DF;
 }
 .page-pad {
-  padding: 24rpx 24rpx 60rpx;
+  padding: 24rpx 24rpx 260rpx;   /* 底部留白给悬浮 TabBar */
 }
 .pt-safe {
-  padding-top: 8rpx;
+  padding-top: calc(88rpx + env(safe-area-inset-top));   /* 自定义导航，给胶囊让位 */
+}
+
+/* 顶部大标题（与上课/我的页一致） */
+.head-row { align-items: center; }
+.page-title {
+  font-size: 48rpx; font-weight: 800; color: #1A1A23;
 }
 
 /* 功能宫格 */
 .grid {
+  margin-top: 32rpx;
   display: flex;
   flex-wrap: wrap;
   gap: 16rpx;

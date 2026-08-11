@@ -1,5 +1,10 @@
 <view class="page">
   <view class="page-pad pt-safe">
+    <!-- 顶部标题：左对齐大标题（与上课/我的页一致） -->
+    <view class="head-row">
+      <text class="page-title">活动中心</text>
+    </view>
+
     <!-- 功能宫格 -->
     <view class="grid">
       <view class="grid-item" bindtap="go" data-url="/pages/member-level/index">
