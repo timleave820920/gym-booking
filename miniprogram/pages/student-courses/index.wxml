@@ -23,7 +23,7 @@
   </view>
 
   <!-- 可滚动区：仅课程列表滚动 -->
-  <scroll-view scroll-y class="list-scroll" enhanced show-scrollbar="{{false}}">
+  <scroll-view scroll-y class="list-scroll">
     <view class="list-pad">
       <!-- 后端不可用提示 -->
       <text class="offline-tip" wx:if="{{offline}}">后端未连接，当前展示演示数据</text>

@@ -11,7 +11,7 @@ Page({
   },
 
   onLoad() {
-    this.loadAll();
+    // 数据加载统一走 onShow（tab 页每次显示都会触发，避免重复请求）
   },
 
   onShow() {

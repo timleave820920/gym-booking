@@ -20,7 +20,7 @@
   </view>
 
   <!-- 可滚动区：仅课程卡片滚动 -->
-  <scroll-view scroll-y class="list-scroll" enhanced show-scrollbar="{{false}}">
+  <scroll-view scroll-y class="list-scroll">
     <view class="list-pad">
       <!-- 加载中 -->
       <view class="empty-state flex-col" wx:if="{{loading}}">
