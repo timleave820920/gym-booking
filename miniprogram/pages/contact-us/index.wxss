@@ -1,0 +1,115 @@
+.page {
+  min-height: 100vh;
+  background: #F9F4DF;
+}
+.pt-safe {
+  padding-top: calc(88rpx + env(safe-area-inset-top));
+}
+.head-row { align-items: center; }
+.back-wrap { align-items: center; gap: 12rpx; }
+.icon-back {
+  width: 32rpx; height: 32rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M15 5L8 12L15 19" stroke="%231A1A23" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+}
+.page-title {
+  font-size: 48rpx; font-weight: 800; color: #1A1A23;
+}
+
+/* 二维码卡片 */
+.qr-card {
+  margin-top: 32rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.qr-head {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+.qr-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.qi-assist { background: #B9FF66; color: #1A1A23; }
+.qi-group { background: #5B57EB; color: #FFFFFF; }
+.qr-name {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 800;
+  color: #1A1A23;
+}
+.qr-desc {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  color: #8A8A8A;
+}
+.qr-body {
+  margin-top: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3rpx dashed #E8E2CC;
+  border-radius: 24rpx;
+  padding: 40rpx;
+  position: relative;
+}
+.qr-img {
+  width: 360rpx;
+  height: 360rpx;
+  border-radius: 16rpx;
+}
+.qr-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+}
+.ph-icon {
+  font-size: 88rpx;
+  color: #D9D4C0;
+}
+.ph-text {
+  font-size: 26rpx;
+  color: #B0AFA8;
+}
+.qr-tip {
+  margin-top: 20rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: #5B57EB;
+  font-weight: 600;
+}
+
+/* 底部说明 */
+.bottom-note {
+  margin-top: 40rpx;
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  padding: 0 12rpx;
+}
+.note-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #F8D044;
+  margin-top: 10rpx;
+  flex-shrink: 0;
+}
+.note-txt {
+  flex: 1;
+  font-size: 24rpx;
+  color: #6B6B76;
+  line-height: 1.7;
+}
+.list-spacer { height: 60rpx; }

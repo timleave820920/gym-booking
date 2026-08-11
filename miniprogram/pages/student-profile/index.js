@@ -17,7 +17,7 @@ Page({
         { icon: 'bell', name: '消息通知', url: '/pages/student-messages/index', badge: 0 }
       ],
       [
-        { icon: 'edit', name: '联系客服', url: '' }
+        { icon: 'edit', name: '联系客服', url: '/pages/contact-us/index' }
       ]
     ],
     testEntries: [
