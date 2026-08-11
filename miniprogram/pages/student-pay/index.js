@@ -9,6 +9,8 @@ Page({
     balance: 0,            // 储值余额
     memberPrice: 0,        // 储值支付折扣价
     canBalancePay: false,  // 余额是否够
+    totalPrice: 0,         // 当前选中支付方式的结算价
+    payText: '含课程费用',   // 结算价说明
     payMethods: [
       { id: 1, name: '微信支付', desc: '推荐使用', icon: 'wallet', selected: true },
       { id: 2, name: '余额支付', desc: '余额 ¥ 0.00', icon: 'card', selected: false }
@@ -28,7 +30,7 @@ Page({
     this.loadMemberInfo();
   },
 
-  // 加载会员等级 + 储值余额 → 计算折扣价
+  // 加载会员等级 + 储值余额 → 计算折扣价；余额够则默认选中余额支付
   loadMemberInfo() {
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
@@ -39,7 +41,9 @@ Page({
       // 会员价 = 原价 × 折扣率，向下取整到元（无角分）
       const memberPrice = Math.floor(price * lv.discount);
       const balance = (lv.balanceFen / 100);
-      const canBalancePay = balance >= memberPrice;
+      // 候补排位不享会员折扣，不自动选余额
+      const isWaitlist = this.data.course.mode === 'waitlist';
+      const canBalancePay = !isWaitlist && balance >= memberPrice;
       // 折扣文案：0.98 → 98折（整十转 X 折，如 0.9 → 9折）
       const dp = Math.round(lv.discount * 100);
       lv.discountText = dp % 10 === 0 ? (dp / 10) + '折' : dp + '折';
@@ -48,12 +52,29 @@ Page({
         balance,
         memberPrice,
         canBalancePay,
+        // 余额足够 → 默认选中余额支付（享受会员价）
         payMethods: this.data.payMethods.map(m => ({
           ...m,
+          selected: m.id === (canBalancePay ? 2 : 1),
           desc: m.id === 2 ? `余额 ¥ ${balance.toFixed(2)}` : m.desc
         }))
       });
+      this.computeTotal();
     }).catch(() => {});
+  },
+
+  // 计算当前选中支付方式的结算价（余额支付 → 会员价；微信 → 原价）
+  computeTotal() {
+    const price = Number(this.data.course.price || 68);
+    const selected = this.data.payMethods.find(m => m.selected);
+    const isWaitlist = this.data.course.mode === 'waitlist';
+    const useMember = selected && selected.id === 2 && !isWaitlist
+      && this.data.memberLevel && this.data.memberLevel.discount < 1;
+    const total = useMember ? this.data.memberPrice : price;
+    this.setData({
+      totalPrice: total,
+      payText: useMember ? `会员价 · 立省¥${price - total}` : '含课程费用'
+    });
   },
 
   selectMethod(e) {
@@ -62,6 +83,7 @@ Page({
       ...m, selected: m.id === id
     }));
     this.setData({ payMethods });
+    this.computeTotal();   // 切换方式 → 结算价联动
   },
 
   pay() {

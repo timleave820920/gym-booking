@@ -13,7 +13,7 @@
     <!-- 金额卡 -->
     <view class="amount-card flex-col">
       <text class="amount-label">需支付金额（元）</text>
-      <text class="amount-value">¥ {{course.price}}.00</text>
+      <text class="amount-value">¥ {{totalPrice || course.price}}</text>
     </view>
 
     <!-- 支付方式 -->
@@ -45,8 +45,8 @@
   <!-- 底部 CTA -->
   <view class="cta-bar flex-between">
     <view class="flex-col">
-      <text class="cta-price">¥ {{course.price}}.00</text>
-      <text class="cta-sub">含课程费用</text>
+      <text class="cta-price">¥ {{totalPrice || course.price}}</text>
+      <text class="cta-sub">{{payText}}</text>
     </view>
     <view class="pay-btn" bindtap="pay">
       <text>确认支付</text>
