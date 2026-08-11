@@ -4,7 +4,6 @@ const api = require('../../utils/api.js');
 Page({
   data: {
     member: null,        // 会员卡数据（等级/余额/升级提示）
-    balanceAnim: false,
     coinBalance: 0,
     rewards: 0,          // 未读储值奖励数
     menus: [
@@ -27,7 +26,7 @@ Page({
   },
 
   onShow() {
-    this.loadBalance(true);   // 加载余额，有奖励时播动画
+    this.loadBalance();       // 加载余额（无动画）
     this.loadUnread();
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 3 });
@@ -49,8 +48,8 @@ Page({
   },
 
   // 从 desc 提取当前数字（避免重复刷新丢失）
-  // 加载会员卡数据（等级/余额/能量币/未读奖励；有奖励时播余额动画）
-  loadBalance(animate) {
+  // 加载会员卡数据（等级/余额/能量币/未读奖励）
+  loadBalance() {
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
     if (!openid) return;
@@ -65,15 +64,8 @@ Page({
           balance,
           hint: lv.next ? `再上 ${lv.next.min - lv.totalClasses} 节课升级${lv.next.name} · 会员价 ${Math.round(lv.next.discount * 100)} 折` : '已达最高等级'
         },
-        balanceAnim: false,
         coinBalance: lv.coinBalance || 0
       });
-      if (animate && Number(balance) > 0) {
-        // 触发余额增加动画（庆祝弹框跳转后播放）
-        setTimeout(() => {
-          this.setData({ balanceAnim: true });
-        }, 300);
-      }
     }).catch(() => {});
     // 未读储值奖励数
     api.getMyRewards(openid).then((res) => {

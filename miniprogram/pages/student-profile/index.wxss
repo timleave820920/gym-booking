@@ -159,14 +159,6 @@
   font-size: 22rpx;
   color: #B9FF66;
 }
-.balance-anim {
-  animation: balancePulse 1.2s ease 2;
-}
-@keyframes balancePulse {
-  0% { transform: scale(1); color: #B9FF66; }
-  50% { transform: scale(1.15); color: #FFFFFF; }
-  100% { transform: scale(1); color: #B9FF66; }
-}
 .vip-coins {
   margin-top: 16rpx;
   display: flex;

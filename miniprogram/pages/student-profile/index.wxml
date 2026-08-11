@@ -15,7 +15,7 @@
       <view class="vip-mid" wx:if="{{member}}">
         <view class="vip-bal">
           <text class="vip-bal-label">储值余额</text>
-          <text class="vip-bal-value {{balanceAnim ? 'balance-anim' : ''}}">¥ {{member.balance}}</text>
+          <text class="vip-bal-value">¥ {{member.balance}}</text>
         </view>
         <view class="vip-btn" catchtap="goRecharge">去充值</view>
       </view>

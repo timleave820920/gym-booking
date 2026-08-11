@@ -9,9 +9,6 @@ Page({
     lang: 'zh',              // 当前语言
     t: i18n.t(),             // 语言字典
     userCount: 0,            // 当前注册用户数
-    showCelebrate: false,    // 储值奖励庆祝弹框
-    celebrateAmount: '0',    // 奖励金额
-    celebrateBalance: '0.00', // 奖励后余额
     inviterCode: ''          // 邀请码（分享卡片自动带入，可手动修改）
   },
 
@@ -241,9 +238,19 @@ Page({
       success: (res) => {
         const code = res.code || '';
 
-        // 演示阶段：openid 固定为 demo_user（清除缓存/重装后账号与历史数据不丢）
+        // 演示阶段：按微信昵称生成稳定 openid
+        //  - 「田立」/ 未授权默认 → demo_user（保留现有账号与历史数据）
+        //  - 其他昵称（真机预览用真实微信号授权）→ demo_<昵称哈希>，独立测试账号
         // ⚠️ 正式上线：接入 jscode2session 用真实 openid 替换本段
-        const openid = 'demo_user';
+        const nick = String(userProfile.name || '').trim();
+        let openid;
+        if (!nick || nick === '田立') {
+          openid = 'demo_user';
+        } else {
+          let h = 5381;
+          for (let i = 0; i < nick.length; i++) h = ((h * 33) ^ nick.charCodeAt(i)) >>> 0;
+          openid = 'demo_' + h.toString(36);
+        }
         wx.setStorageSync('openid', openid);
 
         // 请求后端注册/登录
@@ -286,8 +293,8 @@ Page({
             icon: 'none'
           });
           setTimeout(() => {
-            // 检测未读储值奖励 → 有则展示庆祝弹框
-            this.checkRewards(userInfo.openid);
+            // 登录完成 → 直接进入课程页（储值奖励庆祝弹框已移除）
+            wx.switchTab({ url: '/pages/student-courses/index' });
           }, 600);
         }).catch((err) => {
           this.setData({ loggingIn: false });
@@ -318,36 +325,6 @@ Page({
     }).catch((err) => {
       console.warn('[invite] 绑定失败', err && err.message);
     });
-  },
-
-  // 登录后检测储值奖励 → 庆祝弹框 → 跳个人页播余额动画
-  checkRewards(openid) {
-    const api = require('../../utils/api.js');
-    api.getMyRewards(openid).then((res) => {
-      const rewards = res.rewards || [];
-      if (rewards.length === 0) {
-        wx.switchTab({ url: '/pages/student-courses/index' });
-        return;
-      }
-      // 累计奖励金额
-      const totalFen = rewards.reduce((s, r) => s + r.change_fen, 0);
-      const balanceAfter = rewards[0].balance_after || 0;
-      this.setData({
-        showCelebrate: true,
-        celebrateAmount: (totalFen / 100).toFixed(0),
-        celebrateBalance: (balanceAfter / 100).toFixed(2)
-      });
-      // 标记已读
-      api.markRewardsRead(openid).catch(() => {});
-    }).catch(() => {
-      wx.switchTab({ url: '/pages/student-courses/index' });
-    });
-  },
-
-  // 庆祝弹框确认 → 跳个人页（余额动画）
-  celebrateDone() {
-    this.setData({ showCelebrate: false });
-    wx.switchTab({ url: '/pages/student-profile/index' });
   },
 
   noop() {}
