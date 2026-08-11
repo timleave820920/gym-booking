@@ -23,32 +23,37 @@
     <!-- 课程列表 -->
     <view class="course-list">
       <view class="loading-tip" wx:if="{{loading}}">加载中...</view>
-      <view class="course-card flex-row {{item.disabled && !item.isBooked ? 'card-full' : ''}}" wx:for="{{courseList}}" wx:key="id"
+      <view class="course-card {{item.disabled && !item.isBooked ? 'card-full' : ''}}" wx:for="{{courseList}}" wx:key="id"
             bindtap="goDetail" data-id="{{item.id}}" data-disabled="{{item.disabled}}" data-waitlist="{{item.canWaitlist}}">
-        <image class="course-cover" src="{{item.img}}" mode="aspectFill"></image>
-        <view class="flex-col flex-1 course-info">
-          <view class="flex-row name-row">
-            <text class="course-name">{{item.name}}</text>
-            <text class="status-tag status-ongoing" wx:if="{{item.status === 'ongoing'}}">{{t.ongoing}}</text>
-            <text class="status-tag status-ended" wx:if="{{item.status === 'ended'}}">{{t.ended}}</text>
+        <!-- 教练圆形头像 -->
+        <image class="coach-avatar" src="{{item.coachAvatar}}" mode="aspectFill" data-idx="{{index}}" binderror="avatarError"></image>
+
+        <view class="course-info">
+          <!-- 顶部：课程名（大字号） -->
+          <text class="course-name">{{item.name}}</text>
+          <!-- 时间（中等字号） -->
+          <text class="time-txt">{{item.start}} - {{item.end}}</text>
+          <!-- 价格 + 会员价（中等字号） -->
+          <view class="price-row">
+            <text class="price-txt">¥{{item.price}}</text>
+            <text class="member-txt">（会员 ¥{{item.memberPrice}}）</text>
           </view>
-          <view class="flex-row course-meta">
-            <text class="icon-clock"></text>
-            <text class="meta-txt">{{item.start}}-{{item.end}} · {{item.category}}</text>
-          </view>
-          <view class="flex-between coach-row">
-            <text class="coach-name">教练 · {{item.coach}}</text>
-            <text class="seat-count {{item.isFull ? 'seat-full' : ''}}">{{item.seatText}}</text>
-            <view class="book-btn {{item.isBooked ? 'btn-booked' : (item.isFull && item.status === 'upcoming' ? 'btn-waitlist' : (item.isFull ? 'btn-full' : (item.status === 'ongoing' ? 'btn-ongoing' : (item.status === 'ended' ? 'btn-ended' : ''))))}}" catchtap="goDetail" data-id="{{item.id}}" data-disabled="{{item.disabled}}" data-waitlist="{{item.canWaitlist}}">
-              <text wx:if="{{item.isBooked}}">已预订</text>
-              <text wx:elif="{{item.isFull && item.status === 'upcoming'}}">{{t.waitlistBtn}}</text>
-              <text wx:elif="{{item.isFull}}">已满</text>
-              <text wx:elif="{{item.status === 'ongoing'}}">{{t.ongoing}}</text>
-              <text wx:elif="{{item.status === 'ended'}}">{{t.ended}}</text>
-              <text wx:else>¥{{item.price}} 约课</text>
-            </view>
-          </view>
+          <!-- 难度与席位（小字号） -->
+          <text class="meta-small">难度 {{item.level}} · 余 {{item.remaining}}/{{item.capacity}} 席</text>
         </view>
+
+        <!-- 右侧按钮（不写价格） -->
+        <view class="book-btn {{item.isBooked ? 'btn-booked' : (item.isFull && item.status === 'upcoming' ? 'btn-waitlist' : (item.isFull ? 'btn-full' : (item.status === 'ongoing' ? 'btn-ongoing' : (item.status === 'ended' ? 'btn-ended' : ''))))}}" catchtap="goDetail" data-id="{{item.id}}" data-disabled="{{item.disabled}}" data-waitlist="{{item.canWaitlist}}">
+          <text wx:if="{{item.isBooked}}">已预订</text>
+          <text wx:elif="{{item.isFull && item.status === 'upcoming'}}">{{t.waitlistBtn}}</text>
+          <text wx:elif="{{item.isFull}}">已满</text>
+          <text wx:elif="{{item.status === 'ongoing'}}">{{t.ongoing}}</text>
+          <text wx:elif="{{item.status === 'ended'}}">{{t.ended}}</text>
+          <text wx:else>预约</text>
+        </view>
+
+        <!-- 剩余席位 <5：右上角"紧张"斜条 -->
+        <view class="ribbon" wx:if="{{item.remaining < 5}}">紧张</view>
       </view>
 
       <!-- 空状态 -->

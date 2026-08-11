@@ -365,7 +365,7 @@ const SESSION_SELECT = `
   SELECT s.id, s.date, s.start_time, s.end_time, s.capacity, s.booked_count, s.status,
          (s.capacity - s.booked_count) AS remaining,
          c.id AS course_id, c.name AS course_name, c.category, c.level, c.duration_min, c.price_fen, c.cover,
-         co.name AS coach_name, v.name AS venue_name
+         co.name AS coach_name, co.avatar AS coach_avatar, v.name AS venue_name
   FROM course_sessions s
   JOIN courses c ON c.id = s.course_id
   JOIN coaches co ON co.id = s.coach_id

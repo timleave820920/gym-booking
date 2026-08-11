@@ -4,7 +4,8 @@ const app = getApp();
 const i18n = require('../../utils/i18n.js');
 const courseStatus = require('../../utils/course-status.js');
 
-const DEFAULT_COVER = '/images/2_193.png'; // 课程未设封面时的占位图
+const DEFAULT_COVER = '/images/2_193.png';       // 课程未设封面时的占位图
+const DEFAULT_COACH_AVATAR = '/images/2_1468.png'; // 教练未设头像时的占位图
 const WEEK_LABELS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
 Page({
@@ -70,12 +71,15 @@ Page({
         name: s.course_name,
         category: s.category,
         coach: s.coach_name,
+        coachAvatar: s.coach_avatar || DEFAULT_COACH_AVATAR,
+        level: s.level,
         date: full,               // 场次所属日期
         start: s.start_time,
         end: s.end_time,
         remaining: s.remaining,
         capacity: s.capacity,
         price: (s.price_fen / 100).toFixed(0),
+        memberPrice: Math.floor(Number((s.price_fen / 100).toFixed(0)) * 0.9), // 会员价 = 正价×90% 向下取整
         img: s.cover || DEFAULT_COVER,
         bookedByMe: !!s.booked_by_me
       })).map(s => this.decorateSession(s));
@@ -89,8 +93,10 @@ Page({
         .filter(c => c.days.includes(dayIndex))
         .map(c => this.decorateSession({
           id: c.id, name: c.name, category: c.category, coach: c.coach,
+          coachAvatar: DEFAULT_COACH_AVATAR, level: c.level,
           date: full,
           start: c.start, end: c.end, remaining: c.remaining, price: c.price,
+          memberPrice: Math.floor(Number(c.price) * 0.9),
           img: c.img, capacity: c.capacity || 20
         }));
       list.sort(this.sortSessions);
@@ -130,6 +136,13 @@ Page({
       // 已预订优先于满员显示
       seatFull: !isBooked && remaining <= 2
     };
+  },
+
+  // 教练头像加载失败 → 回退默认头像
+  avatarError(e) {
+    const idx = e.currentTarget.dataset.idx;
+    if (idx === undefined) return;
+    this.setData({ [`courseList[${idx}].coachAvatar`]: DEFAULT_COACH_AVATAR });
   },
 
   goDetail(e) {

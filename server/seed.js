@@ -15,8 +15,8 @@ function fmtDate(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
 // ===== 1. 教练 =====
 if (count('coaches') === 0) {
   const ins = db.prepare('INSERT INTO coaches (name, avatar, skills, rating, status) VALUES (?, ?, ?, ?, ?)');
-  ins.run('喻馥雅', '', 'Hybrid综合体能,引体向上,产后康复', 5.0, 'active');
-  ins.run('马春艳', '', '减脂', 5.0, 'active');
+  ins.run('喻馥雅', '/images/2_1468.png', 'Hybrid综合体能,引体向上,产后康复', 5.0, 'active');
+  ins.run('马春艳', '/images/2_1474.png', '减脂', 5.0, 'active');
   console.log('[coaches] 已插入 2 名教练');
 } else {
   console.log('[coaches] 已有数据，跳过');
