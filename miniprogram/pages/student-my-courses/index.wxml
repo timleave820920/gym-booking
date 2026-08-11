@@ -27,40 +27,74 @@
         <text class="empty-txt">加载中...</text>
       </view>
 
-      <!-- 课程卡片（订课 + 候补排位，界面一致） -->
-      <view class="my-list" wx:if="{{!loading && courses.length > 0}}">
-      <view class="my-card" wx:for="{{courses}}" wx:key="id">
-        <view class="flex-between card-top">
-          <view class="tag {{item.isWait ? 'tag-purple' : 'tag-green'}}">{{item.status}}</view>
-          <text class="card-date">{{item.date}}</text>
-        </view>
-        <view class="flex-row card-body">
-          <view class="flex-col time-box">
-            <text class="time-value">{{item.time}}</text>
-            <text class="time-dur">{{item.duration}}</text>
+      <!-- 待上课：课程卡片（订课 + 候补排位，界面一致） -->
+      <view class="my-list" wx:if="{{!loading && tab === 0 && courses.length > 0}}">
+        <view class="my-card" wx:for="{{courses}}" wx:key="id">
+          <view class="flex-between card-top">
+            <view class="tag {{item.isWait ? 'tag-purple' : 'tag-green'}}">{{item.status}}</view>
+            <text class="card-date">{{item.date}}</text>
           </view>
-          <view class="v-divider"></view>
-          <view class="flex-col flex-1 info-box">
-            <text class="course-name">{{item.name}}</text>
-            <text class="course-meta">教练 · {{item.coach}} · {{item.venue}}</text>
+          <view class="flex-row card-body">
+            <view class="flex-col time-box">
+              <text class="time-value">{{item.time}}</text>
+              <text class="time-dur">{{item.duration}}</text>
+            </view>
+            <view class="v-divider"></view>
+            <view class="flex-col flex-1 info-box">
+              <text class="course-name">{{item.name}}</text>
+              <text class="course-meta">教练 · {{item.coach}} · {{item.venue}}</text>
+            </view>
           </view>
-        </view>
-        <view class="flex-row card-actions">
-          <view class="btn-sm btn-outline" wx:if="{{!item.isWait}}" bindtap="refund" data-id="{{item.id}}" data-name="{{item.name}}">退订</view>
-          <view class="btn-sm btn-outline" wx:if="{{item.isWait}}" bindtap="exitWaitlist" data-id="{{item.id}}" data-name="{{item.name}}">退出候补</view>
-          <view class="btn-sm btn-primary" wx:if="{{!item.isWait && item.statusType === 'pending'}}" bindtap="checkin" data-id="{{item.id}}">签到</view>
-          <view class="btn-sm btn-purple" wx:if="{{item.isWait}}" bindtap="showWaitHint">排位</view>
+          <view class="flex-row card-actions">
+            <view class="btn-sm btn-outline" wx:if="{{!item.isWait}}" bindtap="refund" data-id="{{item.id}}" data-name="{{item.name}}">退订</view>
+            <view class="btn-sm btn-outline" wx:if="{{item.isWait}}" bindtap="exitWaitlist" data-id="{{item.id}}" data-name="{{item.name}}">退出候补</view>
+            <view class="btn-sm btn-primary" wx:if="{{!item.isWait && item.statusType === 'pending'}}" bindtap="checkin" data-id="{{item.id}}">签到</view>
+            <view class="btn-sm btn-purple" wx:if="{{item.isWait}}" bindtap="showWaitHint">排位</view>
+          </view>
         </view>
       </view>
-    </view>
 
-    <!-- 空状态：未订课 -->
-    <view class="empty-state flex-col" wx:if="{{!loading && courses.length === 0}}">
-      <text class="empty-icon">✓</text>
-      <text class="empty-txt">您尚未订课</text>
-      <text class="empty-sub">去课程列表挑一节喜欢的课吧</text>
-      <view class="empty-btn" bindtap="goCourses">去选课</view>
-    </view>
+      <!-- 空状态：待上课 -->
+      <view class="empty-state flex-col" wx:if="{{!loading && tab === 0 && courses.length === 0}}">
+        <text class="empty-icon">✓</text>
+        <text class="empty-txt">您尚未订课</text>
+        <text class="empty-sub">去课程列表挑一节喜欢的课吧</text>
+        <view class="empty-btn" bindtap="goCourses">去选课</view>
+      </view>
+
+      <!-- 已完成：过去参与过的课程 -->
+      <view class="my-list" wx:if="{{!loading && tab === 1 && completed.length > 0}}">
+        <view class="my-card" wx:for="{{completed}}" wx:key="id">
+          <view class="flex-between card-top">
+            <view class="tag tag-gray">{{item.status}}</view>
+            <text class="card-date">{{item.date}}</text>
+          </view>
+          <view class="flex-row card-body">
+            <view class="flex-col time-box">
+              <text class="time-value">{{item.time}}</text>
+              <text class="time-dur">{{item.duration}}</text>
+            </view>
+            <view class="v-divider"></view>
+            <view class="flex-col flex-1 info-box">
+              <text class="course-name">{{item.name}}</text>
+              <text class="course-meta">教练 · {{item.coach}} · {{item.venue}}</text>
+            </view>
+          </view>
+          <view class="flex-row card-actions">
+            <text class="done-status {{item.checked ? 'done-checked' : ''}}">{{item.checked ? '已签到 ✓' : '未签到'}}</text>
+          </view>
+        </view>
+        <!-- 只显示最近 7 天的提示 -->
+        <view class="list-hint" wx:if="{{showDoneHint}}">只显示最近7天的已完成课程</view>
+      </view>
+
+      <!-- 空状态：暂无已完成 -->
+      <view class="empty-state flex-col" wx:if="{{!loading && tab === 1 && completed.length === 0}}">
+        <text class="empty-icon">▦</text>
+        <text class="empty-txt">暂无已完成课程</text>
+        <text class="empty-sub">去约一堂课，开启你的训练记录吧</text>
+        <view class="empty-btn" bindtap="goCourses">去选课</view>
+      </view>
 
     <view class="list-spacer"></view>
     </view>

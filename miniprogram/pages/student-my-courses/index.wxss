@@ -139,3 +139,21 @@
   font-size: 28rpx;
   font-weight: 700;
 }
+
+/* 已完成卡片：签到状态文字 */
+.done-status {
+  margin-left: auto;
+  font-size: 26rpx;
+  color: #B0AFA8;
+  font-weight: 600;
+}
+.done-checked {
+  color: #3D9970;
+}
+/* 底部提示：只显示最近7天 */
+.list-hint {
+  text-align: center;
+  font-size: 22rpx;
+  color: #B0AFA8;
+  padding: 8rpx 0 24rpx;
+}

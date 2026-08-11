@@ -4,7 +4,9 @@ const api = require('../../utils/api.js');
 Page({
   data: {
     tab: 0,
-    courses: [],        // 订课 + 候补排位（同一列表，界面一致）
+    courses: [],        // 待上课：订课 + 候补排位（同一列表，界面一致）
+    completed: [],      // 已完成：过去参与过的课程（多时只显示最近 7 天）
+    showDoneHint: false, // 是否提示"只显示最近7天"
     loading: true
   },
 
@@ -20,21 +22,29 @@ Page({
     }
   },
 
-  // 加载订课 + 候补排位，合并到同一列表（候补排在订课后）
+  // 加载订课 + 候补排位，按"待上课/已完成"拆分
   loadAll() {
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
     if (!openid) {
-      this.setData({ courses: [], loading: false });
+      this.setData({ courses: [], completed: [], loading: false, showDoneHint: false });
       return;
     }
     this.setData({ loading: true });
     Promise.all([api.getMyBookings(openid), api.getMyWaitlist(openid)])
       .then(([bRes, wRes]) => {
-        // 已订课（booked），退订的(cancelled)不显示
-        const booked = (bRes.bookings || [])
-          .filter(b => b.status === 'booked')
-          .map(b => ({
+        const now = new Date();
+        const todayFull = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        // 7 天前的日期（含边界）
+        const sevenAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+        const sevenAgoFull = `${sevenAgo.getFullYear()}-${String(sevenAgo.getMonth() + 1).padStart(2, '0')}-${String(sevenAgo.getDate()).padStart(2, '0')}`;
+
+        // 已订课（booked），退订的(cancelled)不显示；按课程是否已结束拆分
+        const booked = (bRes.bookings || []).filter(b => b.status === 'booked');
+        const upcoming = [];
+        const doneAll = [];
+        booked.forEach(b => {
+          const card = {
             id: b.id,
             sessionId: b.session_id,
             name: b.course_name,
@@ -45,12 +55,23 @@ Page({
             end: b.end_time,
             duration: `${b.duration_min}分钟`,
             price: (b.amount_fen / 100).toFixed(0),
-            status: '待上课',
-            statusType: 'pending',
-            isWait: false,
             checked: b.checkin_at ? true : false
-          }));
-        // 候补排位中（waiting）→ 与订课同列表展示，按钮显示"排位"
+          };
+          if (this.isSessionEnded(b.date, b.end_time)) {
+            doneAll.push({ ...card, status: '已完成', statusType: 'done', isWait: false });
+          } else {
+            upcoming.push({ ...card, status: '待上课', statusType: 'pending', isWait: false });
+          }
+        });
+
+        // 已完成：课程特别多时只显示最近 7 天，底部提示
+        const recent = doneAll.filter(d => d.date >= sevenAgoFull);
+        this.setData({
+          showDoneHint: recent.length < doneAll.length,
+          completed: recent
+        });
+
+        // 候补排位中（waiting）→ 归入待上课列表，按钮显示"排位"
         const waits = (wRes.waits || [])
           .filter(w => w.status === 'waiting')
           .map(w => ({
@@ -69,11 +90,21 @@ Page({
             isWait: true,
             checked: false
           }));
-        this.setData({ courses: booked.concat(waits), loading: false });
+        this.setData({ courses: upcoming.concat(waits), loading: false });
       })
       .catch(() => {
-        this.setData({ courses: [], loading: false });
+        this.setData({ courses: [], completed: [], loading: false, showDoneHint: false });
       });
+  },
+
+  // 场次是否已结束（按日期 + 结束时间与当前时间比较）
+  isSessionEnded(date, endTime) {
+    const now = new Date();
+    const todayFull = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if (date < todayFull) return true;
+    if (date > todayFull) return false;
+    const [h, m] = (endTime || '00:00').split(':').map(Number);
+    return now.getHours() * 60 + now.getMinutes() >= h * 60 + m;
   },
 
   // 排位按钮提示（候补状态说明）
