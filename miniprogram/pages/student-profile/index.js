@@ -3,7 +3,6 @@ const api = require('../../utils/api.js');
 
 Page({
   data: {
-    user: { name: '微信用户', avatar: '/images/2_556.png', desc: '累计锻炼 0 节课' },
     member: null,        // 会员卡数据（等级/余额/升级提示）
     balanceAnim: false,
     coinBalance: 0,
@@ -33,53 +32,17 @@ Page({
   },
 
   onLoad() {
-    this.refreshUser();
-    this.loadWorkoutCount();
+    // 用户卡已移除，无需加载头像/昵称/锻炼次数
   },
 
   onShow() {
-    // 每次进入刷新（订课后锻炼次数实时更新）
-    this.loadWorkoutCount();
     this.loadBalance(true);   // 加载余额，有奖励时播动画
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 3 });
     }
   },
 
-  // 读取本地用户基础信息
-  refreshUser() {
-    const u = app.globalData.userInfo || {};
-    const count = this.getCountFromDesc(this.data.user.desc);
-    this.setData({
-      user: {
-        name: u.name || '微信用户',
-        avatar: u.avatar || '/images/2_556.png',
-        desc: `累计锻炼 ${count} 节课`
-      }
-    });
-  },
-
   // 从 desc 提取当前数字（避免重复刷新丢失）
-  getCountFromDesc(desc) {
-    const m = String(desc || '').match(/(\d+)/);
-    return m ? Number(m[1]) : 0;
-  },
-
-  // 从后端拉取真实锻炼次数（已订且已结束的场次总数）
-  loadWorkoutCount() {
-    const user = app.globalData.userInfo || {};
-    const openid = user.openid || wx.getStorageSync('openid');
-    if (!openid) return;
-    api.getUsersStats(openid).then((res) => {
-      const finished = (res.myStats && res.myStats.finishedWorkouts) || 0;
-      this.setData({
-        user: { ...this.data.user, desc: `累计锻炼 ${finished} 节课` }
-      });
-    }).catch(() => {
-      // 后端不可用：保持当前显示
-    });
-  },
-
   // 加载会员卡数据（等级/余额/能量币/未读奖励；有奖励时播余额动画）
   loadBalance(animate) {
     const user = app.globalData.userInfo || {};
@@ -130,13 +93,6 @@ Page({
   // 领取奖励 → 跳电子卡页看余额
   claimReward() {
     wx.navigateTo({ url: '/pages/member-card/index' });
-  },
-
-  // 头像加载失败（如微信头像域名未配置）→ 回退默认头像
-  avatarError() {
-    this.setData({
-      user: { ...this.data.user, avatar: '/images/2_556.png' }
-    });
   },
 
   // 退出登录

@@ -4,16 +4,6 @@
       <text class="page-title">个人中心</text>
     </view>
 
-    <!-- 用户卡 -->
-    <view class="user-card flex-row">
-      <image class="user-avatar" src="{{user.avatar}}" mode="aspectFill" binderror="avatarError"></image>
-      <view class="flex-col flex-1">
-        <text class="user-name">{{user.name}}</text>
-        <text class="user-desc">{{user.desc}}</text>
-      </view>
-      <text class="icon-chevron"></text>
-    </view>
-
     <!-- 会员卡预览（点击进电子会员卡） -->
     <view class="vip-preview" bindtap="goMemberCard">
       <view class="vip-top">

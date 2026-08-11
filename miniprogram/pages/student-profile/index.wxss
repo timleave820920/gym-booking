@@ -10,29 +10,6 @@
 .page-title {
   font-size: 48rpx; font-weight: 800; color: #1A1A23;
 }
-
-/* 用户卡 */
-.user-card {
-  margin-top: 32rpx;
-  background: linear-gradient(120deg, #B9FF66 0%, #FFCB47 100%);
-  border-radius: 40rpx;
-  padding: 32rpx;
-  align-items: center;
-}
-.user-avatar {
-  width: 112rpx; height: 112rpx;
-  border-radius: 50%;
-  border: 4rpx solid #1A1A23;
-  margin-right: 28rpx;
-}
-.user-name {
-  font-size: 36rpx; font-weight: 800; color: #1A1A23;
-}
-.user-desc {
-  font-size: 24rpx; color: #1A1A23;
-  opacity: 0.7;
-  margin-top: 8rpx;
-}
 .icon-chevron {
   width: 36rpx; height: 36rpx;
   background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke="%231A1A23" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center/contain;
