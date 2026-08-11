@@ -1,0 +1,42 @@
+<view class="page">
+  <view class="page-pad pt-safe">
+    <view class="flex-between head-row">
+      <view class="flex-row back-wrap" bindtap="goBack">
+        <text class="icon-back"></text>
+        <text class="page-title">消息中心</text>
+        <text class="unread-badge" wx:if="{{unread > 0}}">{{unread > 99 ? '99+' : unread}}</text>
+      </view>
+      <text class="read-all" bindtap="markAll">全部已读</text>
+    </view>
+
+    <!-- 消息列表 -->
+    <view class="msg-list">
+      <view class="msg-item {{item.isRead ? 'msg-read' : ''}}" wx:for="{{messages}}" wx:key="id"
+            data-id="{{item.id}}" data-url="{{item.jumpUrl}}" data-read="{{item.isRead}}" bindtap="tapMessage">
+        <view class="msg-icon {{'mi-' + item.type}}">{{item.icon}}</view>
+        <view class="msg-main">
+          <view class="msg-top">
+            <text class="msg-title">{{item.title}}</text>
+            <text class="msg-time">{{item.timeText}}</text>
+          </view>
+          <text class="msg-content">{{item.content}}</text>
+        </view>
+        <view class="msg-dot" wx:if="{{!item.isRead}}"></view>
+      </view>
+    </view>
+
+    <!-- 加载中 -->
+    <view class="loading-tip" wx:if="{{loading}}">加载中...</view>
+    <!-- 没有更多 -->
+    <view class="loading-tip" wx:if="{{!loading && finished && messages.length > 0}}">没有更多消息了</view>
+
+    <!-- 空态 -->
+    <view class="empty-state flex-col" wx:if="{{!loading && messages.length === 0}}">
+      <text class="empty-icon">▦</text>
+      <text class="empty-txt">暂无消息</text>
+      <text class="empty-sub">订课、退款、候补转正等动态会出现在这里</text>
+    </view>
+
+    <view class="list-spacer"></view>
+  </view>
+</view>

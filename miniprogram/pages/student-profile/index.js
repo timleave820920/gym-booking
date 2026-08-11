@@ -14,7 +14,7 @@ Page({
       ],
       [
         { icon: 'wallet', name: '我的订单', url: '/pages/student-orders/index' },
-        { icon: 'bell', name: '消息通知', url: '' }
+        { icon: 'bell', name: '消息通知', url: '/pages/student-messages/index', badge: 0 }
       ],
       [
         { icon: 'edit', name: '联系客服', url: '' }
@@ -32,9 +32,24 @@ Page({
 
   onShow() {
     this.loadBalance(true);   // 加载余额，有奖励时播动画
+    this.loadUnread();
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 3 });
     }
+  },
+
+  // 拉取未读消息数 → 消息通知入口角标
+  loadUnread() {
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+    if (!openid) return;
+    api.getUnreadCount(openid).then((res) => {
+      const n = res.unread || 0;
+      const menus = this.data.menus.map(group =>
+        group.map(item => item.name === '消息通知' ? { ...item, badge: n } : item)
+      );
+      this.setData({ menus });
+    }).catch(() => {});
   },
 
   // 从 desc 提取当前数字（避免重复刷新丢失）

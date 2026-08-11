@@ -212,6 +212,24 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_sessions_course ON course_sessions(course_id, date);
 `);
 
+// 站内信消息表（消息中心）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS messages (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_openid TEXT NOT NULL,
+    type        TEXT NOT NULL,          -- booking/waitlist/order/member/system/promo/remind
+    title       TEXT NOT NULL,
+    content     TEXT NOT NULL,
+    biz_type    TEXT DEFAULT '',
+    biz_id      INTEGER DEFAULT 0,
+    jump_url    TEXT DEFAULT '',
+    dedup_key   TEXT DEFAULT '',        -- 去重键（如 class_remind:7），防重复推送
+    is_read     INTEGER DEFAULT 0,
+    created_at  TEXT DEFAULT (datetime('now','localtime'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_openid, created_at DESC);
+`);
+
 // 预约/订单表
 db.exec(`
   CREATE TABLE IF NOT EXISTS bookings (
@@ -927,6 +945,13 @@ function createBooking({ user_openid, session_id, amount_fen = 0, pay_status = '
     JOIN venues v ON v.id = s.venue_id
     WHERE b.id = last_insert_rowid()
   `).get();
+  // 站内信：订课成功
+  sendMessage({
+    user_openid, type: 'booking', title: '订课成功',
+    content: `已成功预约「${booking.course_name}」${booking.date} ${booking.start_time}`,
+    biz_type: 'course', biz_id: booking.id, jump_url: '/pages/student-my-courses/index',
+    dedup_key: `book:${booking.id}`
+  });
   return { ok: true, booking };
 }
 
@@ -1025,6 +1050,14 @@ function checkinBooking({ bookingId, coachOpenid }) {
   const attendCoins = ENERGY_CONFIG.earnRules.attendClass || 0;
   if (checkinCoins > 0) addCoins(booking.user_openid, checkinCoins, '签到奖励', `CK-${bookingId}`);
   if (attendCoins > 0) addCoins(booking.user_openid, attendCoins, '完成课程奖励', `CK-${bookingId}`);
+  // 站内信：签到成功
+  const sInfo = getSessionById(booking.session_id);
+  sendMessage({
+    user_openid: booking.user_openid, type: 'booking', title: '签到成功',
+    content: `「${sInfo ? sInfo.course_name : '课程'}」签到成功，训练愉快，记得拉伸放松`,
+    biz_type: 'course', biz_id: bookingId, jump_url: '/pages/student-my-courses/index',
+    dedup_key: `checkin:${bookingId}`
+  });
 
   return { ok: true, booking: getCheckinInfo(bookingId) };
 }
@@ -1055,7 +1088,91 @@ function cancelBooking(openid, bookingId) {
     db.exec('ROLLBACK');
     throw e;
   }
+  // 站内信：退款到账
+  const sInfo = getSessionById(booking.session_id);
+  sendMessage({
+    user_openid: openid, type: 'order', title: '退款到账',
+    content: `退订「${sInfo ? sInfo.course_name : '课程'}」成功，¥${(booking.amount_fen / 100).toFixed(0)} 已原路退回`,
+    biz_type: 'order', biz_id: bookingId, jump_url: '/pages/student-orders/index',
+    dedup_key: `refund:${bookingId}`
+  });
   return { ok: true, promoted };
+}
+
+// ===== 消息中心（站内信）=====
+
+/**
+ * 发送站内信（带 dedup_key 时自动去重，防重复推送）
+ * @param {object} m { user_openid, type, title, content, biz_type, biz_id, jump_url, dedup_key }
+ * @returns {number|null} 消息 id 或 null(重复)
+ */
+function sendMessage(m) {
+  if (!m || !m.user_openid || !m.title) return null;
+  if (m.dedup_key) {
+    const exists = db.prepare('SELECT id FROM messages WHERE user_openid = ? AND dedup_key = ?').get(m.user_openid, m.dedup_key);
+    if (exists) return null;
+  }
+  const res = db.prepare(`INSERT INTO messages (user_openid, type, title, content, biz_type, biz_id, jump_url, dedup_key)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(m.user_openid, m.type || 'system', m.title, m.content || '', m.biz_type || '', m.biz_id || 0, m.jump_url || '', m.dedup_key || '');
+  return res.lastInsertRowid;
+}
+
+/** 全员广播（openids 不传则发给所有已注册用户） */
+function broadcastMessage(m, openids) {
+  if (!m) return 0;
+  if (!openids || openids.length === 0) {
+    openids = db.prepare('SELECT DISTINCT user_openid FROM users').all().map(r => r.user_openid);
+  }
+  let count = 0;
+  for (const oid of openids) {
+    if (sendMessage({ ...m, user_openid: oid })) count += 1;
+  }
+  return count;
+}
+
+/** 消息列表（分页，每页 20 条） */
+function listMessages(openid, page = 1) {
+  const size = 20;
+  const off = (Math.max(1, Number(page) || 1) - 1) * size;
+  return db.prepare('SELECT * FROM messages WHERE user_openid = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?').all(openid, size, off);
+}
+
+/** 未读数 */
+function unreadMessageCount(openid) {
+  return db.prepare('SELECT COUNT(*) c FROM messages WHERE user_openid = ? AND is_read = 0').get(openid).c;
+}
+
+/** 标记单条已读（校验归属） */
+function markMessageRead(id, openid) {
+  return db.prepare('UPDATE messages SET is_read = 1 WHERE id = ? AND user_openid = ?').run(id, openid).changes > 0;
+}
+
+/** 全部已读 */
+function markAllMessagesRead(openid) {
+  return db.prepare('UPDATE messages SET is_read = 1 WHERE user_openid = ? AND is_read = 0').run(openid).changes;
+}
+
+/** 未来 N 小时内开场的已发布场次（开课提醒用） */
+function listSessionsStartingSoon(hours) {
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const hh = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const startHH = hh(now);
+  const end = new Date(now.getTime() + hours * 3600e3);
+  const endHH = hh(end);
+  return db.prepare(`
+    SELECT s.id, s.date, s.start_time, s.end_time, s.course_id, c.name AS course_name, v.name AS venue_name
+    FROM course_sessions s
+    JOIN courses c ON c.id = s.course_id
+    JOIN venues v ON v.id = s.venue_id
+    WHERE s.status = 'published' AND s.date = ? AND s.start_time > ? AND s.start_time <= ?
+  `).all(today, startHH, endHH);
+}
+
+/** 某场次已订学员 openid 列表 */
+function listBookedUsersBySession(sessionId) {
+  return db.prepare("SELECT DISTINCT user_openid FROM bookings WHERE session_id = ? AND status = 'booked'").all(sessionId).map(r => r.user_openid);
 }
 
 // ===== 订单（orders）=====
@@ -1345,6 +1462,15 @@ function promoteFromWaitlist(sessionId) {
   db.prepare("UPDATE orders SET booking_id = ?, wait_id = ?, order_type = 'book' WHERE wait_id = ? AND status = 'paid'")
     .run(bookingId, waiting.id, waiting.id);
 
+  // 站内信：候补转正
+  const sInfo = getSessionById(sessionId);
+  sendMessage({
+    user_openid: waiting.user_openid, type: 'waitlist', title: '候补转正',
+    content: `你候补的「${sInfo ? sInfo.course_name : '课程'}」${sInfo ? sInfo.date + ' ' + sInfo.start_time : ''} 已有空位，已为你自动转正`,
+    biz_type: 'course', biz_id: sessionId, jump_url: '/pages/student-my-courses/index',
+    dedup_key: `promote:${waiting.id}`
+  });
+
   return {
     id: waiting.id,
     wait_no: waiting.wait_no,
@@ -1444,8 +1570,10 @@ function listWaitlistByUser(openid) {
  */
 function refundExpiredWaitlist() {
   const expired = db.prepare(`
-    SELECT w.id FROM waitlist w
+    SELECT w.id, w.user_openid, w.amount_fen, s.course_id, s.start_time, c.name AS course_name
+    FROM waitlist w
     JOIN course_sessions s ON s.id = w.session_id
+    JOIN courses c ON c.id = s.course_id
     WHERE w.status = 'waiting'
       AND (s.date < date('now','localtime')
            OR (s.date = date('now','localtime') AND s.start_time < time('now','localtime')))
@@ -1461,6 +1589,13 @@ function refundExpiredWaitlist() {
       db.exec('ROLLBACK');
       throw e;
     }
+    // 站内信：候补过期退款
+    sendMessage({
+      user_openid: row.user_openid, type: 'waitlist', title: '候补退款',
+      content: `「${row.course_name}」${row.start_time} 开课前未排到空位，¥${(row.amount_fen / 100).toFixed(0)} 已自动退回`,
+      biz_type: 'order', biz_id: row.id, jump_url: '/pages/student-orders/index',
+      dedup_key: `refund_expire:${row.id}`
+    });
   }
   return expired.length;
 }
@@ -1532,6 +1667,14 @@ module.exports = {
   cancelSession,
   updateSessionCapacity,
   getSessionById,
+  sendMessage,
+  broadcastMessage,
+  listMessages,
+  unreadMessageCount,
+  markMessageRead,
+  markAllMessagesRead,
+  listSessionsStartingSoon,
+  listBookedUsersBySession,
   // 订课
   createBooking,
   listBookingsByUser,

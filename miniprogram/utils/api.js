@@ -218,6 +218,20 @@ module.exports = {
     return localRequest('/api/sessions/' + sessionId + '/students', 'GET');
   },
 
+  // ===== 消息中心（站内信）=====
+  getMessages(openid, page) {
+    return localRequest('/api/messages?openid=' + openid + '&page=' + (page || 1), 'GET');
+  },
+  getUnreadCount(openid) {
+    return localRequest('/api/messages/unread-count?openid=' + openid, 'GET');
+  },
+  markMessageRead(id, openid) {
+    return localRequest('/api/messages/' + id + '/read', 'POST', { openid });
+  },
+  markAllMessagesRead(openid) {
+    return localRequest('/api/messages/read-all', 'POST', { openid });
+  },
+
   // ===== 会员体系 =====
   getMemberLevel(openid) {
     return localRequest('/api/member/level?openid=' + openid, 'GET');

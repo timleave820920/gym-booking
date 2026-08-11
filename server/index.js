@@ -782,6 +782,38 @@ function handleReplaceRules(req, res, id, body) {
   return sendJson(res, 200, { code: 200, message: '排课规则已保存' });
 }
 
+// ===== 消息中心（站内信）=====
+function handleListMessages(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  const page = Number(url.searchParams.get('page') || 1);
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  const messages = db.listMessages(openid, page);
+  const unread = db.unreadMessageCount(openid);
+  return sendJson(res, 200, { code: 200, messages, unread, page });
+}
+
+function handleUnreadCount(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  return sendJson(res, 200, { code: 200, unread: db.unreadMessageCount(openid) });
+}
+
+function handleMarkRead(req, res, id, body) {
+  const openid = (body || {}).openid;
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  db.markMessageRead(Number(id), openid);
+  return sendJson(res, 200, { code: 200, message: '已读' });
+}
+
+function handleMarkAllRead(req, res, body) {
+  const openid = (body || {}).openid;
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  const n = db.markAllMessagesRead(openid);
+  return sendJson(res, 200, { code: 200, message: `已将 ${n} 条消息标记为已读`, cleared: n });
+}
+
 // ===== 静态资源（课程编辑网页 + 图片）=====
 function serveStatic(res, filePath) {
   fs.readFile(filePath, (err, data) => {
@@ -909,6 +941,17 @@ const server = http.createServer(async (req, res) => {
       handleCoinConfig(req, res);
     } else if (req.method === 'POST' && pathname === '/api/coin/exchange') {
       await handleCoinExchange(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/messages') {
+      handleListMessages(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/messages/unread-count') {
+      handleUnreadCount(req, res);
+    } else if (req.method === 'POST' && /^\/api\/messages\/\d+\/read$/.test(pathname)) {
+      const id = pathname.split('/')[3];
+      const body = await readBody(req);
+      handleMarkRead(req, res, id, body);
+    } else if (req.method === 'POST' && pathname === '/api/messages/read-all') {
+      const body = await readBody(req);
+      handleMarkAllRead(req, res, body);
     } else if (req.method === 'GET' && pathname === '/api/health') {
       sendJson(res, 200, { code: 200, status: 'ok', time: new Date().toISOString() });
     } else if (req.method === 'GET' && pathname === '/api/meta') {
@@ -986,4 +1029,24 @@ server.listen(PORT, HOST, () => {
   console.log(`  前端适配: ${net ? '已写入 miniprogram/utils/net-config.json（重新编译小程序生效）' : '回退 127.0.0.1'}`);
   console.log(`  数据库: server/data/gym.db`);
   console.log('========================================');
+
+  // 消息中心：开课提醒定时任务（每 60 秒扫描未来 2 小时内开场的场次，通知已订学员）
+  setInterval(() => {
+    try {
+      const sessions = db.listSessionsStartingSoon(2);
+      for (const s of sessions) {
+        const users = db.listBookedUsersBySession(s.id);
+        for (const oid of users) {
+          db.sendMessage({
+            user_openid: oid, type: 'remind', title: '开课提醒',
+            content: `${s.start_time}「${s.course_name}」即将开课，记得提前 15 分钟到场热身`,
+            biz_type: 'course', biz_id: s.id, jump_url: '/pages/student-my-courses/index',
+            dedup_key: `class_remind:${s.id}`
+          });
+        }
+      }
+    } catch (e) {
+      console.error('[class reminder]', e.message);
+    }
+  }, 60 * 1000);
 });
