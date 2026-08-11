@@ -48,9 +48,9 @@
           <view class="cb-top">
             <image class="cb-avatar" src="{{item.coachAvatar}}" mode="aspectFill" data-idx="{{index}}" binderror="avatarError"></image>
             <text class="cb-name">{{item.name}}</text>
-            <view class="cb-dots">
-              <view class="cb-dot {{dotIdx < item.level ? 'cb-dot-on' : ''}}"
-                    wx:for="{{[0,1,2,3,4]}}" wx:for-item="dotIdx" wx:key="*this"></view>
+            <view class="cb-stars">
+              <text class="cb-star {{sIdx <= item.level ? 'cb-star-on' : ''}}"
+                    wx:for="{{[1,2,3,4,5]}}" wx:for-item="sIdx" wx:key="*this">{{sIdx <= item.level ? '★' : '☆'}}</text>
             </view>
           </view>
 

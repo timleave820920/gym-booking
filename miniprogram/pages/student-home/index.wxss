@@ -129,6 +129,7 @@
   color: #1A1A23;
   flex: 1;
   min-width: 0;
+  padding-right: 150rpx;   /* 给右上角星标让位 */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -193,19 +194,21 @@
   color: #B0AFA8;
   font-weight: 400;
 }
-.cb-dots {
+.cb-stars {
+  position: absolute;      /* 难度星标：右上角 */
+  top: 22rpx;
+  right: 24rpx;
   display: flex;
-  gap: 6rpx;
+  gap: 2rpx;
   flex-shrink: 0;
 }
-.cb-dot {
-  width: 16rpx;
-  height: 16rpx;
-  border-radius: 50%;
-  background: #E5E2D4;
+.cb-star {
+  font-size: 22rpx;
+  line-height: 1;
+  color: #E0DCCB;          /* 空星 */
 }
-.cb-dot-on {
-  background: #5B57EB;
+.cb-star-on {
+  color: #EF9F27;          /* 实星金色 */
 }
 /* 预约按钮 */
 .cb-btn {
