@@ -105,7 +105,7 @@ function handleCors(req, res) {
 
 async function handleLogin(req, res) {
   const body = await readBody(req);
-  const { code, openid, nickname, avatar, phone } = body;
+  const { code, openid, nickname, avatar, phone, role } = body;
 
   // 1. 优先用 code 调微信接口换真实 openid（真实微信身份）
   let finalOpenid = null;
@@ -150,7 +150,8 @@ async function handleLogin(req, res) {
     openid: finalOpenid,
     nickname: nickname || '',
     avatar: avatar || '',
-    phone: phone || ''
+    phone: phone || '',
+    role: role || 'student'
   });
   return sendJson(res, 201, {
     code: 201,
@@ -411,6 +412,7 @@ async function handlePayOrder(req, res) {
   return sendJson(res, 200, {
     code: 200,
     message: result.already ? '订单已支付' : '支付成功',
+    already: !!result.already,
     order: result.order,
     booking: result.booking,
     wait: result.wait
