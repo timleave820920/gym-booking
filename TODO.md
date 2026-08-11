@@ -131,7 +131,7 @@
 
 - [ ] **P1｜数据迁移脚本** — 本地 SQLite ↔ 云数据库（users 已双写，其余表待建）
 - [ ] **P1｜云开发部署** — 正式 AppID 后：建集合 → 上传云函数 → `USE_CLOUD=true` + `CLOUD_ENV` → 验证真实 openid 入库（见 CLOUD_GUIDE.md）
-- [ ] **P2｜成就数据真实化** — `total_classes / total_hours / total_calories / streak` 目前是静态字段，缺打卡累计逻辑
+- [x] **P2｜成就数据真实化** — 成就页改为订课记录实时计算：累计次数/时长/卡路里（10千卡/分估算）/连续天数/本周记录/徽章解锁（8/11 完成）
 - [ ] **P2｜接口测试** — minitest/ 目录已有雏形，补 API 自动化测试
 - [ ] **P2｜数据导出** — 学员/订单/营收导出 Excel/CSV
 
