@@ -125,6 +125,7 @@
 .cb-name {
   font-size: 34rpx;
   font-weight: 800;
+  letter-spacing: 1rpx;
   color: #1A1A23;
   flex: 1;
   min-width: 0;
@@ -139,10 +140,13 @@
   justify-content: space-between;
   margin-top: 16rpx;
 }
+/* 科技运动感数字字体栈：Windows=Bahnschrift/DIN，手机回退等宽 */
 .cb-time {
-  font-family: "DIN Alternate", "Bahnschrift", monospace;
+  font-family: "Bahnschrift", "DIN Alternate", "Roboto Mono", "SF Mono", "Menlo", monospace;
   font-size: 40rpx;
-  font-weight: 800;
+  font-weight: 700;
+  font-style: italic;                 /* 斜体提速感 */
+  letter-spacing: 2rpx;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   color: #1A1A23;
@@ -153,9 +157,10 @@
 }
 /* 纯数字席位（如 4/20） */
 .cb-seat-num {
-  font-family: "DIN Alternate", "Bahnschrift", monospace;
+  font-family: "Bahnschrift", "DIN Alternate", "Roboto Mono", "SF Mono", "Menlo", monospace;
   font-size: 32rpx;
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: 1rpx;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   color: #E5484D;
@@ -172,8 +177,10 @@
   gap: 16rpx;
 }
 .cb-price {
+  font-family: "Bahnschrift", "DIN Alternate", "Roboto Mono", "SF Mono", "Menlo", monospace;
   font-size: 30rpx;
   font-weight: 800;
+  letter-spacing: 1rpx;
   color: #1A1A23;
   flex-shrink: 0;
 }
