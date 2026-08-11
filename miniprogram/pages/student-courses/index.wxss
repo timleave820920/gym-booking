@@ -96,7 +96,7 @@
   color: #1A1A23;
   flex: 1;
   min-width: 0;
-  padding-right: 150rpx;   /* 给右上角星标让位 */
+  padding-right: 180rpx;   /* 给右上角星标让位（星标加大后） */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -170,9 +170,9 @@
   flex-shrink: 0;
 }
 .cb-star {
-  font-size: 22rpx;
+  font-size: 30rpx;          /* 与课程名字号相当 */
   line-height: 1;
-  color: #E0DCCB;          /* 空星 */
+  color: #E0DCCB;            /* 空星 */
 }
 .cb-star-on {
   color: #EF9F27;          /* 实星金色 */
