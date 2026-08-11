@@ -1,5 +1,8 @@
 <view class="page">
   <view class="page-pad pt-safe">
+    <!-- 页标题（与上课页一致：48rpx 左对齐） -->
+    <text class="page-title">活动中心</text>
+
     <!-- 会员卡预览 -->
     <view class="vip-preview" bindtap="go" data-url="/pages/member-card/index">
       <view class="vip-top">

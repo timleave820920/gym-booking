@@ -9,6 +9,15 @@
   padding-top: 8rpx;
 }
 
+/* 页标题（与上课页 page-title 一致：48rpx/800 深黑，默认左对齐） */
+.page-title {
+  display: block;
+  font-size: 48rpx;
+  font-weight: 800;
+  color: #1A1A23;
+  margin-bottom: 20rpx;
+}
+
 /* 会员卡预览 */
 .vip-preview {
   position: relative;
