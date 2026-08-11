@@ -253,7 +253,7 @@ const DICT = {
   todayTag: { zh: '今天', en: 'Today' },
   timeRangeSeats: { zh: '{{start}}-{{end}} · {{remaining}}/{{capacity}}', en: '{{start}}-{{end}} · {{remaining}}/{{capacity}}' },
   bookPrice: { zh: '¥{{price}} 约课', en: '¥{{price}} Book' },
-  waitlistBtn: { zh: '候补排位', en: 'Waitlist' },
+  waitlistBtn: { zh: '排位', en: 'Waitlist' },
   waitlistSub: { zh: '已满 · 可付费排队，有人退订自动转正', en: 'Full · Queue up, auto-promoted when someone cancels' },
   waitlistSuccess: { zh: '排位成功', en: 'Waitlisted' },
   waitlistQueued: { zh: '候补中', en: 'In Queue' },

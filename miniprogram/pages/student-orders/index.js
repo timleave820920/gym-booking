@@ -37,7 +37,7 @@ Page({
           date: o.date,
           time: `${o.start_time}-${o.end_time}`,
           price: (o.amount_fen / 100).toFixed(0),
-          type: o.order_type === 'waitlist' ? '候补排位' : '订课',
+          type: o.order_type === 'waitlist' ? '排位' : '订课',
           status: o.status,
           statusText: st.text,
           statusCls: st.cls,
