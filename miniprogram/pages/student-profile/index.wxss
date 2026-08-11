@@ -177,3 +177,21 @@
 .icon-recharge {
   background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M12 5V19M5 12H19" stroke="%231A1A23" stroke-width="2.5" stroke-linecap="round"/><path d="M7 4H17C18.1 4 19 4.9 19 6V18C19 19.1 18.1 20 17 20H7C5.9 20 5 19.1 5 18V6C5 4.9 5.9 4 7 4Z" stroke="%231A1A23" stroke-width="1.5" stroke-dasharray="2 2"/></svg>');
 }
+
+/* 能量币块 */
+.coin-block {
+  align-items: center;
+  padding: 0 24rpx;
+  border-right: 2rpx solid rgba(255,255,255,0.2);
+  border-left: 2rpx solid rgba(255,255,255,0.2);
+}
+.coin-block-label {
+  font-size: 20rpx;
+  color: rgba(255,255,255,0.6);
+}
+.coin-block-value {
+  margin-top: 4rpx;
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #F8D044;
+}

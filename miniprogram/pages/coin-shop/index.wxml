@@ -1,0 +1,66 @@
+<view class="page">
+  <view class="page-pad pt-safe">
+    <!-- 能量币余额卡 -->
+    <view class="coin-card">
+      <view class="coin-top">
+        <view class="coin-l">
+          <text class="coin-label">我的能量币</text>
+          <text class="coin-value">{{balance}}</text>
+        </view>
+        <view class="coin-rules" bindtap="showRules">获取规则</view>
+      </view>
+      <text class="coin-today">今日已获取 {{todayEarned}} 币{{dailyLimit > 0 ? ' / 上限 ' + dailyLimit + ' 币' : ''}}</text>
+    </view>
+
+    <!-- 奖品网格 -->
+    <view class="sec-title">奖品兑换</view>
+    <view class="shop-grid">
+      <view class="shop-item" wx:for="{{items}}" wx:key="id">
+        <view class="item-head">
+          <text class="item-name">{{item.name}}</text>
+          <text class="item-type">{{item.typeText}}</text>
+        </view>
+        <text class="item-desc">{{item.desc}}</text>
+        <view class="item-foot">
+          <text class="item-cost">{{item.cost}} 币</text>
+          <text class="item-stock {{item.soldOut ? 'stock-out' : ''}}">{{item.stockText}}</text>
+        </view>
+        <view class="item-btn {{item.soldOut ? 'btn-out' : ''}}" bindtap="exchange" data-id="{{item.id}}">
+          {{item.soldOut ? '已兑完' : '兑换'}}
+        </view>
+      </view>
+    </view>
+
+    <!-- 兑换记录 -->
+    <view class="sec-title">兑换记录</view>
+    <view class="ex-list" wx:if="{{exchanges.length > 0}}">
+      <view class="ex-item" wx:for="{{exchanges}}" wx:key="id">
+        <view class="ex-l">
+          <text class="ex-name">{{item.name}}</text>
+          <text class="ex-time">{{item.time}}</text>
+        </view>
+        <view class="ex-r">
+          <text class="ex-cost">-{{item.cost}} 币</text>
+          <text class="ex-status">{{item.statusText}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="ex-empty" wx:else>暂无兑换记录，攒币换好礼吧</view>
+
+    <!-- 兑换成功弹窗 -->
+    <view class="code-mask" wx:if="{{showCode}}" bindtap="closeCode">
+      <view class="code-card">
+        <text class="code-title">兑换成功！</text>
+        <text class="code-name">{{showCode.name}}</text>
+        <block wx:if="{{showCode.code}}">
+          <text class="code-label">兑换码</text>
+          <text class="code-value">{{showCode.code}}</text>
+        </block>
+        <block wx:else>
+          <text class="code-physical">到店前台报手机号领取</text>
+        </block>
+        <view class="code-btn" bindtap="closeCode">知道了</view>
+      </view>
+    </view>
+  </view>
+</view>

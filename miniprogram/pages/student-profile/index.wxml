@@ -20,6 +20,10 @@
         <text class="balance-label">储值余额</text>
         <text class="balance-value {{balanceAnim ? 'balance-anim' : ''}}">¥ {{balance}}</text>
       </view>
+      <view class="flex-col coin-block">
+        <text class="coin-block-label">⚡ 能量币</text>
+        <text class="coin-block-value">{{coinBalance}}</text>
+      </view>
       <view class="center-entry flex-row">
         <text class="center-entry-txt">活动中心</text>
         <text class="icon-chevron-sm"></text>

@@ -35,11 +35,15 @@ db.exec(`
     created_at    TEXT DEFAULT (datetime('now','localtime')),  -- 注册时间
     last_login_at TEXT DEFAULT (datetime('now','localtime')),  -- 最后登录时间
     login_count   INTEGER DEFAULT 0,             -- 登录次数
-    balance_fen   INTEGER DEFAULT 0              -- 储值余额（单位：分）
+    balance_fen   INTEGER DEFAULT 0,             -- 储值余额（单位：分）
+    coin_balance  INTEGER DEFAULT 0,             -- 能量币余额
+    level_lv      INTEGER DEFAULT 1              -- 当前会员等级（升级检测用）
   );
 `);
-// 兼容旧库：确保 balance_fen 列存在
+// 兼容旧库：确保 balance_fen / coin_balance / level_lv 列存在
 try { db.exec('ALTER TABLE users ADD COLUMN balance_fen INTEGER DEFAULT 0'); } catch (e) {}
+try { db.exec('ALTER TABLE users ADD COLUMN coin_balance INTEGER DEFAULT 0'); } catch (e) {}
+try { db.exec('ALTER TABLE users ADD COLUMN level_lv INTEGER DEFAULT 1'); } catch (e) {}
 
 // ===== 会员体系表 =====
 
@@ -84,6 +88,36 @@ db.exec(`
     reward_fen  INTEGER DEFAULT 0,                -- 已发奖励（分）
     created_at  TEXT DEFAULT (datetime('now','localtime')),
     UNIQUE (invitee)
+  );
+`);
+
+// 能量币流水表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS coin_logs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_openid TEXT NOT NULL,
+    change      INTEGER NOT NULL,               -- 变动（正=获得 负=兑换）
+    balance_after INTEGER DEFAULT 0,
+    reason      TEXT DEFAULT '',
+    ref_id      TEXT DEFAULT '',
+    created_at  TEXT DEFAULT (datetime('now','localtime')),
+    FOREIGN KEY (user_openid) REFERENCES users(openid)
+  );
+  CREATE INDEX IF NOT EXISTS idx_coin_logs_user ON coin_logs(user_openid, created_at);
+`);
+
+// 能量商店兑换记录表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS coin_exchanges (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_openid TEXT NOT NULL,
+    item_id     TEXT NOT NULL,
+    item_name   TEXT NOT NULL,
+    cost        INTEGER NOT NULL,
+    code        TEXT,                            -- 虚拟奖品兑换码
+    status      TEXT DEFAULT 'pending',          -- pending 待领取 / claimed 已领取
+    created_at  TEXT DEFAULT (datetime('now','localtime')),
+    FOREIGN KEY (user_openid) REFERENCES users(openid)
   );
 `);
 
@@ -299,6 +333,17 @@ function getMemberLevel(openid) {
   for (const l of LEVELS) {
     if (total >= l.min) level = l;
   }
+  // 升级检测：等级提升 → 发能量币 + 更新 level_lv
+  const oldLv = user.level_lv || 1;
+  if (level.lv > oldLv) {
+    const times = level.lv - oldLv;
+    const coins = (ENERGY_CONFIG.earnRules.levelUp || 0) * times;
+    if (coins > 0) addCoins(openid, coins, `会员升级（${level.name}）`, `LV-${level.lv}`);
+    db.prepare('UPDATE users SET level_lv = ? WHERE openid = ?').run(level.lv, openid);
+  } else if (level.lv < oldLv) {
+    // 等级只升不降（配置调整场景兜底）
+    db.prepare('UPDATE users SET level_lv = ? WHERE openid = ?').run(level.lv, openid);
+  }
   const idx = LEVELS.indexOf(level);
   const next = LEVELS[idx + 1] || null;
   return {
@@ -310,7 +355,8 @@ function getMemberLevel(openid) {
     levelMin: level.min,
     next: next ? { name: next.name, min: next.min, discount: next.discount } : null,
     progress: next ? Math.min(100, Math.round((total - level.min) / (next.min - level.min) * 100)) : 100,
-    balanceFen: user.balance_fen || 0
+    balanceFen: user.balance_fen || 0,
+    coinBalance: user.coin_balance || 0
   };
 }
 
@@ -326,6 +372,152 @@ function addBalance(openid, changeFen, reason, refId) {
   return balanceAfter;
 }
 
+// ===== 能量币系统（获取/流水/兑换）=====
+// 配置从 energy-config.js 读取（唯一数据源）
+
+const ENERGY_CONFIG = require('./energy-config.js');
+const SHOP_ITEMS = require('./shop-items.js');
+
+/** 今日已获取能量币（防刷上限） */
+function todayCoinsEarned(openid) {
+  const row = db.prepare(`
+    SELECT COALESCE(SUM(change), 0) s FROM coin_logs
+    WHERE user_openid = ? AND change > 0
+      AND date(created_at) = date('now','localtime')
+  `).get(openid);
+  return row.s;
+}
+
+/**
+ * 发放能量币（含每日上限校验）
+ * @returns {number|null} 变动后余额；超限返回 null
+ */
+function addCoins(openid, change, reason, refId) {
+  const user = findUserByOpenid(openid);
+  if (!user) return null;
+  if (change <= 0) return user.coin_balance || 0;
+  const limit = ENERGY_CONFIG.dailyLimit || 0;
+  if (limit > 0 && todayCoinsEarned(openid) + change > limit) {
+    // 超每日上限：按剩余额度发放
+    const remain = limit - todayCoinsEarned(openid);
+    if (remain <= 0) return null;
+    change = remain;
+  }
+  const after = (user.coin_balance || 0) + change;
+  db.prepare('UPDATE users SET coin_balance = ? WHERE openid = ?').run(after, openid);
+  db.prepare(`INSERT INTO coin_logs (user_openid, change, balance_after, reason, ref_id)
+              VALUES (?, ?, ?, ?, ?)`)
+    .run(openid, change, after, reason, refId || '');
+  return after;
+}
+
+/** 查询能量币余额 + 今日获取 */
+function getCoinInfo(openid) {
+  const user = findUserByOpenid(openid);
+  if (!user) return null;
+  return {
+    openid,
+    balance: user.coin_balance || 0,
+    todayEarned: todayCoinsEarned(openid),
+    dailyLimit: ENERGY_CONFIG.dailyLimit || 0
+  };
+}
+
+/** 能量币流水 */
+function listCoinLogs(openid, limit = 50) {
+  return db.prepare(`
+    SELECT id, change, balance_after, reason, ref_id, created_at
+    FROM coin_logs WHERE user_openid = ? ORDER BY created_at DESC, id DESC LIMIT ?
+  `).all(openid, limit);
+}
+
+/** 商店奖品列表（含库存与已兑换数） */
+function listShopItems(openid) {
+  return SHOP_ITEMS.map(item => {
+    const exchanged = db.prepare('SELECT COUNT(*) c FROM coin_exchanges WHERE item_id = ?').get(item.id).c;
+    const stockLeft = item.stock < 0 ? -1 : Math.max(item.stock - exchanged, 0);
+    return {
+      ...item,
+      stockLeft,
+      soldOut: item.stock >= 0 && stockLeft <= 0
+    };
+  });
+}
+
+/**
+ * 兑换奖品
+ * @param {object} p { openid, itemId }
+ * @returns {{ok:true, exchange:object}|{ok:false, error:string}}
+ */
+function exchangeCoinItem({ openid, itemId }) {
+  const user = findUserByOpenid(openid);
+  if (!user) return { ok: false, error: '用户不存在，请先登录' };
+  const item = SHOP_ITEMS.find(i => i.id === itemId);
+  if (!item) return { ok: false, error: '奖品不存在' };
+
+  // 库存校验
+  const exchanged = db.prepare('SELECT COUNT(*) c FROM coin_exchanges WHERE item_id = ?').get(item.id).c;
+  if (item.stock >= 0 && exchanged >= item.stock) return { ok: false, error: '奖品已兑完' };
+
+  // 余额校验
+  const balance = user.coin_balance || 0;
+  if (balance < item.cost) return { ok: false, error: `能量币不足，还需 ${item.cost - balance} 币` };
+
+  db.exec('BEGIN');
+  try {
+    const after = balance - item.cost;
+    db.prepare('UPDATE users SET coin_balance = ? WHERE openid = ?').run(after, openid);
+    db.prepare(`INSERT INTO coin_logs (user_openid, change, balance_after, reason, ref_id)
+                VALUES (?, ?, ?, '兑换奖品', ?)`)
+      .run(openid, -item.cost, after, item.id);
+    // 虚拟奖品生成兑换码
+    let code = null;
+    if (item.type === 'virtual') {
+      code = 'CD' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
+    }
+    const r = db.prepare(`INSERT INTO coin_exchanges (user_openid, item_id, item_name, cost, code, status)
+                          VALUES (?, ?, ?, ?, ?, 'pending')`)
+      .run(openid, item.id, item.name, item.cost, code);
+    const exchange = db.prepare('SELECT * FROM coin_exchanges WHERE id = last_insert_rowid()').get();
+    db.exec('COMMIT');
+    return { ok: true, exchange };
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+/** 我的兑换记录 */
+function listMyExchanges(openid) {
+  return db.prepare(`
+    SELECT id, item_id, item_name, cost, code, status, created_at
+    FROM coin_exchanges WHERE user_openid = ? ORDER BY created_at DESC, id DESC
+  `).all(openid);
+}
+
+/** 升级检测：返回本次升级奖励（登录/查询时对比 oldLv/newLv） */
+function checkLevelUpReward(openid, oldLevel) {
+  const cur = getMemberLevel(openid);
+  if (!cur || !oldLevel) return null;
+  if (cur.levelLv > oldLevel) {
+    // 每升一级发一次（多级连升按级数发）
+    const times = cur.levelLv - oldLevel;
+    const total = ENERGY_CONFIG.earnRules.levelUp * times;
+    addCoins(openid, total, `会员升级（${cur.levelName}）`, `LV-${cur.levelLv}`);
+    return { level: cur.levelName, coins: total };
+  }
+  return null;
+}
+
+/** 邀请奖励（发储值的同时发能量币） */
+function rewardInviterCoins(invitee) {
+  const inv = db.prepare("SELECT * FROM invitations WHERE invitee = ? AND status = 'ordered'").get(invitee);
+  if (!inv) return null;
+  const cnt = db.prepare("SELECT COUNT(*) c FROM invitations WHERE inviter = ? AND status = 'ordered'").get(inv.inviter).c;
+  addCoins(inv.inviter, ENERGY_CONFIG.earnRules.invite, `邀请奖励（第${cnt}人）`, `INV-${inv.id}`);
+  return { inviter: inv.inviter, coins: ENERGY_CONFIG.earnRules.invite };
+}
+
 /** 充值（订单支付后调用） */
 function applyRecharge({ user_openid, order_id, amount_fen, bonus_fen }) {
   const rechargeNo = 'RC' + Date.now() + Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -333,6 +525,12 @@ function applyRecharge({ user_openid, order_id, amount_fen, bonus_fen }) {
               VALUES (?, ?, ?, ?, ?, 'paid')`)
     .run(rechargeNo, user_openid, order_id, amount_fen, bonus_fen);
   addBalance(user_openid, amount_fen + bonus_fen, '充值', rechargeNo);
+  // 能量币：每充 ¥100 → 50 币（按充值金额折算，不送的部分不计）
+  const coinRate = ENERGY_CONFIG.earnRules.recharge || 0;   // 每 100 元
+  if (coinRate > 0 && amount_fen >= 10000) {
+    const coins = Math.floor(amount_fen / 10000) * coinRate;
+    addCoins(user_openid, coins, '充值奖励', rechargeNo);
+  }
   return { rechargeNo, total: amount_fen + bonus_fen };
 }
 
@@ -369,6 +567,8 @@ function rewardInviter(invitee) {
   const needFen = reward.fen - already;
   if (needFen <= 0) return null;
   const bal = addBalance(inv.inviter, needFen, `邀请奖励（${cnt}人）`, `INV-${inv.id}`);
+  // 能量币：每成功邀请 1 人 → 100 币（每次首订都发，不限阶梯）
+  addCoins(inv.inviter, ENERGY_CONFIG.earnRules.invite || 0, `邀请奖励（第${cnt}人）`, `INV-${inv.id}`);
   return { inviter: inv.inviter, rewardFen: needFen, invitedCount: cnt, balance: bal };
 }
 
@@ -796,6 +996,11 @@ function checkinBooking({ bookingId, coachOpenid }) {
   db.prepare("UPDATE bookings SET checkin_at = datetime('now','localtime') WHERE id = ?").run(bookingId);
   // 同步用户累计次数（total_classes +1）
   db.prepare('UPDATE users SET total_classes = total_classes + 1 WHERE openid = ?').run(booking.user_openid);
+  // 能量币：签到 + 上课
+  const checkinCoins = ENERGY_CONFIG.earnRules.checkin || 0;
+  const attendCoins = ENERGY_CONFIG.earnRules.attendClass || 0;
+  if (checkinCoins > 0) addCoins(booking.user_openid, checkinCoins, '签到奖励', `CK-${bookingId}`);
+  if (attendCoins > 0) addCoins(booking.user_openid, attendCoins, '完成课程奖励', `CK-${bookingId}`);
 
   return { ok: true, booking: getCheckinInfo(bookingId) };
 }
@@ -1329,5 +1534,15 @@ module.exports = {
   rewardInviter,
   getInviteStats,
   listUnreadBalanceLogs,
-  markBalanceLogsRead
+  markBalanceLogsRead,
+  // 能量币
+  addCoins,
+  getCoinInfo,
+  listCoinLogs,
+  listShopItems,
+  exchangeCoinItem,
+  listMyExchanges,
+  checkLevelUpReward,
+  rewardInviterCoins,
+  ENERGY_CONFIG
 };

@@ -23,6 +23,12 @@
       </view>
       <view class="vip-hint" wx:if="{{level}}">{{level.hint}}</view>
       <view class="vip-loading" wx:else>加载中...</view>
+      <!-- 能量币行 -->
+      <view class="vip-coins" wx:if="{{coins !== null}}" bindtap="goCoinShop">
+        <text class="vip-coins-label">⚡ 能量币</text>
+        <text class="vip-coins-value">{{coins}}</text>
+        <text class="vip-coins-go">去商店 →</text>
+      </view>
       <!-- 未读奖励提示 -->
       <view class="reward-ribbon" wx:if="{{rewards > 0}}" bindtap="claimReward">
         <text>🎉 有 {{rewards}} 笔储值奖励待领取</text>
@@ -43,6 +49,10 @@
       <view class="grid-item" bindtap="go" data-url="/pages/invite/index">
         <view class="g-icon gi-red"><text class="g-icon-txt">+</text></view>
         <view class="g-info"><text class="g-name">邀请好友</text><text class="g-sub">{{gridSubs.invite}}</text></view>
+      </view>
+      <view class="grid-item" bindtap="goCoinShop">
+        <view class="g-icon gi-gold"><text class="g-icon-txt">⚡</text></view>
+        <view class="g-info"><text class="g-name">能量商店</text><text class="g-sub">签到攒币换好礼</text></view>
       </view>
       <view class="grid-item" bindtap="go" data-url="/pages/about-us/index">
         <view class="g-icon gi-green"><text class="g-icon-txt">理</text></view>

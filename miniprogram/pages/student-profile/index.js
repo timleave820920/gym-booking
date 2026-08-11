@@ -6,6 +6,7 @@ Page({
     user: { name: '微信用户', avatar: '/images/2_556.png', desc: '累计锻炼 0 节课' },
     balance: '0.00',
     balanceAnim: false,
+    coinBalance: 0,
     menus: [
       [
         { icon: 'card', name: '我的会员卡', url: '/pages/member-card/index' },
@@ -85,7 +86,7 @@ Page({
     if (!openid) return;
     api.getMemberLevel(openid).then((res) => {
       const balance = (res.level.balanceFen / 100).toFixed(2);
-      this.setData({ balance, balanceAnim: false });
+      this.setData({ balance, balanceAnim: false, coinBalance: res.level.coinBalance || 0 });
       if (animate && Number(balance) > 0) {
         // 触发余额增加动画（滚动数字效果）
         setTimeout(() => {

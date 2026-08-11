@@ -242,5 +242,25 @@ module.exports = {
   },
   markRewardsRead(openid) {
     return localRequest('/api/member/rewards/read', 'POST', { openid });
+  },
+
+  // ===== 能量币 =====
+  getCoinBalance(openid) {
+    return localRequest('/api/coin/balance?openid=' + openid, 'GET');
+  },
+  getCoinLogs(openid) {
+    return localRequest('/api/coin/logs?openid=' + openid, 'GET');
+  },
+  getCoinShop(openid) {
+    return localRequest('/api/coin/shop?openid=' + (openid || ''), 'GET');
+  },
+  getCoinConfig() {
+    return localRequest('/api/coin/config', 'GET');
+  },
+  exchangeCoin(openid, itemId) {
+    return localRequest('/api/coin/exchange', 'POST', { openid, itemId });
+  },
+  getMyExchanges(openid) {
+    return localRequest('/api/coin/exchanges?openid=' + openid, 'GET');
   }
 };

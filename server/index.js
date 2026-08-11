@@ -505,6 +505,60 @@ async function handleMemberRewardsRead(req, res) {
   return sendJson(res, 200, { code: 200, message: '已标记' });
 }
 
+// ===== 能量币（coin）=====
+
+// 余额 + 今日获取（GET /api/coin/balance?openid=xxx）
+function handleCoinBalance(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  const info = db.getCoinInfo(openid);
+  if (!info) return sendJson(res, 404, { code: 404, message: '用户不存在' });
+  return sendJson(res, 200, { code: 200, ...info });
+}
+
+// 流水（GET /api/coin/logs?openid=xxx）
+function handleCoinLogs(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  const logs = db.listCoinLogs(openid);
+  return sendJson(res, 200, { code: 200, logs });
+}
+
+// 商店奖品（GET /api/coin/shop?openid=xxx）
+function handleCoinShop(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid') || '';
+  const items = db.listShopItems(openid);
+  return sendJson(res, 200, { code: 200, items });
+}
+
+// 兑换奖品（POST /api/coin/exchange）
+async function handleCoinExchange(req, res) {
+  const body = await readBody(req);
+  const { openid, itemId } = body;
+  if (!openid || !itemId) return sendJson(res, 400, { code: 400, message: '缺少 openid 或 itemId' });
+  const result = db.exchangeCoinItem({ openid, itemId });
+  if (!result.ok) return sendJson(res, 400, { code: 400, message: result.error });
+  return sendJson(res, 200, { code: 200, message: '兑换成功', exchange: result.exchange });
+}
+
+// 我的兑换记录（GET /api/coin/exchanges?openid=xxx）
+function handleCoinExchanges(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  const exchanges = db.listMyExchanges(openid);
+  return sendJson(res, 200, { code: 200, exchanges });
+}
+
+// 能量币配置（GET /api/coin/config，前端展示获取规则）
+function handleCoinConfig(req, res) {
+  const cfg = require('./energy-config.js');
+  return sendJson(res, 200, { code: 200, config: cfg });
+}
+
 // ===== 订单（orders）=====
 
 // 下单（POST /api/orders）→ 创建待支付订单
@@ -827,6 +881,18 @@ const server = http.createServer(async (req, res) => {
       await handleInvite(req, res);
     } else if (req.method === 'GET' && pathname === '/api/invite/stats') {
       handleInviteStats(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/coin/balance') {
+      handleCoinBalance(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/coin/logs') {
+      handleCoinLogs(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/coin/shop') {
+      handleCoinShop(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/coin/exchanges') {
+      handleCoinExchanges(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/coin/config') {
+      handleCoinConfig(req, res);
+    } else if (req.method === 'POST' && pathname === '/api/coin/exchange') {
+      await handleCoinExchange(req, res);
     } else if (req.method === 'GET' && pathname === '/api/health') {
       sendJson(res, 200, { code: 200, status: 'ok', time: new Date().toISOString() });
     } else if (req.method === 'GET' && pathname === '/api/meta') {

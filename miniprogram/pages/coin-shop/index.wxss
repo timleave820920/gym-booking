@@ -1,0 +1,233 @@
+.page {
+  min-height: 100vh;
+  background: #F9F4DF;
+}
+.page-pad {
+  padding: 24rpx 24rpx 60rpx;
+}
+.pt-safe {
+  padding-top: 24rpx;
+}
+
+/* 余额卡 */
+.coin-card {
+  background: #1A1A23;
+  border-radius: 24rpx;
+  padding: 32rpx;
+}
+.coin-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.coin-label {
+  display: block;
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.6);
+}
+.coin-value {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 64rpx;
+  font-weight: 800;
+  color: #B9FF66;
+}
+.coin-rules {
+  background: #B9FF66;
+  border: 3rpx solid #1A1A23;
+  border-radius: 32rpx;
+  padding: 10rpx 28rpx;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #1A1A23;
+}
+.coin-today {
+  display: block;
+  margin-top: 20rpx;
+  font-size: 22rpx;
+  color: rgba(255,255,255,0.6);
+}
+
+/* 奖品网格 */
+.sec-title {
+  margin: 40rpx 0 20rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1A1A23;
+}
+.shop-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+.shop-item {
+  width: 48%;
+  box-sizing: border-box;
+  background: #FFFFFF;
+  border: 3rpx solid #1A1A23;
+  border-radius: 24rpx;
+  padding: 24rpx;
+}
+.item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.item-name {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #1A1A23;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.item-type {
+  font-size: 18rpx;
+  color: #5B57EB;
+  flex-shrink: 0;
+  margin-left: 8rpx;
+}
+.item-desc {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 20rpx;
+  color: #8A8A8A;
+  line-height: 1.5;
+  min-height: 56rpx;
+}
+.item-foot {
+  margin-top: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.item-cost {
+  font-size: 30rpx;
+  font-weight: 800;
+  color: #5B57EB;
+}
+.item-stock {
+  font-size: 18rpx;
+  color: #8A8A8A;
+}
+.stock-out {
+  color: #E5484D;
+}
+.item-btn {
+  margin-top: 16rpx;
+  background: #1A1A23;
+  border-radius: 36rpx;
+  padding: 14rpx 0;
+  text-align: center;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #B9FF66;
+}
+.btn-out {
+  background: #E5E2D4;
+  color: #B0AFA8;
+}
+
+/* 兑换记录 */
+.ex-item {
+  background: #FFFFFF;
+  border: 3rpx solid #1A1A23;
+  border-radius: 20rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ex-name {
+  display: block;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #1A1A23;
+}
+.ex-time {
+  display: block;
+  margin-top: 4rpx;
+  font-size: 18rpx;
+  color: #8A8A8A;
+}
+.ex-cost {
+  display: block;
+  text-align: right;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #E5484D;
+}
+.ex-status {
+  display: block;
+  margin-top: 4rpx;
+  text-align: right;
+  font-size: 18rpx;
+  color: #3D9970;
+}
+.ex-empty {
+  text-align: center;
+  padding: 40rpx 0;
+  font-size: 24rpx;
+  color: #B0AFA8;
+}
+
+/* 兑换成功弹窗 */
+.code-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99;
+}
+.code-card {
+  width: 540rpx;
+  background: #FFFFFF;
+  border: 4rpx solid #1A1A23;
+  border-radius: 32rpx;
+  padding: 48rpx 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.code-title {
+  font-size: 34rpx;
+  font-weight: 800;
+  color: #1A1A23;
+}
+.code-name {
+  margin-top: 12rpx;
+  font-size: 26rpx;
+  color: #6B6B76;
+}
+.code-label {
+  margin-top: 28rpx;
+  font-size: 20rpx;
+  color: #8A8A8A;
+}
+.code-value {
+  margin-top: 8rpx;
+  font-size: 36rpx;
+  font-weight: 800;
+  letter-spacing: 4rpx;
+  color: #5B57EB;
+  font-family: monospace;
+}
+.code-physical {
+  margin-top: 28rpx;
+  font-size: 24rpx;
+  color: #3D9970;
+}
+.code-btn {
+  margin-top: 32rpx;
+  background: #1A1A23;
+  border-radius: 40rpx;
+  padding: 16rpx 80rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #B9FF66;
+}

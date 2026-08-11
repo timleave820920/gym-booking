@@ -4,6 +4,7 @@ const api = require('../../utils/api.js');
 Page({
   data: {
     level: null,       // 会员等级+余额
+    coins: null,       // 能量币余额
     rewards: 0,        // 未读奖励数
     loaded: false,
     gridSubs: { level: '会员折扣', recharge: '充值优惠', invite: '各得储值', honor: '荣誉展示' }
@@ -25,6 +26,10 @@ Page({
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
     if (!openid) return;
+    // 能量币余额
+    api.getCoinBalance(openid).then((res) => {
+      this.setData({ coins: res.balance });
+    }).catch(() => {});
     // 宫格副标题从配置动态读取
     api.getMemberConfig().then((res) => {
       const cfg = res.config || {};
@@ -72,6 +77,11 @@ Page({
 
   goRecharge() {
     wx.navigateTo({ url: '/pages/member-recharge/index' });
+  },
+
+  // 能量商店
+  goCoinShop() {
+    wx.navigateTo({ url: '/pages/coin-shop/index' });
   },
 
   goCourses() {
