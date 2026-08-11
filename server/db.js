@@ -393,6 +393,20 @@ function addBalance(openid, changeFen, reason, refId) {
   return balanceAfter;
 }
 
+/**
+ * 订单退款：把实付金额退回用户
+ * - 余额支付 → 退回储值余额（写流水）
+ * - 微信支付 → 原路退回（当前为模拟支付，仅标记退款状态，不改余额）
+ * @param {number} orderId 必须是已 refunded 的订单
+ */
+function refundOrderMoney(orderId) {
+  const o = db.prepare("SELECT * FROM orders WHERE id = ? AND status = 'refunded'").get(orderId);
+  if (!o) return;
+  if (o.pay_method === 'balance' && (o.amount_fen || 0) > 0) {
+    addBalance(o.user_openid, o.amount_fen, '订课退款', o.order_no);
+  }
+}
+
 // ===== 能量币系统（获取/流水/兑换）=====
 // 配置从 energy-config.js 读取（唯一数据源）
 
@@ -1072,11 +1086,15 @@ function cancelBooking(openid, bookingId) {
 
   db.exec('BEGIN');
   let promoted = null;
+  let refundOrder = null;   // 声明在外层，事务后退钱使用
   try {
     db.prepare("UPDATE bookings SET status = 'cancelled', cancel_reason = '用户退订' WHERE id = ?").run(bookingId);
-    // 关联订单标记退款（仅已支付的订单）
-    db.prepare(`UPDATE orders SET status = 'refunded', refunded_at = datetime('now','localtime'), cancel_reason = '用户退订'
-                WHERE booking_id = ? AND status = 'paid'`).run(bookingId);
+    // 关联订单标记退款（仅已支付的订单），并记录订单号用于退钱
+    refundOrder = db.prepare("SELECT id FROM orders WHERE booking_id = ? AND status = 'paid'").get(bookingId);
+    if (refundOrder) {
+      db.prepare(`UPDATE orders SET status = 'refunded', refunded_at = datetime('now','localtime'), cancel_reason = '用户退订'
+                  WHERE id = ?`).run(refundOrder.id);
+    }
     // 仅未签到订单恢复余位
     if (!booking.checkin_at) {
       db.prepare('UPDATE course_sessions SET booked_count = MAX(booked_count - 1, 0) WHERE id = ?').run(booking.session_id);
@@ -1088,6 +1106,8 @@ function cancelBooking(openid, bookingId) {
     db.exec('ROLLBACK');
     throw e;
   }
+  // 事务外真正退钱（余额支付退回余额）
+  if (refundOrder) refundOrderMoney(refundOrder.id);
   // 站内信：退款到账
   const sInfo = getSessionById(booking.session_id);
   sendMessage({
@@ -1320,15 +1340,16 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
       if (exists) {
         db.prepare("UPDATE bookings SET status = 'booked', pay_status = 'paid', cancel_reason = '', checkin_at = NULL WHERE id = ?").run(exists.id);
         db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(order.session_id);
-        booking = db.prepare(`SELECT id, booking_no FROM bookings WHERE id = ?`).get(exists.id);
+        booking = db.prepare(`SELECT id, booking_no, amount_fen FROM bookings WHERE id = ?`).get(exists.id);
       } else {
         db.prepare(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status)
                     VALUES (?, ?, ?, ?, 'booked', 'paid')`)
           .run(bookingNo, order.user_openid, order.session_id, payFen);
-        booking = db.prepare('SELECT id, booking_no FROM bookings WHERE id = last_insert_rowid()').get();
+        booking = db.prepare('SELECT id, booking_no, amount_fen FROM bookings WHERE id = last_insert_rowid()').get();
         db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(order.session_id);
       }
-      db.prepare('UPDATE orders SET booking_id = ? WHERE id = ?').run(booking.id, orderId);
+      // 订单金额落实付（余额支付=会员折扣价；微信支付=原价），与 booking/退款保持严格一致
+      db.prepare('UPDATE orders SET amount_fen = ?, booking_id = ? WHERE id = ?').run(payFen, booking.id, orderId);
     }
     db.exec('COMMIT');
   } catch (e) {
@@ -1532,16 +1553,22 @@ function cancelWaitlist(openid, waitId) {
   if (!wait) return { ok: false, error: '排位记录不存在' };
   if (wait.status !== 'waiting') return { ok: false, error: '该排位已不在队列中' };
   db.exec('BEGIN');
+  let refundOrder = null;   // 声明在外层，事务后退钱使用
   try {
     db.prepare("UPDATE waitlist SET status = 'cancelled', cancel_reason = '用户退出候补', refunded_at = datetime('now','localtime') WHERE id = ?").run(waitId);
-    // 关联订单标记退款
-    db.prepare(`UPDATE orders SET status = 'refunded', refunded_at = datetime('now','localtime'), cancel_reason = '用户退出候补'
-                WHERE wait_id = ? AND status = 'paid'`).run(waitId);
+    // 关联订单标记退款，并记录订单号用于退钱
+    refundOrder = db.prepare("SELECT id FROM orders WHERE wait_id = ? AND status = 'paid'").get(waitId);
+    if (refundOrder) {
+      db.prepare(`UPDATE orders SET status = 'refunded', refunded_at = datetime('now','localtime'), cancel_reason = '用户退出候补'
+                  WHERE id = ?`).run(refundOrder.id);
+    }
     db.exec('COMMIT');
   } catch (e) {
     db.exec('ROLLBACK');
     throw e;
   }
+  // 事务外退钱（余额支付退回余额）
+  if (refundOrder) refundOrderMoney(refundOrder.id);
   return { ok: true };
 }
 
@@ -1570,7 +1597,8 @@ function listWaitlistByUser(openid) {
  */
 function refundExpiredWaitlist() {
   const expired = db.prepare(`
-    SELECT w.id, w.user_openid, w.amount_fen, s.course_id, s.start_time, c.name AS course_name
+    SELECT w.id, w.user_openid, w.amount_fen, s.course_id, s.start_time, c.name AS course_name,
+           (SELECT o.id FROM orders o WHERE o.wait_id = w.id AND o.status = 'paid' LIMIT 1) AS order_id
     FROM waitlist w
     JOIN course_sessions s ON s.id = w.session_id
     JOIN courses c ON c.id = s.course_id
@@ -1589,6 +1617,8 @@ function refundExpiredWaitlist() {
       db.exec('ROLLBACK');
       throw e;
     }
+    // 事务外退钱（余额支付退回余额）
+    if (row.order_id) refundOrderMoney(row.order_id);
     // 站内信：候补过期退款
     sendMessage({
       user_openid: row.user_openid, type: 'waitlist', title: '候补退款',
@@ -1701,6 +1731,7 @@ module.exports = {
   // 会员体系
   getMemberLevel,
   addBalance,
+  refundOrderMoney,
   applyRecharge,
   hasRechargedPlan,
   calcRechargeBonus,

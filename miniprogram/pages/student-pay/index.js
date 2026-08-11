@@ -139,6 +139,12 @@ Page({
     api.payOrder(orderId, { openid, payMethod }).then((res) => {
       wx.hideLoading();
       const isWaitlist = this.data.course.mode === 'waitlist';
+      // 实付金额落全局（后端支付回写时订单金额已修正为实付：余额支付=会员折扣价，微信=原价）
+      const paidFen = res.order && res.order.amount_fen;
+      app.globalData.payResult = {
+        amount: paidFen ? String((paidFen / 100).toFixed(0)) : String(Number(this.data.course.price) || 0),
+        isWaitlist
+      };
       // 跳转支付成功落地页（携带模式）
       wx.redirectTo({ url: '/pages/pay-success/index' + (isWaitlist ? '?mode=waitlist' : '') });
     }).catch((err) => {

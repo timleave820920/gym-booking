@@ -19,7 +19,7 @@
       </view>
       <view class="flex-between card-foot">
         <text class="pay-label">实付金额</text>
-        <text class="pay-amount">¥{{course.price}}</text>
+        <text class="pay-amount">¥{{payAmount}}</text>
       </view>
     </view>
 
