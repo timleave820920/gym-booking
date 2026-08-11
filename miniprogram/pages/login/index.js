@@ -66,11 +66,15 @@ Page({
       name: names[role],
       avatar: '/images/2_556.png',
       role: role,
+      // 演示阶段统一学员账号（与真微信登录一致，历史数据不丢）
+      openid: role === 'student' ? 'demo_user' : 'demo_' + role,
       totalClasses: 32,
       totalHours: '28.5h',
       totalCalories: '12,480',
       streak: 12
     };
+    // 同步写入 storage（页面接口按 openid 读取数据）
+    wx.setStorageSync('openid', userInfo.openid);
     // 教练演示身份：绑定真实教练档案（喻馥雅 id=1，当前 126 场次全由其带课）
     if (role === 'coach') {
       userInfo.name = '喻馥雅';
@@ -229,12 +233,10 @@ Page({
       success: (res) => {
         const code = res.code || '';
 
-        // 生成/读取持久化 openid（同一设备始终一致 → 第二次即登录）
-        let openid = wx.getStorageSync('openid');
-        if (!openid) {
-          openid = 'uid_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
-          wx.setStorageSync('openid', openid);
-        }
+        // 演示阶段：openid 固定为 demo_user（清除缓存/重装后账号与历史数据不丢）
+        // ⚠️ 正式上线：接入 jscode2session 用真实 openid 替换本段
+        const openid = 'demo_user';
+        wx.setStorageSync('openid', openid);
 
         // 请求后端注册/登录
         api.login({
