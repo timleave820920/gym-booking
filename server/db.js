@@ -34,7 +34,56 @@ db.exec(`
     streak        INTEGER DEFAULT 0,             -- 连续打卡
     created_at    TEXT DEFAULT (datetime('now','localtime')),  -- 注册时间
     last_login_at TEXT DEFAULT (datetime('now','localtime')),  -- 最后登录时间
-    login_count   INTEGER DEFAULT 0              -- 登录次数
+    login_count   INTEGER DEFAULT 0,             -- 登录次数
+    balance_fen   INTEGER DEFAULT 0              -- 储值余额（单位：分）
+  );
+`);
+// 兼容旧库：确保 balance_fen 列存在
+try { db.exec('ALTER TABLE users ADD COLUMN balance_fen INTEGER DEFAULT 0'); } catch (e) {}
+
+// ===== 会员体系表 =====
+
+// 充值记录表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS member_recharges (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    recharge_no TEXT UNIQUE NOT NULL,
+    user_openid TEXT NOT NULL,
+    order_id    INTEGER,                          -- 关联订单
+    amount_fen  INTEGER DEFAULT 0,                -- 充值金额（分）
+    bonus_fen   INTEGER DEFAULT 0,                -- 赠送金额（分）
+    status      TEXT DEFAULT 'paid',              -- paid 成功
+    created_at  TEXT DEFAULT (datetime('now','localtime')),
+    FOREIGN KEY (user_openid) REFERENCES users(openid)
+  );
+`);
+
+// 储值变动流水（充值/奖励/消费/退款）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS balance_logs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_openid TEXT NOT NULL,
+    change_fen  INTEGER NOT NULL,                 -- 变动额（正=增加 负=减少）
+    balance_after INTEGER DEFAULT 0,              -- 变动后余额
+    reason      TEXT DEFAULT '',                  -- 充值/邀请奖励/订课消费/退款
+    ref_id      TEXT DEFAULT '',                  -- 关联单号（订单号/邀请单号）
+    read_flag   INTEGER DEFAULT 0,                -- 0 未读（登录庆祝弹框用） 1 已读
+    created_at  TEXT DEFAULT (datetime('now','localtime')),
+    FOREIGN KEY (user_openid) REFERENCES users(openid)
+  );
+  CREATE INDEX IF NOT EXISTS idx_balance_logs_unread ON balance_logs(user_openid, read_flag);
+`);
+
+// 邀请关系表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS invitations (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    inviter     TEXT NOT NULL,                    -- 邀请人 openid
+    invitee     TEXT NOT NULL,                    -- 被邀请人 openid
+    status      TEXT DEFAULT 'registered',        -- registered 已注册 / ordered 已完成首订
+    reward_fen  INTEGER DEFAULT 0,                -- 已发奖励（分）
+    created_at  TEXT DEFAULT (datetime('now','localtime')),
+    UNIQUE (invitee)
   );
 `);
 
@@ -185,12 +234,14 @@ db.exec(`
     refunded_at  TEXT,
     cancel_reason TEXT DEFAULT '',
     created_at   TEXT DEFAULT (datetime('now','localtime')),
+    reward_triggered INTEGER DEFAULT 0,           -- 邀请奖励已触发
     FOREIGN KEY (user_openid) REFERENCES users(openid),
     FOREIGN KEY (session_id)  REFERENCES course_sessions(id)
   );
   CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_openid, status);
   CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status, created_at);
 `);
+try { db.exec('ALTER TABLE orders ADD COLUMN reward_triggered INTEGER DEFAULT 0'); } catch (e) {}
 
 /**
  * 根据 openid 查找用户
@@ -229,6 +280,139 @@ function updateProfile(openid, { nickname, avatar }) {
   db.prepare('UPDATE users SET nickname = ?, avatar = ? WHERE openid = ?')
     .run(nickname || '', avatar || '', openid);
   return findUserByOpenid(openid);
+}
+
+// ===== 会员体系（等级/储值/奖励/邀请）=====
+
+// 等级配置：青铜(0节/9折) 黄金(20节/85折) 铂金(50节/8折) 钻石(100节/75折)
+const LEVELS = [
+  { name: '青铜', min: 0,  discount: 0.9,  lv: 1 },
+  { name: '黄金', min: 20, discount: 0.85, lv: 2 },
+  { name: '铂金', min: 50, discount: 0.8,  lv: 3 },
+  { name: '钻石', min: 100, discount: 0.75, lv: 4 }
+];
+
+/** 计算会员等级信息 */
+function getMemberLevel(openid) {
+  const user = findUserByOpenid(openid);
+  if (!user) return null;
+  const total = user.total_classes || 0;
+  let level = LEVELS[0];
+  for (const l of LEVELS) {
+    if (total >= l.min) level = l;
+  }
+  const idx = LEVELS.indexOf(level);
+  const next = LEVELS[idx + 1] || null;
+  return {
+    openid,
+    totalClasses: total,
+    levelName: level.name,
+    levelLv: level.lv,
+    discount: level.discount,
+    levelMin: level.min,
+    next: next ? { name: next.name, min: next.min, discount: next.discount } : null,
+    progress: next ? Math.min(100, Math.round((total - level.min) / (next.min - level.min) * 100)) : 100,
+    balanceFen: user.balance_fen || 0
+  };
+}
+
+/** 余额流水（写 balance_logs + 更新余额） */
+function addBalance(openid, changeFen, reason, refId) {
+  const user = findUserByOpenid(openid);
+  if (!user) return null;
+  const balanceAfter = (user.balance_fen || 0) + changeFen;
+  db.prepare('UPDATE users SET balance_fen = ? WHERE openid = ?').run(balanceAfter, openid);
+  db.prepare(`INSERT INTO balance_logs (user_openid, change_fen, balance_after, reason, ref_id, read_flag)
+              VALUES (?, ?, ?, ?, ?, 0)`)
+    .run(openid, changeFen, balanceAfter, reason, refId || '');
+  return balanceAfter;
+}
+
+/** 充值（订单支付后调用） */
+function applyRecharge({ user_openid, order_id, amount_fen, bonus_fen }) {
+  const rechargeNo = 'RC' + Date.now() + Math.random().toString(36).slice(2, 6).toUpperCase();
+  db.prepare(`INSERT INTO member_recharges (recharge_no, user_openid, order_id, amount_fen, bonus_fen, status)
+              VALUES (?, ?, ?, ?, ?, 'paid')`)
+    .run(rechargeNo, user_openid, order_id, amount_fen, bonus_fen);
+  addBalance(user_openid, amount_fen + bonus_fen, '充值', rechargeNo);
+  return { rechargeNo, total: amount_fen + bonus_fen };
+}
+
+/** 充值套餐定义 */
+const RECHARGE_PLANS = [
+  { id: 1, amount: 30000, bonus: 3000 },
+  { id: 2, amount: 50000, bonus: 8000 },
+  { id: 3, amount: 100000, bonus: 20000 }
+];
+
+/** 查询充值记录 */
+function listRecharges(openid) {
+  return db.prepare(`
+    SELECT id, recharge_no, amount_fen, bonus_fen, status, created_at
+    FROM member_recharges WHERE user_openid = ? ORDER BY created_at DESC
+  `).all(openid);
+}
+
+/** 绑定邀请关系（被邀请人注册时调用） */
+function bindInvitation({ inviter, invitee }) {
+  if (inviter === invitee) return { ok: false, error: '不能邀请自己' };
+  const exists = db.prepare('SELECT id FROM invitations WHERE invitee = ?').get(invitee);
+  if (exists) return { ok: false, error: '已存在邀请关系' };
+  db.prepare('INSERT INTO invitations (inviter, invitee, status) VALUES (?, ?, \'registered\')').run(inviter, invitee);
+  return { ok: true };
+}
+
+/** 好友完成首订 → 发放邀请奖励（阶梯：1人=1课=¥100 / 3人=5课=¥500 / 5人=10课=¥1000） */
+function rewardInviter(invitee) {
+  const inv = db.prepare("SELECT * FROM invitations WHERE invitee = ? AND status = 'registered'").get(invitee);
+  if (!inv) return null;
+  // 标记已完成首订
+  db.prepare("UPDATE invitations SET status = 'ordered' WHERE id = ?").run(inv.id);
+  // 统计邀请人当前有效邀请数（含本次）
+  const cnt = db.prepare("SELECT COUNT(*) c FROM invitations WHERE inviter = ? AND status = 'ordered'").get(inv.inviter).c;
+  // 阶梯奖励
+  const REWARDS = [
+    { at: 1, fen: 10000 },   // 1人 → ¥100（1节课）
+    { at: 3, fen: 50000 },   // 3人 → ¥500（5节课）
+    { at: 5, fen: 100000 }   // 5人 → ¥1000（10节课）
+  ];
+  const reward = REWARDS.find(r => r.at === cnt);
+  if (!reward) return null;
+  // 发放储值奖励（只发增量奖励，阶梯不重复累计）
+  const already = db.prepare('SELECT COALESCE(SUM(reward_fen),0) s FROM invitations WHERE inviter = ?').get(inv.inviter).s;
+  const needFen = reward.fen - already;
+  if (needFen <= 0) return null;
+  const bal = addBalance(inv.inviter, needFen, `邀请奖励（${cnt}人）`, `INV-${inv.id}`);
+  return { inviter: inv.inviter, rewardFen: needFen, invitedCount: cnt, balance: bal };
+}
+
+/** 邀请战绩统计 */
+function getInviteStats(openid) {
+  const invited = db.prepare('SELECT COUNT(*) c FROM invitations WHERE inviter = ?').get(openid).c;
+  const ordered = db.prepare("SELECT COUNT(*) c FROM invitations WHERE inviter = ? AND status = 'ordered'").get(openid).c;
+  return {
+    invited,
+    ordered,
+    rewards: [
+      { at: 1, label: '1 人', rewardText: '¥100', fen: 10000, achieved: ordered >= 1 },
+      { at: 3, label: '3 人', rewardText: '¥500', fen: 50000, achieved: ordered >= 3 },
+      { at: 5, label: '5 人', rewardText: '¥1000', fen: 100000, achieved: ordered >= 5 }
+    ]
+  };
+}
+
+/** 未读储值奖励（登录庆祝用） */
+function listUnreadBalanceLogs(openid) {
+  return db.prepare(`
+    SELECT id, change_fen, balance_after, reason, ref_id, created_at
+    FROM balance_logs WHERE user_openid = ? AND read_flag = 0 AND change_fen > 0
+    ORDER BY created_at DESC
+  `).all(openid);
+}
+
+/** 标记奖励已读 */
+function markBalanceLogsRead(openid) {
+  db.prepare("UPDATE balance_logs SET read_flag = 1 WHERE user_openid = ? AND read_flag = 0").run(openid);
 }
 
 /**
@@ -662,14 +846,14 @@ function cancelBooking(openid, bookingId) {
 const ORDER_SELECT = `
   SELECT o.id, o.order_no, o.user_openid, o.session_id, o.booking_id, o.wait_id, o.order_type,
          o.amount_fen, o.status, o.pay_method, o.paid_at, o.refunded_at, o.cancel_reason, o.created_at,
-         s.date, s.start_time, s.end_time,
-         c.name AS course_name, c.level, c.duration_min,
-         co.name AS coach_name, v.name AS venue_name
+         COALESCE(s.date, '') AS date, COALESCE(s.start_time, '') AS start_time, COALESCE(s.end_time, '') AS end_time,
+         COALESCE(c.name, '储值充值') AS course_name, COALESCE(c.level, 0) AS level, COALESCE(c.duration_min, 0) AS duration_min,
+         COALESCE(co.name, '') AS coach_name, COALESCE(v.name, '') AS venue_name
   FROM orders o
-  JOIN course_sessions s ON s.id = o.session_id
-  JOIN courses c ON c.id = s.course_id
-  JOIN coaches co ON co.id = s.coach_id
-  JOIN venues v ON v.id = s.venue_id`;
+  LEFT JOIN course_sessions s ON s.id = o.session_id
+  LEFT JOIN courses c ON c.id = s.course_id
+  LEFT JOIN coaches co ON co.id = s.coach_id
+  LEFT JOIN venues v ON v.id = s.venue_id`;
 
 /** 生成订单号 */
 function genOrderNo() {
@@ -684,6 +868,18 @@ function genOrderNo() {
 function createOrder({ user_openid, session_id, amount_fen = 0, order_type = 'book' }) {
   const user = findUserByOpenid(user_openid);
   if (!user) return { ok: false, error: '用户不存在，请先登录' };
+
+  // 储值充值：无场次依赖，校验套餐金额
+  if (order_type === 'recharge') {
+    const plan = RECHARGE_PLANS.find(p => p.amount === amount_fen);
+    if (!plan) return { ok: false, error: '无效的充值套餐' };
+    const orderNo = genOrderNo();
+    db.prepare(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status)
+                VALUES (?, ?, NULL, ?, ?, 'pending')`)
+      .run(orderNo, user_openid, order_type, amount_fen);
+    const order = db.prepare(`${ORDER_SELECT} WHERE o.id = last_insert_rowid()`).get();
+    return { ok: true, order };
+  }
 
   const session = getSessionById(session_id);
   if (!session) return { ok: false, error: '课程场次不存在' };
@@ -728,14 +924,18 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
     return { ok: false, error: '订单已失效，无法支付' };
   }
 
-  let booking = null, wait = null;
+  let booking = null, wait = null, recharge = null;
   db.exec('BEGIN');
   try {
     // 1. 订单标记已支付
     db.prepare("UPDATE orders SET status = 'paid', pay_method = ?, paid_at = datetime('now','localtime') WHERE id = ?")
       .run(pay_method, orderId);
 
-    if (order.order_type === 'waitlist') {
+    if (order.order_type === 'recharge') {
+      // 储值充值：发放储值 + 写充值记录（套餐按金额匹配赠送）
+      const plan = RECHARGE_PLANS.find(p => p.amount === order.amount_fen) || { bonus: 0 };
+      recharge = applyRecharge({ user_openid: order.user_openid, order_id: orderId, amount_fen: order.amount_fen, bonus_fen: plan.bonus });
+    } else if (order.order_type === 'waitlist') {
       // 候补排位：写 waitlist
       const waitNo = 'WL' + Date.now() + Math.random().toString(36).slice(2, 6).toUpperCase();
       db.prepare(`INSERT INTO waitlist (wait_no, user_openid, session_id, amount_fen, status)
@@ -774,8 +974,17 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
     throw e;
   }
 
+  // 订课成功 → 触发邀请奖励（好友完成首订，邀请人得储值；事务外执行）
+  let reward = null;
+  if (order.order_type === 'book' && !order.reward_triggered) {
+    reward = rewardInviter(order.user_openid);
+    if (reward) {
+      db.prepare("UPDATE orders SET reward_triggered = 1 WHERE id = ?").run(orderId);
+    }
+  }
+
   const finalOrder = db.prepare(`${ORDER_SELECT} WHERE o.id = ?`).get(orderId);
-  return { ok: true, order: finalOrder, booking, wait };
+  return { ok: true, order: finalOrder, booking, wait, recharge, reward };
 }
 
 /**
@@ -1100,5 +1309,16 @@ module.exports = {
   listOrdersByUser,
   getOrderByNo,
   // 营收统计
-  getRevenueStats
+  getRevenueStats,
+  // 会员体系
+  getMemberLevel,
+  addBalance,
+  applyRecharge,
+  RECHARGE_PLANS,
+  listRecharges,
+  bindInvitation,
+  rewardInviter,
+  getInviteStats,
+  listUnreadBalanceLogs,
+  markBalanceLogsRead
 };

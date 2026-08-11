@@ -1,0 +1,126 @@
+.page {
+  min-height: 100vh;
+  background: #F9F4DF;
+}
+.page-pad {
+  padding: 24rpx 24rpx 60rpx;
+}
+.pt-safe {
+  padding-top: 24rpx;
+}
+
+/* 品牌主卡 */
+.hero {
+  background: #1A1A23;
+  border-radius: 24rpx;
+  padding: 32rpx;
+}
+.hero-slogan {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 800;
+  line-height: 1.5;
+  color: #FFFFFF;
+}
+.hero-from {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 22rpx;
+  color: #B9FF66;
+}
+.hero-line {
+  margin: 24rpx 0;
+  height: 2rpx;
+  background: rgba(255,255,255,0.15);
+}
+.hero-text {
+  display: block;
+  font-size: 24rpx;
+  line-height: 1.8;
+  color: rgba(255,255,255,0.85);
+}
+
+/* 理念 */
+.sec-title {
+  margin: 40rpx 0 20rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1A1A23;
+}
+.ideas {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+.idea {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  background: #FFFFFF;
+  border: 3rpx solid #1A1A23;
+  border-radius: 24rpx;
+  padding: 24rpx;
+}
+.idea-icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.idea-icon-txt {
+  font-size: 30rpx;
+  font-weight: 800;
+}
+.ii-lime { background: #B9FF66; }
+.ii-purple { background: #5B57EB; }
+.ii-red { background: #F8B7B8; }
+.ii-lime .idea-icon-txt, .ii-red .idea-icon-txt { color: #1A1A23; }
+.ii-purple .idea-icon-txt { color: #FFFFFF; }
+.idea-name {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #1A1A23;
+}
+.idea-desc {
+  margin-left: auto;
+  font-size: 22rpx;
+  color: #8A8A8A;
+}
+
+/* 数据背书 */
+.data-card {
+  display: flex;
+  background: #FFFFFF;
+  border: 3rpx solid #1A1A23;
+  border-radius: 24rpx;
+  padding: 32rpx 0;
+}
+.data-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+.data-v {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #1A1A23;
+}
+.data-l {
+  font-size: 20rpx;
+  color: #8A8A8A;
+}
+
+/* 荣誉入口 */
+.honor-link {
+  margin-top: 36rpx;
+  text-align: center;
+}
+.honor-link-txt {
+  font-size: 24rpx;
+  color: #5B57EB;
+}

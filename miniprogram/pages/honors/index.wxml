@@ -1,0 +1,32 @@
+<view class="page">
+  <view class="page-pad pt-safe">
+    <!-- 荣誉主卡 -->
+    <view class="honor-hero">
+      <text class="hh-title">32 项赛事荣誉</text>
+      <text class="hh-sub">3 年参赛积累 · 教练学员共同征战</text>
+      <view class="medals">
+        <view class="medal"><text class="medal-v">8</text><text class="medal-l">金牌</text></view>
+        <view class="medal"><text class="medal-v">11</text><text class="medal-l">银牌</text></view>
+        <view class="medal"><text class="medal-v">13</text><text class="medal-l">铜牌</text></view>
+      </view>
+    </view>
+
+    <!-- 高光时刻 -->
+    <view class="sec-title">高光时刻</view>
+    <view class="honor-list">
+      <view class="honor-item" wx:for="{{honors}}" wx:key="id">
+        <view class="honor-medal" style="background: {{item.color}};">
+          <text class="honor-medal-txt">{{item.medal}}</text>
+        </view>
+        <view class="honor-info">
+          <text class="honor-title">{{item.title}}</text>
+          <text class="honor-desc">{{item.desc}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="more-btn">
+      <text class="more-txt">查看全部荣誉 →</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,152 @@
+.page {
+  min-height: 100vh;
+  background: #F9F4DF;
+}
+.page-pad {
+  padding: 24rpx 24rpx 60rpx;
+}
+.pt-safe {
+  padding-top: 24rpx;
+}
+
+/* 余额卡 */
+.bal-card {
+  background: #1A1A23;
+  border-radius: 24rpx;
+  padding: 32rpx;
+}
+.bal-label {
+  display: block;
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.6);
+}
+.bal-value {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 56rpx;
+  font-weight: 800;
+  color: #B9FF66;
+}
+.bal-sub {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: rgba(255,255,255,0.6);
+}
+
+/* 套餐 */
+.sec-title {
+  margin: 40rpx 0 20rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1A1A23;
+}
+.plans {
+  display: flex;
+  gap: 16rpx;
+}
+.plan {
+  position: relative;
+  flex: 1;
+  background: #FFFFFF;
+  border: 3rpx solid #1A1A23;
+  border-radius: 24rpx;
+  padding: 28rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+.plan-active {
+  background: #1A1A23;
+}
+.plan-amount {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #1A1A23;
+}
+.plan-amount-active {
+  color: #FFFFFF;
+}
+.plan-bonus {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #E5484D;
+}
+.plan-bonus-active {
+  color: #B9FF66;
+}
+.plan-total {
+  background: #F0EDDF;
+  border-radius: 24rpx;
+  padding: 4rpx 20rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #6B6B76;
+}
+.plan-total-active {
+  background: rgba(255,255,255,0.15);
+  color: #FFFFFF;
+}
+.plan-tag {
+  position: absolute;
+  top: -14rpx;
+  background: #B9FF66;
+  border: 3rpx solid #1A1A23;
+  border-radius: 20rpx;
+  padding: 2rpx 16rpx;
+  font-size: 18rpx;
+  font-weight: 700;
+  color: #1A1A23;
+}
+
+/* 充值按钮 */
+.pay-btn {
+  margin-top: 40rpx;
+  background: #1A1A23;
+  border-radius: 44rpx;
+  padding: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pay-btn-txt {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #B9FF66;
+}
+
+/* 记录 */
+.rec-item {
+  background: #FFFFFF;
+  border: 3rpx solid #1A1A23;
+  border-radius: 20rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.rec-no {
+  display: block;
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #1A1A23;
+}
+.rec-time {
+  display: block;
+  margin-top: 4rpx;
+  font-size: 20rpx;
+  color: #8A8A8A;
+}
+.rec-total {
+  font-size: 30rpx;
+  font-weight: 800;
+  color: #3D9970;
+}
+.rec-empty {
+  text-align: center;
+  padding: 40rpx 0;
+  font-size: 24rpx;
+  color: #B0AFA8;
+}

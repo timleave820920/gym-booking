@@ -1,0 +1,46 @@
+<view class="page">
+  <view class="page-pad pt-safe">
+    <!-- 邀请主卡 -->
+    <view class="inv-card">
+      <text class="inv-title">邀请好友，各得储值奖励</text>
+      <text class="inv-sub">好友注册并完成 1 次订课，你获得储值奖励</text>
+      <view class="inv-mid">
+        <view class="inv-num">
+          <text class="inv-num-v">{{ordered}}</text>
+          <text class="inv-num-l">已首订好友</text>
+        </view>
+        <view class="inv-btn" bindtap="invite">立即邀请 →</view>
+      </view>
+      <!-- 奖励阶梯 -->
+      <view class="steps">
+        <view class="step {{item.achieved ? 'step-on' : ''}}" wx:for="{{rewards}}" wx:key="at">
+          <view class="step-dot"></view>
+          <text class="step-txt">{{item.label}} · ¥{{item.fen / 100}}</text>
+        </view>
+      </view>
+      <text class="inv-hint">{{rewardHint}}</text>
+    </view>
+
+    <!-- 规则说明 -->
+    <view class="rules" bindtap="showRules">
+      <text class="rules-txt">查看邀请规则 →</text>
+    </view>
+
+    <!-- 邀请战绩 -->
+    <view class="sec-title">我的邀请战绩</view>
+    <view class="stats">
+      <view class="stat">
+        <text class="stat-v">{{invited}}</text>
+        <text class="stat-l">已邀请</text>
+      </view>
+      <view class="stat">
+        <text class="stat-v">{{ordered}}</text>
+        <text class="stat-l">已首订</text>
+      </view>
+      <view class="stat">
+        <text class="stat-v">¥{{ordered >= 5 ? 1600 : (ordered >= 3 ? 600 : (ordered >= 1 ? 100 : 0))}}</text>
+        <text class="stat-l">已得奖励</text>
+      </view>
+    </view>
+  </view>
+</view>

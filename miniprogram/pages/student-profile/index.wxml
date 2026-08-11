@@ -14,6 +14,18 @@
       <text class="icon-chevron"></text>
     </view>
 
+    <!-- 储值余额 + 活动中心 -->
+    <view class="balance-card flex-row" bindtap="goMemberCenter">
+      <view class="flex-col flex-1">
+        <text class="balance-label">储值余额</text>
+        <text class="balance-value {{balanceAnim ? 'balance-anim' : ''}}">¥ {{balance}}</text>
+      </view>
+      <view class="center-entry flex-row">
+        <text class="center-entry-txt">活动中心</text>
+        <text class="icon-chevron-sm"></text>
+      </view>
+    </view>
+
     <!-- 菜单组 -->
     <view class="menu-group" wx:for="{{menus}}" wx:key="index" wx:for-item="group">
       <view class="menu-row flex-row" wx:for="{{group}}" wx:key="name"

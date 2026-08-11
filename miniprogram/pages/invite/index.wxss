@@ -1,0 +1,131 @@
+.page {
+  min-height: 100vh;
+  background: #F9F4DF;
+}
+.page-pad {
+  padding: 24rpx 24rpx 60rpx;
+}
+.pt-safe {
+  padding-top: 24rpx;
+}
+
+/* 邀请主卡 */
+.inv-card {
+  background: #1A1A23;
+  border-radius: 24rpx;
+  padding: 32rpx;
+}
+.inv-title {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 800;
+  color: #FFFFFF;
+}
+.inv-sub {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: rgba(255,255,255,0.7);
+}
+.inv-mid {
+  margin-top: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.inv-num-v {
+  display: block;
+  font-size: 56rpx;
+  font-weight: 800;
+  color: #B9FF66;
+}
+.inv-num-l {
+  display: block;
+  font-size: 20rpx;
+  color: rgba(255,255,255,0.6);
+}
+.inv-btn {
+  background: #B9FF66;
+  border: 3rpx solid #1A1A23;
+  border-radius: 40rpx;
+  padding: 16rpx 40rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #1A1A23;
+}
+.steps {
+  margin-top: 28rpx;
+  display: flex;
+  justify-content: space-between;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+.step-dot {
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 50%;
+  border: 3rpx solid rgba(255,255,255,0.4);
+  background: transparent;
+}
+.step-on .step-dot {
+  background: #B9FF66;
+  border-color: #B9FF66;
+}
+.step-txt {
+  font-size: 18rpx;
+  color: rgba(255,255,255,0.6);
+}
+.step-on .step-txt {
+  color: #B9FF66;
+}
+.inv-hint {
+  display: block;
+  margin-top: 20rpx;
+  font-size: 22rpx;
+  color: #B9FF66;
+}
+
+/* 规则 */
+.rules {
+  margin-top: 20rpx;
+  text-align: right;
+}
+.rules-txt {
+  font-size: 22rpx;
+  color: #5B57EB;
+}
+
+/* 战绩 */
+.sec-title {
+  margin: 40rpx 0 20rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1A1A23;
+}
+.stats {
+  display: flex;
+  gap: 16rpx;
+}
+.stat {
+  flex: 1;
+  background: #FFFFFF;
+  border: 3rpx solid #1A1A23;
+  border-radius: 24rpx;
+  padding: 28rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+.stat-v {
+  font-size: 36rpx;
+  font-weight: 800;
+  color: #1A1A23;
+}
+.stat-l {
+  font-size: 20rpx;
+  color: #8A8A8A;
+}

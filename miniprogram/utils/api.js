@@ -216,5 +216,28 @@ module.exports = {
   // 按场次查订课名单（教练端）
   getSessionStudents(sessionId) {
     return localRequest('/api/sessions/' + sessionId + '/students', 'GET');
+  },
+
+  // ===== 会员体系 =====
+  getMemberLevel(openid) {
+    return localRequest('/api/member/level?openid=' + openid, 'GET');
+  },
+  getMemberPlans() {
+    return localRequest('/api/member/plans', 'GET');
+  },
+  getMyRecharges(openid) {
+    return localRequest('/api/member/recharges?openid=' + openid, 'GET');
+  },
+  getInviteStats(openid) {
+    return localRequest('/api/invite/stats?openid=' + openid, 'GET');
+  },
+  bindInvite(data) {
+    return localRequest('/api/invite', 'POST', data);
+  },
+  getMyRewards(openid) {
+    return localRequest('/api/member/rewards?openid=' + openid, 'GET');
+  },
+  markRewardsRead(openid) {
+    return localRequest('/api/member/rewards/read', 'POST', { openid });
   }
 };

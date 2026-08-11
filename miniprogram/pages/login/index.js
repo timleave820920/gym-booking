@@ -8,7 +8,10 @@ Page({
     loggingIn: false,
     lang: 'zh',              // 当前语言
     t: i18n.t(),             // 语言字典
-    userCount: 0             // 当前注册用户数
+    userCount: 0,            // 当前注册用户数
+    showCelebrate: false,    // 储值奖励庆祝弹框
+    celebrateAmount: '0',    // 奖励金额
+    celebrateBalance: '0.00' // 奖励后余额
   },
 
   onLoad() {
@@ -270,8 +273,9 @@ Page({
             icon: 'none'
           });
           setTimeout(() => {
-            wx.switchTab({ url: '/pages/student-courses/index' });
-          }, 800);
+            // 检测未读储值奖励 → 有则展示庆祝弹框
+            this.checkRewards(userInfo.openid);
+          }, 600);
         }).catch((err) => {
           this.setData({ loggingIn: false });
           wx.showModal({
@@ -287,5 +291,37 @@ Page({
         wx.showToast({ title: '微信登录失败', icon: 'none' });
       }
     });
-  }
+  },
+
+  // 登录后检测储值奖励 → 庆祝弹框 → 跳个人页播余额动画
+  checkRewards(openid) {
+    const api = require('../../utils/api.js');
+    api.getMyRewards(openid).then((res) => {
+      const rewards = res.rewards || [];
+      if (rewards.length === 0) {
+        wx.switchTab({ url: '/pages/student-courses/index' });
+        return;
+      }
+      // 累计奖励金额
+      const totalFen = rewards.reduce((s, r) => s + r.change_fen, 0);
+      const balanceAfter = rewards[0].balance_after || 0;
+      this.setData({
+        showCelebrate: true,
+        celebrateAmount: (totalFen / 100).toFixed(0),
+        celebrateBalance: (balanceAfter / 100).toFixed(2)
+      });
+      // 标记已读
+      api.markRewardsRead(openid).catch(() => {});
+    }).catch(() => {
+      wx.switchTab({ url: '/pages/student-courses/index' });
+    });
+  },
+
+  // 庆祝弹框确认 → 跳个人页（余额动画）
+  celebrateDone() {
+    this.setData({ showCelebrate: false });
+    wx.switchTab({ url: '/pages/student-profile/index' });
+  },
+
+  noop() {}
 });

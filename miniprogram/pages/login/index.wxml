@@ -69,3 +69,16 @@
     <text class="demo-hint">{{t.demoHint}}</text>
   </view>
 </view>
+
+<!-- 储值奖励庆祝弹框 -->
+<view class="celebrate-mask" wx:if="{{showCelebrate}}" bindtap="celebrateDone">
+  <view class="celebrate-card" catchtap="noop">
+    <view class="celebrate-boom">🎉</view>
+    <text class="celebrate-title">恭喜获得储值奖励！</text>
+    <text class="celebrate-amount">+ ¥{{celebrateAmount}}</text>
+    <text class="celebrate-bal">当前余额 ¥{{celebrateBalance}}</text>
+    <view class="celebrate-btn" bindtap="celebrateDone">
+      <text class="celebrate-btn-txt">开心收下</text>
+    </view>
+  </view>
+</view>

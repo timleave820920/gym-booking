@@ -4,6 +4,8 @@ const api = require('../../utils/api.js');
 Page({
   data: {
     user: { name: '微信用户', avatar: '/images/2_556.png', desc: '累计锻炼 0 节课' },
+    balance: '0.00',
+    balanceAnim: false,
     menus: [
       [
         { icon: 'check', name: '我的课程', url: '/pages/student-my-courses/index' },
@@ -31,6 +33,7 @@ Page({
   onShow() {
     // 每次进入刷新（订课后锻炼次数实时更新）
     this.loadWorkoutCount();
+    this.loadBalance(true);   // 加载余额，有奖励时播动画
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 3 });
     }
@@ -68,6 +71,28 @@ Page({
     }).catch(() => {
       // 后端不可用：保持当前显示
     });
+  },
+
+  // 加载储值余额（进入页面时静默加载，有奖励则播余额动画）
+  loadBalance(animate) {
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+    if (!openid) return;
+    api.getMemberLevel(openid).then((res) => {
+      const balance = (res.level.balanceFen / 100).toFixed(2);
+      this.setData({ balance, balanceAnim: false });
+      if (animate && Number(balance) > 0) {
+        // 触发余额增加动画（滚动数字效果）
+        setTimeout(() => {
+          this.setData({ balanceAnim: true });
+        }, 300);
+      }
+    }).catch(() => {});
+  },
+
+  // 活动中心入口
+  goMemberCenter() {
+    wx.navigateTo({ url: '/pages/member-center/index' });
   },
 
   // 头像加载失败（如微信头像域名未配置）→ 回退默认头像

@@ -1,0 +1,41 @@
+<view class="page">
+  <view class="page-pad pt-safe">
+    <!-- 余额卡 -->
+    <view class="bal-card">
+      <text class="bal-label">当前余额（元）</text>
+      <text class="bal-value">¥ {{balance}}</text>
+      <text class="bal-sub">余额长期有效 · 会员价自动抵扣</text>
+    </view>
+
+    <!-- 充值套餐 -->
+    <view class="sec-title">选择充值套餐</view>
+    <view class="plans">
+      <view class="plan {{item.id === selectedId ? 'plan-active' : ''}}" wx:for="{{plans}}" wx:key="id"
+            bindtap="selectPlan" data-id="{{item.id}}">
+        <view class="plan-amount" wx:if="{{!item.id === 2}}">充 ¥{{item.amountYuan}}</view>
+        <view class="plan-amount {{item.id === 2 ? 'plan-amount-active' : ''}}">充 ¥{{item.amountYuan}}</view>
+        <view class="plan-bonus {{item.id === 2 ? 'plan-bonus-active' : ''}}">送 ¥{{item.bonusYuan}}</view>
+        <view class="plan-total {{item.id === 2 ? 'plan-total-active' : ''}}">共 ¥{{item.totalYuan}}</view>
+        <view class="plan-tag" wx:if="{{item.id === 2}}">最划算</view>
+      </view>
+    </view>
+
+    <!-- 充值按钮 -->
+    <view class="pay-btn" bindtap="recharge">
+      <text class="pay-btn-txt">立即充值</text>
+    </view>
+
+    <!-- 充值记录 -->
+    <view class="sec-title">充值记录</view>
+    <view class="rec-list" wx:if="{{recharges.length > 0}}">
+      <view class="rec-item" wx:for="{{recharges}}" wx:key="no">
+        <view class="rec-l">
+          <text class="rec-no">{{item.no}}</text>
+          <text class="rec-time">{{item.time}}</text>
+        </view>
+        <text class="rec-total">+¥{{item.total}}</text>
+      </view>
+    </view>
+    <view class="rec-empty" wx:else>暂无充值记录，快去充值解锁会员价吧</view>
+  </view>
+</view>

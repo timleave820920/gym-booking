@@ -409,6 +409,73 @@ function handleCancelWaitlist(req, res) {
   return sendJson(res, 200, { code: 200, message: '已退出候补，费用已原路退回' });
 }
 
+// ===== 会员体系（member）=====
+
+// 会员等级信息（GET /api/member/level?openid=xxx）
+function handleMemberLevel(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  const level = db.getMemberLevel(openid);
+  if (!level) return sendJson(res, 404, { code: 404, message: '用户不存在' });
+  return sendJson(res, 200, { code: 200, level });
+}
+
+// 充值套餐（GET /api/member/plans）
+function handleMemberPlans(req, res) {
+  const plans = db.RECHARGE_PLANS.map(p => ({
+    id: p.id, amount: p.amount, bonus: p.bonus,
+    amountYuan: p.amount / 100, bonusYuan: p.bonus / 100, totalYuan: (p.amount + p.bonus) / 100
+  }));
+  return sendJson(res, 200, { code: 200, plans });
+}
+
+// 充值记录（GET /api/member/recharges?openid=xxx）
+function handleMemberRecharges(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  const recharges = db.listRecharges(openid);
+  return sendJson(res, 200, { code: 200, recharges });
+}
+
+// 邀请绑定（POST /api/invite）
+async function handleInvite(req, res) {
+  const body = await readBody(req);
+  const { inviter, invitee } = body;
+  if (!inviter || !invitee) return sendJson(res, 400, { code: 400, message: '缺少 inviter 或 invitee' });
+  const result = db.bindInvitation({ inviter, invitee });
+  if (!result.ok) return sendJson(res, 400, { code: 400, message: result.error });
+  return sendJson(res, 200, { code: 200, message: '邀请关系已建立' });
+}
+
+// 邀请战绩（GET /api/invite/stats?openid=xxx）
+function handleInviteStats(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  const stats = db.getInviteStats(openid);
+  return sendJson(res, 200, { code: 200, ...stats });
+}
+
+// 未读储值奖励（GET /api/member/rewards?openid=xxx，登录庆祝用）
+function handleMemberRewards(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  const rewards = db.listUnreadBalanceLogs(openid);
+  return sendJson(res, 200, { code: 200, rewards });
+}
+
+// 标记奖励已读（POST /api/member/rewards/read）
+async function handleMemberRewardsRead(req, res) {
+  const body = await readBody(req);
+  const { openid } = body;
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  db.markBalanceLogsRead(openid);
+  return sendJson(res, 200, { code: 200, message: '已标记' });
+}
+
 // ===== 订单（orders）=====
 
 // 下单（POST /api/orders）→ 创建待支付订单
@@ -709,6 +776,20 @@ const server = http.createServer(async (req, res) => {
       handleListOrders(req, res);
     } else if (req.method === 'GET' && pathname === '/api/revenue') {
       handleRevenue(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/member/level') {
+      handleMemberLevel(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/member/plans') {
+      handleMemberPlans(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/member/recharges') {
+      handleMemberRecharges(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/member/rewards') {
+      handleMemberRewards(req, res);
+    } else if (req.method === 'POST' && pathname === '/api/member/rewards/read') {
+      await handleMemberRewardsRead(req, res);
+    } else if (req.method === 'POST' && pathname === '/api/invite') {
+      await handleInvite(req, res);
+    } else if (req.method === 'GET' && pathname === '/api/invite/stats') {
+      handleInviteStats(req, res);
     } else if (req.method === 'GET' && pathname === '/api/health') {
       sendJson(res, 200, { code: 200, status: 'ok', time: new Date().toISOString() });
     } else if (req.method === 'GET' && pathname === '/api/meta') {
