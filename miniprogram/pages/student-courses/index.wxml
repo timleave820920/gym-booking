@@ -25,36 +25,51 @@
       <view class="loading-tip" wx:if="{{loading}}">加载中...</view>
       <view class="course-card {{item.disabled && !item.isBooked ? 'card-full' : ''}}" wx:for="{{courseList}}" wx:key="id"
             bindtap="goDetail" data-id="{{item.id}}" data-disabled="{{item.disabled}}" data-waitlist="{{item.canWaitlist}}">
-        <!-- 教练圆形头像 -->
-        <image class="coach-avatar" src="{{item.coachAvatar}}" mode="aspectFill" data-idx="{{index}}" binderror="avatarError"></image>
-
-        <view class="course-info">
-          <!-- 顶部：课程名（大字号） -->
-          <text class="course-name">{{item.name}}</text>
-          <!-- 时间（中等字号） -->
-          <text class="time-txt">{{item.start}} - {{item.end}}</text>
-          <!-- 价格 + 会员价（中等字号） -->
-          <view class="price-row">
-            <text class="price-txt">¥{{item.price}}</text>
-            <text class="member-txt">（会员 ¥{{item.memberPrice}}）</text>
-          </view>
-          <!-- 难度与席位（小字号） -->
-          <text class="meta-small">难度 {{item.level}} · 余 {{item.remaining}}/{{item.capacity}} 席</text>
-        </view>
-
-        <!-- 右侧按钮（不写价格） -->
-        <view class="book-btn {{item.isBooked ? 'btn-booked' : (item.isFull && item.status === 'upcoming' ? 'btn-waitlist' : (item.isFull ? 'btn-full' : (item.status === 'ongoing' ? 'btn-ongoing' : (item.status === 'ended' ? 'btn-ended' : ''))))}}" catchtap="goDetail" data-id="{{item.id}}" data-disabled="{{item.disabled}}" data-waitlist="{{item.canWaitlist}}">
-          <text wx:if="{{item.isBooked}}">已预订</text>
-          <text wx:elif="{{item.isFull && item.status === 'upcoming'}}">{{t.waitlistBtn}}</text>
-          <text wx:elif="{{item.isFull}}">已满</text>
-          <text wx:elif="{{item.status === 'ongoing'}}">{{t.ongoing}}</text>
-          <text wx:elif="{{item.status === 'ended'}}">{{t.ended}}</text>
-          <text wx:else>预约</text>
-        </view>
-
-        <!-- 剩余席位 0：右上角金色"满员"斜条；1~5：红色"紧张"斜条 -->
+        <!-- 剩余席位 0：金色"满员"斜条；1~5：红色"紧张"斜条 -->
         <view class="ribbon ribbon-full" wx:if="{{item.remaining === 0}}">满员</view>
         <view class="ribbon" wx:if="{{item.remaining > 0 && item.remaining < 5}}">紧张</view>
+
+        <!-- 左侧能量条（紫→青柠渐变） -->
+        <view class="cb-bar"></view>
+
+        <view class="cb-main">
+          <!-- 顶行：教练头像 + 课程名 + 会员价徽章 -->
+          <view class="cb-top">
+            <image class="cb-avatar" src="{{item.coachAvatar}}" mode="aspectFill" data-idx="{{index}}" binderror="avatarError"></image>
+            <text class="cb-name">{{item.name}}</text>
+            <text class="cb-member">会员价</text>
+          </view>
+
+          <!-- 中行：大数字时间 + 剩余席位读数 -->
+          <view class="cb-mid">
+            <text class="cb-time">{{item.start}} – {{item.end}}</text>
+            <view class="cb-seats">
+              <text class="cb-seat-num {{item.isFull ? 'cb-seat-zero' : ''}}">{{item.remaining}}</text>
+              <text class="cb-seat-txt">剩余 / {{item.capacity}} 席</text>
+            </view>
+          </view>
+
+          <!-- 底行：价格 + 难度点阵 + 按钮 -->
+          <view class="cb-bottom">
+            <view class="cb-price">
+              ¥{{item.price}}
+              <text class="cb-price-mem">（会员 ¥{{item.memberPrice}}）</text>
+            </view>
+            <view class="cb-dots">
+              <view class="cb-dot {{dotIdx < item.level ? 'cb-dot-on' : ''}}"
+                    wx:for="{{[0,1,2,3,4]}}" wx:for-item="dotIdx" wx:key="*this"></view>
+            </view>
+            <view class="cb-btn {{item.isBooked ? 'btn-booked' : ((item.waitlisted || item.canWaitlist) ? 'btn-waitlist' : (item.isFull ? 'btn-full' : (item.status === 'ongoing' ? 'btn-ongoing' : (item.status === 'ended' ? 'btn-ended' : ''))))}}" catchtap="goDetail" data-id="{{item.id}}" data-disabled="{{item.disabled}}" data-waitlist="{{item.canWaitlist}}">
+              <text wx:if="{{item.isBooked}}">已预订</text>
+              <text wx:elif="{{item.waitlisted}}">{{t.waitlisted}}</text>
+              <text wx:elif="{{item.canWaitlist}}">{{t.waitlistBtn}}</text>
+              <text wx:elif="{{item.isFull}}">已满</text>
+              <text wx:elif="{{item.status === 'ongoing'}}">{{t.ongoing}}</text>
+              <text wx:elif="{{item.status === 'ended'}}">{{t.ended}}</text>
+              <text wx:else>预约</text>
+            </view>
+          </view>
+        </view>
       </view>
 
       <!-- 空状态 -->

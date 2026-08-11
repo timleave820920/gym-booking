@@ -49,104 +49,173 @@
 
 /* 课程列表 */
 .course-list { margin-top: 32rpx; display: flex; flex-direction: column; gap: 28rpx; }
+/* 版本B：仪表盘数据卡片 */
 .course-card {
   position: relative;
   overflow: hidden;
   background: #FFFFFF;
-  border-radius: 32rpx;
-  padding: 28rpx 24rpx;
+  border: 3rpx solid #1A1A23;      /* 整条细边框 */
+  border-radius: 28rpx;
+  padding: 24rpx;
   box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 24rpx;
 }
-/* 教练圆形头像 */
-.coach-avatar {
-  width: 104rpx;
-  height: 104rpx;
-  border-radius: 50%;
-  border: 3rpx solid #1A1A23;
-  background: #F0EDDF;
+/* 左侧能量条（紫→青柠渐变） */
+.cb-bar {
+  width: 12rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(180deg, #5B57EB 0%, #B9FF66 100%);
   flex-shrink: 0;
 }
-.course-info {
+.cb-main {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
-/* 顶部：课程名（大字号） */
-.course-name {
-  font-size: 36rpx;
+/* 顶行：头像 + 课程名 + 会员价徽章 */
+.cb-top {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.cb-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  border: 4rpx solid #1A1A23;
+  background: #F0EDDF;
+  flex-shrink: 0;
+}
+.cb-name {
+  font-size: 34rpx;
   font-weight: 800;
   color: #1A1A23;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* 时间（中等字号） */
-.time-txt {
-  margin-top: 10rpx;
-  font-size: 28rpx;
-  color: #6B6B76;
-}
-/* 价格 + 会员价（中等字号） */
-.price-row {
-  margin-top: 8rpx;
-  display: flex;
-  align-items: baseline;
-  gap: 10rpx;
-}
-.price-txt {
-  font-size: 28rpx;
-  font-weight: 800;
-  color: #1A1A23;
-}
-.member-txt {
-  font-size: 24rpx;
-  color: #B0AFA8;
-}
-/* 难度与席位（小字号） */
-.meta-small {
-  margin-top: 8rpx;
-  font-size: 22rpx;
-  color: #B0AFA8;
-}
-.book-btn {
-  background: #B9FF66;
-  color: #1A1A23;
-  font-size: 24rpx; font-weight: 700;
-  padding: 12rpx 28rpx;
-  border-radius: 28rpx;
+.cb-member {
+  font-size: 20rpx;
+  font-weight: 700;
+  background: #1A1A23;
+  color: #B9FF66;
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
   flex-shrink: 0;
 }
-/* 满员：按钮置灰 */
-.btn-full {
-  background: #E5E2D4;
-  color: #B0AFA8;
+/* 中行：大数字时间 + 剩余席位读数 */
+.cb-mid {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: 16rpx;
 }
-/* 已预订：按钮用品牌深色 */
+.cb-time {
+  font-family: "DIN Alternate", "Bahnschrift", monospace;
+  font-size: 52rpx;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: #1A1A23;
+}
+.cb-seats {
+  text-align: right;
+  flex-shrink: 0;
+}
+.cb-seat-num {
+  font-family: "DIN Alternate", "Bahnschrift", monospace;
+  font-size: 52rpx;
+  font-weight: 800;
+  line-height: 1;
+  color: #E5484D;
+}
+.cb-seat-zero {
+  color: #EF9F27;   /* 满员时剩余 0 金色 */
+}
+.cb-seat-txt {
+  font-size: 20rpx;
+  color: #6B6B76;
+}
+/* 底行：价格 + 难度点阵 + 按钮 */
+.cb-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16rpx;
+  gap: 16rpx;
+}
+.cb-price {
+  font-size: 30rpx;
+  font-weight: 800;
+  color: #1A1A23;
+  flex-shrink: 0;
+}
+.cb-price-mem {
+  font-size: 22rpx;
+  color: #B0AFA8;
+  font-weight: 400;
+}
+.cb-dots {
+  display: flex;
+  gap: 6rpx;
+  flex: 1;
+  justify-content: center;
+}
+.cb-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background: #E5E2D4;
+}
+.cb-dot-on {
+  background: #5B57EB;
+}
+/* 预约按钮 */
+.cb-btn {
+  background: #B9FF66;
+  color: #1A1A23;
+  font-size: 26rpx; font-weight: 800;
+  padding: 14rpx 32rpx;
+  border-radius: 999rpx;
+  border: 3rpx solid #1A1A23;
+  flex-shrink: 0;
+}
+/* 已预订：深色底 */
 .btn-booked {
   background: #1A1A23;
   color: #B9FF66;
 }
-/* 满员/不可约：整卡降透明度 */
-.card-full {
-  opacity: 0.75;
+/* 已排位 / 候补排位：紫色 */
+.btn-waitlist {
+  background: #5B57EB;
+  color: #FFFFFF;
+  border-color: #5B57EB;
+}
+/* 满员：置灰 */
+.btn-full {
+  background: #E5E2D4;
+  color: #B0AFA8;
+  border-color: #E0DCCB;
 }
 /* 进行中（红）/ 已结束（灰） */
 .btn-ongoing {
   background: #E5484D;
   color: #FFFFFF;
+  border-color: #E5484D;
 }
 .btn-ended {
   background: #E0DCCB;
   color: #8A8A8A;
+  border-color: #D9D4C0;
 }
-/* 候补排位按钮（紫色强调） */
-.btn-waitlist {
-  background: #5B57EB;
-  color: #FFFFFF;
+/* 不可约状态：整卡弱化 */
+.card-full {
+  opacity: 0.75;
 }
 /* 剩余席位 <5：右上角"紧张"斜条 */
 .ribbon {
