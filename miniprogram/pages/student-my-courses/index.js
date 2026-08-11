@@ -131,8 +131,9 @@ Page({
     });
   },
 
-  checkin() {
-    wx.navigateTo({ url: '/pages/student-checkin/index' });
+  checkin(e) {
+    const id = e.currentTarget.dataset.id;
+    wx.navigateTo({ url: '/pages/student-checkin/index?id=' + id });
   },
 
   goHome() { wx.switchTab({ url: '/pages/student-home/index' }); },

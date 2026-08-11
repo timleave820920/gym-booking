@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>席位显示方案对比 · 综合训练馆订课系统</title>
+<style>
+  :root { --cream:#F9F4DF; --lime:#B9FF66; --purple:#5B57EB; --dark:#1A1A23; --gray:#6B6B76; --light:#B0AFA8; --red:#E5484D; --gold:#EF9F27; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:"PingFang SC","Microsoft YaHei",-apple-system,sans-serif; background:var(--cream); color:var(--dark); padding:32px 40px 60px; }
+  .page-title { font-size:22px; font-weight:800; }
+  .page-sub { font-size:13px; color:var(--gray); margin-top:6px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:24px; margin-top:26px; }
+  .variant { background:#fff; border-radius:16px; padding:16px; box-shadow:0 8px 28px rgba(0,0,0,.07); }
+  .v-head { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .v-tag { background:var(--dark); color:var(--lime); font-size:12px; font-weight:700; padding:4px 12px; border-radius:999px; }
+  .v-name { font-size:14px; font-weight:700; }
+  .phone { background:#EFEAD6; border-radius:14px; padding:12px; }
+  .card { position:relative; background:#fff; border:2px solid var(--dark); border-radius:14px; padding:14px; display:flex; gap:14px; align-items:center; }
+  .bar { width:6px; border-radius:4px; background:linear-gradient(180deg,var(--purple),var(--lime)); align-self:stretch; }
+  .main { flex:1; min-width:0; }
+  .name { font-size:16px; font-weight:800; }
+  .time { font-family:Bahnschrift,DIN Alternate,monospace; font-size:17px; font-weight:700; font-style:italic; margin-top:2px; }
+  .price { font-size:13px; font-weight:800; margin-top:2px; }
+  .price small { color:var(--light); font-weight:400; }
+  .btn { background:var(--lime); border:2px solid var(--dark); border-radius:999px; font-size:12px; font-weight:800; padding:7px 18px; flex-shrink:0; }
+  .v-note { font-size:12px; color:var(--gray); line-height:1.7; margin-top:10px; padding:8px 12px; background:#F7F4E8; border-radius:10px; }
+  .v-note b { color:var(--dark); }
+  .seat { font-family:Bahnschrift,DIN Alternate,monospace; font-size:20px; font-weight:800; }
+  /* A 无底红字 */
+  .seat-a { color:var(--red); }
+  /* B 白底红字红边胶囊 */
+  .seat-b { color:var(--red); background:#fff; border:2px solid var(--red); border-radius:999px; padding:5px 12px; font-size:17px; }
+  /* C 青柠块深字 */
+  .seat-c { color:var(--dark); background:var(--lime); border-radius:10px; padding:7px 12px; font-size:17px; }
+  /* D 紫字 + 迷你进度条 */
+  .seat-d { color:var(--purple); display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+  .seat-d .num { font-size:20px; font-weight:800; }
+  .seat-d .track { width:96px; height:6px; background:#E5E2D4; border-radius:3px; overflow:hidden; }
+  .seat-d .fill { height:100%; width:5%; background:var(--purple); border-radius:3px; }
+</style>
+</head>
+<body>
+  <div class="page-title">席位显示方案对比 · 4 版</div>
+  <div class="page-sub">卡片其余部分不变（能量条/头像/时间/价格/按钮），只换右侧席位展示。示例：1/20 已订</div>
+
+  <div class="grid">
+    <div class="variant">
+      <div class="v-head"><span class="v-tag">方案 A</span><span class="v-name">无底红字</span></div>
+      <div class="phone"><div class="card"><div class="bar"></div><div class="main">
+        <div class="name">Hyrox冲冲冲</div><div class="time">09:00 – 10:00</div><div class="price">¥80 <small>（会员 ¥72）</small></div>
+      </div><span class="seat seat-a">1/20</span><div class="btn">预约</div></div></div>
+      <div class="v-note"><b>极简</b>：无背景，红色等宽数字，干净利落，与时间字体呼应。紧张/满员状态靠斜条表达。</div>
+    </div>
+
+    <div class="variant">
+      <div class="v-head"><span class="v-tag">方案 B</span><span class="v-name">红边胶囊</span></div>
+      <div class="phone"><div class="card"><div class="bar"></div><div class="main">
+        <div class="name">Hyrox冲冲冲</div><div class="time">09:00 – 10:00</div><div class="price">¥80 <small>（会员 ¥72）</small></div>
+      </div><span class="seat seat-b">1/20</span><div class="btn">预约</div></div></div>
+      <div class="v-note"><b>警示胶囊</b>：白底红字红描边，有"席位紧张"的提示感，又不抢按钮视觉。</div>
+    </div>
+
+    <div class="variant">
+      <div class="v-head"><span class="v-tag">方案 C</span><span class="v-name">青柠色块</span></div>
+      <div class="phone"><div class="card"><div class="bar"></div><div class="main">
+        <div class="name">Hyrox冲冲冲</div><div class="time">09:00 – 10:00</div><div class="price">¥80 <small>（会员 ¥72）</small></div>
+      </div><span class="seat seat-c">1/20</span><div class="btn">预约</div></div></div>
+      <div class="v-note"><b>品牌色块</b>：青柠底深字，和「预约」按钮同色系、和能量条首尾呼应，运动感最强；但容易和按钮"抢戏"。</div>
+    </div>
+
+    <div class="variant">
+      <div class="v-head"><span class="v-tag">方案 D</span><span class="v-name">紫字+进度条</span></div>
+      <div class="phone"><div class="card"><div class="bar"></div><div class="main">
+        <div class="name">Hyrox冲冲冲</div><div class="time">09:00 – 10:00</div><div class="price">¥80 <small>（会员 ¥72）</small></div>
+      </div><div class="seat seat-d"><div class="num">1/20</div><div class="track"><div class="fill"></div></div></div><div class="btn">预约</div></div></div>
+      <div class="v-note"><b>仪表进度</b>：紫色数字 + 迷你占用进度条（按已订/容量比例填充），数据感最强；满员时进度条变金色。</div>
+    </div>
+  </div>
+
+  <div style="margin-top:24px; font-size:13px; color:var(--gray);">选定后我直接落到「今日/本周」两页；紧张/满员斜条与满员变色逻辑保持不变。</div>
+</body>
+</html>

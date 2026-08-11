@@ -113,3 +113,51 @@
   color: #1A1A23;
   font-weight: 700;
 }
+
+/* 扫码提示 */
+.scan-now {
+  position: absolute;
+  bottom: 40rpx;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 26rpx;
+  color: #B9FF66;
+  font-weight: 600;
+}
+
+/* 核销结果浮层 */
+.result-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99;
+}
+.result-card {
+  width: 520rpx;
+  border-radius: 32rpx;
+  padding: 60rpx 40rpx;
+  align-items: center;
+  background: #FFFFFF;
+}
+.res-icon {
+  font-size: 72rpx;
+  font-weight: 800;
+}
+.res-ok .res-icon {
+  color: #3D9970;
+}
+.res-fail .res-icon {
+  color: #E5484D;
+}
+.res-text {
+  margin-top: 24rpx;
+  font-size: 28rpx;
+  color: #1A1A23;
+  text-align: center;
+  line-height: 1.7;
+  white-space: pre-line;
+}

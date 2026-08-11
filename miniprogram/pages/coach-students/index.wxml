@@ -1,12 +1,14 @@
 <view class="page">
   <view class="page-pad">
+    <text class="offline-tip" wx:if="{{offline}}">后端未连接或无可查场次，展示空名单</text>
+
     <!-- 课程信息 -->
     <view class="course-bar flex-row">
       <view class="flex-col flex-1">
-        <text class="course-name">{{course.name}}</text>
-        <text class="course-meta">{{course.time}} · {{course.venue}}</text>
+        <text class="course-name">{{course.name || '课程名单'}}</text>
+        <text class="course-meta">{{course.time || '选择场次查看学员'}} · {{course.venue}}</text>
       </view>
-      <view class="count-badge">已签到 {{checked}}/{{total}}</view>
+      <view class="count-badge" wx:if="{{!loading}}">已签到 {{checked}}/{{total}}</view>
     </view>
 
     <!-- 统计行 -->
@@ -26,7 +28,7 @@
     </view>
 
     <!-- 学员列表 -->
-    <view class="student-list">
+    <view class="student-list" wx:if="{{!loading}}">
       <view class="student-row flex-row" wx:for="{{students}}" wx:key="id"
             data-id="{{item.id}}" bindtap="toggleCheck">
         <image class="stu-avatar" src="{{item.avatar}}" mode="aspectFill"></image>
@@ -37,6 +39,10 @@
         <view class="tag {{item.checked ? 'tag-green' : 'tag-orange'}}">
           {{item.checked ? '已签到' : '未签到'}}
         </view>
+      </view>
+      <!-- 空名单 -->
+      <view class="empty-state flex-col" wx:if="{{students.length === 0}}">
+        <text class="empty-txt">暂无学员报名</text>
       </view>
     </view>
 

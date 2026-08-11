@@ -81,3 +81,69 @@
   justify-content: center;
   box-shadow: 0 12rpx 28rpx rgba(185,255,102,0.5);
 }
+
+/* 加载/空态 */
+.loading-tip {
+  text-align: center;
+  color: #B0AFA8;
+  padding: 80rpx 0;
+  font-size: 26rpx;
+}
+.empty-state {
+  align-items: center;
+  padding: 120rpx 0;
+}
+.empty-icon {
+  font-size: 64rpx;
+  color: #D8D4C2;
+}
+.empty-txt {
+  margin-top: 20rpx;
+  font-size: 28rpx;
+  color: #6B6B76;
+}
+.empty-sub {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #B0AFA8;
+}
+
+/* 凭证码 */
+.code-box {
+  margin-top: 32rpx;
+  width: 360rpx;
+  height: 120rpx;
+  background: #1A1A23;
+  border-radius: 24rpx;
+}
+.code-text {
+  font-size: 44rpx;
+  font-weight: 800;
+  letter-spacing: 6rpx;
+  color: #B9FF66;
+  font-family: monospace;
+}
+
+/* 已签到横幅 */
+.checked-banner {
+  margin-top: 32rpx;
+  align-items: center;
+  background: #E3F5EA;
+  border-radius: 24rpx;
+  padding: 40rpx 0;
+}
+.checked-icon {
+  font-size: 56rpx;
+  color: #3D9970;
+}
+.checked-txt {
+  margin-top: 12rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #3D9970;
+}
+.checked-sub {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #6B6B76;
+}

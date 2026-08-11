@@ -41,7 +41,7 @@
         <view class="flex-row card-actions">
           <view class="btn-sm btn-outline" wx:if="{{!item.isWait}}" bindtap="refund" data-id="{{item.id}}" data-name="{{item.name}}">退订</view>
           <view class="btn-sm btn-outline" wx:if="{{item.isWait}}" bindtap="exitWaitlist" data-id="{{item.id}}" data-name="{{item.name}}">退出候补</view>
-          <view class="btn-sm btn-primary" wx:if="{{!item.isWait && item.statusType === 'pending'}}" bindtap="checkin">签到</view>
+          <view class="btn-sm btn-primary" wx:if="{{!item.isWait && item.statusType === 'pending'}}" bindtap="checkin" data-id="{{item.id}}">签到</view>
           <view class="btn-sm btn-purple" wx:if="{{item.isWait}}" bindtap="showWaitHint">排位</view>
         </view>
       </view>

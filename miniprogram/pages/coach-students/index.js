@@ -1,43 +1,62 @@
-const mock = require('../../utils/mock.js');
+const api = require('../../utils/api.js');
 
 Page({
   data: {
-    course: { name: 'HIIT 高强度燃脂', time: '今日 10:00-11:00', venue: 'A馆' },
-    checked: 10,
-    unchecked: 2,
-    total: 12,
-    students: []
+    course: { name: '', time: '', venue: '' },
+    checked: 0,
+    unchecked: 0,
+    total: 0,
+    students: [],
+    loading: true,
+    offline: false
   },
 
   onLoad(options) {
-    const id = Number(options.id || 1);
-    const course = mock.coachSchedule.find(c => c.id === id);
-    const base = course ? course.name : 'HIIT 高强度燃脂';
-    this.setData({
-      course: {
-        name: base,
-        time: `今日 ${course ? course.time : '10:00'}-${course ? (Number(course.time.split(':')[0]) + 1).toString().padStart(2, '0') + ':' + course.time.split(':')[1] : '11:00'}`,
-        venue: course ? course.venue : 'A馆'
-      },
-      students: mock.studentRoster
+    const sessionId = Number(options.session_id || options.id || 0);
+    this.setData({ sessionId });
+    if (sessionId) {
+      this.loadStudents(sessionId);
+    } else {
+      this.setData({ loading: false, offline: true });
+    }
+  },
+
+  // 从后端加载场次订课名单
+  loadStudents(sessionId) {
+    api.getSessionStudents(sessionId).then((res) => {
+      const students = (res.students || []).map(s => ({
+        id: s.id,
+        name: s.student_name || '微信用户',
+        meta: s.checkin_at ? `签到 ${s.checkin_at}` : '待签到',
+        avatar: s.student_avatar || '/images/2_556.png',
+        checked: !!s.checkin_at
+      }));
+      const checked = students.filter(s => s.checked).length;
+      this.setData({
+        students,
+        checked,
+        unchecked: students.length - checked,
+        total: students.length,
+        course: {
+          name: res.students[0] ? res.students[0].course_name : '',
+          time: res.students[0] ? `${res.students[0].date} ${res.students[0].start_time}-${res.students[0].end_time}` : '',
+          venue: res.students[0] ? res.students[0].venue_name : ''
+        },
+        loading: false,
+        offline: false
+      });
+    }).catch(() => {
+      this.setData({ loading: false, offline: true });
     });
   },
 
   goScan() {
-    wx.navigateTo({ url: '/pages/coach-scan/index' });
+    const sessionId = this.data.sessionId;
+    wx.navigateTo({ url: '/pages/coach-scan/index' + (sessionId ? '?session_id=' + sessionId : '') });
   },
 
-  toggleCheck(e) {
-    const id = e.currentTarget.dataset.id;
-    const students = this.data.students.map(s => {
-      if (s.id === id) return { ...s, checked: !s.checked };
-      return s;
-    });
-    const checked = students.filter(s => s.checked).length;
-    this.setData({
-      students,
-      checked,
-      unchecked: students.length - checked
-    });
+  // 点击学员行 → 跳扫码核销（不再本地改状态，扫码才是真实签到）
+  toggleCheck() {
+    this.goScan();
   }
 });

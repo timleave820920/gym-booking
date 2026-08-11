@@ -1,27 +1,46 @@
 <view class="page">
   <view class="page-pad">
-    <!-- 课程信息 -->
-    <view class="course-info flex-row">
-      <view class="icon-time"></view>
-      <view class="flex-col flex-1">
-        <text class="course-name">{{course.name}}</text>
-        <text class="course-meta">{{course.time}} · {{course.venue}}</text>
-      </view>
+    <!-- 加载中 -->
+    <view class="loading-tip" wx:if="{{loading}}">加载中...</view>
+
+    <!-- 无有效订课 -->
+    <view class="empty-state flex-col" wx:if="{{!loading && !course}}">
+      <text class="empty-icon">▦</text>
+      <text class="empty-txt">没有可签到的课程</text>
+      <text class="empty-sub">请从「上课」页选择待上课的课程</text>
     </view>
 
-    <!-- 二维码卡 -->
-    <view class="qr-card flex-col">
-      <text class="qr-tip">出示二维码给前台扫码签到</text>
-      <view class="qr-box flex-center">
-        <image class="qr-img" src="/images/2_472.png" mode="aspectFit"></image>
+    <block wx:if="{{!loading && course}}">
+      <!-- 课程信息 -->
+      <view class="course-info flex-row">
+        <view class="icon-time"></view>
+        <view class="flex-col flex-1">
+          <text class="course-name">{{course.name}}</text>
+          <text class="course-meta">{{course.time}} · {{course.venue}}</text>
+        </view>
       </view>
-      <text class="qr-sub">签到码 10 分钟内有效</text>
-      <view class="qr-hint flex-row">
-        <view class="hint-icon"></view>
-        <text class="hint-txt">开课前 30 分钟可签到，迟到 15 分钟自动取消</text>
-      </view>
-    </view>
 
-    <view class="refresh-btn" bindtap="refreshCode">刷新签到码</view>
+      <!-- 已签到状态 -->
+      <view class="checked-banner flex-col" wx:if="{{checked}}">
+        <text class="checked-icon">✓</text>
+        <text class="checked-txt">已签到</text>
+        <text class="checked-sub">训练愉快，记得拉伸放松</text>
+      </view>
+
+      <!-- 凭证码卡 -->
+      <view class="qr-card flex-col" wx:if="{{!checked}}">
+        <text class="qr-tip">出示签到码给教练核销</text>
+        <view class="code-box flex-center">
+          <text class="code-text">{{checkinCode}}</text>
+        </view>
+        <text class="qr-sub">签到码：请向教练出示</text>
+        <view class="qr-hint flex-row">
+          <view class="hint-icon"></view>
+          <text class="hint-txt">开课前 30 分钟可签到；签到后可在「我的」查看锻炼记录</text>
+        </view>
+      </view>
+
+      <view class="refresh-btn" wx:if="{{!checked}}" bindtap="refreshCode">刷新签到码</view>
+    </block>
   </view>
 </view>

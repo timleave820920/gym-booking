@@ -186,5 +186,20 @@ module.exports = {
   // 营收统计（管理后台）
   getRevenueStats() {
     return localRequest('/api/revenue', 'GET');
+  },
+
+  // 签到凭证信息（学员二维码页）
+  getCheckinInfo(bookingId) {
+    return localRequest('/api/checkin/' + bookingId, 'GET');
+  },
+
+  // 教练核销签到
+  checkin(bookingId, openid) {
+    return localRequest('/api/bookings/' + bookingId + '/checkin', 'POST', { openid });
+  },
+
+  // 按场次查订课名单（教练端）
+  getSessionStudents(sessionId) {
+    return localRequest('/api/sessions/' + sessionId + '/students', 'GET');
   }
 };

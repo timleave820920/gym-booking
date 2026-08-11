@@ -283,6 +283,42 @@ function handleCancelBooking(req, res) {
   });
 }
 
+// ===== 签到（checkin）=====
+
+// 签到凭证信息（GET /api/checkin/:id，学员二维码页）
+function handleCheckinInfo(req, res) {
+  const pathParts = req.url.split('/');
+  const bookingId = parseInt(pathParts[pathParts.length - 1], 10);
+  const info = db.getCheckinInfo(bookingId);
+  if (!info) return sendJson(res, 404, { code: 404, message: '订课记录不存在' });
+  return sendJson(res, 200, { code: 200, info });
+}
+
+// 教练核销签到（POST /api/bookings/:id/checkin）
+async function handleCheckin(req, res) {
+  const pathParts = req.url.split('/');
+  const bookingId = parseInt(pathParts[pathParts.length - 2], 10);
+  const body = await readBody(req);
+  const { openid } = body;
+  if (!bookingId || !openid) {
+    return sendJson(res, 400, { code: 400, message: '缺少订课ID或openid' });
+  }
+  const result = db.checkinBooking({ bookingId, coachOpenid: openid });
+  if (!result.ok) {
+    return sendJson(res, 400, { code: 400, message: result.error });
+  }
+  return sendJson(res, 200, { code: 200, message: '签到成功', booking: result.booking });
+}
+
+// 按场次查订课名单（GET /api/sessions/:id/students，教练端）
+function handleSessionStudents(req, res) {
+  const pathParts = req.url.split('/');
+  const sessionId = parseInt(pathParts[pathParts.length - 2], 10);
+  const students = db.listBookingsBySession(sessionId);
+  const checked = students.filter(s => s.checkin_at).length;
+  return sendJson(res, 200, { code: 200, students, checked, total: students.length });
+}
+
 // ===== 候补排位（waitlist）=====
 
 // 满员付费排位（POST /api/waitlist）
@@ -559,6 +595,12 @@ const server = http.createServer(async (req, res) => {
       handleListBookings(req, res);
     } else if (req.method === 'DELETE' && pathname.startsWith('/api/bookings/')) {
       handleCancelBooking(req, res);
+    } else if (req.method === 'POST' && /^\/api\/bookings\/\d+\/checkin$/.test(pathname)) {
+      await handleCheckin(req, res);
+    } else if (req.method === 'GET' && /^\/api\/checkin\/\d+$/.test(pathname)) {
+      handleCheckinInfo(req, res);
+    } else if (req.method === 'GET' && /^\/api\/sessions\/\d+\/students$/.test(pathname)) {
+      handleSessionStudents(req, res);
     } else if (req.method === 'POST' && pathname === '/api/waitlist') {
       await handleJoinWaitlist(req, res);
     } else if (req.method === 'GET' && pathname === '/api/waitlist') {

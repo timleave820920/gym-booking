@@ -502,6 +502,77 @@ function listBookingsByUser(openid, status) {
 }
 
 /**
+ * 签到凭证信息：按订课 ID 查询（学员二维码页展示用）
+ * @returns {object|null} 课程/时间/场地/签到状态
+ */
+function getCheckinInfo(bookingId) {
+  return db.prepare(`
+    SELECT b.id, b.session_id, b.status, b.checkin_at, b.user_openid,
+           s.date, s.start_time, s.end_time,
+           c.name AS course_name, c.level, c.duration_min,
+           co.name AS coach_name, v.name AS venue_name
+    FROM bookings b
+    JOIN course_sessions s ON s.id = b.session_id
+    JOIN courses c ON c.id = s.course_id
+    JOIN coaches co ON co.id = s.coach_id
+    JOIN venues v ON v.id = s.venue_id
+    WHERE b.id = ?
+  `).get(bookingId) || null;
+}
+
+/**
+ * 按场次查订课名单（教练端学员名单，含学员昵称与签到状态）
+ */
+function listBookingsBySession(sessionId) {
+  return db.prepare(`
+    SELECT b.id, b.session_id, b.status, b.checkin_at, b.user_openid,
+           u.nickname AS student_name, u.avatar AS student_avatar,
+           s.date, s.start_time, s.end_time,
+           c.name AS course_name, v.name AS venue_name
+    FROM bookings b
+    JOIN users u ON u.openid = b.user_openid
+    JOIN course_sessions s ON s.id = b.session_id
+    JOIN courses c ON c.id = s.course_id
+    JOIN venues v ON v.id = s.venue_id
+    WHERE b.session_id = ? AND b.status = 'booked'
+    ORDER BY b.checkin_at IS NULL, b.created_at
+  `).all(sessionId);
+}
+
+/**
+ * 教练核销签到（扫码后调用）
+ * @param {object} p { bookingId, coachOpenid }
+ * @returns {{ok:true, booking:object}|{ok:false, error:string}}
+ */
+function checkinBooking({ bookingId, coachOpenid }) {
+  // 校验教练身份（coaches 表或 users.role='coach'）
+  const coach = db.prepare("SELECT * FROM users WHERE openid = ? AND role = 'coach'").get(coachOpenid)
+    || db.prepare('SELECT * FROM coaches WHERE user_openid = ?').get(coachOpenid);
+  if (!coach) return { ok: false, error: '无教练权限' };
+
+  const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(bookingId);
+  if (!booking) return { ok: false, error: '订课记录不存在' };
+  if (booking.status !== 'booked') return { ok: false, error: '该订课已失效' };
+  if (booking.checkin_at) return { ok: false, error: '该学员已签到，请勿重复签到' };
+
+  const session = db.prepare('SELECT * FROM course_sessions WHERE id = ?').get(booking.session_id);
+  if (!session) return { ok: false, error: '场次不存在' };
+
+  // 时间校验：只允许当天签到（开课前 30 分钟至课程结束后 2 小时）
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (session.date !== todayStr) {
+    return { ok: false, error: `仅支持当天签到（场次日期 ${session.date}）` };
+  }
+
+  db.prepare("UPDATE bookings SET checkin_at = datetime('now','localtime') WHERE id = ?").run(bookingId);
+  // 同步用户累计次数（total_classes +1）
+  db.prepare('UPDATE users SET total_classes = total_classes + 1 WHERE openid = ?').run(booking.user_openid);
+
+  return { ok: true, booking: getCheckinInfo(bookingId) };
+}
+
+/**
  * 退订：取消订单 + 恢复场次余位（事务）
  */
 function cancelBooking(openid, bookingId) {
@@ -954,6 +1025,10 @@ module.exports = {
   countBookingsByUser,
   countFinishedWorkouts,
   countUpcomingBookings,
+  // 签到
+  getCheckinInfo,
+  checkinBooking,
+  listBookingsBySession,
   // 候补排位
   joinWaitlist,
   cancelWaitlist,
