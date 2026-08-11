@@ -157,24 +157,29 @@
   color: #1A1A23;
 }
 .cb-seats {
-  background: #1A1A23;          /* 右侧深色芯片，平衡左侧头像重量 */
-  border-radius: 12rpx;
-  padding: 12rpx 20rpx;
+  background: #FFFFFF;          /* 白底红边胶囊（方案B） */
+  border: 3rpx solid #E5484D;
+  border-radius: 999rpx;
+  padding: 8rpx 22rpx;
   text-align: center;
   flex-shrink: 0;
+}
+/* 满员：胶囊描边转金 */
+.cb-seats-full {
+  border-color: #EF9F27;
 }
 /* 纯数字席位（如 4/20） */
 .cb-seat-num {
   font-family: "Bahnschrift", "DIN Alternate", "Roboto Mono", "SF Mono", "Menlo", monospace;
-  font-size: 40rpx;
+  font-size: 32rpx;
   font-weight: 800;
   letter-spacing: 1rpx;
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  color: #B9FF66;               /* 深底配青柠数字 */
+  color: #E5484D;               /* 白底红字 */
 }
 .cb-seat-zero {
-  color: #EF9F27;   /* 满员时 0/20 金色 */
+  color: #EF9F27;   /* 满员时 20/20 金色 */
 }
 /* 底行：价格 + 难度点阵 + 按钮 */
 .cb-bottom {
