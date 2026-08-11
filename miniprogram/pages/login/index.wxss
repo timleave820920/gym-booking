@@ -412,58 +412,6 @@
   margin-top: 16rpx;
 }
 
-/* 储值奖励庆祝弹框 */
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 999;
-  animation: fadeIn 0.3s ease;
-  width: 560rpx;
-  background: #FFFFFF;
-  border: 4rpx solid #1A1A23;
-  border-radius: 32rpx;
-  padding: 48rpx 40rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-  font-size: 88rpx;
-  animation: bounce 1s ease infinite;
-  margin-top: 20rpx;
-  font-size: 32rpx;
-  font-weight: 800;
-  color: #1A1A23;
-  margin-top: 16rpx;
-  font-size: 64rpx;
-  font-weight: 800;
-  color: #B9FF66;
-  -webkit-text-stroke: 2rpx #1A1A23;
-  text-shadow: 3rpx 3rpx 0 #1A1A23;
-  margin-top: 12rpx;
-  font-size: 24rpx;
-  color: #8A8A8A;
-  margin-top: 32rpx;
-  background: #1A1A23;
-  border-radius: 44rpx;
-  padding: 20rpx 80rpx;
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #B9FF66;
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes popIn {
-  from { transform: scale(0.6); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-16rpx); }
-
 /* 邀请码输入框 */
 .invite-field {
   margin: 24rpx 0 0;
