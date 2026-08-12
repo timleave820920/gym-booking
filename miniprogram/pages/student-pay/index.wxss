@@ -150,3 +150,41 @@
   color: #5B57EB;
   font-weight: 600;
 }
+
+/* 候补自动取消时间 */
+.expire-section {
+  margin-top: 40rpx;
+}
+.expire-sub {
+  display: block;
+  font-size: 24rpx;
+  color: #8A8A8A;
+  margin: 8rpx 0 20rpx;
+}
+.expire-list {
+  gap: 20rpx;
+}
+.expire-item {
+  flex: 1;
+  align-items: center;
+  padding: 24rpx 0;
+  border-radius: 20rpx;
+  background: #FFFFFF;
+  border: 3rpx solid #E8E2CC;
+}
+.expire-on {
+  border-color: #1A1A23;
+  background: #1A1A23;
+}
+.expire-name {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #1A1A23;
+}
+.expire-desc {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #8A8A8A;
+}
+.expire-on .expire-name { color: #B9FF66; }
+.expire-on .expire-desc { color: rgba(255,255,255,0.6); }

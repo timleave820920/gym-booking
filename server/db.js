@@ -42,6 +42,9 @@ db.exec(`
 `);
 // 兼容旧库：确保 balance_fen / coin_balance / level_lv 列存在
 try { db.exec('ALTER TABLE users ADD COLUMN balance_fen INTEGER DEFAULT 0'); } catch (e) {}
+// 候补自动取消节点（start=开课时 / 1h / 2h）
+try { db.exec("ALTER TABLE waitlist ADD COLUMN expire_mode TEXT DEFAULT 'start'"); } catch (e) {}
+try { db.exec("ALTER TABLE orders ADD COLUMN expire_mode TEXT DEFAULT 'start'"); } catch (e) {}
 try { db.exec('ALTER TABLE users ADD COLUMN coin_balance INTEGER DEFAULT 0'); } catch (e) {}
 try { db.exec('ALTER TABLE users ADD COLUMN level_lv INTEGER DEFAULT 1'); } catch (e) {}
 
@@ -1267,7 +1270,7 @@ function genOrderNo() {
  * @param {object} p { user_openid, session_id, amount_fen, order_type }
  * @returns {{ok:true, order:object}|{ok:false, error:string}}
  */
-function createOrder({ user_openid, session_id, amount_fen = 0, order_type = 'book' }) {
+function createOrder({ user_openid, session_id, amount_fen = 0, order_type = 'book', expire_mode = 'start' }) {
   const user = findUserByOpenid(user_openid);
   if (!user) return { ok: false, error: '用户不存在，请先登录' };
 
@@ -1301,10 +1304,12 @@ function createOrder({ user_openid, session_id, amount_fen = 0, order_type = 'bo
     return { ok: false, error: '未知订单类型' };
   }
 
+  // 候补订单记录自动取消节点（仅 waitlist 生效，其余忽略）
+  const em = (order_type === 'waitlist' && ['start', '1h', '2h'].includes(expire_mode)) ? expire_mode : 'start';
   const orderNo = genOrderNo();
-  db.prepare(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status)
-              VALUES (?, ?, ?, ?, ?, 'pending')`)
-    .run(orderNo, user_openid, session_id, order_type, amount_fen);
+  db.prepare(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status, expire_mode)
+              VALUES (?, ?, ?, ?, ?, 'pending', ?)`)
+    .run(orderNo, user_openid, session_id, order_type, amount_fen, em);
 
   const order = db.prepare(`${ORDER_SELECT} WHERE o.id = last_insert_rowid()`).get();
   return { ok: true, order };
@@ -1355,11 +1360,11 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
       recharge = applyRecharge({ user_openid: order.user_openid, order_id: orderId, amount_fen: order.amount_fen, bonus_fen: bonus });
       recharge = { ...recharge, isFirst, bonus, rate: isFirst ? plan.firstBonusRate : plan.repeatBonusRate };
     } else if (order.order_type === 'waitlist') {
-      // 候补排位：写 waitlist
+      // 候补排位：写 waitlist（带自动取消节点，默认开课时）
       const waitNo = 'WL' + Date.now() + Math.random().toString(36).slice(2, 6).toUpperCase();
-      db.prepare(`INSERT INTO waitlist (wait_no, user_openid, session_id, amount_fen, status)
-                  VALUES (?, ?, ?, ?, 'waiting')`)
-        .run(waitNo, order.user_openid, order.session_id, order.amount_fen);
+      db.prepare(`INSERT INTO waitlist (wait_no, user_openid, session_id, amount_fen, status, expire_mode)
+                  VALUES (?, ?, ?, ?, 'waiting', ?)`)
+        .run(waitNo, order.user_openid, order.session_id, order.amount_fen, order.expire_mode || 'start');
       const waitId = db.prepare('SELECT id FROM waitlist WHERE wait_no = ?').get(waitNo).id;
       db.prepare('UPDATE orders SET wait_id = ? WHERE id = ?').run(waitId, orderId);
       wait = db.prepare(`
@@ -1554,7 +1559,7 @@ function promoteFromWaitlist(sessionId) {
  * @param {object} p { user_openid, session_id, amount_fen }
  * @returns {{ok:true, wait:{}}|{ok:false, error:string}}
  */
-function joinWaitlist({ user_openid, session_id, amount_fen = 0 }) {
+function joinWaitlist({ user_openid, session_id, amount_fen = 0, expire_mode = 'start' }) {
   const user = findUserByOpenid(user_openid);
   if (!user) return { ok: false, error: '用户不存在，请先登录' };
 
@@ -1576,11 +1581,12 @@ function joinWaitlist({ user_openid, session_id, amount_fen = 0 }) {
   }
 
   const waitNo = 'WL' + Date.now() + Math.random().toString(36).slice(2, 6).toUpperCase();
-  db.prepare(`INSERT INTO waitlist (wait_no, user_openid, session_id, amount_fen, status)
-              VALUES (?, ?, ?, ?, 'waiting')`)
-    .run(waitNo, user_openid, session_id, amount_fen);
+  const em = ['start', '1h', '2h'].includes(expire_mode) ? expire_mode : 'start';
+  db.prepare(`INSERT INTO waitlist (wait_no, user_openid, session_id, amount_fen, status, expire_mode)
+              VALUES (?, ?, ?, ?, 'waiting', ?)`)
+    .run(waitNo, user_openid, session_id, amount_fen, em);
   const wait = db.prepare(`
-    SELECT w.id, w.wait_no, w.session_id, w.amount_fen, w.status, w.created_at,
+    SELECT w.id, w.wait_no, w.session_id, w.amount_fen, w.status, w.expire_mode, w.created_at,
            s.date, s.start_time, s.end_time, c.name AS course_name, c.level, c.duration_min,
            co.name AS coach_name, v.name AS venue_name
     FROM waitlist w
@@ -1625,7 +1631,7 @@ function cancelWaitlist(openid, waitId) {
  */
 function listWaitlistByUser(openid) {
   return db.prepare(`
-    SELECT w.id, w.wait_no, w.session_id, w.amount_fen, w.status, w.created_at, w.promoted_at, w.refunded_at,
+    SELECT w.id, w.wait_no, w.session_id, w.amount_fen, w.status, w.expire_mode, w.created_at, w.promoted_at, w.refunded_at,
            s.date, s.start_time, s.end_time, s.capacity, s.booked_count,
            c.id AS course_id, c.name AS course_name, c.level, c.duration_min,
            co.name AS coach_name, v.name AS venue_name
@@ -1644,15 +1650,21 @@ function listWaitlistByUser(openid) {
  * @returns {number} 退款的条数
  */
 function refundExpiredWaitlist() {
+  // 截止时间 = 开课时间 - 所选偏移（start=开课时 / 1h / 2h）
   const expired = db.prepare(`
-    SELECT w.id, w.user_openid, w.amount_fen, s.course_id, s.start_time, c.name AS course_name,
-           (SELECT o.id FROM orders o WHERE o.wait_id = w.id AND o.status = 'paid' LIMIT 1) AS order_id
-    FROM waitlist w
-    JOIN course_sessions s ON s.id = w.session_id
-    JOIN courses c ON c.id = s.course_id
-    WHERE w.status = 'waiting'
-      AND (s.date < date('now','localtime')
-           OR (s.date = date('now','localtime') AND s.start_time < time('now','localtime')))
+    SELECT * FROM (
+      SELECT w.id, w.user_openid, w.amount_fen, s.course_id, s.start_time, c.name AS course_name,
+             (SELECT o.id FROM orders o WHERE o.wait_id = w.id AND o.status = 'paid' LIMIT 1) AS order_id,
+             CASE w.expire_mode
+               WHEN '1h' THEN datetime(s.date || ' ' || s.start_time, '-60 minutes')
+               WHEN '2h' THEN datetime(s.date || ' ' || s.start_time, '-120 minutes')
+               ELSE datetime(s.date || ' ' || s.start_time)
+             END AS deadline
+      FROM waitlist w
+      JOIN course_sessions s ON s.id = w.session_id
+      JOIN courses c ON c.id = s.course_id
+      WHERE w.status = 'waiting'
+    ) WHERE deadline < datetime('now', 'localtime')
   `).all();
   for (const row of expired) {
     db.exec('BEGIN');

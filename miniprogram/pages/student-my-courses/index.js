@@ -88,6 +88,7 @@ Page({
             status: '候补中',
             statusType: 'waiting',
             isWait: true,
+            expireText: w.expire_mode === '1h' ? '课前1小时自动取消' : (w.expire_mode === '2h' ? '课前2小时自动取消' : '开课时自动取消'),
             checked: false
           }));
         this.setData({ courses: upcoming.concat(waits), loading: false });

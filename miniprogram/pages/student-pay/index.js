@@ -14,7 +14,14 @@ Page({
     payMethods: [
       { id: 2, name: '余额支付', desc: '余额 ¥ 0.00', icon: 'card', selected: false },
       { id: 1, name: '微信支付', desc: '推荐使用', icon: 'wallet', selected: true }
-    ]
+    ],
+    // 候补自动取消节点：start=开课时 / 1h=课前1小时 / 2h=课前2小时
+    expireModes: [
+      { id: 'start', name: '开课时', desc: '排到开课' },
+      { id: '1h', name: '课前 1 小时', desc: '提前 1 小时' },
+      { id: '2h', name: '课前 2 小时', desc: '提前 2 小时' }
+    ],
+    selectedExpire: 'start'
   },
 
   onLoad() {
@@ -77,6 +84,10 @@ Page({
     });
   },
 
+  selectExpire(e) {
+    this.setData({ selectedExpire: e.currentTarget.dataset.id });
+  },
+
   selectMethod(e) {
     const id = e.currentTarget.dataset.id;
     const payMethods = this.data.payMethods.map(m => ({
@@ -115,7 +126,8 @@ Page({
       openid,
       sessionId: course.session_id || course.id,
       amountFen: Math.round((course.price || 68) * 100),
-      orderType: course.mode === 'waitlist' ? 'waitlist' : 'book'
+      orderType: course.mode === 'waitlist' ? 'waitlist' : 'book',
+      expireMode: course.mode === 'waitlist' ? this.data.selectedExpire : undefined
     }).then((res) => {
       this.setData({ order: res.order });
       wx.showLoading({ title: '支付中...' });

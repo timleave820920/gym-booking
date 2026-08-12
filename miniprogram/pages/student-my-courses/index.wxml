@@ -45,6 +45,7 @@
               <text class="course-meta">教练 · {{item.coach}} · {{item.venue}}</text>
             </view>
           </view>
+          <text class="wait-expire" wx:if="{{item.isWait}}">{{item.expireText}}</text>
           <view class="flex-row card-actions">
             <view class="btn-sm btn-outline" wx:if="{{!item.isWait}}" bindtap="refund" data-id="{{item.id}}" data-name="{{item.name}}">退订</view>
             <view class="btn-sm btn-outline" wx:if="{{item.isWait}}" bindtap="exitWaitlist" data-id="{{item.id}}" data-name="{{item.name}}">退出候补</view>
@@ -80,6 +81,7 @@
               <text class="course-meta">教练 · {{item.coach}} · {{item.venue}}</text>
             </view>
           </view>
+          <text class="wait-expire" wx:if="{{item.isWait}}">{{item.expireText}}</text>
           <view class="flex-row card-actions">
             <text class="done-status {{item.checked ? 'done-checked' : ''}}">{{item.checked ? '已签到 ✓' : '未签到'}}</text>
           </view>

@@ -365,14 +365,15 @@ function handleSessionStudents(req, res) {
 // 满员付费排位（POST /api/waitlist）
 async function handleJoinWaitlist(req, res) {
   const body = await readBody(req);
-  const { openid, sessionId, amountFen } = body;
+  const { openid, sessionId, amountFen, expireMode } = body;
   if (!openid || !sessionId) {
     return sendJson(res, 400, { code: 400, message: '缺少 openid 或 sessionId' });
   }
   const result = db.joinWaitlist({
     user_openid: openid,
     session_id: sessionId,
-    amount_fen: amountFen || 0
+    amount_fen: amountFen || 0,
+    expire_mode: expireMode || 'start'
   });
   if (!result.ok) {
     return sendJson(res, 400, { code: 400, message: result.error });
@@ -580,7 +581,7 @@ function handleCoinConfig(req, res) {
 // 下单（POST /api/orders）→ 创建待支付订单
 async function handleCreateOrder(req, res) {
   const body = await readBody(req);
-  const { openid, sessionId, amountFen, orderType } = body;
+  const { openid, sessionId, amountFen, orderType, expireMode } = body;
   // 充值订单无场次（sessionId 可省略或为 0）
   if (!openid) {
     return sendJson(res, 400, { code: 400, message: '缺少 openid' });
@@ -592,7 +593,8 @@ async function handleCreateOrder(req, res) {
     user_openid: openid,
     session_id: sessionId,
     amount_fen: amountFen || 0,
-    order_type: orderType || 'book'
+    order_type: orderType || 'book',
+    expire_mode: expireMode || 'start'
   });
   if (!result.ok) {
     return sendJson(res, 400, { code: 400, message: result.error });

@@ -39,6 +39,20 @@
       </view>
     </view>
 
+    <!-- 候补自动取消时间（仅排位模式）：到期未转正自动退款 -->
+    <view class="expire-section" wx:if="{{course.mode === 'waitlist'}}">
+      <view class="section-title">自动取消时间</view>
+      <text class="expire-sub">排位到期仍未转正，将自动取消并原路退款</text>
+      <view class="expire-list flex-row">
+        <view class="expire-item flex-col {{selectedExpire === item.id ? 'expire-on' : ''}}"
+              wx:for="{{expireModes}}" wx:key="id"
+              data-id="{{item.id}}" bindtap="selectExpire">
+          <text class="expire-name">{{item.name}}</text>
+          <text class="expire-desc">{{item.desc}}</text>
+        </view>
+      </view>
+    </view>
+
     <view class="spacer"></view>
   </view>
 
