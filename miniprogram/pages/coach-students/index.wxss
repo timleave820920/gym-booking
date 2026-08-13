@@ -95,11 +95,3 @@
   color: #E8890C;
   margin-bottom: 16rpx;
 }
-.empty-state {
-  align-items: center;
-  padding: 60rpx 0;
-}
-.empty-txt {
-  font-size: 26rpx;
-  color: #B0AFA8;
-}

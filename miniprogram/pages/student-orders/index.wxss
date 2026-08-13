@@ -31,14 +31,6 @@
   font-size: 24rpx;
   color: #B0AFA8;
 }
-
-.loading-tip {
-  text-align: center;
-  color: #B0AFA8;
-  padding: 80rpx 0;
-  font-size: 26rpx;
-}
-
 /* 订单卡片 */
 .order-card {
   background: #FFFFFF;
@@ -114,24 +106,9 @@
   align-items: center;
 }
 
-/* 空状态 */
-.empty-state {
-  align-items: center;
-  padding: 120rpx 0;
-}
-.empty-icon {
+/* 空状态 */.empty-icon {
   font-size: 64rpx;
   color: var(--ink-300);
-}
-.empty-txt {
-  margin-top: 20rpx;
-  font-size: 28rpx;
-  color: #6B6B76;
-}
-.empty-sub {
-  margin-top: 12rpx;
-  font-size: 24rpx;
-  color: #B0AFA8;
 }
 
 .list-spacer {

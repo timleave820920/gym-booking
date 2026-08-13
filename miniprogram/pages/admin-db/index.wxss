@@ -183,14 +183,6 @@
   font-size: 24rpx;
   color: #B0AFA8;
 }
-
-.loading-tip {
-  padding: 48rpx 0;
-  text-align: center;
-  color: #B0AFA8;
-  font-size: 26rpx;
-}
-
 /* 用户行 */
 .db-user-row {
   padding: 24rpx 0;
@@ -252,17 +244,6 @@
   width: 96rpx;
   height: 96rpx;
   background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.5" stroke="%23B0AFA8" stroke-width="1.6"/><path d="M2.5 20C2.5 16.13 5.41 13 9 13C12.59 13 15.5 16.13 15.5 20" stroke="%23B0AFA8" stroke-width="1.6" stroke-linecap="round"/></svg>') no-repeat center/contain;
-}
-.empty-txt {
-  margin-top: 24rpx;
-  color: #6B6B76;
-  font-size: 30rpx;
-  font-weight: 600;
-}
-.empty-sub {
-  margin-top: 8rpx;
-  color: #B0AFA8;
-  font-size: 24rpx;
 }
 
 .bottom-space {

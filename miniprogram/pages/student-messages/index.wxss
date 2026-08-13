@@ -139,22 +139,4 @@
   font-size: 24rpx;
   padding: 30rpx 0;
 }
-.empty-state {
-  align-items: center;
-  padding: 120rpx 0;
-}
-.empty-icon {
-  font-size: 96rpx;
-  color: var(--ink-300);
-}
-.empty-txt {
-  margin-top: 24rpx;
-  color: #6B6B76;
-  font-size: 30rpx;
-}
-.empty-sub {
-  margin-top: 12rpx;
-  font-size: 24rpx;
-  color: #B0AFA8;
-}
 .list-spacer { height: 60rpx; }

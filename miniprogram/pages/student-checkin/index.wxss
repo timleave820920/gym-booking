@@ -89,24 +89,6 @@
   padding: 80rpx 0;
   font-size: 26rpx;
 }
-.empty-state {
-  align-items: center;
-  padding: 120rpx 0;
-}
-.empty-icon {
-  font-size: 64rpx;
-  color: var(--ink-300);
-}
-.empty-txt {
-  margin-top: 20rpx;
-  font-size: 28rpx;
-  color: #6B6B76;
-}
-.empty-sub {
-  margin-top: 12rpx;
-  font-size: 24rpx;
-  color: #B0AFA8;
-}
 
 /* 签到二维码 */
 .code-box {
