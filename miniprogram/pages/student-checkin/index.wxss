@@ -96,8 +96,8 @@
   width: 400rpx;
   height: 400rpx;
   background: #FFFFFF;
-  border: 3rpx solid #1A1A23;
   border-radius: 24rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
 }
 .qr-canvas {
   width: 360rpx;

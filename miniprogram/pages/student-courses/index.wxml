@@ -37,9 +37,6 @@
         <view class="ribbon ribbon-full" wx:if="{{item.remaining === 0}}">满员</view>
         <view class="ribbon" wx:if="{{item.remaining > 0 && item.remaining < 5}}">紧张</view>
 
-        <!-- 左上角圆点徽章（方案C） -->
-        <view class="cb-dot"></view>
-
         <view class="cb-main">
           <!-- 顶行：教练头像 + 课程名 + 难度点阵 -->
           <view class="cb-top">

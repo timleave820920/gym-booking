@@ -70,7 +70,6 @@
   position: relative;
   flex: 1;
   background: #FFFFFF;
-  border: 3rpx solid #1A1A23;
   border-radius: 24rpx;
   padding: 24rpx 0;
   display: flex;

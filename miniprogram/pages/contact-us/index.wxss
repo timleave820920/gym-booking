@@ -29,7 +29,6 @@
 .qr-card {
   margin-top: 32rpx;
   background: #FFFFFF;
-  border: 3rpx solid #1A1A23;
   border-radius: 24rpx;
   padding: 32rpx 24rpx;
   display: flex;

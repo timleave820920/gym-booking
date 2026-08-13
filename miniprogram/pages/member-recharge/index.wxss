@@ -49,7 +49,6 @@
   position: relative;
   flex: 1;
   background: #FFFFFF;
-  border: 3rpx solid #1A1A23;
   border-radius: 24rpx;
   padding: 28rpx 0;
   display: flex;
@@ -119,7 +118,6 @@
 /* 记录 */
 .rec-item {
   background: #FFFFFF;
-  border: 3rpx solid #1A1A23;
   border-radius: 20rpx;
   padding: 20rpx 24rpx;
   margin-bottom: 16rpx;

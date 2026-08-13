@@ -64,7 +64,6 @@
   width: 48%;
   box-sizing: border-box;
   background: #FFFFFF;
-  border: 3rpx solid #1A1A23;
   border-radius: 24rpx;
   padding: 24rpx;
 }
@@ -133,7 +132,6 @@
 /* 兑换记录 */
 .ex-item {
   background: #FFFFFF;
-  border: 3rpx solid #1A1A23;
   border-radius: 20rpx;
   padding: 20rpx 24rpx;
   margin-bottom: 16rpx;
@@ -187,7 +185,6 @@
 .code-card {
   width: 540rpx;
   background: #FFFFFF;
-  border: 4rpx solid #1A1A23;
   border-radius: 32rpx;
   padding: 48rpx 40rpx;
   display: flex;

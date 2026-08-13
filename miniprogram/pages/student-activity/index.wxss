@@ -75,7 +75,6 @@
   position: relative;
   overflow: hidden;
   background: #FFFFFF;
-  border: 3rpx solid #1A1A23;      /* 整条细边框 */
   border-radius: 28rpx;
   padding: 24rpx;
   box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
