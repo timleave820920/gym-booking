@@ -1,3 +1,4 @@
 # 换行符规范：脚本固定 LF（Windows 下 CRLF 会破坏 sh 执行）
 .githooks/pre-commit text eol=lf
 *.sh text eol=lf
+.gitattributes text eol=lf
