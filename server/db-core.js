@@ -278,7 +278,7 @@ db.exec(`
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     order_no     TEXT UNIQUE NOT NULL,
     user_openid  TEXT NOT NULL,
-    session_id   INTEGER NOT NULL,
+    session_id   INTEGER,                -- 充值订单无场次，允许 NULL（CI 干净环境验证发现）
     booking_id   INTEGER,                -- 关联订课记录（支付后生成）
     wait_id      INTEGER,                -- 关联候补记录（排位支付后生成）
     order_type   TEXT DEFAULT 'book',    -- book 订课 / waitlist 候补排位
