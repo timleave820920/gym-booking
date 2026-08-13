@@ -40,7 +40,7 @@
 - **根因**：建表 `orders.session_id INTEGER NOT NULL`，但充值订单无场次，`createOrder` 写 `NULL`（server/db/orders.js）；本地旧表无 NOT NULL 约束（`CREATE TABLE IF NOT EXISTS` 不改已存在表）→ 本地宽松掩盖，CI 全新建表即爆
 - **修复**：`session_id` 改可空（`INTEGER`，注释「充值订单无场次」）
 - **回归测试**：`MEM-03b`（run-tests.js：充值订单 session_id 必须为 NULL）+ MEM-03/04 充值全链路
-- **防护层**：当时仅 L2 CI 干净库可抓（本地永远测不出 schema 差异）；修复后由 L2 CI + MEM-03b 兜底。**教训：schema 改动必须想干净库视角，本地旧表会掩盖**
+- **防护层**：当时仅 L2 CI 干净库可抓（本地永远测不出 schema 差异）；**2026-08-13 已根治**——run-tests.js 支持 `DB_PATH` 干净库模式（pre-commit hook 强制启用），本地 L1 即可抓 schema 类 bug（负向验证：session_id 改回 NOT NULL → 本地立即红）；L2 CI + MEM-03b 双兜底。**教训：schema 改动必须想干净库视角，本地旧表会掩盖**
 
 ---
 

@@ -9,7 +9,7 @@
 
 | # | 规矩 | 强制机制 | 绕过方式 |
 |---|---|---|---|
-| 1 | **改代码先测、红不提交** | `.githooks/pre-commit`：`git commit` 时自动跑 `minitest/run-tests.js`（77 项），未全绿 → 提交被拒 | 仅 `git commit --no-verify`（故意为之，需确认） |
+| 1 | **改代码先测、红不提交** | `.githooks/pre-commit`：`git commit` 时自动跑 `minitest/run-tests.js`（81 项，**干净库模式**：全新 schema + seed + 独立端口，不依赖开发后端、不污染开发库），未全绿 → 提交被拒 | 仅 `git commit --no-verify`（故意为之，需确认） |
 | 2 | 关键操作必须留痕 | `server/logger.js` 的 `logOp()`：支付/充值/退款/兑换/签到 5 类操作写入 `server/logs/ops.log`（含单号/金额/结果） | 不可绕过（新关键操作须补埋点） |
 | 3 | 钱的计算前后端同一规则 | 会员价 = 原价 × 折扣，**向下取整到元**（前端展示与后端扣款同公式） | 不可绕过（改规则须同步改两端 + 测试） |
 | 4 | 新接口 = 新测试 + 探针 | 每个新 API 至少 1 条断言进 `run-tests.js`，并加 1 行到 `coverage.test.js` 探针 | 不可绕过（review 检查） |
@@ -55,9 +55,10 @@
 
 ## 🧪 测试与验证流程（每次改动）
 
-1. `node minitest/run-tests.js http://127.0.0.1:3000`（或直接 `git commit` 让 hook 跑）
+1. `DB_PATH=/tmp/gym-test-clean.db node minitest/run-tests.js`（干净库模式：seed + 独立后端 + 81 项，跑完自动清理；不传 DB_PATH 则连外部后端如 3000，用于调试）
 2. 覆盖率：`node --test --experimental-test-coverage minitest/coverage.test.js`
 3. 关键交互（支付/签到）改动后，附真机手测（见 DEFINITION-OF-DONE.md）
+4. 验证必须看完整输出 + 退出码（强制规矩 #6，grep 过滤会掩盖失败）
 
 ## 📄 关联文档
 

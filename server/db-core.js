@@ -8,11 +8,10 @@ const path = require('node:path');
 const fs = require('node:fs');
 
 const DATA_DIR = path.join(__dirname, 'data');
-const DB_FILE = path.join(DATA_DIR, 'gym.db');
+// 数据库文件路径：默认 server/data/gym.db，可用 DB_PATH 环境变量覆盖（测试干净库模式）
+const DB_FILE = process.env.DB_PATH || path.join(DATA_DIR, 'gym.db');
 // 确保数据目录存在
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
+fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
 
 // 打开数据库（WAL 模式，允许并发读写）
 const db = new DatabaseSync(DB_FILE);
@@ -278,7 +277,7 @@ db.exec(`
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     order_no     TEXT UNIQUE NOT NULL,
     user_openid  TEXT NOT NULL,
-    session_id   INTEGER,                -- 充值订单无场次，允许 NULL（CI 干净环境验证发现）
+    session_id   INTEGER,                -- 充值订单无场次，允许 NULL（CI 干净环境验证发现；负向验证已确认干净库模式可本地拦截）
     booking_id   INTEGER,                -- 关联订课记录（支付后生成）
     wait_id      INTEGER,                -- 关联候补记录（排位支付后生成）
     order_type   TEXT DEFAULT 'book',    -- book 订课 / waitlist 候补排位

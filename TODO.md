@@ -41,7 +41,8 @@
 - [x] **P0｜订单表落库（orders）** — 下单（pending）→ 支付回写（paid）→ 退订/退出候补/过期退款（refunded）+ 幂等防重复 + 候补转正联动（8/11 完成）
 - [x] **P0｜签到真实化** — 学员端真实二维码 + 教练端 wx.scanCode 扫描/手动核销 + checkin_at 落库 + 权限校验（8/11 完成）
 - [ ] **P0｜微信支付接入** — `wx.requestPayment` 替代模拟支付（需正式小程序 + 商户号）；统一下单→支付→回调落库防掉单。
-- [ ] **P1｜L2 推送验证（CI 自动化）** — push 后自动跑 77 项测试 + 覆盖率报告（GitHub Actions 或云端构建；hook 已覆盖本地提交，L2 覆盖推送/多环境）。完成时通知用户。
+- [x] **P1｜L2 推送验证（CI 自动化）** — push 后自动跑测试 + 覆盖率报告（GitHub Actions 已上线 8/13，run 31665718847 全绿，首跑抓 3 个真 bug）。完成时通知用户。
+- [x] **P1｜本地干净库测试支持** — run-tests.js 支持 `DB_PATH` 干净库模式（seed+独立端口+自动清理），pre-commit hook 已切干净库，schema 类 bug 本地 L1 即可抓（负向验证通过：NOT NULL 复现即红）；开发库零污染（8/13 完成）
 - [ ] **P1｜L3 发布闸门** — 上线前按 DEFINITION-OF-DONE.md 全量打勾 + 真机手测清单（支付/充值/候补/签到必测）；发布记录归档。完成时通知用户。
 - [x] **P1｜架构规模化·阶段2**（8/13 完成） — db.js(1817行) 按域拆分（core/users/members/orders/coin/invite/courses/messages/waitlist）+ index.js 路由表化；每步测试全绿后提交（8/13 开始，分批进行）。
 

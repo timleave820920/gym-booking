@@ -3,8 +3,17 @@
  * 用法：node minitest/run-tests.js [BASE_URL]
  * 默认 BASE_URL: http://127.0.0.1:3000
  * 自动创建/清理测试数据（uid_test_* 前缀）
+ *
+ * 干净库模式：设置 DB_PATH 环境变量后，脚本自管生命周期——
+ *   ① 删除旧临时库 → ② seed 基础数据 → ③ 起独立端口后端 → ④ 跑测试 → ⑤ 杀进程+删库
+ *   不依赖外部后端、不污染共享开发库（schema 类 bug 本地即可抓，见 BUG-LEDGER #1）
  */
-const BASE = process.argv[2] || 'http://127.0.0.1:3000';
+let BASE = process.argv[2] || 'http://127.0.0.1:3000';
+const { spawn, spawnSync } = require('node:child_process');
+const fs = require('node:fs');
+const path = require('node:path');
+const PROJECT_ROOT = path.join(__dirname, '..');
+const DB_PATH = process.env.DB_PATH || null;
 
 // ===== 轻量 HTTP 客户端 =====
 function req(method, path, body) {
@@ -76,6 +85,64 @@ const ctx = {
 };
 
 async function main() {
+  // ===== 干净库模式（DB_PATH 设置时）：自管临时库 + 独立后端生命周期 =====
+  let child = null;
+  if (DB_PATH) {
+    for (const suffix of ['', '-wal', '-shm']) {
+      try { fs.rmSync(DB_PATH + suffix, { force: true }); } catch (e) {}
+    }
+    console.log(`[干净库模式] 临时库: ${DB_PATH}`);
+    // ① seed 基础数据（教练/场地/课程等，测试用例依赖）
+    const seedRes = spawnSync(process.execPath, ['server/seed.js'], {
+      cwd: PROJECT_ROOT,
+      env: { ...process.env, DB_PATH },
+      encoding: 'utf8'
+    });
+    if (seedRes.status !== 0) {
+      console.error('✖ [干净库模式] seed 失败:\n' + (seedRes.stderr || seedRes.stdout || '').slice(0, 800));
+      process.exit(2);
+    }
+    // ② 独立端口起后端（不与开发中的 3000 冲突）
+    const port = 3100 + Math.floor(Math.random() * 500);
+    child = spawn(process.execPath, ['server/index.js'], {
+      cwd: PROJECT_ROOT,
+      env: { ...process.env, DB_PATH, PORT: String(port), WX_APPID: 'test_appid', WX_SECRET: 'test_secret' },
+      stdio: 'ignore'
+    });
+    BASE = `http://127.0.0.1:${port}`;
+    // ③ 健康检查轮询（最多 20 秒）
+    let up = false;
+    for (let i = 0; i < 40; i++) {
+      try {
+        const res = await fetch(BASE + '/api/health');
+        if (res.ok) { up = true; break; }
+      } catch (e) {}
+      await new Promise(res => setTimeout(res, 500));
+    }
+    if (!up) {
+      console.error(`✖ [干净库模式] 后端启动失败（端口 ${port}）`);
+      child.kill();
+      process.exit(2);
+    }
+    console.log(`[干净库模式] 后端就绪: ${BASE}`);
+  }
+
+  try {
+    await runSuite();
+  } finally {
+    // ④ 清理：杀后端 + 删临时库（进程内 require 的 db 也指向临时库，一并释放）
+    if (child) child.kill();
+    if (DB_PATH) {
+      await new Promise(res => setTimeout(res, 300)); // 等子进程释放 SQLite 文件锁
+      for (const suffix of ['', '-wal', '-shm']) {
+        try { fs.rmSync(DB_PATH + suffix, { force: true }); } catch (e) {}
+      }
+      console.log('[干净库模式] 后端已停止，临时库已删除');
+    }
+  }
+}
+
+async function runSuite() {
   console.log(`\n========== 综合训练馆订课系统 自动化测试 ==========`);
   console.log(`目标: ${BASE} ｜ 开始: ${new Date().toLocaleString()}\n`);
 
@@ -459,10 +526,10 @@ async function main() {
     failures
   };
   require('node:fs').writeFileSync(__dirname + '/report.json', JSON.stringify(report, null, 2));
-  process.exit(failed > 0 ? 1 : 0);
+  process.exitCode = failed > 0 ? 1 : 0;
 }
 
 main().catch(e => {
   console.error('测试脚本异常:', e);
-  process.exit(2);
+  process.exitCode = 2;
 });
