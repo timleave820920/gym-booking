@@ -22,7 +22,7 @@
 /* 分段切换 */
 .seg {
   margin-top: 32rpx;
-  background: #EDE8D3;
+  background: var(--divider);
   border-radius: 40rpx;
   padding: 8rpx;
 }
@@ -82,7 +82,7 @@
 }
 .v-divider {
   width: 2rpx; height: 88rpx;
-  background: #E8E2CC;
+  background: var(--divider-strong);
   margin-right: 24rpx;
 }
 .info-box { justify-content: center; }

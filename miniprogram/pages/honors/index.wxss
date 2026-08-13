@@ -93,7 +93,7 @@
   display: block;
   margin-top: 8rpx;
   font-size: 22rpx;
-  color: #8A8A8A;
+  color: var(--ink-300);
 }
 
 /* 查看更多 */

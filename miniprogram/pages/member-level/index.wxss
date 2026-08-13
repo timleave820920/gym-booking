@@ -108,7 +108,7 @@
 .level-min {
   margin-top: 4rpx;
   font-size: 18rpx;
-  color: #8A8A8A;
+  color: var(--ink-300);
 }
 .level-tag {
   position: absolute;
@@ -126,7 +126,7 @@
   display: block;
   margin-top: 24rpx;
   font-size: 20rpx;
-  color: #8A8A8A;
+  color: var(--ink-300);
 }
 
 /* CTA */

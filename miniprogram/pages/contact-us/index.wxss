@@ -11,7 +11,7 @@
   display: flex;
   align-items: center;
   gap: 16rpx;
-  background: #EDE8D3;
+  background: var(--divider);
   border-radius: 20rpx;
   padding: 20rpx 24rpx;
 }

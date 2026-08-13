@@ -40,7 +40,7 @@
   margin-top: 32rpx;
   width: 400rpx; height: 400rpx;
   border-radius: 32rpx;
-  border: 2rpx solid #E8E2CC;
+  border: 2rpx solid var(--line-warm);
   overflow: hidden;
 }
 .qr-img {
@@ -95,7 +95,7 @@
 }
 .empty-icon {
   font-size: 64rpx;
-  color: #D8D4C2;
+  color: var(--ink-300);
 }
 .empty-txt {
   margin-top: 20rpx;

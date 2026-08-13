@@ -92,7 +92,7 @@
 .or-line {
   flex: 1;
   height: 2rpx;
-  background: #D9D4C0;
+  background: var(--divider-strong);
 }
 .or-txt {
   font-size: 24rpx;
@@ -143,7 +143,7 @@
   width: 44rpx;
   height: 44rpx;
   border-radius: 12rpx;
-  border: 3rpx solid #C9C7BC;
+  border: 3rpx solid var(--line-warm);
   background: #FFFFFF;
   flex-shrink: 0;
 }
@@ -246,7 +246,7 @@
   width: 152rpx;
   height: 152rpx;
   border-radius: 50%;
-  background-color: #E5E1D4;
+  background-color: var(--ink-300);
   background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="%23B0AFA8" stroke-width="2"/><path d="M4.5 20C4.5 16.13 7.86 13.5 12 13.5C16.14 13.5 19.5 16.13 19.5 20" stroke="%23B0AFA8" stroke-width="2" stroke-linecap="round"/></svg>');
   background-repeat: no-repeat;
   background-position: center;
@@ -333,7 +333,7 @@
 .demo-line {
   flex: 1;
   height: 2rpx;
-  background: #D9D4C0;
+  background: var(--divider-strong);
 }
 .demo-txt {
   font-size: 22rpx;

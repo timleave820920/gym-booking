@@ -93,7 +93,7 @@
   display: block;
   margin-top: 12rpx;
   font-size: 20rpx;
-  color: #8A8A8A;
+  color: var(--ink-300);
   line-height: 1.5;
   min-height: 56rpx;
 }
@@ -110,7 +110,7 @@
 }
 .item-stock {
   font-size: 18rpx;
-  color: #8A8A8A;
+  color: var(--ink-300);
 }
 .stock-out {
   color: #E5484D;
@@ -126,7 +126,7 @@
   color: #B9FF66;
 }
 .btn-out {
-  background: #E5E2D4;
+  background: var(--divider);
   color: #B0AFA8;
 }
 
@@ -151,7 +151,7 @@
   display: block;
   margin-top: 4rpx;
   font-size: 18rpx;
-  color: #8A8A8A;
+  color: var(--ink-300);
 }
 .ex-cost {
   display: block;
@@ -207,7 +207,7 @@
 .code-label {
   margin-top: 28rpx;
   font-size: 20rpx;
-  color: #8A8A8A;
+  color: var(--ink-300);
 }
 .code-value {
   margin-top: 8rpx;

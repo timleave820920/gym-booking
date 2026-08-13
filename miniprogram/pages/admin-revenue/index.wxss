@@ -121,7 +121,7 @@
 .donut {
   width: 280rpx; height: 280rpx;
   border-radius: 50%;
-  background: conic-gradient(#5B57EB 0 55%, #B9FF66 55% 83%, #F8D044 83% 94%, #F8B7B8 94% 100%);
+  background: conic-gradient(#5B57EB 0 55%, #B9FF66 55% 83%, var(--coin-gold) 83% 94%, #F8B7B8 94% 100%);
   position: relative;
   flex-shrink: 0;
 }

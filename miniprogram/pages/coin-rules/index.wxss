@@ -35,7 +35,7 @@
   width: 96rpx;
   height: 96rpx;
   border-radius: 28rpx;
-  background: #F1EFE8;
+  background: var(--divider);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -56,7 +56,7 @@
   display: block;
   margin-top: 6rpx;
   font-size: 24rpx;
-  color: #8A8A8A;
+  color: var(--ink-300);
 }
 .rule-reward {
   font-size: 34rpx;
@@ -76,7 +76,7 @@
   width: 12rpx;
   height: 12rpx;
   border-radius: 50%;
-  background: #F8D044;
+  background: var(--coin-gold);
 }
 .limit-txt {
   font-size: 24rpx;

@@ -97,7 +97,7 @@
 .radio {
   width: 44rpx; height: 44rpx;
   border-radius: 50%;
-  border: 3rpx solid #C9C7BC;
+  border: 3rpx solid var(--line-warm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -158,7 +158,7 @@
 .expire-sub {
   display: block;
   font-size: 24rpx;
-  color: #8A8A8A;
+  color: var(--ink-300);
   margin: 8rpx 0 20rpx;
 }
 .expire-list {
@@ -170,7 +170,7 @@
   padding: 24rpx 0;
   border-radius: 20rpx;
   background: #FFFFFF;
-  border: 3rpx solid #E8E2CC;
+  border: 3rpx solid var(--line-warm);
 }
 .expire-on {
   border-color: #1A1A23;
@@ -184,7 +184,7 @@
 .expire-desc {
   margin-top: 6rpx;
   font-size: 22rpx;
-  color: #8A8A8A;
+  color: var(--ink-300);
 }
 .expire-on .expire-name { color: #B9FF66; }
 .expire-on .expire-desc { color: rgba(255,255,255,0.6); }

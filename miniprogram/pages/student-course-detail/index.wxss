@@ -194,7 +194,7 @@
 }
 .status-ended {
   background: #F0EDDF;
-  color: #8A8A8A;
+  color: var(--ink-300);
 }
 .desc-card {
   margin-top: 24rpx;

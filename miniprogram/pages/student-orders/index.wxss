@@ -76,7 +76,7 @@
 }
 .st-cancelled {
   background: #F0EDDF;
-  color: #8A8A8A;
+  color: var(--ink-300);
 }
 .st-refunded {
   background: #FCEBEB;
@@ -121,7 +121,7 @@
 }
 .empty-icon {
   font-size: 64rpx;
-  color: #D8D4C2;
+  color: var(--ink-300);
 }
 .empty-txt {
   margin-top: 20rpx;

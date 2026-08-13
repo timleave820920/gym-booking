@@ -24,6 +24,12 @@ page {
   --divider: #F0EDDF;      /* 分隔线 */
   --divider-strong: #D9D4C0; /* 描边（卡/输入） */
 
+  /* ---- 业务主题色（跨页复用的第二品牌色，2026-08-13 批3 收敛注册） ---- */
+  --coin-gold: #F8D044;    /* 能量币主题金（跨 9 页复用） */
+  --coin-gold-deep: #BA7517; /* 能量币深金（文字/装饰） */
+  --seat-full: #EF9F27;    /* 满员警示橙（余位 0/满员状态） */
+  --line-warm: #C9C7BC;    /* 暖描边（输入框/分隔） */
+
   /* ---- 字号阶梯（6 级 + 徽标） ---- */
   --fs-display: 48rpx;
   --fs-title: 44rpx;
@@ -89,7 +95,7 @@ button::after {
 .bg-soft-gray { background: var(--divider); }
 
 .text-primary { color: var(--ink-900); }
-.text-secondary { color: #333333; }
+.text-secondary { color: var(--ink-900); }
 .text-muted { color: var(--ink-500); }
 .text-lime { color: var(--lime); }
 .text-purple { color: var(--accent); }
@@ -305,7 +311,7 @@ button::after {
 .tag-green { background: #E5FFC9; color: var(--success); }
 .tag-orange { background: #FFF0D6; color: var(--warning); }
 .tag-purple { background: #DCD8FF; color: var(--accent); }
-.tag-gray { background: var(--divider); color: #8A8A8A; }
+.tag-gray { background: var(--divider); color: var(--ink-300); }
 .tag-dark { background: var(--ink); color: var(--lime); }
 
 /* ===== 胶囊 TabBar ===== */
@@ -320,7 +326,7 @@ button::after {
   display: flex;
   background: var(--ink-0);
   border-radius: 72rpx;
-  border: 2rpx solid #E8E2CC;
+  border: 2rpx solid var(--line-warm);
   padding: 8rpx;
   box-shadow: 0 12rpx 32rpx rgba(0,0,0,0.08);
 }

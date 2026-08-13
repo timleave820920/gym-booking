@@ -87,7 +87,7 @@
 .idea-desc {
   margin-left: auto;
   font-size: 22rpx;
-  color: #8A8A8A;
+  color: var(--ink-300);
 }
 
 /* 数据背书 */
@@ -112,7 +112,7 @@
 }
 .data-l {
   font-size: 20rpx;
-  color: #8A8A8A;
+  color: var(--ink-300);
 }
 
 /* 荣誉入口 */

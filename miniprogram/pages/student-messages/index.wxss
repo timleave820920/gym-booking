@@ -87,7 +87,7 @@
 .mi-remind { background: #FAEEDA; color: #854F0B; }
 .mi-member { background: #EEEDFE; color: #534AB7; }
 .mi-promo { background: #EAF3DE; color: #3B6D11; }
-.mi-system { background: #F1EFE8; color: #5F5E5A; }
+.mi-system { background: var(--divider); color: #5F5E5A; }
 .msg-main {
   flex: 1;
   min-width: 0;
@@ -145,7 +145,7 @@
 }
 .empty-icon {
   font-size: 96rpx;
-  color: #D9D4C0;
+  color: var(--ink-300);
 }
 .empty-txt {
   margin-top: 24rpx;

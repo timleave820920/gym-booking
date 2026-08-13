@@ -133,7 +133,7 @@
 .cb-desc {
   margin-top: 6rpx;
   font-size: 22rpx;
-  color: #8A8A8A;
+  color: var(--ink-300);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -166,7 +166,7 @@
 }
 /* 满员：胶囊描边转金 */
 .cb-seats-full {
-  border-color: #EF9F27;
+  border-color: var(--seat-full);
 }
 /* 纯数字席位（如 4/20） */
 .cb-seat-num {
@@ -179,7 +179,7 @@
   color: #E5484D;               /* 白底红字 */
 }
 .cb-seat-zero {
-  color: #EF9F27;   /* 满员时 20/20 金色 */
+  color: var(--seat-full);   /* 满员时 20/20 金色 */
 }
 /* 底行：价格 + 难度点阵 + 按钮 */
 .cb-bottom {
@@ -238,9 +238,9 @@
 }
 /* 满员：置灰 */
 .btn-full {
-  background: #E5E2D4;
+  background: var(--divider);
   color: #B0AFA8;
-  border-color: #E0DCCB;
+  border-color: var(--divider-strong);
 }
 /* 进行中（红）/ 已结束（灰） */
 .btn-ongoing {
@@ -249,9 +249,9 @@
   border-color: #E5484D;
 }
 .btn-ended {
-  background: #E0DCCB;
-  color: #8A8A8A;
-  border-color: #D9D4C0;
+  background: var(--divider);
+  color: var(--ink-300);
+  border-color: var(--divider-strong);
 }
 /* 不可约状态：整卡弱化 */
 .card-off {
@@ -279,7 +279,7 @@
   width: 184rpx;
   height: 184rpx;
   transform: rotate(45deg);
-  background: #BA7517;
+  background: var(--coin-gold-deep);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -305,7 +305,7 @@
 }
 .empty-today .empty-icon {
   font-size: 72rpx;
-  color: #D9D4C0;
+  color: var(--ink-300);
 }
 .empty-today .empty-txt {
   margin-top: 16rpx;

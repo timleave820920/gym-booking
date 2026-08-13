@@ -66,7 +66,7 @@
 .option-chip {
   padding: 14rpx 36rpx;
   border-radius: 36rpx;
-  border: 2rpx solid #E8E2CC;
+  border: 2rpx solid var(--line-warm);
   background: #FFFFFF;
   color: #6B6B76;
   font-size: 26rpx;
@@ -88,7 +88,7 @@
 .date-chip {
   width: calc(25% - 12rpx);
   border-radius: 24rpx;
-  border: 2rpx solid #E8E2CC;
+  border: 2rpx solid var(--line-warm);
   background: #FFFFFF;
   padding: 20rpx 0;
   display: flex;

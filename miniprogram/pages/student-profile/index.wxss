@@ -72,7 +72,7 @@
   height: 96rpx;
   border-radius: 48rpx;
   background: #FFFFFF;
-  border: 2rpx solid #E8E2CC;
+  border: 2rpx solid var(--line-warm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -170,13 +170,13 @@
 }
 .vip-coins-label {
   font-size: 22rpx;
-  color: #F8D044;
+  color: var(--coin-gold);
   font-weight: 600;
 }
 .vip-coins-value {
   font-size: 30rpx;
   font-weight: 800;
-  color: #F8D044;
+  color: var(--coin-gold);
 }
 .vip-coins-go {
   margin-left: auto;
