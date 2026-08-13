@@ -27,8 +27,15 @@
         <text class="checked-sub">训练愉快，记得拉伸放松</text>
       </view>
 
+      <!-- 未到签到窗口提示（BUG-LEDGER #10） -->
+      <view class="window-hint flex-col" wx:if="{{!checked && !inWindow && windowHint}}">
+        <text class="window-icon">⏰</text>
+        <text class="window-txt">{{windowHint}}</text>
+        <text class="window-sub">到时间后回到本页即可出示签到码</text>
+      </view>
+
       <!-- 签到二维码卡 -->
-      <view class="qr-card flex-col" wx:if="{{!checked}}">
+      <view class="qr-card flex-col" wx:if="{{!checked && inWindow}}">
         <text class="qr-tip">出示签到码给教练核销</text>
         <view class="code-box flex-center">
           <canvas canvas-id="checkinQr" id="checkinQr" class="qr-canvas"></canvas>
@@ -40,7 +47,7 @@
         </view>
       </view>
 
-      <view class="refresh-btn" wx:if="{{!checked}}" bindtap="refreshCode">刷新签到码</view>
+      <view class="refresh-btn" wx:if="{{!checked && inWindow}}" bindtap="refreshCode">刷新签到码</view>
     </block>
   </view>
 </view>

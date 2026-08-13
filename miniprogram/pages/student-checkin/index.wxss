@@ -145,3 +145,16 @@
   font-size: 24rpx;
   color: #6B6B76;
 }
+
+/* 未到签到窗口提示（BUG-LEDGER #10） */
+.window-hint {
+  margin: 24rpx 0;
+  padding: 28rpx;
+  border-radius: 16rpx;
+  background: #FFF8E1;
+  border: 2rpx solid #FFD54F;
+  align-items: center;
+}
+.window-icon { font-size: 44rpx; margin-bottom: 8rpx; }
+.window-txt { font-size: 26rpx; color: #8D6E00; font-weight: 600; }
+.window-sub { font-size: 22rpx; color: #B09A50; margin-top: 6rpx; }

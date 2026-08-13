@@ -8,7 +8,9 @@ Page({
     course: null,
     checkinCode: '',
     loading: true,
-    checked: false
+    checked: false,
+    inWindow: true,
+    windowHint: ''
   },
 
   onLoad(options) {
@@ -33,6 +35,13 @@ Page({
         return;
       }
       const checkinCode = 'GYM-' + String(bookingId).padStart(4, '0');
+      // 签到时间窗口（与后端一致 BUG-LEDGER #10）：当天 + 开课前30分钟 ~ 结束后2小时
+      const now = new Date();
+      const todayFull = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const toMin = (s) => { const [h, m] = (s || '00:00').split(':').map(Number); return h * 60 + m; };
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      const inWindow = info.date === todayFull
+        && nowMin >= toMin(info.start_time) - 30 && nowMin <= toMin(info.end_time) + 120;
       this.setData({
         loading: false,
         course: {
@@ -41,11 +50,16 @@ Page({
           venue: info.venue_name
         },
         checked: !!info.checkin_at,
+        inWindow,
+        // 未到窗口时的提示（开课前30分钟起可签到；已结束超2小时不可签）
+        windowHint: nowMin < toMin(info.start_time) - 30
+          ? `开课前 30 分钟开始可签到（${info.start_time} 开课）`
+          : (nowMin > toMin(info.end_time) + 120 ? '课程已结束超过 2 小时，无法签到' : ''),
         // 签到凭证码：GYM-{bookingId}（教练端扫码核销用，二维码与文字同码）
         checkinCode
       }, () => {
-        // 数据就绪且未签到时渲染二维码
-        if (!this.data.checked) this.drawQr(checkinCode);
+        // 数据就绪、未签到且在时间窗口内才渲染二维码
+        if (!this.data.checked && this.data.inWindow) this.drawQr(checkinCode);
       });
     }).catch(() => {
       this.setData({ loading: false, course: null });
