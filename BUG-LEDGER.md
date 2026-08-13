@@ -20,7 +20,7 @@
 - **发现**：2026-08-13，L3 真机手测 RT-1
 - **现象**：手机真机预览/调试登录永远报「无法连接本地后端」；但手机浏览器能直接访问后端（网络通）；模拟器一切正常
 - **根因**：`miniprogram/utils/net-config.json`（局域网 IP 配置）在 `.gitignore` 里 → **微信开发者工具默认过滤 gitignore 文件、不打进预览包** → 真机上 `require('./net-config.json')` 失败 → 回退 `http://127.0.0.1:3000`（手机自己）→ `ERR_CONNECTION_REFUSED`。**模拟器正常是因为模拟器的 127.0.0.1=电脑本机，回退值恰好可用，掩盖了问题**
-- **修复**：①从 `.gitignore` 移除该文件（工具即可打包），改用 `.git/info/exclude` 本地忽略（git 干净、不随仓库污染）②`.gitignore` 加注释说明此坑 ③api.js require 失败时 console.warn 提示 ④api.js 请求失败打印真实 errMsg（排查不再盲猜）
+- **修复**：①从 `.gitignore` 移除该文件（工具即可打包），改用 `.git/info/exclude` 本地忽略（git 干净、不随仓库污染）②`.gitignore` 加注释说明此坑 ③api.js require 失败时 console.warn 提示 ④api.js 请求失败打印真实 errMsg（排查不再盲猜）⑤api.js 加 `FALLBACK_BASE_URL` 写死兜底 IP（提交 3df626a / 1151d81，真机实测通过）
 - **回归测试**：无法自动化（真机项），归入 RELEASE-GATE RT-1.1（真机登录必测）
 - **防护层**：L3 真机手测发现；修复后靠 GLOSSARY 环境坑速查 + .gitignore 注释防复发。**教训：真机与模拟器环境差异（127.0.0.1 语义不同）会掩盖网络配置问题；排查先看请求真实打到哪个地址**
 
