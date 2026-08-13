@@ -25,16 +25,20 @@ const USE_CLOUD = false;
 const CLOUD_ENV = 'gym-prod-timleave001'; // 云环境 ID（注册正式小程序后启用）
 
 // 局域网 IP 自动适配：优先读取后端启动时生成的 net-config.json
-// （由 server/index.js 探测本机 IP 写入，不入库；IP 变了重新启动后端即可）
+// （由 server/index.js 探测本机 IP 写入；IP 变了重新启动后端即可）
+// 注意：开发者工具可能因 gitignore 过滤/缓存不打进该文件（BUG-LEDGER #6），
+// 故下面保留了「写死 IP」的兜底——真机连不上时改这里 + 重新编译即可。
 let NET_CONFIG = null;
 try {
   NET_CONFIG = require('./net-config.json');
 } catch (e) {
-  /* 后端从未启动过，首次运行；回退默认地址 */
+  /* 未打包或后端从未启动；走兜底地址 */
 }
 
 // 本地后端地址（USE_CLOUD=false 时使用）
-const LOCAL_BASE_URL = (NET_CONFIG && NET_CONFIG.baseUrl) || 'http://127.0.0.1:3000';
+// 兜底地址：真机联调 = 电脑局域网 IP（手机热点下改这里）；模拟器 = 127.0.0.1 恒可用
+const FALLBACK_BASE_URL = 'http://10.59.74.130:3000';
+const LOCAL_BASE_URL = (NET_CONFIG && NET_CONFIG.baseUrl) || FALLBACK_BASE_URL;
 
 // ===== 本地后端请求 =====
 function localRequest(path, method = 'GET', data = {}) {
