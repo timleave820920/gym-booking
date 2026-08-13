@@ -152,21 +152,21 @@
   font-size: 22rpx; color: #6B6B76;
 }
 .book-btn {
-  background: #B9FF66;
-  color: #1A1A23;
+  background: #1A1A23;   /* 设计系统 v1 批1：主行动改墨黑（原荧光绿 #B9FF66） */
+  color: #FFFFFF;
   font-size: 32rpx; font-weight: 700;
   width: 400rpx; height: 104rpx;
   border-radius: 52rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 12rpx 28rpx rgba(185,255,102,0.5);
+  box-shadow: 0 12rpx 28rpx rgba(26,26,35,0.2);
 }
 /* 已预订：品牌深色 */
 .book-btn.booked {
-  background: #1A1A23;
-  color: #B9FF66;
-  box-shadow: 0 12rpx 28rpx rgba(0,0,0,0.2);
+  background: #F0EDDF;
+  color: #6B6B76;
+  box-shadow: none;
 }
 
 /* 课程介绍（三态文案）卡片 */

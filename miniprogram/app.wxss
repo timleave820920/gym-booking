@@ -1,9 +1,60 @@
-/* ===== 全局样式（训练馆订课系统） ===== */
+/* ===== 全局样式（训练馆订课系统） =====
+ * 设计系统 v1 · 批1 Token 基建（2026-08-13）
+ * 风格：奶油画布 + 墨黑骨架 + 荧光绿能量
+ * 收敛原则：所有颜色/字号/圆角/间距只来自下方 Token，禁止页面散写
+ */
+
 page {
-  background: #F9F4DF;
+  /* ---- 品牌色（三色签名） ---- */
+  --cream: #F9F4DF;        /* 画布：全 App 背景 */
+  --ink: #1A1A23;          /* 墨黑：结构/文字/主按钮 */
+  --lime: #B9FF66;         /* 荧光绿：能量点缀/选中/次行动 */
+
+  /* ---- 中性色（4 层灰阶） ---- */
+  --ink-900: #1A1A23;      /* 标题/主文字 */
+  --ink-500: #6B6B76;      /* 次级文字 */
+  --ink-300: #B0AFA8;      /* 占位/禁用 */
+  --ink-0: #FFFFFF;        /* 表面（卡片） */
+
+  /* ---- 语义色 ---- */
+  --success: #3D9970;      /* 成功 */
+  --warning: #D97706;      /* 警告 */
+  --danger: #E5484D;       /* 危险/错误 */
+  --accent: #5B57EB;       /* 强调（管理/教练端） */
+  --divider: #F0EDDF;      /* 分隔线 */
+  --divider-strong: #D9D4C0; /* 描边（卡/输入） */
+
+  /* ---- 字号阶梯（6 级 + 徽标） ---- */
+  --fs-display: 48rpx;
+  --fs-title: 44rpx;
+  --fs-section: 36rpx;
+  --fs-card: 32rpx;
+  --fs-body: 28rpx;        /* 基线 */
+  --fs-meta: 24rpx;
+  --fs-caption: 22rpx;
+  --fs-badge: 20rpx;
+
+  /* ---- 圆角 4 档 ---- */
+  --r-card: 32rpx;         /* 大卡 */
+  --r-box: 24rpx;          /* 小卡/输入 */
+  --r-chip: 16rpx;         /* 标签内嵌 */
+  --r-pill: 999rpx;        /* 按钮/胶囊 */
+
+  /* ---- 间距 8pt 网格 ---- */
+  --sp-1: 8rpx;
+  --sp-2: 16rpx;
+  --sp-3: 24rpx;
+  --sp-4: 32rpx;
+  --sp-6: 48rpx;
+
+  /* ---- 阴影 ---- */
+  --shadow-card: 0 6rpx 24rpx rgba(0, 0, 0, 0.05);
+  --shadow-pill: 0 12rpx 28rpx rgba(26, 26, 35, 0.12);
+
+  background: var(--cream);
   font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
-  color: #1A1A23;
-  font-size: 28rpx;
+  color: var(--ink-900);
+  font-size: var(--fs-body);
   line-height: 1.5;
   box-sizing: border-box;
 }
@@ -25,73 +76,112 @@ button::after {
 }
 
 /* ===== 品牌色 ===== */
-.bg-cream { background: #F9F4DF; }
-.bg-white { background: #FFFFFF; }
-.bg-dark { background: #1A1A23; }
-.bg-lime { background: #B9FF66; }
-.bg-purple { background: #5B57EB; }
+.bg-cream { background: var(--cream); }
+.bg-white { background: var(--ink-0); }
+.bg-dark { background: var(--ink); }
+.bg-lime { background: var(--lime); }
+.bg-purple { background: var(--accent); }
 .bg-pink { background: #F8B7B8; }
 .bg-soft-lime { background: #E5FFC9; }
 .bg-soft-purple { background: #DCD8FF; }
 .bg-soft-pink { background: #FFE3E3; }
 .bg-soft-yellow { background: #FFF0D6; }
-.bg-soft-gray { background: #F0EDDF; }
+.bg-soft-gray { background: var(--divider); }
 
-.text-primary { color: #1A1A23; }
+.text-primary { color: var(--ink-900); }
 .text-secondary { color: #333333; }
-.text-muted { color: #6B6B76; }
-.text-lime { color: #B9FF66; }
-.text-purple { color: #5B57EB; }
-.text-green { color: #3D9970; }
-.text-orange { color: #D97706; }
-.text-red { color: #E5484D; }
+.text-muted { color: var(--ink-500); }
+.text-lime { color: var(--lime); }
+.text-purple { color: var(--accent); }
+.text-green { color: var(--success); }
+.text-orange { color: var(--warning); }
+.text-red { color: var(--danger); }
 .text-white { color: #FFFFFF; }
-.text-placeholder { color: #B0AFA8; }
+.text-placeholder { color: var(--ink-300); }
 
 /* ===== 卡片 ===== */
 .card {
-  background: #FFFFFF;
-  border-radius: 32rpx;
-  box-shadow: 0 6rpx 24rpx rgba(0, 0, 0, 0.05);
+  background: var(--ink-0);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-card);
 }
-.card-pad { padding: 24rpx; }
+.card-pad { padding: var(--sp-3); }
 
-/* ===== 按钮 ===== */
+/* ===== 按钮（5 级语义，2026-08-13 批1） =====
+ * L1 主行动 = 墨黑（唯一 CTA，全 App 主按钮从荧光绿迁移至此）
+ * L2 次行动 = 荧光绿 · L3 描边 · L4 文字 · L5 危险
+ */
 .btn-primary {
-  background: #B9FF66;
-  color: #1A1A23;
-  border-radius: 999rpx;
+  background: var(--ink);
+  color: #FFFFFF;
+  border-radius: var(--r-pill);
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 12rpx 28rpx rgba(185, 255, 102, 0.5);
+  box-shadow: var(--shadow-pill);
+}
+.btn-primary.btn-pressed,
+.btn-primary:active {
+  background: #333333;
 }
 .btn-purple {
-  background: #5B57EB;
+  background: var(--accent);
   color: #FFFFFF;
-  border-radius: 999rpx;
+  border-radius: var(--r-pill);
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+.btn-lime {
+  background: var(--lime);
+  color: var(--ink-900);
+  border-radius: var(--r-pill);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .btn-outline {
-  background: #FFFFFF;
-  color: #6B6B76;
-  border: 2rpx solid #C9C7BC;
-  border-radius: 999rpx;
+  background: var(--ink-0);
+  color: var(--ink-500);
+  border: 2rpx solid var(--divider-strong);
+  border-radius: var(--r-pill);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .btn-dark {
-  background: #1A1A23;
+  background: var(--ink);
   color: #FFFFFF;
-  border-radius: 999rpx;
+  border-radius: var(--r-pill);
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-500);
+  border-radius: var(--r-box);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-danger {
+  background: var(--danger);
+  color: #FFFFFF;
+  border-radius: var(--r-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-disabled,
+.btn-primary.btn-disabled {
+  background: var(--divider);
+  color: var(--ink-300);
+  box-shadow: none;
+  pointer-events: none;
 }
 
 /* ===== 徽标/标签 ===== */
@@ -99,28 +189,28 @@ button::after {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999rpx;
+  border-radius: var(--r-pill);
   padding: 8rpx 20rpx;
-  font-size: 22rpx;
+  font-size: var(--fs-caption);
   font-weight: 600;
 }
-.tag-green { background: #E5FFC9; color: #3D9970; }
-.tag-orange { background: #FFF0D6; color: #D97706; }
-.tag-purple { background: #DCD8FF; color: #5B57EB; }
-.tag-gray { background: #F0EDDF; color: #8A8A8A; }
-.tag-dark { background: #1A1A23; color: #B9FF66; }
+.tag-green { background: #E5FFC9; color: var(--success); }
+.tag-orange { background: #FFF0D6; color: var(--warning); }
+.tag-purple { background: #DCD8FF; color: var(--accent); }
+.tag-gray { background: var(--divider); color: #8A8A8A; }
+.tag-dark { background: var(--ink); color: var(--lime); }
 
 /* ===== 胶囊 TabBar ===== */
 .tabbar-wrap {
   position: fixed;
   left: 0; right: 0; bottom: 0;
   padding: 12rpx 42rpx 42rpx;
-  background: linear-gradient(to top, #F9F4DF 80%, rgba(249,244,223,0));
+  background: linear-gradient(to top, var(--cream) 80%, rgba(249,244,223,0));
   z-index: 100;
 }
 .tabbar-pill {
   display: flex;
-  background: #FFFFFF;
+  background: var(--ink-0);
   border-radius: 72rpx;
   border: 2rpx solid #E8E2CC;
   padding: 8rpx;
@@ -137,14 +227,14 @@ button::after {
   gap: 6rpx;
   font-size: 20rpx;
   font-weight: 600;
-  color: #6B6B76;
+  color: var(--ink-500);
 }
 .tab-item.active {
-  background: #B9FF66;
-  color: #1A1A23;
+  background: var(--lime);
+  color: var(--ink-900);
 }
 .tab-item.active.admin-active {
-  background: #5B57EB;
+  background: var(--accent);
   color: #FFFFFF;
 }
 .tab-icon {
@@ -164,10 +254,10 @@ button::after {
 .flex-between { display: flex; align-items: center; justify-content: space-between; }
 .flex-1 { flex: 1; }
 .page-pad { padding: 24rpx 40rpx; }
-.mt-8 { margin-top: 8rpx; }
-.mt-16 { margin-top: 16rpx; }
-.mt-24 { margin-top: 24rpx; }
-.mt-32 { margin-top: 32rpx; }
+.mt-8 { margin-top: var(--sp-1); }
+.mt-16 { margin-top: var(--sp-2); }
+.mt-24 { margin-top: var(--sp-3); }
+.mt-32 { margin-top: var(--sp-4); }
 .mt-40 { margin-top: 40rpx; }
 
 /* ===== 底部安全区 ===== */
