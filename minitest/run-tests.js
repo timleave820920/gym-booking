@@ -444,6 +444,10 @@ async function runSuite() {
   check('MEM-03b', '充值订单session_id为NULL', rcOrder.session_id == null, `session_id=${rcOrder && rcOrder.session_id}`);
   r = await req('POST', `/api/orders/${rcOrder.id}/pay`, { openid: T.user1.openid });
   check('MEM-04', '充值支付到账(首充30%)', ok(r, 200) && r.data.recharge && r.data.recharge.total === 65000 && r.data.recharge.isFirst, `total=${r.data && r.data.recharge && r.data.recharge.total} first=${r.data && r.data.recharge && r.data.recharge.isFirst}`);
+  // MSG-02：充值到账 → 站内信「充值到账」（回归 BUG-LEDGER #12：充值支付无消息埋点）
+  r = await req('GET', `/api/messages?openid=${T.user1.openid}`);
+  const rcMsg = (r.data.messages || []).find(m => m.type === 'order' && m.title === '充值到账');
+  check('MSG-02', '充值到账站内信', ok(r, 200) && !!rcMsg, `count=${r.data && r.data.messages && r.data.messages.length}`);
   r = await req('GET', `/api/member/level?openid=${T.user1.openid}`);
   check('MEM-05', '余额增加', r.data.level.balanceFen === 65000, `balance=${r.data && r.data.level && r.data.level.balanceFen}`);
   r = await req('GET', `/api/member/recharges?openid=${T.user1.openid}`);
@@ -507,6 +511,10 @@ async function runSuite() {
   check('MEM-12b', '取整用例支付成功', ok(r, 200), `msg=${r.data && r.data.message}`);
   const balAfter = dbx.getMemberLevel(T.user1.openid).balanceFen;
   check('MEM-12', '会员价取整实扣¥78（非78.4）', (balBefore - balAfter) === 7800, `扣款=${(balBefore - balAfter) / 100}元（应 78）`);
+  // MSG-01：订课支付成功 → 站内信「订课成功」（回归 BUG-LEDGER #12：payOrder 直接内联建 booking，绕过 createBooking 埋点致订课无消息）
+  r = await req('GET', `/api/messages?openid=${T.user1.openid}`);
+  const bookMsg = (r.data.messages || []).find(m => m.type === 'booking' && m.title === '订课成功');
+  check('MSG-01', '订课成功站内信', ok(r, 200) && !!bookMsg, `count=${r.data && r.data.messages && r.data.messages.length}`);
 
   // RCG-01/02 充值分页（插 25 笔模拟历史，验证 10/10/5 + hasMore 边界）
   const rcgOpenid = 'uid_test_rcg';

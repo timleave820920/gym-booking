@@ -193,6 +193,24 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
     }
   }
 
+  // 站内信：支付成功确认（事务外，钱已落账才发；BUG-LEDGER #12：原 payOrder 直接内联建 booking，绕过 createBooking 的埋点）
+  if (order.order_type === 'book' && booking) {
+    const sInfo = getSessionById(order.session_id);
+    sendMessage({
+      user_openid: order.user_openid, type: 'booking', title: '订课成功',
+      content: `已成功预约「${sInfo ? sInfo.course_name : '课程'}」${sInfo ? sInfo.date + ' ' + sInfo.start_time : ''}，实付 ¥${(booking.amount_fen / 100).toFixed(0)}`,
+      biz_type: 'course', biz_id: order.session_id, jump_url: '/pages/student-my-courses/index',
+      dedup_key: `book_paid:${orderId}`
+    });
+  } else if (order.order_type === 'recharge' && recharge) {
+    sendMessage({
+      user_openid: order.user_openid, type: 'order', title: '充值到账',
+      content: `充值 ¥${(order.amount_fen / 100).toFixed(0)} 已到账${recharge.bonus ? `，赠送 ¥${(recharge.bonus / 100).toFixed(0)}` : ''}，当前余额可前往「我的」查看`,
+      biz_type: 'order', biz_id: orderId, jump_url: '/pages/member-level/index',
+      dedup_key: `recharge_paid:${orderId}`
+    });
+  }
+
   const finalOrder = db.prepare(`${ORDER_SELECT} WHERE o.id = ?`).get(orderId);
   return { ok: true, order: finalOrder, booking, wait, recharge, reward };
 }
