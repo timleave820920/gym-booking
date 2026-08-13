@@ -244,8 +244,10 @@ module.exports = {
   getMemberLevel(openid) {
     return localRequest('/api/member/level?openid=' + openid, 'GET');
   },
-  getMemberPlans() {
-    return localRequest('/api/member/plans', 'GET');
+  getMemberPlans(openid) {
+    // 带 openid：后端按该用户首充/复充状态返回赠送比例（回归 BUG-LEDGER #8：此前漏拼 openid，展示全为首充 30%）
+    const q = openid ? '?openid=' + encodeURIComponent(openid) : '';
+    return localRequest('/api/member/plans' + q, 'GET');
   },
   getMemberConfig() {
     return localRequest('/api/member/config', 'GET');

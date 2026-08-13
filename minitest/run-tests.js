@@ -432,6 +432,10 @@ async function runSuite() {
   const rcOrder2 = r.data.order;
   r = await req('POST', `/api/orders/${rcOrder2.id}/pay`, { openid: T.user1.openid });
   check('MEM-07b', '复充送10%', ok(r, 200) && r.data.recharge && r.data.recharge.total === 55000 && r.data.recharge.isFirst === false, `total=${r.data && r.data.recharge && r.data.recharge.total} first=${r.data && r.data.recharge && r.data.recharge.isFirst}`);
+  // MEM-02c：带 openid 时套餐按用户充值状态展示（回归 BUG-LEDGER #8：前端漏拼 openid 致全显示首充30%）
+  r = await req('GET', `/api/member/plans?openid=${T.user1.openid}`);  // user1 已充 500 档两次 → 应为复充
+  const p500 = r.data.plans && r.data.plans.find(p => p.amount === 50000);
+  check('MEM-02c', '套餐复充状态展示', ok(r, 200) && p500 && p500.isFirst === false && p500.bonusYuan === 50, `isFirst=${p500 && p500.isFirst} bonusYuan=${p500 && p500.bonusYuan}`);
   // 邀请奖励：绑定+首订 → 阶梯1奖励
   r = await req('POST', '/api/invite', { inviter: T.user1.openid, invitee: T.user2.openid });
   check('MEM-08', '绑定邀请', ok(r, 200), `msg=${r.data && r.data.message}`);
