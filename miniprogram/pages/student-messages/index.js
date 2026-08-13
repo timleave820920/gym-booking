@@ -52,7 +52,6 @@ Page({
         icon: TYPE_ICONS[m.type] || '信',
         title: m.title,
         content: m.content,
-        jumpUrl: m.jump_url || '',
         isRead: !!m.is_read,
         timeText: this.formatTime(m.created_at)
       }));
@@ -84,7 +83,7 @@ Page({
     return `${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   },
 
-  // 单条已读（点击消息 → 标记已读 + 如有跳转地址则跳转）
+  // 单条已读（点击消息 → 仅标记已读；不跳转——产品决策 2026-08-13：消息中心是通知列表，详情一律去对应模块看）
   markRead(e) {
     const id = e.currentTarget.dataset.id;
     const item = this.data.messages.find(m => m.id === id);
@@ -98,9 +97,6 @@ Page({
           unread: Math.max((this.data.unread || 0) - 1, 0)
         });
       }).catch(() => {});
-    }
-    if (item.jumpUrl) {
-      wx.navigateTo({ url: item.jumpUrl });
     }
   },
 
