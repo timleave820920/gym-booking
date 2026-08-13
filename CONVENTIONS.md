@@ -27,9 +27,16 @@
 
 ## 📐 结构与命名
 
-- **后端**：路由分发在 `server/index.js`（`handle*` 函数），业务逻辑在 `server/db.js`（`db.*` 函数），配置独立文件（`member-config.js`/`energy-config.js`/`shop-items.js`）
+- **后端**：路由分发在 `server/index.js`（`handle*` 函数），业务逻辑按域拆分在 `server/db/`（`users/coin/members/invite/courses`，bookings/orders/messages 待拆），连接与建表在 `server/db-core.js`，`server/db.js` 为聚合入口（index.js 只依赖它）
 - **命名**：函数/变量 camelCase；接口路径 `/api/名词` 小写；测试用例编号 `域-序号`（如 `MEM-12`）
 - **金额单位**：库/接口统一 **分（fen）**，前端展示转元；禁止混用
+
+## 🔧 重构/拆分必须遵守（防坑清单，详见 skill: safe-refactor）
+
+1. 拆分前 grep 全部全局常量在**所有区域**的引用（声明归属单独决策，防止"夹带搬走"）
+2. 提取用**锚点文本匹配**，不用行号 skip；拆后查重复声明、补回丢失声明
+3. 模块互相调用 → `dbMod.xxx` **惰性访问**（函数体内），禁止顶层解构循环依赖
+4. 验证三连：`node --check` → 重启 → 全量测试全绿 → 提交（hook 再拦一道）
 
 ## ✍️ 提交信息格式
 
