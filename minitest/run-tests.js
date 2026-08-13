@@ -442,9 +442,15 @@ async function runSuite() {
   // MEM-13：候补余额支付扣会员价（回归 BUG-LEDGER #9：候补扣款+享会员价，6800×0.98→66元=6600分）
   const wtlSid = await mkSession(todayStr, '22:30', '23:30', 1, 1);  // 满员场次（booked=1）
   r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: wtlSid, amountFen: 6800, orderType: 'waitlist' });
-  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user1.openid, payMethod: 'balance' });
+  const wtlOrderId = r.data.order.id;
+  r = await req('POST', `/api/orders/${wtlOrderId}/pay`, { openid: T.user1.openid, payMethod: 'balance' });
   check('MEM-13', '候补余额支付扣会员价', ok(r, 200) && r.data.wait && r.data.wait.amount_fen === 6600, `wait=${r.data.wait && r.data.wait.amount_fen}`);
-  r = await req('DELETE', `/api/waitlist/${r.data.wait.id}?openid=${T.user1.openid}`);
+  const wtlWaitId = r.data.wait.id;
+  // MEM-13d：订单实付 = waitlist 金额 = 扣款额（钱闭环三角一致，规矩 #8）
+  r = await req('GET', `/api/orders?openid=${T.user1.openid}`);
+  const wtlOrder = (r.data.orders || []).find(o => o.id === wtlOrderId);
+  check('MEM-13d', '候补订单金额=实付会员价', wtlOrder && wtlOrder.amount_fen === 6600, `order=${wtlOrder && wtlOrder.amount_fen}`);
+  r = await req('DELETE', `/api/waitlist/${wtlWaitId}?openid=${T.user1.openid}`);
   check('MEM-13b', '候补退出退款', ok(r, 200), `msg=${r.data && r.data.message}`);
   r = await req('GET', `/api/member/level?openid=${T.user1.openid}`);
   check('MEM-13c', '候补退款后余额恢复', r.data.level.balanceFen === 120000, `balance=${r.data.level.balanceFen}`);
