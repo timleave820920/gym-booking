@@ -255,15 +255,22 @@ async function runSuite() {
   r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: ctx.fullSessionId, amountFen: 6800, orderType: 'waitlist' });
   check('WTL-01', '满员排位下单', r.status === 201 && r.data.order.status === 'pending', `msg=${r.data && r.data.message}`);
   ctx.waitOrderId = r.data.order.id;
-  r = await req('POST', `/api/orders/${ctx.waitOrderId}/pay`, { openid: T.user1.openid });
+  r = await req('POST', `/api/orders/${ctx.waitOrderId}/pay`, { openid: T.user1.openid, payMethod: 'wxpay' });
   check('WTL-02', '排位支付', ok(r, 200) && r.data.wait && r.data.wait.status === 'waiting', `wait=${r.data && r.data.wait && r.data.wait.status}`);
   ctx.waitId = r.data.wait.id;
+  // WTL-02b：候补余额支付需余额充足（回归 BUG-LEDGER #9：原不校验不扣款，退出却退款=刷钱漏洞）
+  r = await req('POST', '/api/auth/login', { openid: 'uid_test_wtl0', nickname: '候补零余额' });
+  r = await req('POST', '/api/orders', { openid: 'uid_test_wtl0', sessionId: ctx.fullSessionId, amountFen: 6800, orderType: 'waitlist' });
+  check('WTL-02b-1', '零余额候补下单', r.status === 201, `msg=${r.data && r.data.message}`);
+  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: 'uid_test_wtl0', payMethod: 'balance' });
+  check('WTL-02b', '零余额候补余额支付拒绝', r.status === 400 && (r.data.message || '').includes('余额不足'), `status=${r.status} msg=${r.data && r.data.message}`);
   r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: ctx.sessionId, amountFen: 6800, orderType: 'waitlist' });
   check('WTL-03', '有余位排位拒绝', r.status === 400 && (r.data.message || '').includes('余位'), `msg=${r.data && r.data.message}`);
   r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: ctx.fullSessionId, amountFen: 6800, orderType: 'waitlist' });
   check('WTL-04a', '二号排位成功', r.status === 201, `msg=${r.data && r.data.message}`);
   const wait2Order = r.data.order;
-  await req('POST', `/api/orders/${wait2Order.id}/pay`, { openid: T.user2.openid });
+  r = await req('POST', `/api/orders/${wait2Order.id}/pay`, { openid: T.user2.openid, payMethod: 'wxpay' });
+  check('WTL-04a-pay', '二号排位支付', ok(r, 200) && r.data.wait && r.data.wait.status === 'waiting', `msg=${r.data && r.data.message}`);
   r = await req('GET', `/api/waitlist?openid=${T.user2.openid}`);
   check('WTL-05', '我的候补列表', ok(r, 200) && r.data.waits.length >= 1, `count=${r.data && r.data.waits && r.data.waits.length}`);
 
@@ -302,7 +309,7 @@ async function runSuite() {
   r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: ctx.tomorrowSessionId, amountFen: 6800, orderType: 'waitlist' });
   const wlT = r.data.order;
   if (wlT) {
-    await req('POST', `/api/orders/${wlT.id}/pay`, { openid: T.user2.openid });
+    await req('POST', `/api/orders/${wlT.id}/pay`, { openid: T.user2.openid, payMethod: 'wxpay' });
     db.db.prepare(`UPDATE course_sessions SET date = '2026-08-09' WHERE id = ${ctx.tomorrowSessionId}`).run();
     r = await req('GET', `/api/waitlist?openid=${T.user2.openid}`);
     const wlT2 = (r.data.waits || []).find(w => w.session_id === ctx.tomorrowSessionId);
@@ -432,6 +439,15 @@ async function runSuite() {
   const rcOrder2 = r.data.order;
   r = await req('POST', `/api/orders/${rcOrder2.id}/pay`, { openid: T.user1.openid });
   check('MEM-07b', '复充送10%', ok(r, 200) && r.data.recharge && r.data.recharge.total === 55000 && r.data.recharge.isFirst === false, `total=${r.data && r.data.recharge && r.data.recharge.total} first=${r.data && r.data.recharge && r.data.recharge.isFirst}`);
+  // MEM-13：候补余额支付扣会员价（回归 BUG-LEDGER #9：候补扣款+享会员价，6800×0.98→66元=6600分）
+  const wtlSid = await mkSession(todayStr, '22:30', '23:30', 1, 1);  // 满员场次（booked=1）
+  r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: wtlSid, amountFen: 6800, orderType: 'waitlist' });
+  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user1.openid, payMethod: 'balance' });
+  check('MEM-13', '候补余额支付扣会员价', ok(r, 200) && r.data.wait && r.data.wait.amount_fen === 6600, `wait=${r.data.wait && r.data.wait.amount_fen}`);
+  r = await req('DELETE', `/api/waitlist/${r.data.wait.id}?openid=${T.user1.openid}`);
+  check('MEM-13b', '候补退出退款', ok(r, 200), `msg=${r.data && r.data.message}`);
+  r = await req('GET', `/api/member/level?openid=${T.user1.openid}`);
+  check('MEM-13c', '候补退款后余额恢复', r.data.level.balanceFen === 120000, `balance=${r.data.level.balanceFen}`);
   // MEM-02c：带 openid 时套餐按用户充值状态展示（回归 BUG-LEDGER #8：前端漏拼 openid 致全显示首充30%）
   r = await req('GET', `/api/member/plans?openid=${T.user1.openid}`);  // user1 已充 500 档两次 → 应为复充
   const p500 = r.data.plans && r.data.plans.find(p => p.amount === 50000);

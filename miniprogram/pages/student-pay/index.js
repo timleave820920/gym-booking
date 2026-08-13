@@ -48,9 +48,8 @@ Page({
       // 会员价 = 原价 × 折扣率，向下取整到元（无角分）
       const memberPrice = Math.floor(price * lv.discount);
       const balance = (lv.balanceFen / 100);
-      // 候补排位不享会员折扣，不自动选余额
-      const isWaitlist = this.data.course.mode === 'waitlist';
-      const canBalancePay = !isWaitlist && balance >= memberPrice;
+      // 余额足够 → 默认选中余额支付（订课与候补排位均享会员价，产品决策 2026-08-13，BUG-LEDGER #9）
+      const canBalancePay = balance >= memberPrice;
       // 折扣文案：0.98 → 98折（整十转 X 折，如 0.9 → 9折）
       const dp = Math.round(lv.discount * 100);
       lv.discountText = dp % 10 === 0 ? (dp / 10) + '折' : dp + '折';
@@ -70,12 +69,11 @@ Page({
     }).catch(() => {});
   },
 
-  // 计算当前选中支付方式的结算价（余额支付 → 会员价；微信 → 原价）
+  // 计算当前选中支付方式的结算价（余额支付 → 会员价；微信 → 原价；候补排位同样适用）
   computeTotal() {
     const price = Number(this.data.course.price || 68);
     const selected = this.data.payMethods.find(m => m.selected);
-    const isWaitlist = this.data.course.mode === 'waitlist';
-    const useMember = selected && selected.id === 2 && !isWaitlist
+    const useMember = selected && selected.id === 2
       && this.data.memberLevel && this.data.memberLevel.discount < 1;
     const total = useMember ? this.data.memberPrice : price;
     this.setData({

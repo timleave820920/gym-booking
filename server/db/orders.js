@@ -95,7 +95,8 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
   }
 
   // 会员价预校验：储值支付需余额充足（不足直接拒绝，避免事务回滚）
-  if (order.order_type === 'book' && pay_method === 'balance'
+  // 订课 + 候补都校验（修复 BUG-LEDGER #9：候补 balance 支付原不校验不扣款，退出却退款=刷钱漏洞）
+  if ((order.order_type === 'book' || order.order_type === 'waitlist') && pay_method === 'balance'
       && MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {
     const lv = getMemberLevel(order.user_openid);
     // 会员价 = 原价 × 折扣率，向下取整到元（无角分）
@@ -123,13 +124,21 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
       recharge = applyRecharge({ user_openid: order.user_openid, order_id: orderId, amount_fen: order.amount_fen, bonus_fen: bonus });
       recharge = { ...recharge, isFirst, bonus, rate: isFirst ? plan.firstBonusRate : plan.repeatBonusRate };
     } else if (order.order_type === 'waitlist') {
-      // 候补排位：写 waitlist（带自动取消节点，默认开课时）
+      // 候补排位：余额支付按会员价扣款（产品决策 2026-08-13：候补余额支付享会员价）
+      // 修复 BUG-LEDGER #9：原实现不扣款，退出候补却退款=刷钱漏洞
+      let payFen = order.amount_fen;
+      if (pay_method === 'balance' && MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {
+        const lv = getMemberLevel(order.user_openid);
+        if (lv) payFen = Math.floor(order.amount_fen * lv.discount / 100) * 100;
+        addBalance(order.user_openid, -payFen, '候补排位', order.order_no);
+      }
       const waitNo = 'WL' + Date.now() + Math.random().toString(36).slice(2, 6).toUpperCase();
       db.prepare(`INSERT INTO waitlist (wait_no, user_openid, session_id, amount_fen, status, expire_mode)
                   VALUES (?, ?, ?, ?, 'waiting', ?)`)
-        .run(waitNo, order.user_openid, order.session_id, order.amount_fen, order.expire_mode || 'start');
+        .run(waitNo, order.user_openid, order.session_id, payFen, order.expire_mode || 'start');
       const waitId = db.prepare('SELECT id FROM waitlist WHERE wait_no = ?').get(waitNo).id;
-      db.prepare('UPDATE orders SET wait_id = ? WHERE id = ?').run(waitId, orderId);
+      // 订单金额落实付（会员价），与退款保持严格一致
+      db.prepare('UPDATE orders SET wait_id = ?, amount_fen = ? WHERE id = ?').run(waitId, payFen, orderId);
       wait = db.prepare(`
         SELECT w.id, w.wait_no, w.session_id, w.amount_fen, w.status, w.created_at,
                s.date, s.start_time, s.end_time, c.name AS course_name
