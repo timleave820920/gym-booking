@@ -294,6 +294,16 @@ async function main() {
   ]);
   const fullRejected = results.filter(x => x.status === 400 && (x.data.message || '').includes('满员')).length;
   check('SEC-04', '超卖防护(满员并发)', fullRejected >= 1, `拒绝数=${fullRejected}`);
+  // SEC-04b：订满后场次状态联动为 full（回归 BUG-LEDGER #2：booked_count 变更点须联动 status）
+  // 注意：下单只建订单不动余位，booked_count+1 在支付（payOrder→createBooking）时才发生，故走完整链路
+  const fullSid3 = await mkSession(todayStr, '23:30', '24:30', 1, 0);   // 容量1、初始0人
+  r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: fullSid3, amountFen: 6800 });
+  check('SEC-04b-1', '订满链路下单', ok(r, 201), `msg=${r.data && r.data.message}`);
+  const ordSid3 = r.data.order.id;
+  r = await req('POST', `/api/orders/${ordSid3}/pay`, { openid: T.user1.openid, payMethod: 'wxpay' });
+  check('SEC-04b-2', '订满链路支付', ok(r, 200) && r.data.booking, `msg=${r.data && r.data.message}`);
+  r = await req('GET', `/api/sessions/${fullSid3}`);
+  check('SEC-04b', '支付满员后场次状态=full', ok(r, 200) && r.data.session.status === 'full', `status=${r.data && r.data.session && r.data.session.status}`);
   // 创建课程缺参已在 CRS-02 覆盖
   r = await req('POST', '/api/courses/9999/publish', {});
   check('CRS-04a', '发布缺日期参数', r.status === 400 && (r.data.message || '').includes('日期'), `msg=${r.data && r.data.message}`);
@@ -310,6 +320,8 @@ async function main() {
   r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: 0, amountFen: 50000, orderType: 'recharge' });
   check('MEM-03', '充值下单', r.status === 201 && r.data.order.order_type === 'recharge', `msg=${r.data && r.data.message}`);
   const rcOrder = r.data.order;
+  // MEM-03b：充值订单 session_id 必须为 NULL（回归 BUG-LEDGER #1：orders.session_id NOT NULL 与充值写 NULL 冲突，本地旧表掩盖、仅 CI 干净库可抓）
+  check('MEM-03b', '充值订单session_id为NULL', rcOrder.session_id == null, `session_id=${rcOrder && rcOrder.session_id}`);
   r = await req('POST', `/api/orders/${rcOrder.id}/pay`, { openid: T.user1.openid });
   check('MEM-04', '充值支付到账(首充30%)', ok(r, 200) && r.data.recharge && r.data.recharge.total === 65000 && r.data.recharge.isFirst, `total=${r.data && r.data.recharge && r.data.recharge.total} first=${r.data && r.data.recharge && r.data.recharge.isFirst}`);
   r = await req('GET', `/api/member/level?openid=${T.user1.openid}`);
