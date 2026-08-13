@@ -6,7 +6,8 @@ preview-qrcode.*
 
 # 微信开发者工具本地配置（含用户级信息）
 project.private.config.json
-minitest/
+# minitest 是测试资产，入库（仅忽略运行时产物）
+minitest/report.json
 
 # 系统文件
 .DS_Store
@@ -25,3 +26,6 @@ server/data/*.db-shm
 server/data/*.db-wal
 server/data/*.db.bak
 server/data/*.tmp
+
+# 关键操作日志（运行时产物，不入库）
+server/logs/

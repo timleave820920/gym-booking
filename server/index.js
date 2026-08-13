@@ -26,6 +26,7 @@ const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs');
 const db = require('./db');
+const { logOp } = require('./logger');
 
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0'; // 允许局域网访问（真机调试）
@@ -315,8 +316,10 @@ function handleCancelBooking(req, res) {
   }
   const result = db.cancelBooking(openid, bookingId);
   if (!result.ok) {
+    logOp(openid, 'refund', { bookingId }, 'fail');
     return sendJson(res, 400, { code: 400, message: result.error });
   }
+  logOp(openid, 'refund', { bookingId, promoted: !!(result.promoted) }, 'ok');
   return sendJson(res, 200, {
     code: 200,
     message: '已退订',
@@ -346,8 +349,10 @@ async function handleCheckin(req, res) {
   }
   const result = db.checkinBooking({ bookingId, coachOpenid: openid });
   if (!result.ok) {
+    logOp(openid, 'checkin', { bookingId }, 'fail');
     return sendJson(res, 400, { code: 400, message: result.error });
   }
+  logOp(result.booking.user_openid, 'checkin', { bookingId, course: result.booking.course_name }, 'ok', result.booking.booking_no);
   return sendJson(res, 200, { code: 200, message: '签到成功', booking: result.booking });
 }
 
@@ -557,7 +562,11 @@ async function handleCoinExchange(req, res) {
   const { openid, itemId } = body;
   if (!openid || !itemId) return sendJson(res, 400, { code: 400, message: '缺少 openid 或 itemId' });
   const result = db.exchangeCoinItem({ openid, itemId });
-  if (!result.ok) return sendJson(res, 400, { code: 400, message: result.error });
+  if (!result.ok) {
+    logOp(openid, 'exchange', { itemId }, 'fail');
+    return sendJson(res, 400, { code: 400, message: result.error });
+  }
+  logOp(openid, 'exchange', { itemId, cost: result.exchange && result.exchange.cost }, 'ok', result.exchange && result.exchange.exchange_no);
   return sendJson(res, 200, { code: 200, message: '兑换成功', exchange: result.exchange });
 }
 
@@ -619,8 +628,10 @@ async function handlePayOrder(req, res) {
     pay_method: payMethod || 'balance'
   });
   if (!result.ok) {
+    logOp(openid, 'pay', { orderId, payMethod, orderType: 'unknown' }, 'fail');
     return sendJson(res, 400, { code: 400, message: result.error });
   }
+  logOp(openid, 'pay', { orderId, payMethod, orderType: result.order.order_type, amountFen: result.order.amount_fen }, result.already ? 'already' : 'ok', result.order.order_no);
   return sendJson(res, 200, {
     code: 200,
     message: result.already ? '订单已支付' : '支付成功',
@@ -1030,7 +1041,10 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, HOST, () => {
+// ===== 启动 =====
+// 独立启动时监听端口；被 require（如测试/覆盖率）时不监听，导出供复用
+if (require.main === module) {
+  server.listen(PORT, HOST, () => {
   // 启动时探测局域网 IP 并写入前端配置（IP 自动适配）
   const net = writeNetConfig();
   console.log('========================================');
@@ -1060,4 +1074,8 @@ server.listen(PORT, HOST, () => {
       console.error('[class reminder]', e.message);
     }
   }, 60 * 1000);
-});
+  });
+} else {
+  // 被测试/覆盖率脚本 require：导出服务与数据库供同进程调用
+  module.exports = { server, PORT, db };
+}
