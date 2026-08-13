@@ -104,35 +104,9 @@
   border-radius: 32rpx;
 }
 
-/* 空状态 */
-.empty-state {
-  align-items: center;
-  padding: 160rpx 0;
-}
-.empty-icon {
-  font-size: 96rpx; color: #D9D4C0;
-}
-.empty-txt {
-  margin-top: 24rpx; color: #6B6B76; font-size: 30rpx;
-}
+/* 空状态：改用全局标准组件（app.wxss .empty-state 系列，设计系统 v1 批2） */
 
 .list-spacer { height: 60rpx; }
-
-/* 空状态补充样式 */
-.empty-sub {
-  margin-top: 12rpx;
-  font-size: 24rpx;
-  color: #B0AFA8;
-}
-.empty-btn {
-  margin-top: 32rpx;
-  padding: 18rpx 64rpx;
-  border-radius: 44rpx;
-  background: #1A1A23;
-  color: #B9FF66;
-  font-size: 28rpx;
-  font-weight: 700;
-}
 
 /* 已完成卡片：签到状态文字 */
 .done-status {

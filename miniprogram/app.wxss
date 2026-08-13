@@ -107,6 +107,81 @@ button::after {
 }
 .card-pad { padding: var(--sp-3); }
 
+/* ===== 空态（标准组件，2026-08-13 批2；页面迁移时统一套用） ===== */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 160rpx 80rpx;
+}
+.empty-icon {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 50%;
+  background: var(--divider);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56rpx;
+  color: var(--ink-300);
+}
+.empty-txt {
+  margin-top: var(--sp-4);
+  font-size: var(--fs-card);
+  font-weight: 600;
+  color: var(--ink-900);
+}
+.empty-sub {
+  margin-top: var(--sp-1);
+  font-size: var(--fs-meta);
+  color: var(--ink-500);
+  text-align: center;
+}
+.empty-btn {
+  margin-top: var(--sp-4);
+  padding: 18rpx 64rpx;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: #FFFFFF;
+  font-size: var(--fs-body);
+  font-weight: 600;
+}
+
+/* ===== 加载态（标准组件，批2） ===== */
+.loading-tip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: 60rpx 0;
+  color: var(--ink-500);
+  font-size: var(--fs-meta);
+}
+.loading-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: var(--ink-300);
+  animation: blink 1.2s infinite ease-in-out;
+}
+.loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.loading-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink {
+  0%, 80%, 100% { opacity: 0.25; }
+  40% { opacity: 1; }
+}
+/* 骨架屏占位（列表加载） */
+.skeleton {
+  background: linear-gradient(90deg, var(--divider) 25%, #E8E2CC 37%, var(--divider) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: var(--r-box);
+}
+@keyframes shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
 /* ===== 按钮（5 级语义，2026-08-13 批1） =====
  * L1 主行动 = 墨黑（唯一 CTA，全 App 主按钮从荧光绿迁移至此）
  * L2 次行动 = 荧光绿 · L3 描边 · L4 文字 · L5 危险
@@ -134,6 +209,10 @@ button::after {
   align-items: center;
   justify-content: center;
 }
+.btn-purple.btn-pressed,
+.btn-purple:active {
+  background: #4A46C4;
+}
 .btn-lime {
   background: var(--lime);
   color: var(--ink-900);
@@ -142,6 +221,10 @@ button::after {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.btn-lime.btn-pressed,
+.btn-lime:active {
+  background: #A8E85A;
 }
 .btn-outline {
   background: var(--ink-0);
@@ -152,6 +235,11 @@ button::after {
   align-items: center;
   justify-content: center;
 }
+.btn-outline.btn-pressed,
+.btn-outline:active {
+  background: var(--divider);
+  color: var(--ink-900);
+}
 .btn-dark {
   background: var(--ink);
   color: #FFFFFF;
@@ -159,6 +247,10 @@ button::after {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.btn-dark.btn-pressed,
+.btn-dark:active {
+  background: #333333;
 }
 .btn-ghost {
   background: transparent;
@@ -168,6 +260,11 @@ button::after {
   align-items: center;
   justify-content: center;
 }
+.btn-ghost.btn-pressed,
+.btn-ghost:active {
+  background: rgba(26, 26, 35, 0.06);
+  color: var(--ink-900);
+}
 .btn-danger {
   background: var(--danger);
   color: #FFFFFF;
@@ -176,13 +273,24 @@ button::after {
   align-items: center;
   justify-content: center;
 }
+.btn-danger.btn-pressed,
+.btn-danger:active {
+  background: #C93A3F;
+}
 .btn-disabled,
-.btn-primary.btn-disabled {
+.btn-primary.btn-disabled,
+.btn-lime.btn-disabled,
+.btn-danger.btn-disabled {
   background: var(--divider);
   color: var(--ink-300);
   box-shadow: none;
   pointer-events: none;
 }
+
+/* 按钮尺寸阶梯（大 88rpx / 中 72rpx / 小 56rpx） */
+.btn-lg { height: 88rpx; padding: 0 48rpx; font-size: 30rpx; }
+.btn-md { height: 72rpx; padding: 0 40rpx; font-size: 28rpx; }
+.btn-sm { height: 56rpx; padding: 0 28rpx; font-size: 24rpx; }
 
 /* ===== 徽标/标签 ===== */
 .tag {
