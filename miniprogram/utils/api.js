@@ -52,7 +52,11 @@ function localRequest(path, method = 'GET', data = {}) {
           reject({ code: res.statusCode, message: (res.data && res.data.message) || '请求失败' });
         }
       },
-      fail: () => reject({ code: -1, message: '无法连接本地后端，请确认 server 已启动' })
+      fail: (err) => {
+        // 打印真实失败原因（真机调试排查用：域名校验/超时/网络栈）
+        console.error('[api] 请求失败', LOCAL_BASE_URL + path, JSON.stringify(err));
+        reject({ code: -1, message: '无法连接本地后端，请确认 server 已启动' });
+      }
     });
   });
 }

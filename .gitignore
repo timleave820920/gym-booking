@@ -20,8 +20,10 @@ node_modules/
 # 后端数据库（本地数据，不入库）
 server/data/*.db
 
-# 局域网 IP 自动适配（后端启动时生成，随机器/网络变化）
-miniprogram/utils/net-config.json
+# 局域网 IP 自动适配说明：
+# miniprogram/utils/net-config.json 必须「不在」gitignore——微信开发者工具会过滤
+# gitignore 文件导致它打不进预览包，真机回退 127.0.0.1 连不上后端（BUG-LEDGER #6）。
+# git 侧改用 .git/info/exclude 忽略（不随仓库走，不影响工具打包）。
 server/data/*.db-shm
 server/data/*.db-wal
 server/data/*.db.bak

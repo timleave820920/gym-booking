@@ -985,6 +985,10 @@ const API_ROUTES = [
 
 const server = http.createServer(async (req, res) => {
   try {
+    // 请求日志（真机联调排查用；正式环境可移除或按需开启）
+    if (process.env.REQUEST_LOG === '1') {
+      console.log(`[req] ${req.method} ${req.url} from ${req.socket.remoteAddress}`);
+    }
     if (handleCors(req, res)) return;
 
     const url = new URL(req.url, `http://${req.headers.host}`);
