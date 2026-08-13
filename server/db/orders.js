@@ -5,7 +5,7 @@ const { db } = require('../db-core');
 const { findUserByOpenid } = require('./users');
 const { addCoins, checkLevelUpReward } = require('./coin');
 const { getMemberLevel, addBalance, applyRecharge, refundOrderMoney, calcRechargeBonus, RECHARGE_PLANS } = require('./members');
-const { getSessionById } = require('./courses');
+const { getSessionById, syncSessionStatus } = require('./courses');
 const { rewardInviter } = require('./invite');
 const { sendMessage } = require('./messages');
 const MEMBER_CONFIG = require('../member-config.js');
@@ -155,6 +155,7 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
       if (exists) {
         db.prepare("UPDATE bookings SET status = 'booked', pay_status = 'paid', cancel_reason = '', checkin_at = NULL WHERE id = ?").run(exists.id);
         db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(order.session_id);
+        syncSessionStatus(order.session_id);
         booking = db.prepare(`SELECT id, booking_no, amount_fen FROM bookings WHERE id = ?`).get(exists.id);
       } else {
         db.prepare(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status)
@@ -162,6 +163,7 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
           .run(bookingNo, order.user_openid, order.session_id, payFen);
         booking = db.prepare('SELECT id, booking_no, amount_fen FROM bookings WHERE id = last_insert_rowid()').get();
         db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(order.session_id);
+        syncSessionStatus(order.session_id);
       }
       // 订单金额落实付（余额支付=会员折扣价；微信支付=原价），与 booking/退款保持严格一致
       db.prepare('UPDATE orders SET amount_fen = ?, booking_id = ? WHERE id = ?').run(payFen, booking.id, orderId);
@@ -292,6 +294,7 @@ function promoteFromWaitlist(sessionId) {
   const bookingId = db.prepare('SELECT id FROM bookings WHERE booking_no = ?').get(bookingNo).id;
   // 扣减余位（退订时已 +1，这里 -1 抵消，保持满员状态）
   db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(sessionId);
+        syncSessionStatus(sessionId);
   // 更新排位记录为已转正
   db.prepare("UPDATE waitlist SET status = 'promoted', promoted_at = datetime('now','localtime') WHERE id = ?").run(waiting.id);
   // 订单联动：原排位订单关联到新 booking（订单保持 paid，即排位费转为订课费）

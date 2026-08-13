@@ -199,6 +199,14 @@ function getSessionById(id) {
   return db.prepare(`${SESSION_SELECT} WHERE s.id = ?`).get(id) || null;
 }
 
+/**
+ * 满员状态联动：booked_count >= capacity → full，否则 published
+ * 每次 booked_count 变更后调用（订课/退订/转正），保证场次状态与余位一致
+ */
+function syncSessionStatus(sessionId) {
+  db.prepare("UPDATE course_sessions SET status = CASE WHEN booked_count >= capacity THEN 'full' ELSE 'published' END WHERE id = ?").run(sessionId);
+}
+
 // ===== 订课（bookings）=====
 
 /**
@@ -207,4 +215,4 @@ function getSessionById(id) {
  * @returns {{ok:true, booking:object}|{ok:false, error:string}}
  */
 // ===== 导出 =====
-module.exports = { listCoaches, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById };
+module.exports = { listCoaches, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById, syncSessionStatus };

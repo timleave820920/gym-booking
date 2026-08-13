@@ -5,7 +5,7 @@ const { db } = require('../db-core');
 const { findUserByOpenid } = require('./users');
 const { addCoins } = require('./coin');
 const { refundOrderMoney } = require('./members');
-const { getSessionById } = require('./courses');
+const { getSessionById, syncSessionStatus } = require('./courses');
 const { promoteFromWaitlist } = require('./orders');
 const { sendMessage } = require('./messages');
 const ENERGY_CONFIG = require('../energy-config.js');
@@ -41,6 +41,7 @@ function createBooking({ user_openid, session_id, amount_fen = 0, pay_status = '
     }
     // 2. 扣减余位
     db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(session_id);
+    syncSessionStatus(session_id);
     db.exec('COMMIT');
   } catch (e) {
     db.exec('ROLLBACK');
@@ -199,6 +200,7 @@ function cancelBooking(openid, bookingId) {
     // 仅未签到订单恢复余位
     if (!booking.checkin_at) {
       db.prepare('UPDATE course_sessions SET booked_count = MAX(booked_count - 1, 0) WHERE id = ?').run(booking.session_id);
+      syncSessionStatus(booking.session_id);
       // 有候补者 → 最早排位者自动转正（候补队列先进先出）
       promoted = promoteFromWaitlist(booking.session_id);
     }
