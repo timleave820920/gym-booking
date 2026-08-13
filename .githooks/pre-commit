@@ -1,0 +1,33 @@
+#!/bin/sh
+# ============================================================
+# 安全网强制（pre-commit hook）：提交前自动跑测试，红则阻止提交
+# 机制：git config core.hooksPath .githooks（见 README / CONVENTIONS.md）
+# 绕过：仅限故意为之的 --no-verify，其余一律拦截
+# ============================================================
+echo "▶ [安全网] 提交前自动测试..."
+
+BASE_URL=http://127.0.0.1:3000
+
+# 1. 后端健康检查（未运行则自动拉起）
+if ! curl -s --max-time 2 "$BASE_URL/api/health" > /dev/null 2>&1; then
+  echo "  [安全网] 后端未运行，尝试自动启动..."
+  (cd "$(dirname "$0")/../server" && node index.js > /tmp/gym-hook.log 2>&1 &)
+  sleep 2
+  curl -s --retry 5 --retry-delay 1 "$BASE_URL/api/health" > /dev/null 2>&1 \
+    || { echo "✖ [安全网] 后端启动失败，无法验证"; exit 1; }
+fi
+
+# 2. 跑全量测试（77 项）
+node "$(dirname "$0")/../minitest/run-tests.js" "$BASE_URL"
+RESULT=$?
+
+# 3. 判定：红 = 禁止提交
+if [ $RESULT -ne 0 ]; then
+  echo ""
+  echo "✖✖✖ [安全网] 测试未全绿（退出码 $RESULT）——禁止提交！"
+  echo "    请修复后重新 commit（或确认后用 git commit --no-verify 显式绕过）"
+  exit 1
+fi
+
+echo "✓ [安全网] 测试全绿，放行提交"
+exit 0
