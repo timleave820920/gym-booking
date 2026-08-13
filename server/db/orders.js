@@ -56,6 +56,10 @@ function createOrder({ user_openid, session_id, amount_fen = 0, order_type = 'bo
   // 已订过 → 拒绝下单
   const existing = db.prepare("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ? AND status = 'booked'").get(user_openid, session_id);
   if (existing) return { ok: false, error: '您已预订该课程，请勿重复下单' };
+  // 已有待支付订单 → 拒绝重复下单（防连点/并发：BUG-LEDGER #13 狂点狂扣费，bookings 查重在下单时无效，需查 pending 订单）
+  const pendingOrder = db.prepare("SELECT id FROM orders WHERE user_openid = ? AND session_id = ? AND status = 'pending' AND order_type = ?")
+    .get(user_openid, session_id, order_type);
+  if (pendingOrder) return { ok: false, error: '您已有待支付订单，请勿重复下单' };
 
   if (order_type === 'book') {
     if (session.remaining <= 0) return { ok: false, error: '该课程已满员，请选择候补排位' };
@@ -149,6 +153,13 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
       `).get(waitId);
     } else {
       // 订课：复用订课逻辑（事务内调用，不再嵌套 BEGIN）
+      // 幂等防重（BUG-LEDGER #13）：该用户该场次已有 booked 记录 → 拒绝，防「多个订单同场次」连点重复扣款
+      const dupBooked = db.prepare("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ? AND status = 'booked'")
+        .get(order.user_openid, order.session_id);
+      if (dupBooked) {
+        db.exec('ROLLBACK');
+        return { ok: false, error: '您已预订该课程，请勿重复支付' };
+      }
       // 会员价：仅储值支付享受等级折扣（member-config.js 配置）
       let payFen = order.amount_fen;
       if (pay_method === 'balance' && MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {

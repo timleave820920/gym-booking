@@ -234,6 +234,15 @@ async function runSuite() {
   check('ORD-03', '重复支付幂等', ok(r, 200) && r.data.already === true, `already=${r.data && r.data.already}`);
   r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: ctx.sessionId, amountFen: 6800, orderType: 'book' });
   check('ORD-04', '重复下单拒绝', r.status === 400 && (r.data.message || '').includes('已预订'), `msg=${r.data && r.data.message}`);
+  // ORD-04b：pending 订单查重（回归 BUG-LEDGER #13：狂点下单曾创建多笔 pending 订单、每笔支付都扣款=狂扣费）
+  r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: ctx.sessionId, amountFen: 6800, orderType: 'book' });
+  check('ORD-04b', '连点下单防重(pending查重)', r.status === 201, `msg=${r.data && r.data.message}`);
+  r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: ctx.sessionId, amountFen: 6800, orderType: 'book' });
+  check('ORD-04c', '连点第二次下单拒绝', r.status === 400 && (r.data.message || '').includes('待支付'), `msg=${r.data && r.data.message}`);
+  // 清理 user2 的 pending 订单（避免污染后续用例；user2 未支付无副作用）
+  const _dbx = require('../server/db.js');
+  const pend2 = _dbx.db.prepare("SELECT id FROM orders WHERE user_openid=? AND session_id=? AND status='pending'").get(T.user2.openid, ctx.sessionId);
+  if (pend2) _dbx.db.prepare("DELETE FROM orders WHERE id=?").run(pend2.id);
   r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: ctx.fullSessionId, amountFen: 6800, orderType: 'book' });
   check('ORD-05', '满员下单拒绝', r.status === 400 && (r.data.message || '').includes('满员'), `msg=${r.data && r.data.message}`);
   r = await req('GET', `/api/orders?openid=${T.user1.openid}`);

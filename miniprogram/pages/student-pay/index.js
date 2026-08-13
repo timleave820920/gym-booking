@@ -96,6 +96,8 @@ Page({
   },
 
   pay() {
+    // 防连点锁（BUG-LEDGER #13）：支付中再次点击直接忽略，请求结束才解锁
+    if (this._paying) return;
     const course = this.data.course;
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
@@ -117,6 +119,7 @@ Page({
       });
       return;
     }
+    this._paying = true;
     wx.showLoading({ title: '下单中...' });
 
     // 第一步：创建待支付订单
@@ -132,6 +135,7 @@ Page({
       // 第二步：模拟支付成功后，支付回写落库
       setTimeout(() => this.confirmPay(res.order.id, openid), 800);
     }).catch((err) => {
+      this._paying = false;
       wx.hideLoading();
       wx.showModal({
         title: '下单失败',
@@ -147,6 +151,7 @@ Page({
     const selected = this.data.payMethods.find(m => m.selected);
     const payMethod = selected && selected.id === 1 ? 'wxpay' : 'balance';
     api.payOrder(orderId, { openid, payMethod }).then((res) => {
+      this._paying = false;
       wx.hideLoading();
       const isWaitlist = this.data.course.mode === 'waitlist';
       // 实付金额落全局（后端支付回写时订单金额已修正为实付：余额支付=会员折扣价，微信=原价）
@@ -158,6 +163,7 @@ Page({
       // 跳转支付成功落地页（携带模式）
       wx.redirectTo({ url: '/pages/pay-success/index' + (isWaitlist ? '?mode=waitlist' : '') });
     }).catch((err) => {
+      this._paying = false;
       wx.hideLoading();
       wx.showModal({
         title: '支付失败',
