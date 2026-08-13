@@ -88,10 +88,16 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     r = await req('GET', '/api/sessions?date=' + todayStr);
     assert.ok(Array.isArray(r.data.sessions), '场次列表');
     // 造一个独立测试场次（容量 2：用于订课/满员/候补/签到全链路）
+    // 时间=当前+30分钟（签到窗口是开课前30分~课后2h，BUG-LEDGER #10 后固定 19:00 会被窗口拒绝）
     const course = db.db.prepare('SELECT id FROM courses LIMIT 1').get();
+    const ckStart = new Date(Date.now() + 30 * 60000);
+    const ckEnd = new Date(ckStart.getTime() + 60 * 60000);
+    const pad2 = n => String(n).padStart(2, '0');
+    const ckStartStr = `${pad2(ckStart.getHours())}:${pad2(ckStart.getMinutes())}`;
+    const ckEndStr = `${pad2(ckEnd.getHours())}:${pad2(ckEnd.getMinutes())}`;
     const ins = db.db.prepare(
-      "INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source) VALUES (?,1,1,?,'19:00','20:00',2,0,'published','cov_suite')"
-    ).run(course.id, todayStr);
+      "INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source) VALUES (?,1,1,?,?,?,2,0,'published','cov_suite')"
+    ).run(course.id, todayStr, ckStartStr, ckEndStr);
     const sid = ins.lastInsertRowid;
 
     // ---- 03 订课（U1 订 + 支付；下单走 /api/orders，返回 order+booking） ----
@@ -215,7 +221,8 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     covCourseId = r.data.course.id;
     r = await req('PUT', `/api/courses/${covCourseId}`, { name: '覆盖测试课程改', tags: '测试' });
     assert.equal(r.data.code, 200, '更新课程');
-    r = await req('PUT', `/api/courses/${covCourseId}/rules`, { rules: [{ weekday: today.getDay() || 7, start_time: '10:00', end_time: '11:00', venue_id: 1, coach_id: 1, capacity: 5 }] });
+    // 时段用 14:00-15:00（避开 seed 场次 10:00/11:00/15:00/16:00/20:00/21:00，排课冲突检测 BUG-LEDGER #7 相关功能会跳过重叠时段）
+    r = await req('PUT', `/api/courses/${covCourseId}/rules`, { rules: [{ weekday: today.getDay() || 7, start_time: '14:00', end_time: '15:00', venue_id: 1, coach_id: 1, capacity: 5 }] });
     assert.equal(r.data.code, 200, '保存排课规则');
     r = await req('POST', `/api/courses/${covCourseId}/publish`, { start_date: todayStr, end_date: todayStr });
     assert.equal(r.data.code, 200, '发布场次');
