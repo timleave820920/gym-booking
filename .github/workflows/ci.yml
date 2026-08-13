@@ -1,0 +1,47 @@
+name: CI 质量闸门（L2）
+
+# 每次推送/PR 自动跑：测试 + 覆盖率 + 报告
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node 22（node:sqlite 需 22.5+）
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 初始化数据（干净环境 seed，幂等）
+        run: node server/seed.js
+
+      - name: 启动后端
+        run: |
+          node server/index.js > /tmp/gym.log 2>&1 &
+          sleep 3
+        env:
+          WX_APPID: test_appid
+          WX_SECRET: test_secret
+
+      - name: 健康检查
+        run: curl -s --retry 5 --retry-delay 2 http://127.0.0.1:3000/api/health
+
+      - name: 全量测试（77 项）
+        run: node minitest/run-tests.js http://127.0.0.1:3000
+
+      - name: 覆盖率探针
+        run: node --test --experimental-test-coverage minitest/coverage.test.js
+
+      - name: 上传测试报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: minitest/report.json
