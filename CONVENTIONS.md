@@ -27,7 +27,7 @@
 
 ## 📐 结构与命名
 
-- **后端**：路由分发在 `server/index.js`（`handle*` 函数），业务逻辑按域拆分在 `server/db/`（`users/coin/members/invite/courses`，bookings/orders/messages 待拆），连接与建表在 `server/db-core.js`，`server/db.js` 为聚合入口（index.js 只依赖它）
+- **后端**：路由分发在 `server/index.js`（`handle*` 函数），业务逻辑按域拆分在 `server/db/`（users/coin/members/invite/courses/messages/orders/bookings 八域），连接与建表在 `server/db-core.js`，`server/db.js` 为纯聚合入口；`server/index.js` 用声明式路由表 `API_ROUTES` 分发（字符串精确 + 正则匹配）
 - **命名**：函数/变量 camelCase；接口路径 `/api/名词` 小写；测试用例编号 `域-序号`（如 `MEM-12`）
 - **金额单位**：库/接口统一 **分（fen）**，前端展示转元；禁止混用
 

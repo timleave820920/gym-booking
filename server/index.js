@@ -880,6 +880,109 @@ function toPublicUser(user) {
 
 // ===== 服务器 =====
 
+
+// ===== 路由表（批4：if-else 链 → 声明式路由） =====
+// m: method ｜ p: 字符串精确路径 或 正则 ｜ f: handler(req, res, url)
+const API_ROUTES = [
+  { m: 'POST',   p: '/api/auth/login',          f: (q, r) => handleLogin(q, r) },
+  { m: 'POST',   p: '/api/auth/profile',        f: async (q, r) => handleProfile(q, r) },
+  { m: 'GET',    p: '/api/users',               f: (q, r) => handleUsers(q, r) },
+  { m: 'GET',    p: '/api/users/stats',         f: (q, r) => handleStats(q, r) },
+  { m: 'DELETE', p: '/api/users',               f: (q, r) => handleDeleteUser(q, r) },
+  { m: 'DELETE', p: '/api/users/clear',         f: (q, r) => handleClearUsers(q, r) },
+  { m: 'POST',   p: '/api/bookings',            f: async (q, r) => handleCreateBooking(q, r) },
+  { m: 'GET',    p: '/api/bookings',            f: (q, r) => handleListBookings(q, r) },
+  { m: 'DELETE', p: /^\/api\/bookings\//,    f: (q, r) => handleCancelBooking(q, r) },
+  { m: 'POST',   p: /^\/api\/bookings\/\d+\/checkin$/, f: async (q, r) => handleCheckin(q, r) },
+  { m: 'GET',    p: /^\/api\/checkin\/\d+$/, f: (q, r) => handleCheckinInfo(q, r) },
+  { m: 'GET',    p: /^\/api\/sessions\/\d+\/students$/, f: (q, r) => handleSessionStudents(q, r) },
+  { m: 'POST',   p: '/api/waitlist',            f: async (q, r) => handleJoinWaitlist(q, r) },
+  { m: 'GET',    p: '/api/waitlist',            f: (q, r) => handleListWaitlist(q, r) },
+  { m: 'DELETE', p: /^\/api\/waitlist\//,    f: (q, r) => handleCancelWaitlist(q, r) },
+  { m: 'POST',   p: '/api/orders',              f: async (q, r) => handleCreateOrder(q, r) },
+  { m: 'POST',   p: /^\/api\/orders\/\d+\/pay$/, f: async (q, r) => handlePayOrder(q, r) },
+  { m: 'GET',    p: '/api/orders',              f: (q, r) => handleListOrders(q, r) },
+  { m: 'GET',    p: '/api/revenue',             f: (q, r) => handleRevenue(q, r) },
+  { m: 'GET',    p: '/api/member/level',        f: (q, r) => handleMemberLevel(q, r) },
+  { m: 'GET',    p: '/api/member/plans',        f: (q, r) => handleMemberPlans(q, r) },
+  { m: 'GET',    p: '/api/member/config',       f: (q, r) => handleMemberConfig(q, r) },
+  { m: 'GET',    p: '/api/member/recharges',    f: (q, r) => handleMemberRecharges(q, r) },
+  { m: 'GET',    p: '/api/member/rewards',      f: (q, r) => handleMemberRewards(q, r) },
+  { m: 'POST',   p: '/api/member/rewards/read', f: async (q, r) => handleMemberRewardsRead(q, r) },
+  { m: 'POST',   p: '/api/invite',              f: async (q, r) => handleInvite(q, r) },
+  { m: 'GET',    p: '/api/invite/stats',        f: (q, r) => handleInviteStats(q, r) },
+  { m: 'GET',    p: '/api/invite/details',      f: (q, r, u) => {
+      const openid = u.searchParams.get('openid');
+      if (!openid) return sendJson(r, 400, { code: 400, message: '缺少 openid' });
+      sendJson(r, 200, { code: 200, details: db.listInvitationDetails(openid) });
+    } },
+  { m: 'GET',    p: '/api/admin/invite-board',  f: (q, r) => sendJson(r, 200, { code: 200, board: db.inviteBoardStats() }) },
+  { m: 'GET',    p: '/api/coin/balance',        f: (q, r) => handleCoinBalance(q, r) },
+  { m: 'GET',    p: '/api/coin/logs',           f: (q, r) => handleCoinLogs(q, r) },
+  { m: 'GET',    p: '/api/coin/shop',           f: (q, r) => handleCoinShop(q, r) },
+  { m: 'GET',    p: '/api/coin/exchanges',      f: (q, r) => handleCoinExchanges(q, r) },
+  { m: 'GET',    p: '/api/coin/config',         f: (q, r) => handleCoinConfig(q, r) },
+  { m: 'POST',   p: '/api/coin/exchange',       f: async (q, r) => handleCoinExchange(q, r) },
+  { m: 'GET',    p: '/api/messages',            f: (q, r) => handleListMessages(q, r) },
+  { m: 'GET',    p: '/api/messages/unread-count', f: (q, r) => handleUnreadCount(q, r) },
+  { m: 'POST',   p: /^\/api\/messages\/\d+\/read$/, f: async (q, r, u) => {
+      const id = u.pathname.split('/')[3];
+      const body = await readBody(q);
+      handleMarkRead(q, r, id, body);
+    } },
+  { m: 'POST',   p: '/api/messages/read-all',   f: async (q, r) => {
+      const body = await readBody(q);
+      handleMarkAllRead(q, r, body);
+    } },
+  { m: 'GET',    p: '/api/health',              f: (q, r) => sendJson(r, 200, { code: 200, status: 'ok', time: new Date().toISOString() }) },
+  { m: 'GET',    p: '/api/meta',                f: (q, r) => handleMeta(q, r) },
+  { m: 'GET',    p: '/api/courses',             f: (q, r) => handleListCourses(q, r) },
+  { m: 'POST',   p: '/api/courses',             f: async (q, r) => {
+      const body = await readBody(q);
+      handleCreateCourse(q, r, body);
+    } },
+  { m: 'PUT',    p: /^\/api\/courses\/\d+$/, f: async (q, r, u) => {
+      const id = u.pathname.split('/')[3];
+      const body = await readBody(q);
+      handleUpdateCourse(q, r, id, body);
+    } },
+  { m: 'DELETE', p: /^\/api\/courses\/\d+$/, f: (q, r, u) => handleDeleteCourse(q, r, u.pathname.split('/')[3]) },
+  { m: 'POST',   p: /^\/api\/courses\/\d+\/publish$/, f: async (q, r, u) => {
+      const id = u.pathname.split('/')[3];
+      const body = await readBody(q);
+      handlePublishCourse(q, r, id, body);
+    } },
+  { m: 'PUT',    p: /^\/api\/courses\/\d+\/rules$/, f: async (q, r, u) => {
+      const id = u.pathname.split('/')[3];
+      const body = await readBody(q);
+      handleReplaceRules(q, r, id, body);
+    } },
+  { m: 'POST',   p: '/api/upload',              f: async (q, r) => {
+      const body = await readBody(q);
+      handleUpload(q, r, body);
+    } },
+  { m: 'GET',    p: '/api/admin/sessions',      f: (q, r) => handleSessionsByRange(q, r) },
+  { m: 'DELETE', p: /^\/api\/sessions\/\d+$/, f: (q, r, u) => handleCancelSession(q, r, u.pathname.split('/')[3]) },
+  { m: 'PUT',    p: /^\/api\/sessions\/\d+$/, f: async (q, r, u) => {
+      const id = u.pathname.split('/')[3];
+      const body = await readBody(q);
+      handleUpdateSession(q, r, id, body);
+    } },
+  { m: 'GET',    p: '/api/sessions',            f: (q, r, u) => {
+      const date = u.searchParams.get('date');
+      if (!date) return sendJson(r, 400, { code: 400, message: '缺少 date 参数（YYYY-MM-DD）' });
+      handleSessionsByDate(q, r, date);
+    } },
+  { m: 'GET',    p: '/api/coach/schedule',      f: (q, r, u) => {
+      const date = u.searchParams.get('date');
+      const coachId = Number(u.searchParams.get('coach_id') || 0);
+      if (!date || !coachId) return sendJson(r, 400, { code: 400, message: '缺少 date 或 coach_id 参数' });
+      const sessions = db.listSessionsByCoach(date, coachId);
+      sendJson(r, 200, { code: 200, sessions });
+    } },
+  { m: 'GET',    p: /^\/api\/sessions\/\d+$/, f: (q, r, u) => handleSessionDetail(q, r, u.pathname.split('/')[3]) }
+];
+
 const server = http.createServer(async (req, res) => {
   try {
     if (handleCors(req, res)) return;
@@ -887,142 +990,17 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const pathname = url.pathname;
 
-    // 路由分发
-    if (req.method === 'POST' && pathname === '/api/auth/login') {
-      await handleLogin(req, res);
-    } else if (req.method === 'POST' && pathname === '/api/auth/profile') {
-      await handleProfile(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/users') {
-      handleUsers(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/users/stats') {
-      handleStats(req, res);
-    } else if (req.method === 'DELETE' && pathname === '/api/users') {
-      handleDeleteUser(req, res);
-    } else if (req.method === 'DELETE' && pathname === '/api/users/clear') {
-      handleClearUsers(req, res);
-    } else if (req.method === 'POST' && pathname === '/api/bookings') {
-      await handleCreateBooking(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/bookings') {
-      handleListBookings(req, res);
-    } else if (req.method === 'DELETE' && pathname.startsWith('/api/bookings/')) {
-      handleCancelBooking(req, res);
-    } else if (req.method === 'POST' && /^\/api\/bookings\/\d+\/checkin$/.test(pathname)) {
-      await handleCheckin(req, res);
-    } else if (req.method === 'GET' && /^\/api\/checkin\/\d+$/.test(pathname)) {
-      handleCheckinInfo(req, res);
-    } else if (req.method === 'GET' && /^\/api\/sessions\/\d+\/students$/.test(pathname)) {
-      handleSessionStudents(req, res);
-    } else if (req.method === 'POST' && pathname === '/api/waitlist') {
-      await handleJoinWaitlist(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/waitlist') {
-      handleListWaitlist(req, res);
-    } else if (req.method === 'DELETE' && pathname.startsWith('/api/waitlist/')) {
-      handleCancelWaitlist(req, res);
-    } else if (req.method === 'POST' && pathname === '/api/orders') {
-      await handleCreateOrder(req, res);
-    } else if (req.method === 'POST' && /^\/api\/orders\/\d+\/pay$/.test(pathname)) {
-      await handlePayOrder(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/orders') {
-      handleListOrders(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/revenue') {
-      handleRevenue(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/member/level') {
-      handleMemberLevel(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/member/plans') {
-      handleMemberPlans(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/member/config') {
-      handleMemberConfig(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/member/recharges') {
-      handleMemberRecharges(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/member/rewards') {
-      handleMemberRewards(req, res);
-    } else if (req.method === 'POST' && pathname === '/api/member/rewards/read') {
-      await handleMemberRewardsRead(req, res);
-    } else if (req.method === 'POST' && pathname === '/api/invite') {
-      await handleInvite(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/invite/stats') {
-      handleInviteStats(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/invite/details') {
-      const openid = url.searchParams.get('openid');
-      if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
-      sendJson(res, 200, { code: 200, details: db.listInvitationDetails(openid) });
-    } else if (req.method === 'GET' && pathname === '/api/admin/invite-board') {
-      sendJson(res, 200, { code: 200, board: db.inviteBoardStats() });
-    } else if (req.method === 'GET' && pathname === '/api/coin/balance') {
-      handleCoinBalance(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/coin/logs') {
-      handleCoinLogs(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/coin/shop') {
-      handleCoinShop(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/coin/exchanges') {
-      handleCoinExchanges(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/coin/config') {
-      handleCoinConfig(req, res);
-    } else if (req.method === 'POST' && pathname === '/api/coin/exchange') {
-      await handleCoinExchange(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/messages') {
-      handleListMessages(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/messages/unread-count') {
-      handleUnreadCount(req, res);
-    } else if (req.method === 'POST' && /^\/api\/messages\/\d+\/read$/.test(pathname)) {
-      const id = pathname.split('/')[3];
-      const body = await readBody(req);
-      handleMarkRead(req, res, id, body);
-    } else if (req.method === 'POST' && pathname === '/api/messages/read-all') {
-      const body = await readBody(req);
-      handleMarkAllRead(req, res, body);
-    } else if (req.method === 'GET' && pathname === '/api/health') {
-      sendJson(res, 200, { code: 200, status: 'ok', time: new Date().toISOString() });
-    } else if (req.method === 'GET' && pathname === '/api/meta') {
-      handleMeta(req, res);
-    } else if (req.method === 'GET' && pathname === '/api/courses') {
-      handleListCourses(req, res);
-    } else if (req.method === 'POST' && pathname === '/api/courses') {
-      const body = await readBody(req);
-      handleCreateCourse(req, res, body);
-    } else if (req.method === 'PUT' && /^\/api\/courses\/\d+$/.test(pathname)) {
-      const id = pathname.split('/')[3];
-      const body = await readBody(req);
-      handleUpdateCourse(req, res, id, body);
-    } else if (req.method === 'DELETE' && /^\/api\/courses\/\d+$/.test(pathname)) {
-      const id = pathname.split('/')[3];
-      handleDeleteCourse(req, res, id);
-    } else if (req.method === 'POST' && /^\/api\/courses\/\d+\/publish$/.test(pathname)) {
-      const id = pathname.split('/')[3];
-      const body = await readBody(req);
-      handlePublishCourse(req, res, id, body);
-    } else if (req.method === 'PUT' && /^\/api\/courses\/\d+\/rules$/.test(pathname)) {
-      const id = pathname.split('/')[3];
-      const body = await readBody(req);
-      handleReplaceRules(req, res, id, body);
-    } else if (req.method === 'POST' && pathname === '/api/upload') {
-      const body = await readBody(req);
-      handleUpload(req, res, body);
-    } else if (req.method === 'GET' && pathname === '/api/admin/sessions') {
-      handleSessionsByRange(req, res);
-    } else if (req.method === 'DELETE' && /^\/api\/sessions\/\d+$/.test(pathname)) {
-      handleCancelSession(req, res, pathname.split('/')[3]);
-    } else if (req.method === 'PUT' && /^\/api\/sessions\/\d+$/.test(pathname)) {
-      const id = pathname.split('/')[3];
-      const body = await readBody(req);
-      handleUpdateSession(req, res, id, body);
-    } else if (req.method === 'GET' && pathname === '/api/sessions') {
-      const date = url.searchParams.get('date');
-      if (!date) {
-        return sendJson(res, 400, { code: 400, message: '缺少 date 参数（YYYY-MM-DD）' });
-      }
-      handleSessionsByDate(req, res, date);
-    } else if (req.method === 'GET' && pathname === '/api/coach/schedule') {
-      const date = url.searchParams.get('date');
-      const coachId = Number(url.searchParams.get('coach_id') || 0);
-      if (!date || !coachId) {
-        return sendJson(res, 400, { code: 400, message: '缺少 date 或 coach_id 参数' });
-      }
-      const sessions = db.listSessionsByCoach(date, coachId);
-      sendJson(res, 200, { code: 200, sessions });
-    } else if (req.method === 'GET' && /^\/api\/sessions\/\d+$/.test(pathname)) {
-      handleSessionDetail(req, res, pathname.split('/')[3]);
-    } else if (pathname === '/' || pathname === '/courses.html') {
+    // ===== 路由分发（路由表） =====
+    let matched = false;
+    for (const route of API_ROUTES) {
+      if (route.m !== req.method) continue;
+      const hit = typeof route.p === 'string' ? pathname === route.p : route.p.test(pathname);
+      if (hit) { matched = true; await route.f(req, res, url); break; }
+    }
+    if (matched) return;
+
+    // 静态资源与页面（不分 method）
+    if (pathname === '/' || pathname === '/courses.html') {
       serveStatic(res, path.join(__dirname, '..', 'web', 'courses.html'));
     } else if (pathname.startsWith('/web/')) {
       serveStatic(res, path.join(__dirname, '..', 'web', pathname.slice(5)));
