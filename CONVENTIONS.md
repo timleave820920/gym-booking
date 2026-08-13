@@ -78,5 +78,6 @@
 - `RELEASE-GATE.md` — L3 发布闸门（真机手测清单 + 发布记录归档）
 - `BUG-LEDGER.md` — 缺陷台账（每个真 bug 五要素登记 + 回归测试引用）
 - `GLOSSARY.md` — 项目术语库（技术术语说人话版，新成员先读这个）
+- `DESIGN-SYSTEM.md` — 设计系统规范（视觉宪法：Token/卡片/按钮/状态，改样式前必读）
 - `minitest/TESTCASES.md` / `minitest/TEST-REPORT.md` — 测试用例与报告
 - `README.md` — 项目总览与启动方式
