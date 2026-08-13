@@ -157,6 +157,19 @@ function checkinBooking({ bookingId, coachOpenid }) {
   if (session.date !== todayStr) {
     return { ok: false, error: `仅支持当天签到（场次日期 ${session.date}）` };
   }
+  // 时间窗口：开课前 30 分钟 ～ 课程结束后 2 小时（防提前/过期签到，BUG-LEDGER #10）
+  const toMin = (s) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const startMin = toMin(session.start_time);
+  const endMin = toMin(session.end_time);
+  const EARLY_WINDOW = 30;   // 开课前可提前 30 分钟
+  const LATE_WINDOW = 120;   // 结束后可补签 2 小时
+  if (nowMin < startMin - EARLY_WINDOW) {
+    return { ok: false, error: `未到签到时间，开课前 ${EARLY_WINDOW} 分钟开始可签到（${session.start_time} 开课）` };
+  }
+  if (nowMin > endMin + LATE_WINDOW) {
+    return { ok: false, error: '课程已结束超过 2 小时，无法签到' };
+  }
 
   db.prepare("UPDATE bookings SET checkin_at = datetime('now','localtime') WHERE id = ?").run(bookingId);
   // 同步用户累计次数（total_classes +1）

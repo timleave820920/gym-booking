@@ -322,13 +322,21 @@ async function runSuite() {
   console.log('\n── 6. 签到考勤 ──');
   // 独立的"明天场次"（避免 WTL-08 改日期污染）
   const tmr2 = await mkSession(tomorrowStr, '13:00', '14:00', 5, 0);
-  r = await req('GET', `/api/checkin/${ctx.bookingId}`);
+  // 签到时间窗口（BUG-LEDGER #10 修复）：开课前30分钟~结束后2小时。
+  // 动态造「已进入窗口」的场次（当前+10分钟开始），避免依赖固定执行时间
+  const chkNow = new Date();
+  const fmtHM = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const chkSid = await mkSession(todayStr, fmtHM(new Date(chkNow.getTime() + 10 * 60000)), fmtHM(new Date(chkNow.getTime() + 70 * 60000)), 5, 0);
+  r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: chkSid, amountFen: 6800, orderType: 'book' });
+  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user1.openid, payMethod: 'wxpay' });
+  const chkBookingId = r.data.booking.id;
+  r = await req('GET', `/api/checkin/${chkBookingId}`);
   check('CHK-01', '凭证信息', ok(r, 200) && r.data.info && r.data.info.course_name, `course=${r.data && r.data.info && r.data.info.course_name}`);
-  r = await req('POST', `/api/bookings/${ctx.bookingId}/checkin`, { openid: T.coach.openid });
+  r = await req('POST', `/api/bookings/${chkBookingId}/checkin`, { openid: T.coach.openid });
   check('CHK-02', '教练核销成功', ok(r, 200) && r.data.booking.checkin_at, `checkin=${r.data && r.data.booking && r.data.booking.checkin_at}`);
-  r = await req('POST', `/api/bookings/${ctx.bookingId}/checkin`, { openid: T.user1.openid });
+  r = await req('POST', `/api/bookings/${chkBookingId}/checkin`, { openid: T.user1.openid });
   check('CHK-03', '非教练核销拒绝', r.status === 400 && (r.data.message || '').includes('教练'), `msg=${r.data && r.data.message}`);
-  r = await req('POST', `/api/bookings/${ctx.bookingId}/checkin`, { openid: T.coach.openid });
+  r = await req('POST', `/api/bookings/${chkBookingId}/checkin`, { openid: T.coach.openid });
   check('CHK-04', '重复签到拒绝', r.status === 400 && (r.data.message || '').includes('已签到'), `msg=${r.data && r.data.message}`);
   // 非当天场次（独立明天场次）签到
   r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: tmr2, amountFen: 6800, orderType: 'book' });
@@ -341,6 +349,15 @@ async function runSuite() {
   // 场次名单
   r = await req('GET', `/api/sessions/${ctx.sessionId}/students`);
   check('CHK-06', '场次名单', ok(r, 200) && r.data.students.length >= 1 && r.data.students[0].student_name, `count=${r.data && r.data.students && r.data.students.length}`);
+  // CHK-07：提前签到拒绝（未来场次未到开课前30分钟窗口，回归 BUG-LEDGER #10；跨天时跳过）
+  const plus120 = new Date(chkNow.getTime() + 120 * 60000);
+  if (plus120.getDate() === chkNow.getDate()) {
+    const chkSid2 = await mkSession(todayStr, fmtHM(plus120), fmtHM(new Date(plus120.getTime() + 3600000)), 5, 0);
+    r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: chkSid2, amountFen: 6800, orderType: 'book' });
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user2.openid, payMethod: 'wxpay' });
+    r = await req('POST', `/api/bookings/${r.data.booking.id}/checkin`, { openid: T.coach.openid });
+    check('CHK-07', '提前签到拒绝(未到窗口)', r.status === 400 && (r.data.message || '').includes('未到签到时间'), `msg=${r.data && r.data.message}`);
+  }
 
   // ===== 6. 营收统计 =====
   console.log('\n── 7. 营收统计 ──');
