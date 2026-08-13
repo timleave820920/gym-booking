@@ -435,3 +435,62 @@
   color: #B0AFA8;
   font-size: 24rpx;
 }
+/* 隐私协议弹窗（2026-08-13 微信隐私合规） */
+.privacy-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(26, 26, 35, 0.55);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 60rpx;
+}
+.privacy-dialog {
+  width: 100%;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 48rpx 40rpx 40rpx;
+  box-shadow: 0 16rpx 48rpx rgba(0,0,0,0.2);
+}
+.privacy-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #1A1A23;
+  text-align: center;
+  margin-bottom: 24rpx;
+}
+.privacy-body {
+  font-size: 26rpx;
+  color: #6B6B76;
+  line-height: 1.7;
+}
+.privacy-text { color: #6B6B76; }
+.privacy-link {
+  color: #5B57EB;
+  font-weight: 600;
+}
+.privacy-actions {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 40rpx;
+}
+.privacy-btn {
+  flex: 1;
+  height: 88rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+.privacy-btn-outline {
+  background: #FFFFFF;
+  color: #6B6B76;
+  border: 2rpx solid #D9D4C0;
+}
+.privacy-btn-primary {
+  background: #1A1A23;
+  color: #FFFFFF;
+}

@@ -9,7 +9,15 @@ Page({
     lang: 'zh',              // 当前语言
     t: i18n.t(),             // 语言字典
     userCount: 0,            // 当前注册用户数
-    inviterCode: ''          // 邀请码（分享卡片自动带入，可手动修改）
+    inviterCode: '',         // 邀请码（分享卡片自动带入，可手动修改）
+    showPrivacy: false       // 隐私协议弹窗（首次启动）
+  },
+
+  // 隐私未同意时统一拦截：返回 false 并弹窗
+  requirePrivacy() {
+    if (wx.getStorageSync('privacy_agreed')) return true;
+    this.setData({ showPrivacy: true });
+    return false;
   },
 
   onLoad() {
@@ -21,6 +29,46 @@ Page({
     // 分享卡片携带的邀请人 → 预填邀请码
     const code = wx.getStorageSync('pending_inviter') || '';
     if (code) this.setData({ inviterCode: code });
+    // 隐私协议弹窗（微信 2023.9 起强制：首次启动需明确征求同意，否则 getUserProfile/getPhoneNumber 被拦截）
+    if (!wx.getStorageSync('privacy_agreed')) {
+      this.setData({ showPrivacy: true });
+    }
+  },
+
+  // ===== 隐私协议 =====
+  // 同意隐私协议（用户主动点击"同意并继续"）
+  agreePrivacy() {
+    wx.setStorageSync('privacy_agreed', '1');
+    this.setData({ showPrivacy: false });
+    // 同意后尝试唤起微信官方隐私授权弹窗（需在后台配置隐私指引）
+    if (wx.getPrivacySetting) {
+      wx.getPrivacySetting({
+        success: (res) => {
+          if (res.needAuthorization) {
+            wx.openPrivacyContract({});
+          }
+        }
+      });
+    }
+  },
+
+  // 拒绝隐私协议：回到首页提示
+  rejectPrivacy() {
+    this.setData({ showPrivacy: false });
+    wx.showToast({ title: '需要同意隐私协议后才能使用', icon: 'none' });
+  },
+
+  // 查看隐私协议全文
+  viewPrivacy() {
+    if (wx.openPrivacyContract) {
+      wx.openPrivacyContract({});
+    } else {
+      wx.showModal({
+        title: '用户隐私保护协议',
+        content: '本小程序收集您的昵称、头像、手机号（可选）等信息，用于课程预约、订课支付、签到等服务。详情请查看《用户隐私保护协议》。',
+        showCancel: false
+      });
+    }
   },
 
   onInviteInput(e) {
@@ -141,6 +189,7 @@ Page({
   // ===== 微信一键登录 =====
   login() {
     if (!this.checkAgree()) return;
+    if (!this.requirePrivacy()) return;   // 隐私协议未同意 → 弹窗拦截
     if (this.data.loggingIn) return;
     this.setData({ loggingIn: true });
 
@@ -177,6 +226,7 @@ Page({
   // ===== 手机号快捷登录 =====
   phoneLogin(e) {
     if (!this.checkAgree()) return;
+    if (!this.requirePrivacy()) return;   // 隐私协议未同意 → 弹窗拦截
     if (this.data.loggingIn) return;
 
     const detail = e.detail || {};
