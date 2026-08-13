@@ -84,6 +84,26 @@ Page({
     return `${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   },
 
+  // 单条已读（点击消息 → 标记已读 + 如有跳转地址则跳转）
+  markRead(e) {
+    const id = e.currentTarget.dataset.id;
+    const item = this.data.messages.find(m => m.id === id);
+    if (!item) return;
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+    if (openid && !item.isRead) {
+      api.markMessageRead(id, openid).then(() => {
+        this.setData({
+          messages: this.data.messages.map(m => m.id === id ? { ...m, isRead: true } : m),
+          unread: Math.max((this.data.unread || 0) - 1, 0)
+        });
+      }).catch(() => {});
+    }
+    if (item.jumpUrl) {
+      wx.navigateTo({ url: item.jumpUrl });
+    }
+  },
+
   // 全部已读：一键消除所有小红点
   markAll() {
     const user = app.globalData.userInfo || {};

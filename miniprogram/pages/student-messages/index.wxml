@@ -12,9 +12,9 @@
       </view>
     </view>
 
-    <!-- 消息列表（仅展示，不可点击；已读状态由"全部已读"一键清除） -->
+    <!-- 消息列表（点击单条标记已读，有跳转地址则进入；BUG-LEDGER #11 修复） -->
     <view class="msg-list">
-      <view class="msg-item {{item.isRead ? 'msg-read' : ''}}" wx:for="{{messages}}" wx:key="id">
+      <view class="msg-item {{item.isRead ? 'msg-read' : ''}}" wx:for="{{messages}}" wx:key="id" bindtap="markRead" data-id="{{item.id}}">
         <view class="msg-icon {{'mi-' + item.type}}">{{item.icon}}</view>
         <view class="msg-main">
           <view class="msg-top">

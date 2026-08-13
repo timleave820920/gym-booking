@@ -73,9 +73,9 @@ Page({
     }).catch(() => {});
   },
 
-  // 电子会员卡
-  goMemberCard() {
-    wx.navigateTo({ url: '/pages/member-card/index' });
+  // 会员等级（替代原「电子会员卡」页，产品决策 2026-08-13：去掉我的会员卡页面，直接进等级页）
+  goMemberLevel() {
+    wx.navigateTo({ url: '/pages/member-level/index' });
   },
 
   // 去充值
@@ -88,9 +88,9 @@ Page({
     wx.navigateTo({ url: '/pages/coin-shop/index' });
   },
 
-  // 领取奖励 → 跳电子卡页看余额
+  // 领取奖励 → 跳会员等级页看余额
   claimReward() {
-    wx.navigateTo({ url: '/pages/member-card/index' });
+    wx.navigateTo({ url: '/pages/member-level/index' });
   },
 
   // 退出登录
