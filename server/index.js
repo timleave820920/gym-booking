@@ -736,9 +736,12 @@ function handlePublishCourse(req, res, id, body) {
   if (result.reason === 'no_rules') {
     return sendJson(res, 400, { code: 400, message: '请先添加至少一条每周排课规则' });
   }
+  const conflictMsg = result.conflicts && result.conflicts.length > 0
+    ? `；跳过 ${result.conflicts.length} 个场地时间冲突场次（如 ${result.conflicts[0].date} ${result.conflicts[0].start_time}）`
+    : '';
   return sendJson(res, 200, {
     code: 200,
-    message: `发布完成：新增 ${result.created} 个场次，跳过 ${result.skipped} 个已存在场次`,
+    message: `发布完成：新增 ${result.created} 个场次，跳过 ${result.skipped} 个已存在/冲突场次${conflictMsg}`,
     ...result
   });
 }
@@ -791,7 +794,8 @@ function handleUpdateSession(req, res, id, body) {
 function handleReplaceRules(req, res, id, body) {
   const course = db.listCourses().find(c => c.id === Number(id));
   if (!course) return sendJson(res, 404, { code: 404, message: '课程不存在' });
-  db.replaceRules(Number(id), body.rules || []);
+  const result = db.replaceRules(Number(id), body.rules || []);
+  if (!result.ok) return sendJson(res, 400, { code: 400, message: result.error });
   return sendJson(res, 200, { code: 200, message: '排课规则已保存' });
 }
 

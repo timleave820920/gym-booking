@@ -37,12 +37,24 @@ function getRules(courseId) {
 
 /** 替换课程规则（先删后插，事务内） */
 function replaceRules(courseId, rules) {
+  rules = rules || [];
+  // 规则自冲突校验：同星期 + 同场地 + 时间重叠 → 拒绝（用户要求：同一场地不允许时间重合）
+  for (let i = 0; i < rules.length; i++) {
+    for (let j = i + 1; j < rules.length; j++) {
+      const a = rules[i], b = rules[j];
+      if (a.weekday === b.weekday && a.venue_id === b.venue_id
+          && a.start_time < b.end_time && a.end_time > b.start_time) {
+        return { ok: false, error: `排课规则冲突：周${a.weekday} ${a.start_time}-${a.end_time} 与 ${b.start_time}-${b.end_time} 场地时间重叠` };
+      }
+    }
+  }
   db.prepare('DELETE FROM schedule_templates WHERE course_id = ?').run(courseId);
   const ins = db.prepare(`INSERT INTO schedule_templates (course_id, weekday, start_time, end_time, venue_id, coach_id, capacity)
                           VALUES (?, ?, ?, ?, ?, ?, ?)`);
   for (const r of rules || []) {
     ins.run(courseId, r.weekday, r.start_time, r.end_time, r.venue_id, r.coach_id, r.capacity);
   }
+  return { ok: true };
 }
 
 /** 新增课程（含规则） @returns 新课程对象 */
@@ -103,9 +115,21 @@ function deleteCourse(id) {
  * 发布课程：按排课规则在日期范围内生成场次（幂等，已存在的跳过）
  * @returns {{created:number, skipped:number}}
  */
+/**
+ * 场地时间冲突检测：同场地、同日期、时间区间重叠（start < 对方end 且 end > 对方start）
+ * 排除已取消场次；excludeId 用于排除自身（更新场景）
+ */
+function hasTimeConflict(venueId, date, startTime, endTime, excludeId) {
+  const row = db.prepare(`SELECT COUNT(*) c FROM course_sessions
+    WHERE venue_id = ? AND date = ? AND status != 'cancelled'
+      AND start_time < ? AND end_time > ?
+      AND (? IS NULL OR id != ?)`).get(venueId, date, endTime, startTime, excludeId || null, excludeId || 0);
+  return row.c > 0;
+}
+
 function publishSessions(courseId, startDate, endDate) {
   const rules = getRules(courseId);
-  if (rules.length === 0) return { created: 0, skipped: 0, reason: 'no_rules' };
+  if (rules.length === 0) return { created: 0, skipped: 0, conflicts: [], reason: 'no_rules' };
 
   const exists = new Set(db.prepare("SELECT date || '_' || start_time || '_' || venue_id k FROM course_sessions WHERE course_id = ?")
     .all(courseId).map(r => r.k));
@@ -113,6 +137,7 @@ function publishSessions(courseId, startDate, endDate) {
   const ins = db.prepare(`INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source)
                           VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'published', 'manual')`);
   let created = 0, skipped = 0;
+  const conflicts = [];
 
   const start = new Date(startDate + 'T00:00:00');
   const end = new Date(endDate + 'T00:00:00');
@@ -123,12 +148,18 @@ function publishSessions(courseId, startDate, endDate) {
       if (r.weekday !== weekday) continue;
       const key = `${iso}_${r.start_time}_${r.venue_id}`;
       if (exists.has(key)) { skipped++; continue; }
+      // 同场地时间冲突 → 跳过并记录（用户要求：同一场地不允许时间重合的课程）
+      if (hasTimeConflict(r.venue_id, iso, r.start_time, r.end_time)) {
+        conflicts.push({ date: iso, start_time: r.start_time, end_time: r.end_time, venue_id: r.venue_id });
+        skipped++;
+        continue;
+      }
       ins.run(courseId, r.coach_id, r.venue_id, iso, r.start_time, r.end_time, r.capacity);
       exists.add(key);
       created++;
     }
   }
-  return { created, skipped };
+  return { created, skipped, conflicts };
 }
 
 // 场次查询的公共 JOIN
@@ -144,12 +175,13 @@ const SESSION_SELECT = `
 
 /** 按日期查已发布场次（学员端课程列表） */
 function listSessionsByDate(date) {
-  return db.prepare(`${SESSION_SELECT} WHERE s.date = ? AND s.status = 'published' ORDER BY s.start_time`).all(date);
+  // published=可订；full=已满员（列表需显示供候补入口）——修复：满员场次被过滤不可见（BUG-LEDGER #7）
+  return db.prepare(`${SESSION_SELECT} WHERE s.date = ? AND s.status IN ('published','full') ORDER BY s.start_time`).all(date);
 }
 
 /** 按日期 + 教练查已发布场次（教练端今日课表） */
 function listSessionsByCoach(date, coachId) {
-  return db.prepare(`${SESSION_SELECT} WHERE s.date = ? AND s.coach_id = ? AND s.status = 'published' ORDER BY s.start_time`)
+  return db.prepare(`${SESSION_SELECT} WHERE s.date = ? AND s.coach_id = ? AND s.status IN ('published','full') ORDER BY s.start_time`)
     .all(date, coachId);
 }
 

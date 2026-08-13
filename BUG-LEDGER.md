@@ -15,6 +15,15 @@
 
 ---
 
+## #7 满员场次（status=full）从列表消失——展示层与状态流转不同步
+
+- **发现**：2026-08-13，L3 真机手测 RT-2.2（用户发现 12:30 满员场次不可见）
+- **现象**：课订满后（status 变 full）**学员端预约列表不再显示该场次**——用户看不到满员课、无法进入候补；教练端同理
+- **根因**：`listSessionsByDate`/`listSessionsByCoach` 过滤 `status='published'`；bug② 修复引入 `syncSessionStatus` 置 full 后，真实满员场次被列表过滤。与 #5 同源（状态流转与展示/入口未同步），测试用「硬编码 published 满员场次」掩盖
+- **修复**：列表查询改 `status IN ('published','full')`（draft/cancelled 仍隐藏）
+- **回归测试**：`SEC-04d`（run-tests.js：订满后场次在当日列表可见且 status=full）
+- **防护层**：L3 真机手测发现；修复后 SEC-04d + 探针 04 双兜底。**教训：状态机改动要检查所有读取该状态的查询/展示层**
+
 ## #6 真机预览永远连不上后端——net-config.json 被 gitignore 过滤没打进包
 
 - **发现**：2026-08-13，L3 真机手测 RT-1

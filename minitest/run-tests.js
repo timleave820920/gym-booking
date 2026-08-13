@@ -374,11 +374,37 @@ async function runSuite() {
   // SEC-04c：真实订满（status=full）后仍可排候补（回归 BUG-LEDGER #5：syncSessionStatus 置 full 曾卡死候补入口，旧测试用初始published场次掩盖）
   r = await req('POST', '/api/waitlist', { openid: T.user2.openid, sessionId: fullSid3, amountFen: 6800 });
   check('SEC-04c', '满员(full)场次可排候补', r.status === 201, `status=${r.status} msg=${r.data && r.data.message}`);
+  // SEC-04d：满员场次在列表可见（回归 BUG-LEDGER #7：status=full 曾被列表过滤，用户看不到满员课、无候补入口）
+  r = await req('GET', `/api/sessions?date=${todayStr}`);
+  const fullVisible = (r.data.sessions || []).some(s => s.id === fullSid3 && s.status === 'full');
+  check('SEC-04d', '满员场次列表可见', ok(r, 200) && fullVisible, `ids=${r.data.sessions && r.data.sessions.map(s => s.id).join(',')}`);
   // 创建课程缺参已在 CRS-02 覆盖
   r = await req('POST', '/api/courses/9999/publish', {});
   check('CRS-04a', '发布缺日期参数', r.status === 400 && (r.data.message || '').includes('日期'), `msg=${r.data && r.data.message}`);
   r = await req('POST', '/api/courses/9999/publish', { start_date: '2026-08-11', end_date: '2026-08-17' });
   check('CRS-04b', '发布不存在课程', r.status === 404 && (r.data.message || '').includes('不存在'), `status=${r.status} msg=${r.data && r.data.message}`);
+  // CRS-05 排课冲突检测（用户要求：同一场地不允许时间重合的课程）
+  r = await req('POST', '/api/courses', { name: '冲突测试课', category: '测试分类' });
+  const crsCid = r.data.course && r.data.course.id;
+  if (crsCid) {
+    // 05c 规则自冲突（同星期同场地时间重叠 → 拒绝）
+    r = await req('PUT', `/api/courses/${crsCid}/rules`, { rules: [
+      { weekday: 1, start_time: '10:00', end_time: '11:00', venue_id: 1, coach_id: 1, capacity: 5 },
+      { weekday: 1, start_time: '10:30', end_time: '11:30', venue_id: 1, coach_id: 1, capacity: 5 }
+    ] });
+    check('CRS-05c', '规则自冲突拒绝', r.status === 400 && (r.data.message || '').includes('冲突'), `status=${r.status} msg=${r.data && r.data.message}`);
+    // 05a 保存与今天 21:00-22:00 场次重叠的规则（21:30-22:30）
+    r = await req('PUT', `/api/courses/${crsCid}/rules`, { rules: [{ weekday: new Date(todayStr + 'T00:00:00').getDay() || 7, start_time: '21:30', end_time: '22:30', venue_id: 1, coach_id: 1, capacity: 5 }] });
+    check('CRS-05a', '保存冲突规则', ok(r, 200), `msg=${r.data && r.data.message}`);
+    // 05 发布 → 与已有场次同场地时间重叠 → 跳过（created=0, conflicts>=1）
+    r = await req('POST', `/api/courses/${crsCid}/publish`, { start_date: todayStr, end_date: todayStr });
+    check('CRS-05', '冲突场次发布被跳过', ok(r, 200) && r.data.created === 0 && (r.data.conflicts || []).length >= 1, `created=${r.data.created} conflicts=${r.data.conflicts && r.data.conflicts.length}`);
+    // 05b 清理测试课程
+    r = await req('DELETE', `/api/courses/${crsCid}`);
+    check('CRS-05b', '清理冲突测试课程', ok(r, 200), `msg=${r.data && r.data.message}`);
+  } else {
+    check('CRS-05', '创建冲突测试课程', false, '创建课程失败');
+  }
 
   // ===== 9. 会员体系 =====
   console.log('\n── 9. 会员体系 ──');
