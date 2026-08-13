@@ -63,6 +63,7 @@
 ## 📄 关联文档
 
 - `DEFINITION-OF-DONE.md` — 消费级验收清单（上线前逐项打勾）
+- `ENVIRONMENTS.md` — 环境与发布规范（4 个环境定义 + 什么动作在哪做）
 - `BUG-LEDGER.md` — 缺陷台账（每个真 bug 五要素登记 + 回归测试引用）
 - `GLOSSARY.md` — 项目术语库（技术术语说人话版，新成员先读这个）
 - `minitest/TESTCASES.md` / `minitest/TEST-REPORT.md` — 测试用例与报告
