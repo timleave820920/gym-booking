@@ -50,7 +50,8 @@ function createOrder({ user_openid, session_id, amount_fen = 0, order_type = 'bo
 
   const session = getSessionById(session_id);
   if (!session) return { ok: false, error: '课程场次不存在' };
-  if (session.status !== 'published') return { ok: false, error: '课程已下线' };
+  // published=可订；full=已满员（候补入口）——修复：syncSessionStatus 置 full 后候补被误拒（BUG-LEDGER #5）
+  if (session.status !== 'published' && session.status !== 'full') return { ok: false, error: '课程已下线' };
 
   // 已订过 → 拒绝下单
   const existing = db.prepare("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ? AND status = 'booked'").get(user_openid, session_id);
@@ -330,7 +331,8 @@ function joinWaitlist({ user_openid, session_id, amount_fen = 0, expire_mode = '
 
   const session = getSessionById(session_id);
   if (!session) return { ok: false, error: '课程场次不存在' };
-  if (session.status !== 'published') return { ok: false, error: '课程已下线' };
+  // published=可订；full=已满员（候补入口）——修复：syncSessionStatus 置 full 后候补被误拒（BUG-LEDGER #5）
+  if (session.status !== 'published' && session.status !== 'full') return { ok: false, error: '课程已下线' };
 
   // 已订过 → 无需排位
   const existing = db.prepare("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ? AND status = 'booked'").get(user_openid, session_id);

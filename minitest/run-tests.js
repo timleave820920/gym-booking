@@ -371,6 +371,9 @@ async function runSuite() {
   check('SEC-04b-2', '订满链路支付', ok(r, 200) && r.data.booking, `msg=${r.data && r.data.message}`);
   r = await req('GET', `/api/sessions/${fullSid3}`);
   check('SEC-04b', '支付满员后场次状态=full', ok(r, 200) && r.data.session.status === 'full', `status=${r.data && r.data.session && r.data.session.status}`);
+  // SEC-04c：真实订满（status=full）后仍可排候补（回归 BUG-LEDGER #5：syncSessionStatus 置 full 曾卡死候补入口，旧测试用初始published场次掩盖）
+  r = await req('POST', '/api/waitlist', { openid: T.user2.openid, sessionId: fullSid3, amountFen: 6800 });
+  check('SEC-04c', '满员(full)场次可排候补', r.status === 201, `status=${r.status} msg=${r.data && r.data.message}`);
   // 创建课程缺参已在 CRS-02 覆盖
   r = await req('POST', '/api/courses/9999/publish', {});
   check('CRS-04a', '发布缺日期参数', r.status === 400 && (r.data.message || '').includes('日期'), `msg=${r.data && r.data.message}`);

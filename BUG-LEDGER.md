@@ -15,6 +15,24 @@
 
 ---
 
+## #5 满员场次（status=full）无法排候补——syncSessionStatus 引入的功能回归
+
+- **发现**：2026-08-13，覆盖率探针扩展（走真实链路）时抓出；提交（待补）
+- **现象**：真实订课流程中，用户订满后场次被置 `full`，其他用户排候补返回「课程已下线」，**候补功能整体不可用**
+- **根因**：bug② 修复引入 `syncSessionStatus` 把满员场次 status 从 `published` 改为 `full`，但 `createOrder` 与 `joinWaitlist` 的状态检查只接受 `published` → 满员场次被误判「已下线」。**旧测试全部用「直接插入 booked_count=满员 + status='published'」的场次（绕过 syncSessionStatus），81 项全绿掩盖了真实链路缺陷**
+- **修复**：`server/db/orders.js` 两处状态检查改为接受 `published` 或 `full`（book 分支由 remaining 检查兜底拒绝满员，waitlist 分支由 remaining 检查兜底拒绝有余位）
+- **回归测试**：`SEC-04c`（run-tests.js：真实订满→full 后可排候补 201）+ 探针 14 段（真实链路：订满→排位→退订转正→退出退款→过期退款）
+- **防护层**：探针扩展前 L1/L2 均测不出（测试构造绕道）；修复后 SEC-04c + 探针 14 双兜底。**教训：测试数据构造（直接插 booked_count）会掩盖真实状态流转路径**
+
+## #4 PUT /api/courses/:id 部分字段更新 500
+
+- **发现**：2026-08-13，覆盖率探针扩展（管理后台段）；提交（待补）
+- **现象**：只传部分字段（如 `{name, tags}`）更新课程 → 500 服务器内部错误
+- **根因**：`updateCourse` 全字段 UPDATE，未传字段为 `undefined` 传入 node:sqlite → 抛错
+- **修复**：`server/db/courses.js` `updateCourse` 先查当前行，未传字段（`??`）沿用原值
+- **回归测试**：探针 12 段（PUT 只传 `{name, tags}` 部分字段 → 200）
+- **防护层**：探针扩展发现；修复后探针 12 段兜底。管理网页此前发全字段所以未暴露
+
 ## #3 coverage 探针自身 6 处 bug（探针创建起从未真正通过）
 
 - **发现**：2026-08-13，L2 CI 首跑（run 31665718847），提交 b63a4b0

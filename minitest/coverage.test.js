@@ -17,6 +17,9 @@ const U1 = { openid: 'uid_cov_u1', nickname: '覆盖测试A' };
 const U2 = { openid: 'uid_cov_u2', nickname: '覆盖测试B' };
 const COACH = { openid: 'uid_cov_coach', nickname: '覆盖教练', role: 'coach' };
 
+// 管理后台段创建的测试课程 id（clean 时清理其规则/场次/课程本体）
+let covCourseId = null;
+
 // ===== 预清理 =====
 function clean() {
   // 各表按实际列清理（invitations 无 user_openid 列，需专用 SQL——CI 干净环境验证发现）
@@ -26,6 +29,12 @@ function clean() {
   }
   db.db.prepare("DELETE FROM invitations WHERE inviter LIKE 'uid_cov_%' OR invitee LIKE 'uid_cov_%'").run();
   db.db.prepare("DELETE FROM course_sessions WHERE source='cov_suite'").run();
+  if (covCourseId) {
+    db.db.prepare('DELETE FROM schedule_templates WHERE course_id = ?').run(covCourseId);
+    db.db.prepare('DELETE FROM course_sessions WHERE course_id = ?').run(covCourseId);
+    db.db.prepare('DELETE FROM courses WHERE id = ?').run(covCourseId);
+    covCourseId = null;
+  }
   db.db.prepare("DELETE FROM users WHERE openid LIKE 'uid_cov_%'").run();
 }
 clean();
@@ -144,6 +153,127 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     assert.ok(Array.isArray(r.data.users), '用户列表');
     r = await req('GET', '/api/health');
     assert.equal(r.data.code, 200, '健康检查');
+
+    // ---- 09 消息中心（订课/退款/签到已触发业务埋点） ----
+    r = await req('GET', '/api/messages?openid=' + U1.openid);
+    assert.ok(Array.isArray(r.data.messages), '消息列表');
+    r = await req('GET', '/api/messages/unread-count?openid=' + U1.openid);
+    assert.ok(typeof r.data.unread === 'number', '未读数');
+    const msgId = r.data.messages && r.data.messages[0] && r.data.messages[0].id;
+    if (msgId) {
+      r = await req('POST', `/api/messages/${msgId}/read`, { openid: U1.openid });
+      assert.equal(r.data.code, 200, '单条已读');
+    }
+    r = await req('POST', '/api/messages/read-all', { openid: U1.openid });
+    assert.equal(r.data.code, 200, '全部已读');
+
+    // ---- 10 邀请完整链路（绑定 → 好友首订 → 邀请人奖励） ----
+    const U3 = { openid: 'uid_cov_u3', nickname: '覆盖测试C' };
+    r = await req('POST', '/api/auth/login', U3);
+    assert.equal(r.status, 201, '注册C');
+    r = await req('POST', '/api/invite', { inviter: U1.openid, invitee: U3.openid });
+    assert.equal(r.data.code, 200, '绑定邀请C');
+    const s3 = db.db.prepare(
+      "INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source) VALUES (?,1,1,?,'18:00','19:00',5,0,'published','cov_suite')"
+    ).run(course.id, todayStr).lastInsertRowid;
+    r = await req('POST', '/api/orders', { openid: U3.openid, sessionId: s3, amountFen: 8000, orderType: 'book' });
+    assert.equal(r.status, 201, '好友下单');
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: U3.openid, payMethod: 'wxpay' });
+    assert.equal(r.data.code, 200, '好友首订支付（触发邀请奖励）');
+    r = await req('GET', '/api/member/rewards?openid=' + U1.openid);
+    assert.ok(r.data.rewards.length >= 1, '邀请奖励未读');
+    r = await req('POST', '/api/member/rewards/read', { openid: U1.openid });
+    assert.equal(r.data.code, 200, '奖励已读');
+    r = await req('GET', '/api/invite/stats?openid=' + U1.openid);
+    assert.ok(r.data.invited >= 1, '邀请统计');
+    r = await req('GET', '/api/invite/details?openid=' + U1.openid);
+    assert.ok(Array.isArray(r.data.details), '邀请明细');
+    r = await req('GET', '/api/admin/invite-board');
+    assert.ok(r.data.board, '邀请看板');
+
+    // ---- 11 能量币：兑换失败/成功/记录/配置 ----
+    r = await req('GET', '/api/coin/shop');
+    assert.ok(Array.isArray(r.data.items), '能量商店');
+    r = await req('GET', '/api/coin/config');
+    assert.ok(r.data.config, '能量币配置');
+    r = await req('POST', '/api/coin/exchange', { openid: U1.openid, itemId: 'coach-1v1' }); // 1200币 > 当前余额（250+邀请奖励）
+    assert.equal(r.status, 400, '余额不足兑换拒绝');
+    // 直接设足能量币（探针控制数据，避免依赖充值/邀请的币量计算链）
+    db.db.prepare('UPDATE users SET coin_balance = 2000 WHERE openid = ?').run(U1.openid);
+    r = await req('POST', '/api/coin/exchange', { openid: U1.openid, itemId: 'coach-1v1' });
+    assert.equal(r.data.code, 200, '兑换成功');
+    r = await req('GET', '/api/coin/exchanges?openid=' + U1.openid);
+    assert.ok(r.data.exchanges.length >= 1, '兑换记录');
+    r = await req('GET', '/api/coin/logs?openid=' + U1.openid);
+    assert.ok(r.data.logs.length >= 1, '能量币流水');
+    r = await req('POST', '/api/coin/exchange', { openid: U1.openid, itemId: 'nope' });
+    assert.equal(r.status, 400, '无效奖品拒绝');
+
+    // ---- 12 管理后台：课程 CRUD / 排课规则 / 发布 / 场次管理 ----
+    r = await req('POST', '/api/courses', { name: '覆盖测试课程', category: '测试分类', level: 3, duration_min: 60, price_fen: 8800, status: 'draft' });
+    assert.equal(r.status, 201, '创建课程');
+    covCourseId = r.data.course.id;
+    r = await req('PUT', `/api/courses/${covCourseId}`, { name: '覆盖测试课程改', tags: '测试' });
+    assert.equal(r.data.code, 200, '更新课程');
+    r = await req('PUT', `/api/courses/${covCourseId}/rules`, { rules: [{ weekday: today.getDay() || 7, start_time: '10:00', end_time: '11:00', venue_id: 1, coach_id: 1, capacity: 5 }] });
+    assert.equal(r.data.code, 200, '保存排课规则');
+    r = await req('POST', `/api/courses/${covCourseId}/publish`, { start_date: todayStr, end_date: todayStr });
+    assert.equal(r.data.code, 200, '发布场次');
+    const pubSid = db.db.prepare("SELECT id FROM course_sessions WHERE course_id=? AND source='manual' LIMIT 1").get(covCourseId);
+    assert.ok(pubSid, '发布产生场次');
+    r = await req('GET', `/api/admin/sessions?from=${todayStr}&to=${todayStr}&course_id=${covCourseId}`);
+    assert.ok(Array.isArray(r.data.sessions), '范围场次');
+    r = await req('PUT', `/api/sessions/${pubSid.id}`, { capacity: 15 });
+    assert.equal(r.data.code, 200, '改容量');
+    r = await req('DELETE', `/api/sessions/${pubSid.id}`);
+    assert.equal(r.data.code, 200, '取消场次');
+    r = await req('DELETE', `/api/courses/${covCourseId}`);
+    assert.equal(r.data.code, 200, '删除课程');
+    covCourseId = null;
+
+    // ---- 13 教练端 / 元数据 / 会员配置 ----
+    r = await req('GET', `/api/coach/schedule?date=${todayStr}&coach_id=1`);
+    assert.ok(Array.isArray(r.data.sessions), '教练今日课表');
+    r = await req('GET', '/api/meta');
+    assert.ok(Array.isArray(r.data.coaches), '下拉元数据');
+    r = await req('GET', '/api/member/config');
+    assert.ok(r.data.config, '会员配置');
+
+    // ---- 14 候补复杂路径：排位 / 退订转正 / 退出退款 / 过期退款 ----
+    const s4 = db.db.prepare(
+      "INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source) VALUES (?,1,1,?,'20:00','21:00',1,0,'published','cov_suite')"
+    ).run(course.id, todayStr).lastInsertRowid;
+    r = await req('POST', '/api/orders', { openid: U2.openid, sessionId: s4, amountFen: 8000, orderType: 'book' });
+    assert.equal(r.status, 201, '订满下单');
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: U2.openid, payMethod: 'wxpay' });
+    assert.equal(r.data.code, 200, '订满支付');
+    r = await req('POST', '/api/waitlist', { openid: U3.openid, sessionId: s4, amountFen: 8000 });
+    assert.equal(r.status, 201, '候补排位');
+    const w3Id = r.data.wait.id;
+    r = await req('GET', '/api/orders?openid=' + U2.openid);
+    const s4Order = r.data.orders.find(o => o.session_id === s4 && o.status === 'paid');
+    r = await req('DELETE', `/api/bookings/${s4Order.booking_id}?openid=${U2.openid}`);
+    assert.equal(r.data.code, 200, '退订触发转正');
+    r = await req('GET', '/api/waitlist?openid=' + U3.openid);
+    const promoted = r.data.waits.find(w => w.id === w3Id);
+    assert.equal(promoted && promoted.status, 'promoted', '候补转正');
+    const W4 = { openid: 'uid_cov_u4', nickname: '覆盖测试D' };
+    r = await req('POST', '/api/auth/login', W4);
+    assert.equal(r.status, 201, '注册D');
+    r = await req('POST', '/api/waitlist', { openid: W4.openid, sessionId: s4, amountFen: 8000 });
+    assert.equal(r.status, 201, 'W4排位');
+    const w4Id = r.data.wait.id;
+    r = await req('DELETE', `/api/waitlist/${w4Id}?openid=${W4.openid}`);
+    assert.equal(r.data.code, 200, '退出候补退款');
+    // 过期退款：造「今天已开始且满员」的场次，GET /api/waitlist 顺带触发 refundExpiredWaitlist
+    const s5 = db.db.prepare(
+      "INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source) VALUES (?,1,1,?,'00:00','01:00',1,1,'published','cov_suite')"
+    ).run(course.id, todayStr).lastInsertRowid;
+    r = await req('POST', '/api/waitlist', { openid: W4.openid, sessionId: s5, amountFen: 8000 });
+    assert.equal(r.status, 201, '过期场次排位');
+    r = await req('GET', '/api/waitlist?openid=' + W4.openid);
+    const refundedW = r.data.waits.find(w => w.session_id === s5);
+    assert.ok(refundedW && refundedW.status === 'refunded', '过期自动退款');
 
     console.log('覆盖率探针：核心链路全部通过 ✓');
   } finally {

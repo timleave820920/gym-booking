@@ -57,9 +57,23 @@ function createCourse(data) {
 
 /** 更新课程（含规则） @returns 是否成功 */
 function updateCourse(id, data) {
+  // 部分更新容错：未传字段沿用原值（修复 500——探针发现，BUG-LEDGER #4）
+  const cur = db.prepare('SELECT * FROM courses WHERE id = ?').get(id);
+  if (!cur) return false;
+  const d = {
+    name: data.name ?? cur.name,
+    category: data.category ?? cur.category,
+    level: data.level ?? cur.level,
+    duration_min: data.duration_min ?? cur.duration_min,
+    price_fen: data.price_fen ?? cur.price_fen,
+    cover: data.cover ?? cur.cover,
+    description: data.description ?? cur.description,
+    tags: data.tags ?? cur.tags,
+    status: data.status ?? cur.status
+  };
   const res = db.prepare(`UPDATE courses SET name=?, category=?, level=?, duration_min=?, price_fen=?, cover=?, description=?, tags=?, status=?, updated_at=datetime('now','localtime')
                           WHERE id = ?`)
-    .run(data.name, data.category, data.level, data.duration_min, data.price_fen, data.cover || '', data.description || '', data.tags || '', data.status || 'published', id);
+    .run(d.name, d.category, d.level, d.duration_min, d.price_fen, d.cover, d.description, d.tags, d.status, id);
   if (res.changes === 0) return false;
   replaceRules(id, data.rules || []);
   return true;
