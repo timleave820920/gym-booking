@@ -18,6 +18,38 @@
       <view class="banner-deco"></view>
     </view>
 
+    <!-- 功能入口（7 项，2026-08-14 图标+名称，纯线性 SVG 同 icon-* 语言） -->
+    <view class="entry-grid">
+      <view class="entry-item" bindtap="goEntry" data-url="/pages/member-level/index">
+        <view class="entry-ico ent-lv"></view>
+        <text class="entry-name">会员等级</text>
+      </view>
+      <view class="entry-item" bindtap="goEntry" data-url="/pages/member-recharge/index">
+        <view class="entry-ico ent-recharge"></view>
+        <text class="entry-name">储值会员</text>
+      </view>
+      <view class="entry-item" bindtap="goEntry" data-url="/pages/invite/index">
+        <view class="entry-ico ent-invite"></view>
+        <text class="entry-name">邀请好友</text>
+      </view>
+      <view class="entry-item" bindtap="goEntry" data-url="/pages/passes-buy/index">
+        <view class="entry-ico ent-pass"></view>
+        <text class="entry-name">次卡包</text>
+      </view>
+      <view class="entry-item" bindtap="goEntry" data-url="/pages/coin-shop/index">
+        <view class="entry-ico ent-coin"></view>
+        <text class="entry-name">能量商店</text>
+      </view>
+      <view class="entry-item" bindtap="goEntry" data-url="/pages/about-us/index">
+        <view class="entry-ico ent-idea"></view>
+        <text class="entry-name">场馆理念</text>
+      </view>
+      <view class="entry-item" bindtap="goEntry" data-url="/pages/honors/index">
+        <view class="entry-ico ent-trophy"></view>
+        <text class="entry-name">参赛荣誉</text>
+      </view>
+    </view>
+
     <!-- 今日课程 -->
     <view class="flex-between hot-head">
       <text class="section-title">{{t.todayCourses}}</text>

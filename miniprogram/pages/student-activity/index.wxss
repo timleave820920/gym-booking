@@ -327,3 +327,58 @@
 }
 
 .list-spacer { height: 60rpx; }
+
+/* ===== 功能入口（7 项，2026-08-14）===== */
+.entry-grid {
+  margin-top: 28rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20rpx;
+}
+.entry-item {
+  width: 200rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  padding: 24rpx 0 20rpx;
+  background: var(--ink-0);
+  border-radius: 24rpx;
+  box-shadow: var(--shadow-card);
+}
+.entry-ico {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
+  background-color: #F0EDDF;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 40rpx;
+}
+.entry-name {
+  font-size: 24rpx;
+  color: var(--ink-900);
+  font-weight: 500;
+}
+/* 图标（24 网格 · 2~2.5px 描边 · 圆头端点 · 墨黑，同个人中心 icon-* 语言） */
+.ent-lv {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="%231A1A23" stroke-width="2"/><path d="M8 9.5L12 15L16 9.5" stroke="%231A1A23" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+}
+.ent-recharge {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M12 5V19M5 12H19" stroke="%231A1A23" stroke-width="2.5" stroke-linecap="round"/><path d="M7 4H17C18.1 4 19 4.9 19 6V18C19 19.1 18.1 20 17 20H7C5.9 20 5 19.1 5 18V6C5 4.9 5.9 4 7 4Z" stroke="%231A1A23" stroke-width="1.5" stroke-dasharray="2 2"/></svg>');
+}
+.ent-invite {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><circle cx="8.5" cy="7" r="3.5" stroke="%231A1A23" stroke-width="2"/><path d="M2 20C2 15.5 4.5 13.5 8.5 13.5C12.5 13.5 15 15.5 15 20" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/><path d="M18 9.5V17.5M14 13.5H22" stroke="%231A1A23" stroke-width="2.5" stroke-linecap="round"/></svg>');
+}
+.ent-pass {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="12" rx="2" stroke="%231A1A23" stroke-width="2"/><path d="M3 9.5H21" stroke="%231A1A23" stroke-width="2"/><circle cx="16.5" cy="14" r="1.5" fill="%23B9FF66" stroke="%231A1A23" stroke-width="1.5"/><path d="M6 14.5H12" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>');
+}
+.ent-coin {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M13.5 3L6.5 13.5H11L10 21L17.5 10H12.5L13.5 3Z" stroke="%231A1A23" stroke-width="2" stroke-linejoin="round"/></svg>');
+}
+.ent-idea {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M12 3C7 3 5 6.5 5 9C5 11.5 7 12.8 7.8 13.8C8.5 14.7 8.5 16 8.5 16.5H15.5C15.5 16 15.5 14.7 16.2 13.8C17 12.8 19 11.5 19 9C19 6.5 17 3 12 3Z" stroke="%231A1A23" stroke-width="2" stroke-linejoin="round"/><path d="M8.5 19H15.5M9.5 21.5H14.5" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>');
+}
+.ent-trophy {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M8 21H16M12 17V21M7 4H17V9C17 11.76 14.76 14 12 14C9.24 14 7 11.76 7 9V4ZM7 6H4C4 9.5 6.5 12 10 12M17 6H20C20 9.5 17.5 12 14 12" stroke="%231A1A23" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+}

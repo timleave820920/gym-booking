@@ -161,6 +161,13 @@ Page({
     wx.navigateTo({ url: '/pages/member-center/index' });
   },
 
+  // 功能入口统一跳转（2026-08-14 新增 7 入口）
+  goEntry(e) {
+    const url = e.currentTarget.dataset.url;
+    if (!url) return;
+    wx.navigateTo({ url });
+  },
+
   goDetail(e) {
     const id = e.currentTarget.dataset.id;
     const item = this.data.hotCourses.find(c => c.id === id);
