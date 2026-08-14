@@ -53,9 +53,10 @@
   align-items: center;
 }
 .course-img {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 20rpx;
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 50%;
+  border: 4rpx solid #1A1A23;
   background: #F0EDDF;
   flex-shrink: 0;
 }
@@ -73,7 +74,21 @@
   color: #6B6B76;
 }
 .course-time {
-  font-size: 24rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #1A1A23;
+}
+.course-price {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #E5484D;
+}
+.price-row {
+  gap: 10rpx;
+  align-items: baseline;
+}
+.price-origin {
+  font-size: 20rpx;
   color: #B0AFA8;
 }
 .card-foot {

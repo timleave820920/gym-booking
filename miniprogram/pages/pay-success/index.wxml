@@ -7,14 +7,19 @@
     <text class="success-sub" wx:if="{{!isWaitlist}}">已成功预订课程</text>
     <text class="success-sub" wx:else>已进入候补队列，有人退订将自动转正</text>
 
-    <!-- 课程信息卡 -->
+    <!-- 课程信息卡（与确认支付页一致：教练头像 + 课程名/时间段/年月日星期/场馆/原价） -->
     <view class="course-card" wx:if="{{course}}">
       <view class="flex-row card-body">
-        <image class="course-img" src="{{course.img}}" mode="aspectFill"></image>
+        <image class="course-img" src="{{course.coachAvatar || '/images/2_295.png'}}" mode="aspectFill"></image>
         <view class="flex-col flex-1 course-info">
           <text class="course-name">{{course.name}}</text>
-          <text class="course-meta">教练 · {{course.coach}} · {{course.venue}}</text>
           <text class="course-time">{{course.time}}</text>
+          <text class="course-meta">{{course.dateText}}</text>
+          <text class="course-meta">{{course.venue}}</text>
+          <view class="flex-row price-row">
+            <text class="course-price">¥{{course.price}}</text>
+            <text class="price-origin">单次价</text>
+          </view>
         </view>
       </view>
       <view class="flex-between card-foot">
