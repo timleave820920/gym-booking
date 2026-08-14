@@ -258,25 +258,19 @@
   text-align: center;
   box-shadow: 0 2rpx 8rpx rgba(229,72,77,0.3);
 }
-/* 满员：旋转方块覆盖右上角（深金底 + 深色文字），面积较满铺版小40% */
+/* 满员：与「紧张」同款斜条带（2026-08-14 用户要求形状统一）；橙=满员警示色（非红，区分紧张） */
 .ribbon-full {
   position: absolute;
-  top: -92rpx;
-  right: -92rpx;
-  width: 184rpx;
-  height: 184rpx;
+  top: 16rpx;
+  right: -58rpx;
   transform: rotate(45deg);
-  background: var(--coin-gold-deep);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 0 0 20rpx 0;      /* 覆盖 .ribbon 的 6rpx 90rpx，避免文字被挤 */
-  box-sizing: border-box;
-  font-size: 22rpx;
-  font-weight: 800;
-  letter-spacing: 2rpx;
-  color: #4A3200;
-  box-shadow: none;
+  background: var(--seat-full);
+  color: #FFFFFF;
+  font-size: 20rpx;
+  font-weight: 600;
+  padding: 5rpx 70rpx;
+  text-align: center;
+  box-shadow: 0 2rpx 8rpx rgba(239,159,39,0.3);
 }
 
 /* 空状态 */.offline-tip {
