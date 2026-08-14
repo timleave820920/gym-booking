@@ -173,6 +173,9 @@
   font-size: 30rpx;
   font-weight: 800;
   color: #5B57EB;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
 }
 .booked-total {
   font-size: 24rpx;

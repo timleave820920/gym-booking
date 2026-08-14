@@ -59,7 +59,10 @@
     <view class="booked-card">
       <view class="flex-between booked-head">
         <text class="booked-label">已预约</text>
-        <text class="booked-count">{{bookedCount}}<text class="booked-total"> / {{course.capacity}}</text></text>
+        <view class="booked-count flex-row">
+          <view class="icon-person"></view>
+          <text>{{bookedCount}}<text class="booked-total"> / {{course.capacity}}</text></text>
+        </view>
       </view>
       <scroll-view class="avatar-scroll" scroll-x wx:if="{{bookedUsers.length}}" enhanced show-scrollbar="{{false}}">
         <view class="avatar-item" wx:for="{{bookedUsers}}" wx:key="openid">

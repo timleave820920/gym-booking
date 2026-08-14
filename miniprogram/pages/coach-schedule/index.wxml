@@ -33,7 +33,12 @@
         </view>
         <view class="flex-col flex-1 info-box">
           <text class="course-name">{{item.name}}</text>
-          <text class="course-meta">{{item.venue}} · 已报名 {{item.enrolled}}/{{item.capacity}}</text>
+          <view class="course-meta flex-row">
+            <text>{{item.venue}}</text>
+            <text class="meta-dot">·</text>
+            <view class="icon-person meta-ico"></view>
+            <text>已报名 {{item.enrolled}}/{{item.capacity}}</text>
+          </view>
         </view>
         <view class="tag {{item.statusType === 'green' ? 'tag-green' : (item.statusType === 'orange' ? 'tag-orange' : 'tag-gray')}}">
           {{item.status}}

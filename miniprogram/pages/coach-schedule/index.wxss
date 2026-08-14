@@ -78,6 +78,14 @@
 .course-meta {
   font-size: 24rpx; color: #6B6B76;
   margin-top: 6rpx;
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+.meta-ico {
+  width: 24rpx;
+  height: 24rpx;
+  opacity: 0.7;
 }
 
 .list-spacer { height: 60rpx; }

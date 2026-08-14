@@ -413,6 +413,13 @@ button::after {
 .ico-ended {
   background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+PHJlY3QgeD0iOC41IiB5PSI4LjUiIHdpZHRoPSI3IiBoZWlnaHQ9IjciIHJ4PSIxLjUiIHN0cm9rZT0iI0IwQUZBOCIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+');
 }
+/* 全局人头图标（席位读数 / 已预约前统一使用，黑描边风格） */
+.icon-person {
+  width: 28rpx;
+  height: 28rpx;
+  background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMTIiIGN5PSI4LjIiIHI9IjQiIHN0cm9rZT0iIzFBMUEyMyIgc3Ryb2tlLXdpZHRoPSIyIi8+PHBhdGggZD0iTTQuNSAyMGMwLjYtMy44IDQtNi4yIDcuNS02LjJzNi45IDIuNCA3LjUgNi4yIiBzdHJva2U9IiMxQTFBMjMiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+') no-repeat center/contain;
+  flex-shrink: 0;
+}
 /* 进入（墨黑胶囊底 → 白右箭头） */
 .ico-enter {
   background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+PHBhdGggZD0iTTcgMTJIMTdNMTcgMTJMMTMgOE0xNyAxMkwxMyAxNiIgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==');
