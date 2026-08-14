@@ -8,7 +8,7 @@ const { findUserByOpenid, createUser, touchLogin, updateProfile, countUsers, lis
 const { todayCoinsEarned, addCoins, getCoinInfo, listCoinLogs, listShopItems, exchangeCoinItem, listMyExchanges, checkLevelUpReward, rewardInviterCoins } = require('./db/coin');
 const { getMemberLevel, addBalance, refundOrderMoney, hasRechargedPlan, calcRechargeBonus, applyRecharge, listRecharges, listUnreadBalanceLogs, markBalanceLogsRead, RECHARGE_PLANS } = require('./db/members');
 const { listInvitationDetails, inviteBoardStats, bindInvitation, rewardInviter, getInviteStats } = require('./db/invite');
-const { listCoaches, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById } = require('./db/courses');
+const { listCoaches, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById, listBookedUsersWithInfo } = require('./db/courses');
 const { sendMessage, broadcastMessage, listMessages, unreadMessageCount, markMessageRead, markAllMessagesRead, listSessionsStartingSoon, listBookedUsersBySession } = require('./db/messages');
 const { listPassPackages, getUserPass, getUserPassInfo, applyPassPurchase, consumePass, refundPass, expireOverduePasses } = require('./db/passes');
 const { genOrderNo, createOrder, payOrder, listOrdersByUser, getOrderByNo, getRevenueStats, promoteFromWaitlist, joinWaitlist, cancelWaitlist, listWaitlistByUser, refundExpiredWaitlist } = require('./db/orders');
@@ -49,6 +49,7 @@ module.exports = {
   cancelSession,
   updateSessionCapacity,
   getSessionById,
+  listBookedUsersWithInfo,
   sendMessage,
   broadcastMessage,
   listMessages,

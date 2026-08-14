@@ -14,7 +14,9 @@ const DB_FILE = process.env.DB_PATH || path.join(DATA_DIR, 'gym.db');
 fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
 
 // 打开数据库（WAL 模式，允许并发读写）
-const db = new DatabaseSync(DB_FILE);
+// timeout=5000：多进程（HTTP 后端 + 测试 dbx 直连）并发写时等待锁而非立即报 locked/readonly
+// （修复：测试脚本 dbx 直连与后端进程同写一库，原无 timeout 秒崩 ERR_SQLITE_ERROR 8/5）
+const db = new DatabaseSync(DB_FILE, { timeout: 5000 });
 db.exec('PRAGMA journal_mode = WAL;');
 db.exec('PRAGMA foreign_keys = ON;');
 
@@ -39,6 +41,13 @@ db.exec(`
     level_lv      INTEGER DEFAULT 1              -- 当前会员等级（升级检测用）
   );
 `);
+// 课程详情页重构字段：轮播图(服务器端)/简要标题/地址/经纬度/教练简介
+try { db.exec("ALTER TABLE courses ADD COLUMN images TEXT DEFAULT '[]'"); } catch (e) {}
+try { db.exec('ALTER TABLE courses ADD COLUMN summary TEXT DEFAULT \'\''); } catch (e) {}
+try { db.exec('ALTER TABLE courses ADD COLUMN address TEXT DEFAULT \'\''); } catch (e) {}
+try { db.exec('ALTER TABLE courses ADD COLUMN lat REAL DEFAULT 0'); } catch (e) {}
+try { db.exec('ALTER TABLE courses ADD COLUMN lng REAL DEFAULT 0'); } catch (e) {}
+try { db.exec("ALTER TABLE coaches ADD COLUMN bio TEXT DEFAULT ''"); } catch (e) {}
 // 兼容旧库：确保 balance_fen / coin_balance / level_lv 列存在
 try { db.exec('ALTER TABLE users ADD COLUMN balance_fen INTEGER DEFAULT 0'); } catch (e) {}
 // 候补自动取消节点（start=开课时 / 1h / 2h）

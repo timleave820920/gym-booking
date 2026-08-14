@@ -140,3 +140,13 @@
 ---
 
 *创建：2026-08-13。随缺陷持续追加。*
+
+## #14 次卡支付两连坑——候补重复支付 500 / 次卡金额显示 80（P1 资金展示）
+- **发现**：2026-08-14，次卡支付功能真机测试（田立）
+- **现象**：①候补用次卡支付 → 服务器报错 500，订单卡「支付中」；②订课用次卡支付 → 显示实际扣款 ¥80（应为扣 1 次、金额 0）
+- **根因**（两处独立 bug）：
+  - **Bug A（500）**：`payOrder` waitlist 分支直接 INSERT，waitlist 表有 `UNIQUE(user_openid, session_id)`——用户对该场次已有记录（退出候补残留 cancelled / 并发）时撞约束 → 抛错 → 事务回滚 → 订单回 pending（显示「支付中」）
+  - **Bug B（金额80）**：①后端 book 分支 exists 复用 booking 时不更新 amount_fen（残留旧价 80），订课成功站内信用 booking.amount_fen 报「实付 ¥80」；②前端 confirmPay `paidFen ? ...` 在 0 值时误判缺失 → fallback 课程原价 80
+- **修复**：①waitlist 分支改为「先查已有记录，有则 UPDATE 复用」（与 book 分支同逻辑）；②exists 复用同步更新 amount_fen；③前端 `!= null` 判断，0 正确传递
+- **回归**：PASS-08c/08d（重订复用 booking 金额 0）+ PASS-10c（重复下单拦截）+ PASS-11c/11d（cancelled 残留重付不 500）共 5 条新断言，116→121 全绿
+- **教训**：**金额 0 是有效值，前端判断必须用 `!= null` 不能用 truthy**；**有唯一约束的表，写入前必须查重或改为 UPSERT 语义**

@@ -34,6 +34,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--purple); }
 textarea { resize: vertical; min-height: 72px; }
 .member-hint { font-size: 12px; color: var(--purple); }
 .cover-area { display: flex; gap: 14px; align-items: flex-start; }
+.gallery { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.gal-item { width: 96px; border-radius: 10px; border: 2px solid var(--dark); overflow: hidden; background: #fff; position: relative; }
+.gal-item img { width: 100%; height: 72px; object-fit: cover; display: block; }
+.gal-empty { height: 96px; display: flex; align-items: center; justify-content: center; background: #F0EDDF; }
+.gal-ph { font-size: 30px; font-weight: 700; color: #B9BFAD; }
+.gal-foot { display: flex; gap: 6px; align-items: center; padding: 4px 6px; font-size: 11px; color: var(--gray); }
+.gal-foot span { flex: 1; }
+.gal-x { color: #E5484D; cursor: pointer; font-weight: 700; }
+.gal-mv { color: var(--purple); cursor: pointer; }
 .cover-preview { width: 120px; height: 120px; border-radius: 12px; border: 2px solid var(--dark); object-fit: cover; background: #F0EDDF; display: none; }
 .cover-controls { flex: 1; display: flex; flex-direction: column; gap: 10px; }
 .upload-btn { display: inline-block; padding: 8px 16px; border-radius: 18px; background: var(--dark); color: var(--lime); font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; }
@@ -129,6 +138,23 @@ td .cap-input { width: 64px; padding: 4px 6px; font-size: 12px; }
       </div>
       <div class="field wide" style="margin-top:12px"><label>课程描述（显示在课程条第二行 + 详情页介绍区）</label><textarea id="f-description" placeholder="如：高强度进阶，挑战极限"></textarea></div>
       <div class="field wide" style="margin-top:12px"><label>卖点标签（逗号分隔，显示在详情页副标题）</label><input type="text" id="f-tags" placeholder="如：高效燃脂, 新手友好, 器械混合"></div>
+    </div>
+
+    <div class="block">
+      <h3>课程详情页配置</h3>
+      <div class="field wide">
+        <label>顶部轮播图（最多 5 张 · 服务器端存储不入包 · 单张 ≤512KB · 未配置位置显示数字占位）</label>
+        <div class="gallery" id="galleryBox"></div>
+        <span class="upload-btn" onclick="document.getElementById('galleryInput').click()">⬆ 上传轮播图</span>
+        <input type="file" id="galleryInput" accept="image/*" style="display:none" onchange="uploadGallery(this)">
+      </div>
+      <div class="field wide" style="margin-top:12px"><label>简要标题（课程名下方副标题）</label><input type="text" id="f-summary" placeholder="如：Hyrox 精英训练 · 燃脂进阶"></div>
+      <div class="grid">
+        <div class="field wide"><label>地址（详情页地点展示 + 导航）</label><input type="text" id="f-address" placeholder="成都市成华区好事健身馆"></div>
+        <div class="field"><label>纬度 lat</label><input type="text" id="f-lat" placeholder="30.6636"></div>
+        <div class="field"><label>经度 lng</label><input type="text" id="f-lng" placeholder="104.1049"></div>
+        <div class="field wide"><label>教练介绍（详情页教练说明 · 保存到该课程教练）</label><textarea id="f-coachbio" placeholder="如：Hyrox个人精英运动员，40+引体达人，二娃妈妈，素人零基础"></textarea></div>
+      </div>
     </div>
 
     <div class="ops">
@@ -295,6 +321,10 @@ function newCourse() {
   ['f-name'].forEach(function (id) { $(id).value = ''; });
   ['f-category', 'f-level', 'f-duration', 'f-price', 'f-status', 'f-cover'].forEach(function (id) { $(id).value = ''; });
   $('f-description').value = ''; $('f-tags').value = '';
+  $('f-summary').value = ''; $('f-address').value = '成都市成华区好事健身馆';
+  $('f-lat').value = 30.6636; $('f-lng').value = 104.1049; $('f-coachbio').value = '';
+  galleryImages = [];
+  renderGallery();
   $('coverImg').style.display = 'none'; $('coverImg').removeAttribute('src');
   updateMemberHint(); renderCourseList();
 }
@@ -307,6 +337,12 @@ function selectCourse(id) {
   $('f-price').value = c.price_fen / 100; $('f-status').value = c.status;
   $('f-description').value = c.description || ''; $('f-tags').value = c.tags || '';
   $('f-cover').value = c.cover || '';
+  $('f-summary').value = c.summary || '';
+  $('f-address').value = c.address || '成都市成华区好事健身馆';
+  $('f-lat').value = c.lat || 30.6636; $('f-lng').value = c.lng || 104.1049;
+  $('f-coachbio').value = c.coach_bio || '';
+  try { galleryImages = JSON.parse(c.images || '[]').filter(Boolean).slice(0, 5); } catch (e) { galleryImages = []; }
+  renderGallery();
   updateMemberHint(); previewCover(); renderCourseList();
 }
 function updateMemberHint() {
@@ -317,6 +353,44 @@ function previewCover() {
   var v = $('f-cover').value;
   if (v) { $('coverImg').src = v; $('coverImg').style.display = 'block'; }
   else { $('coverImg').style.display = 'none'; $('coverImg').removeAttribute('src'); }
+}
+var galleryImages = [];
+function renderGallery() {
+  var html = '';
+  for (var i = 0; i < 5; i++) {
+    var img = galleryImages[i];
+    html += '<div class="gal-item' + (img ? '' : ' gal-empty') + '">' +
+      (img ? '<img src="' + img + '" alt="图' + (i + 1) + '">' : '<div class="gal-ph">' + (i + 1) + '</div>') +
+      '<div class="gal-foot"><span>图' + (i + 1) + '</span>' +
+      (img ? '<span class="gal-x" onclick="removeGalleryImg(' + i + ')">✕</span>' : '') +
+      (img && i > 0 ? '<span class="gal-mv" onclick="moveGalleryImg(' + i + ',-1)">◀</span>' : '') +
+      (img && i < 4 ? '<span class="gal-mv" onclick="moveGalleryImg(' + i + ',1)">▶</span>' : '') +
+      '</div></div>';
+  }
+  $('galleryBox').innerHTML = html;
+}
+function uploadGallery(input) {
+  var file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  if (file.size > 512 * 1024) { alert('图片超过 512KB 限制，请压缩后上传'); return; }
+  if (galleryImages.length >= 5) { alert('最多 5 张轮播图'); return; }
+  var reader = new FileReader();
+  reader.onload = function () {
+    api('/upload', 'POST', { name: file.name, data: reader.result, dir: 'uploads' }).then(function (j) {
+      galleryImages.push(j.path);
+      renderGallery();
+      toast($('saveMsg'), '已上传：' + j.path);
+    }).catch(function (e) { toast($('saveMsg'), e.message, true); });
+  };
+  reader.readAsDataURL(file);
+}
+function removeGalleryImg(i) { galleryImages.splice(i, 1); renderGallery(); }
+function moveGalleryImg(i, dir) {
+  var j = i + dir;
+  if (j < 0 || j >= galleryImages.length) return;
+  var t = galleryImages[i]; galleryImages[i] = galleryImages[j]; galleryImages[j] = t;
+  renderGallery();
 }
 function uploadImage(input) {
   var file = input.files && input.files[0];
@@ -342,7 +416,11 @@ function saveCourse() {
     name: name, category: $('f-category').value, level: Number($('f-level').value),
     duration_min: Number($('f-duration').value), price_fen: Math.round(Number($('f-price').value) * 100),
     cover: $('f-cover').value || '', description: $('f-description').value.trim(),
-    tags: $('f-tags').value.trim(), status: $('f-status').value, rules: []
+    tags: $('f-tags').value.trim(), status: $('f-status').value, rules: [],
+    images: galleryImages.slice(0, 5), summary: $('f-summary').value.trim(),
+    address: $('f-address').value.trim() || '成都市成华区好事健身馆',
+    lat: Number($('f-lat').value) || 30.6636, lng: Number($('f-lng').value) || 104.1049,
+    coach_bio: $('f-coachbio').value.trim()
   };
   var req = editingId ? api('/courses/' + editingId, 'PUT', data).then(function () { return editingId; }) : api('/courses', 'POST', data).then(function (j) { return j.id; });
   req.then(function (id) {

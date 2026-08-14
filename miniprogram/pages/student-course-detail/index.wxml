@@ -1,76 +1,88 @@
 <view class="page" wx:if="{{course}}">
-  <!-- 大图头部 -->
-  <view class="hero">
-    <image class="hero-img" src="{{course.img}}" mode="aspectFill"></image>
-    <view class="hero-nav">
-      <view class="round-btn flex-center" bindtap="goBack">
-        <text class="icon-back"></text>
+  <!-- 顶部轮播图：最多5张（服务器端图，未配置显示 1-5 数字占位），3秒自动右滑循环 -->
+  <swiper class="hero-swiper" autoplay="{{true}}" interval="{{3000}}" duration="450" circular="{{true}}"
+          indicator-dots="{{gallery.length > 1}}" indicator-color="rgba(255,255,255,0.4)" indicator-active-color="#B9FF66">
+    <swiper-item wx:for="{{gallery}}" wx:key="*this">
+      <image wx:if="{{!isPlaceholder}}" class="hero-img" src="{{item}}" mode="aspectFill"></image>
+      <view wx:else class="hero-ph">
+        <text class="ph-num">{{item}}</text>
       </view>
-      <view class="round-btn flex-center" bindtap="toggleFav">
-        <text class="icon-heart"></text>
-      </view>
+    </swiper-item>
+  </swiper>
+  <view class="hero-nav">
+    <view class="round-btn flex-center" bindtap="goBack">
+      <text class="icon-back"></text>
     </view>
-    <view class="hero-tag">{{course.category}}</view>
+    <view class="round-btn flex-center" open-type="share">
+      <text class="icon-share"></text>
+    </view>
   </view>
 
   <!-- 内容区 -->
   <view class="detail-content">
+    <!-- 课程名 + 简要标题 + 分享 -->
     <view class="flex-row title-row">
-      <text class="course-title flex-1">{{course.name}}</text>
-      <text class="status-tag status-ongoing" wx:if="{{status === 'ongoing'}}">{{t.ongoing}}</text>
-      <text class="status-tag status-ended" wx:if="{{status === 'ended'}}">{{t.ended}}</text>
+      <view class="flex-col flex-1">
+        <text class="course-title">{{course.name}}</text>
+        <text class="course-sub">{{course.sub}}</text>
+      </view>
+      <view class="share-btn" open-type="share">
+        <text class="share-ico"></text>
+        <text>分享</text>
+      </view>
     </view>
-    <text class="course-sub">{{course.sub}}</text>
 
-    <!-- 课程介绍（管理员配置描述为主；三态提示为状态小字） -->
+    <!-- 课程时间：起止 + 年月日小字 -->
+    <view class="row-card flex-row">
+      <view class="rc-icon rc-time"></view>
+      <view class="flex-col flex-1">
+        <text class="rc-label">课程时间</text>
+        <text class="rc-value">{{course.start}} - {{course.end}}</text>
+        <text class="rc-sub">{{course.dateText}}</text>
+      </view>
+    </view>
+
+    <!-- 地点 + 导航 -->
+    <view class="row-card flex-row" bindtap="openMap">
+      <view class="rc-icon rc-loc"></view>
+      <view class="flex-col flex-1">
+        <text class="rc-label">上课地点</text>
+        <text class="rc-value">{{course.address}}</text>
+      </view>
+      <view class="nav-btn">
+        <text class="nav-ico"></text>
+        <text>导航</text>
+      </view>
+    </view>
+
+    <!-- 已预约人数 + 头像墙（横向滑动） -->
+    <view class="booked-card">
+      <view class="flex-between booked-head">
+        <text class="booked-label">已预约</text>
+        <text class="booked-count">{{bookedCount}}<text class="booked-total"> / {{course.capacity}}</text></text>
+      </view>
+      <scroll-view class="avatar-scroll" scroll-x wx:if="{{bookedUsers.length}}" enhanced show-scrollbar="{{false}}">
+        <view class="avatar-item" wx:for="{{bookedUsers}}" wx:key="openid">
+          <image class="avatar-img" src="{{item.avatar || '/images/2_556.png'}}" mode="aspectFill"></image>
+          <text class="avatar-name">{{item.nickname}}</text>
+        </view>
+      </scroll-view>
+      <text class="booked-empty" wx:else>还没有人预约，快来抢占第一个席位</text>
+    </view>
+
+    <!-- 教练：头像 + 名字 + 右侧说明 -->
+    <view class="coach-card flex-row">
+      <view class="flex-col coach-left">
+        <image class="coach-avatar" src="{{course.coachAvatar || '/images/2_295.png'}}" mode="aspectFill"></image>
+        <text class="coach-name">{{course.coach}}</text>
+      </view>
+      <text class="coach-bio">{{course.coachBio}}</text>
+    </view>
+
+    <!-- 训练详情 -->
     <view class="desc-card">
-      <text class="desc-title">{{t.descTitle}}</text>
+      <text class="desc-title">训练详情</text>
       <text class="desc-text">{{descText}}</text>
-      <text class="status-note" wx:if="{{statusNote}}">{{statusNote}}</text>
-    </view>
-
-    <!-- 信息卡：时长/强度/剩余席位/场地 -->
-    <view class="info-card flex-row">
-      <view class="info-item flex-col">
-        <text class="info-value">{{course.duration}}</text>
-        <text class="info-label">时长</text>
-      </view>
-      <view class="info-item flex-col">
-        <text class="info-value">{{course.level}} / 5级</text>
-        <text class="info-label">强度</text>
-      </view>
-      <view class="info-item flex-col">
-        <text class="info-value {{remaining <= 2 ? 'text-red' : ''}}">{{remaining}}/{{capacity}}</text>
-        <text class="info-label">剩余 / 上限</text>
-      </view>
-      <view class="info-item flex-col">
-        <text class="info-value">{{course.venue}}</text>
-        <text class="info-label">场地</text>
-      </view>
-    </view>
-
-    <!-- 教练 -->
-    <view class="coach-row flex-row">
-      <image class="coach-avatar" src="/images/2_295.png" mode="aspectFill"></image>
-      <view class="flex-col flex-1 coach-info">
-        <text class="coach-name">教练 · {{course.coach}}</text>
-        <text class="coach-desc">8 年团课教学经验 · 认证体能教练</text>
-      </view>
-      <text class="icon-chevron"></text>
-    </view>
-
-    <!-- 课程时间（当前这一节） -->
-    <view class="time-card flex-between">
-      <view class="flex-col">
-        <text class="time-label">本场时间</text>
-        <text class="time-value">{{course.start}} - {{course.end}}</text>
-      </view>
-      <view class="tag tag-orange">今日 8月10日</view>
-    </view>
-
-    <view class="seat-hint flex-row" wx:if="{{remaining <= 5}}">
-      <text class="hint-dot"></text>
-      <text class="hint-txt">席位紧张，仅剩 {{remaining}} 席，先约先得</text>
     </view>
 
     <view class="detail-spacer"></view>

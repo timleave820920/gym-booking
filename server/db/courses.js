@@ -81,11 +81,16 @@ function updateCourse(id, data) {
     cover: data.cover ?? cur.cover,
     description: data.description ?? cur.description,
     tags: data.tags ?? cur.tags,
+    images: data.images !== undefined ? JSON.stringify(data.images) : cur.images,
+    summary: data.summary ?? cur.summary,
+    address: data.address ?? cur.address,
+    lat: data.lat ?? cur.lat,
+    lng: data.lng ?? cur.lng,
     status: data.status ?? cur.status
   };
-  const res = db.prepare(`UPDATE courses SET name=?, category=?, level=?, duration_min=?, price_fen=?, cover=?, description=?, tags=?, status=?, updated_at=datetime('now','localtime')
+  const res = db.prepare(`UPDATE courses SET name=?, category=?, level=?, duration_min=?, price_fen=?, cover=?, description=?, tags=?, images=?, summary=?, address=?, lat=?, lng=?, status=?, updated_at=datetime('now','localtime')
                           WHERE id = ?`)
-    .run(d.name, d.category, d.level, d.duration_min, d.price_fen, d.cover, d.description, d.tags, d.status, id);
+    .run(d.name, d.category, d.level, d.duration_min, d.price_fen, d.cover, d.description, d.tags, d.images, d.summary, d.address, d.lat, d.lng, d.status, id);
   if (res.changes === 0) return false;
   replaceRules(id, data.rules || []);
   return true;
@@ -167,7 +172,8 @@ const SESSION_SELECT = `
   SELECT s.id, s.date, s.start_time, s.end_time, s.capacity, s.booked_count, s.status,
          (s.capacity - s.booked_count) AS remaining,
          c.id AS course_id, c.name AS course_name, c.category, c.level, c.duration_min, c.price_fen, c.cover,
-         c.description AS course_desc, c.tags AS course_tags, co.name AS coach_name, co.avatar AS coach_avatar, v.name AS venue_name
+         c.description AS course_desc, c.tags AS course_tags, c.images AS course_images, c.summary AS course_summary,
+         c.address, c.lat, c.lng, co.name AS coach_name, co.avatar AS coach_avatar, co.bio AS coach_bio, v.name AS venue_name
   FROM course_sessions s
   JOIN courses c ON c.id = s.course_id
   JOIN coaches co ON co.id = s.coach_id
@@ -261,4 +267,15 @@ function syncSessionStatus(sessionId) {
  * @returns {{ok:true, booking:object}|{ok:false, error:string}}
  */
 // ===== 导出 =====
-module.exports = { listCoaches, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById, syncSessionStatus };
+/** 已预约用户信息列表（详情页预约墙：头像+昵称，横向滑动） */
+function listBookedUsersWithInfo(sessionId) {
+  return db.prepare(`
+    SELECT u.openid, u.nickname, u.avatar
+    FROM bookings b
+    JOIN users u ON u.openid = b.user_openid
+    WHERE b.session_id = ? AND b.status = 'booked'
+    ORDER BY b.created_at, b.id
+  `).all(sessionId);
+}
+
+module.exports = { listCoaches, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById, syncSessionStatus, listBookedUsersWithInfo };

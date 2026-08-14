@@ -751,7 +751,7 @@ function handlePublishCourse(req, res, id, body) {
 
 // ===== 图片上传（课程封面等，存到 miniprogram/images/）=====
 function handleUpload(req, res, body) {
-  const { name, data } = body || {};
+  const { name, data, dir } = body || {};
   if (!name || !data) return sendJson(res, 400, { code: 400, message: '缺少文件名称或内容' });
   const ext = path.extname(name).toLowerCase();
   if (!['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
@@ -765,10 +765,14 @@ function handleUpload(req, res, body) {
     return sendJson(res, 400, { code: 400, message: '图片为空或超过 512KB 限制' });
   }
   const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}${ext}`;
-  const imgDir = path.join(__dirname, '..', 'miniprogram', 'images');
+  // dir=uploads → server/uploads（服务器端资源，不随小程序包发布，用于详情页轮播图）
+  const imgDir = dir === 'uploads'
+    ? path.join(__dirname, 'uploads')
+    : path.join(__dirname, '..', 'miniprogram', 'images');
   if (!fs.existsSync(imgDir)) fs.mkdirSync(imgDir, { recursive: true });
   fs.writeFileSync(path.join(imgDir, fileName), buf);
-  return sendJson(res, 200, { code: 200, path: `/images/${fileName}`, message: '上传成功' });
+  const urlPrefix = dir === 'uploads' ? '/uploads/' : '/images/';
+  return sendJson(res, 200, { code: 200, path: urlPrefix + fileName, message: '上传成功' });
 }
 
 // ===== 排表管理：范围场次 / 取消 / 改容量 / 规则替换 =====
@@ -864,7 +868,11 @@ function handleSessionDetail(req, res, id) {
     const booked = db.db.prepare("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ? AND status = 'booked'").get(openid, s.id);
     result = { ...s, booked_by_me: !!booked };
   }
-  return sendJson(res, 200, { code: 200, session: result });
+  // 轮播图 JSON → 数组；已预约用户（预约墙头像+昵称）
+  let images = [];
+  try { images = JSON.parse(result.course_images || '[]'); } catch (e) { images = []; }
+  const bookedUsers = db.listBookedUsersWithInfo(result.id);
+  return sendJson(res, 200, { code: 200, session: { ...result, images, bookedUsers } });
 }
 
 function toPublicUser(user) {
@@ -1003,6 +1011,12 @@ const API_ROUTES = [
   { m: 'GET',    p: /^\/api\/sessions\/\d+$/, f: (q, r, u) => handleSessionDetail(q, r, u.pathname.split('/')[3]) }
 ];
 
+// 教练简介种子：喻馥雅（课程详情页教练说明 placeholder）
+try {
+  db.db.prepare("UPDATE coaches SET bio = ? WHERE name = '喻馥雅' AND (bio IS NULL OR bio = '')")
+    .run('Hyrox个人精英运动员，40+引体达人，二娃妈妈，素人零基础');
+} catch (e) {}
+
 const server = http.createServer(async (req, res) => {
   try {
     // 请求日志（真机联调排查用；正式环境可移除或按需开启）
@@ -1034,6 +1048,9 @@ const server = http.createServer(async (req, res) => {
     } else if (pathname.startsWith('/video/')) {
       const name = path.basename(pathname);
       serveStatic(res, path.join(__dirname, 'video', name));
+    } else if (pathname.startsWith('/uploads/')) {
+      const name = path.basename(pathname);
+      serveStatic(res, path.join(__dirname, 'uploads', name));
     } else {
       sendJson(res, 404, { code: 404, message: '接口不存在' });
     }

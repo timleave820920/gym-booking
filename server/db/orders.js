@@ -171,10 +171,20 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
         addBalance(order.user_openid, -payFen, '候补排位', order.order_no);
       }
       const waitNo = 'WL' + Date.now() + Math.random().toString(36).slice(2, 6).toUpperCase();
-      db.prepare(`INSERT INTO waitlist (wait_no, user_openid, session_id, amount_fen, status, expire_mode, pay_source, pass_id)
-                  VALUES (?, ?, ?, ?, 'waiting', ?, ?, ?)`)
-        .run(waitNo, order.user_openid, order.session_id, payFen, order.expire_mode || 'start', effMethod, passId);
-      const waitId = db.prepare('SELECT id FROM waitlist WHERE wait_no = ?').get(waitNo).id;
+      // 防唯一约束冲突（UNIQUE user_openid+session_id）：该用户该场次已有 waitlist 记录 → 复用更新
+      // （场景：上次支付失败回滚后残留 cancelled 记录 / 并发双订单；修复 BUG：原直接 INSERT 撞约束 500 → 订单卡 pending）
+      const existingWait = db.prepare("SELECT id FROM waitlist WHERE user_openid = ? AND session_id = ?").get(order.user_openid, order.session_id);
+      let waitId;
+      if (existingWait) {
+        db.prepare("UPDATE waitlist SET wait_no = ?, amount_fen = ?, status = 'waiting', expire_mode = ?, pay_source = ?, pass_id = ? WHERE id = ?")
+          .run(waitNo, payFen, order.expire_mode || 'start', effMethod, passId, existingWait.id);
+        waitId = existingWait.id;
+      } else {
+        db.prepare(`INSERT INTO waitlist (wait_no, user_openid, session_id, amount_fen, status, expire_mode, pay_source, pass_id)
+                    VALUES (?, ?, ?, ?, 'waiting', ?, ?, ?)`)
+          .run(waitNo, order.user_openid, order.session_id, payFen, order.expire_mode || 'start', effMethod, passId);
+        waitId = db.prepare('SELECT id FROM waitlist WHERE wait_no = ?').get(waitNo).id;
+      }
       // 订单金额落实付（会员价），与退款保持严格一致
       db.prepare('UPDATE orders SET wait_id = ?, amount_fen = ?, pay_source = ? WHERE id = ?').run(waitId, payFen, effMethod, orderId);
       wait = db.prepare(`
@@ -212,7 +222,9 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
       const bookingNo = 'BK' + Date.now() + Math.random().toString(36).slice(2, 8).toUpperCase();
       const exists = db.prepare("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ?").get(order.user_openid, order.session_id);
       if (exists) {
-        db.prepare("UPDATE bookings SET status = 'booked', pay_status = 'paid', cancel_reason = '', checkin_at = NULL, pay_source = ?, pass_id = ? WHERE id = ?").run(effMethod, passId, exists.id);
+        // 复用 booking 时同步金额（BUG：原不更新 amount_fen，次卡支付残留旧值 80 → 站内信/展示金额错）
+        db.prepare("UPDATE bookings SET status = 'booked', pay_status = 'paid', cancel_reason = '', checkin_at = NULL, amount_fen = ?, pay_source = ?, pass_id = ? WHERE id = ?")
+          .run(payFen, effMethod, passId, exists.id);
         db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(order.session_id);
         syncSessionStatus(order.session_id);
         booking = db.prepare(`SELECT id, booking_no, amount_fen FROM bookings WHERE id = ?`).get(exists.id);

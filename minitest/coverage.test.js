@@ -202,6 +202,10 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     assert.strictEqual(r.status, 200, 'passes/my 200');
     r = await req('GET', '/api/passes/available?openid=' + U1.openid);
     assert.strictEqual(r.status, 200, 'passes/available 200');
+    // 课程详情页重构字段
+    r = await req('GET', '/api/sessions/1?openid=' + U1.openid);
+    assert.ok(Array.isArray(r.data.session.images), '详情 images 数组');
+    assert.ok(Array.isArray(r.data.session.bookedUsers), '详情 bookedUsers 数组');
     assert.ok(r.data.board, '邀请看板');
 
     // ---- 11 能量币：兑换失败/成功/记录/配置 ----

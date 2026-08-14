@@ -208,6 +208,9 @@ async function runSuite() {
   check('SES-03', '场次详情', ok(r, 200) && r.data.session && r.data.session.course_name, `course=${r.data && r.data.session && r.data.session.course_name}`);
   r = await req('GET', '/api/sessions/9999');
   check('SES-05', '场次不存在', r.status === 404, `status=${r.status}`);
+  // 详情页重构字段（轮播图/地址/教练简介/预约墙）
+  r = await req('GET', `/api/sessions/1?openid=${T.user1.openid}`);
+  check('SES-06', '详情含轮播图/预约墙', ok(r, 200) && Array.isArray(r.data.session.images) && Array.isArray(r.data.session.bookedUsers) && typeof r.data.session.coach_bio === 'string', `img=${JSON.stringify(r.data && r.data.session && r.data.session.images)} users=${r.data && r.data.session && r.data.session.bookedUsers && r.data.session.bookedUsers.length}`);
 
   // 造一个今天的测试场次（有余位）
   const mkSession = (date, start, end, cap, booked) => new Promise((resolve) => {
@@ -604,18 +607,34 @@ async function runSuite() {
   check('PASS-08', '退订退次', ok(r, 200), `msg=${r.data && r.data.message}`);
   r = await req('GET', `/api/passes/my?openid=${P.openid}`);
   check('PASS-08b', '退次后剩余36', r.data.pass.remaining === 36, `rem=${r.data.pass.remaining}`);
+  // 退订后重订同一场次（exists 复用 booking）→ 金额必须为 0（回归：原复用不更新 amount_fen 残留旧价）
+  r = await req('POST', '/api/orders', { openid: P.openid, sessionId: ctx.sessionId, amountFen: 6800, orderType: 'book' });
+  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P.openid, payMethod: 'pass' });
+  check('PASS-08c', '重订(复用booking)扣次金额0', ok(r, 200) && r.data.order.amount_fen === 0 && r.data.booking.amount_fen === 0, `orderAmt=${r.data && r.data.order && r.data.order.amount_fen} bookingAmt=${r.data && r.data.booking && r.data.booking.amount_fen}`);
+  r = await req('GET', `/api/passes/my?openid=${P.openid}`);
+  check('PASS-08d', '重订扣次后剩余35', r.data.pass.remaining === 35, `rem=${r.data.pass.remaining}`);
   // 候补用次卡 → 退出退次
   r = await req('POST', '/api/orders', { openid: P.openid, sessionId: ctx.fullSessionId, amountFen: 6800, orderType: 'waitlist' });
   r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P.openid, payMethod: 'wxpay' });
   check('PASS-10', '候补用次卡', ok(r, 200) && r.data.wait && r.data.wait.status === 'waiting', `msg=${r.data && r.data.message}`);
   r = await req('GET', `/api/passes/my?openid=${P.openid}`);
-  check('PASS-10b', '候补扣次后剩余35', r.data.pass.remaining === 35, `rem=${r.data.pass.remaining}`);
+  check('PASS-10b', '候补扣次后剩余34', r.data.pass.remaining === 34, `rem=${r.data.pass.remaining}`);
+  // 已排队 → 再次下单被拦截（createOrder 已有 waiting 记录检查）
+  r = await req('POST', '/api/orders', { openid: P.openid, sessionId: ctx.fullSessionId, amountFen: 6800, orderType: 'waitlist' });
+  check('PASS-10c', '已排队重复下单被拦截', r.status === 400 && (r.data.message || '').includes('候补队列'), `msg=${r.data && r.data.message}`);
   r = await req('GET', `/api/waitlist?openid=${P.openid}`);
   const passWait = (r.data.waits || []).find(w => w.session_id === ctx.fullSessionId && w.status === 'waiting');
   r = await req('DELETE', `/api/waitlist/${passWait.id}?openid=${P.openid}`);
   check('PASS-11', '退出候补退次', ok(r, 200), `msg=${r.data && r.data.message}`);
   r = await req('GET', `/api/passes/my?openid=${P.openid}`);
-  check('PASS-11b', '退次后剩余36', r.data.pass.remaining === 36, `rem=${r.data.pass.remaining}`);
+  check('PASS-11b', '退次后剩余35', r.data.pass.remaining === 35, `rem=${r.data.pass.remaining}`);
+  // 退出候补后（waitlist 残留 cancelled）再下单支付 → exists 复用不 500、金额 0（回归：原 INSERT 撞 UNIQUE 约束 500）
+  r = await req('POST', '/api/orders', { openid: P.openid, sessionId: ctx.fullSessionId, amountFen: 6800, orderType: 'waitlist' });
+  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P.openid, payMethod: 'pass' });
+  check('PASS-11c', 'cancelled残留重付不500且金额0', ok(r, 200) && r.data.wait && r.data.wait.amount_fen === 0 && r.data.order.amount_fen === 0, `msg=${r.data && r.data.message} waitAmt=${r.data && r.data.wait && r.data.wait.amount_fen} orderAmt=${r.data && r.data.order && r.data.order.amount_fen}`);
+  r = await req('DELETE', `/api/waitlist/${r.data.wait.id}?openid=${P.openid}`);
+  r = await req('GET', `/api/passes/my?openid=${P.openid}`);
+  check('PASS-11d', '重付退出后剩余35', r.data.pass.remaining === 35, `rem=${r.data.pass.remaining}`);
   // 无卡用户订课 → 非 pass（走微信）；注：tomorrowSessionId 已被候补节置满，另造新场次
   const passFreeSid = await mkSession(tomorrowStr, '10:30', '11:30', 5, 0);
   r = await req('POST', '/api/orders', { openid: P2.openid, sessionId: passFreeSid, amountFen: 6800, orderType: 'book' });
