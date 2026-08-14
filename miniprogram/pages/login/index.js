@@ -364,6 +364,8 @@ Page({
             phone: user.phone || '',
             openid: user.openid || openid,
             role: user.role || 'student',
+            // 教练账号（如「喻馥雅」）→ 绑定教练档案 id=1（教练端课表按 coach_id 加载）
+            coach_id: (user.role === 'coach') ? 1 : undefined,
             totalClasses: user.total_classes || 32,
             totalHours: user.total_hours || '28.5h',
             totalCalories: user.total_calories || '12,480',
@@ -385,8 +387,12 @@ Page({
             icon: 'none'
           });
           setTimeout(() => {
-            // 登录完成 → 直接进入课程页（储值奖励庆祝弹框已移除）
-            wx.switchTab({ url: '/pages/student-courses/index' });
+            // 登录完成 → 按角色分流：教练进教练端课表，学员进预约页
+            if (userInfo.role === 'coach') {
+              wx.redirectTo({ url: '/pages/coach-schedule/index' });
+            } else {
+              wx.switchTab({ url: '/pages/student-courses/index' });
+            }
           }, 600);
         }).catch((err) => {
           this.setData({ loggingIn: false });
