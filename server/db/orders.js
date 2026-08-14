@@ -8,12 +8,13 @@ const { getMemberLevel, addBalance, applyRecharge, refundOrderMoney, calcRecharg
 const { getSessionById, syncSessionStatus } = require('./courses');
 const { rewardInviter } = require('./invite');
 const { sendMessage } = require('./messages');
+const { listPassPackages, getUserPass, consumePass, refundPass, applyPassPurchase } = require('./passes');
 const MEMBER_CONFIG = require('../member-config.js');
 const ENERGY_CONFIG = require('../energy-config.js');
 
 const ORDER_SELECT = `
   SELECT o.id, o.order_no, o.user_openid, o.session_id, o.booking_id, o.wait_id, o.order_type,
-         o.amount_fen, o.status, o.pay_method, o.paid_at, o.refunded_at, o.cancel_reason, o.created_at,
+         o.amount_fen, o.status, o.pay_method, o.pay_source, o.paid_at, o.refunded_at, o.cancel_reason, o.created_at,
          COALESCE(s.date, '') AS date, COALESCE(s.start_time, '') AS start_time, COALESCE(s.end_time, '') AS end_time,
          COALESCE(c.name, '储值充值') AS course_name, COALESCE(c.level, 0) AS level, COALESCE(c.duration_min, 0) AS duration_min,
          COALESCE(co.name, '') AS coach_name, COALESCE(v.name, '') AS venue_name
@@ -35,6 +36,18 @@ function genOrderNo() {
 function createOrder({ user_openid, session_id, amount_fen = 0, order_type = 'book', expire_mode = 'start' }) {
   const user = findUserByOpenid(user_openid);
   if (!user) return { ok: false, error: '用户不存在，请先登录' };
+
+  // 次卡购买：无场次依赖，按套餐金额校验
+  if (order_type === 'pass') {
+    const pkg = listPassPackages().find(p => p.price_fen === amount_fen);
+    if (!pkg) return { ok: false, error: '无效的次卡套餐' };
+    const orderNo = genOrderNo();
+    db.prepare(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status)
+                VALUES (?, ?, NULL, ?, ?, 'pending')`)
+      .run(orderNo, user_openid, order_type, amount_fen);
+    const order = db.prepare(`${ORDER_SELECT} WHERE o.id = last_insert_rowid()`).get();
+    return { ok: true, order };
+  }
 
   // 储值充值：无场次依赖，校验套餐金额
   if (order_type === 'recharge') {
@@ -98,9 +111,13 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
     return { ok: false, error: '订单已失效，无法支付' };
   }
 
+  // 次卡优先（设计方案 R3/D3）：订课/候补且用户有可用次卡 → 强制用次卡（不可跳过）
+  const canUsePass = (order.order_type === 'book' || order.order_type === 'waitlist') && !!getUserPass(order.user_openid);
+  const effMethod = canUsePass ? 'pass' : pay_method;
+
   // 会员价预校验：储值支付需余额充足（不足直接拒绝，避免事务回滚）
   // 订课 + 候补都校验（修复 BUG-LEDGER #9：候补 balance 支付原不校验不扣款，退出却退款=刷钱漏洞）
-  if ((order.order_type === 'book' || order.order_type === 'waitlist') && pay_method === 'balance'
+  if ((order.order_type === 'book' || order.order_type === 'waitlist') && effMethod === 'balance'
       && MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {
     const lv = getMemberLevel(order.user_openid);
     // 会员价 = 原价 × 折扣率，向下取整到元（无角分）
@@ -114,11 +131,24 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
   let booking = null, wait = null, recharge = null;
   db.exec('BEGIN');
   try {
-    // 1. 订单标记已支付
-    db.prepare("UPDATE orders SET status = 'paid', pay_method = ?, paid_at = datetime('now','localtime') WHERE id = ?")
-      .run(pay_method, orderId);
+    // 1. 订单标记已支付（pay_source 记录实付来源：pass / balance / wxpay）
+    db.prepare("UPDATE orders SET status = 'paid', pay_method = ?, pay_source = ?, paid_at = datetime('now','localtime') WHERE id = ?")
+      .run(effMethod, effMethod, orderId);
 
-    if (order.order_type === 'recharge') {
+    if (order.order_type === 'pass') {
+      // 次卡购买：单卡累加发卡（次数叠加 + 作废日期顺延）
+      const pkg = listPassPackages().find(p => p.price_fen === order.amount_fen);
+      if (!pkg) {
+        db.exec('ROLLBACK');
+        return { ok: false, error: '无效的次卡套餐' };
+      }
+      const r = applyPassPurchase({ openid: order.user_openid, orderId, packageId: pkg.id });
+      if (!r.ok) {
+        db.exec('ROLLBACK');
+        return { ok: false, error: r.error };
+      }
+      recharge = { pass: r.pass, added: r.added, pkgName: pkg.name };
+    } else if (order.order_type === 'recharge') {
       // 储值充值：发放储值 + 写充值记录（每档首充送30% / 复充送10%，比例在配置）
       const { plan, bonus, isFirst } = calcRechargeBonus(order.user_openid, order.amount_fen);
       if (!plan) {
@@ -128,21 +158,25 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
       recharge = applyRecharge({ user_openid: order.user_openid, order_id: orderId, amount_fen: order.amount_fen, bonus_fen: bonus });
       recharge = { ...recharge, isFirst, bonus, rate: isFirst ? plan.firstBonusRate : plan.repeatBonusRate };
     } else if (order.order_type === 'waitlist') {
-      // 候补排位：余额支付按会员价扣款（产品决策 2026-08-13：候补余额支付享会员价）
+      // 候补排位：次卡扣次 / 余额按会员价扣款（产品决策 2026-08-13：候补余额支付享会员价）
       // 修复 BUG-LEDGER #9：原实现不扣款，退出候补却退款=刷钱漏洞
       let payFen = order.amount_fen;
-      if (pay_method === 'balance' && MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {
+      let passId = 0;
+      if (effMethod === 'pass') {
+        payFen = 0;
+        passId = consumePass(order.user_openid) || 0;
+      } else if (pay_method === 'balance' && MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {
         const lv = getMemberLevel(order.user_openid);
         if (lv) payFen = Math.floor(order.amount_fen * lv.discount / 100) * 100;
         addBalance(order.user_openid, -payFen, '候补排位', order.order_no);
       }
       const waitNo = 'WL' + Date.now() + Math.random().toString(36).slice(2, 6).toUpperCase();
-      db.prepare(`INSERT INTO waitlist (wait_no, user_openid, session_id, amount_fen, status, expire_mode)
-                  VALUES (?, ?, ?, ?, 'waiting', ?)`)
-        .run(waitNo, order.user_openid, order.session_id, payFen, order.expire_mode || 'start');
+      db.prepare(`INSERT INTO waitlist (wait_no, user_openid, session_id, amount_fen, status, expire_mode, pay_source, pass_id)
+                  VALUES (?, ?, ?, ?, 'waiting', ?, ?, ?)`)
+        .run(waitNo, order.user_openid, order.session_id, payFen, order.expire_mode || 'start', effMethod, passId);
       const waitId = db.prepare('SELECT id FROM waitlist WHERE wait_no = ?').get(waitNo).id;
       // 订单金额落实付（会员价），与退款保持严格一致
-      db.prepare('UPDATE orders SET wait_id = ?, amount_fen = ? WHERE id = ?').run(waitId, payFen, orderId);
+      db.prepare('UPDATE orders SET wait_id = ?, amount_fen = ?, pay_source = ? WHERE id = ?').run(waitId, payFen, effMethod, orderId);
       wait = db.prepare(`
         SELECT w.id, w.wait_no, w.session_id, w.amount_fen, w.status, w.created_at,
                s.date, s.start_time, s.end_time, c.name AS course_name
@@ -160,9 +194,13 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
         db.exec('ROLLBACK');
         return { ok: false, error: '您已预订该课程，请勿重复支付' };
       }
-      // 会员价：仅储值支付享受等级折扣（member-config.js 配置）
+      // 会员价：仅储值支付享受等级折扣（member-config.js 配置）；次卡支付金额为 0
       let payFen = order.amount_fen;
-      if (pay_method === 'balance' && MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {
+      let passId = 0;
+      if (effMethod === 'pass') {
+        payFen = 0;
+        passId = consumePass(order.user_openid) || 0;
+      } else if (pay_method === 'balance' && MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {
         const lv = getMemberLevel(order.user_openid);
         if (lv) {
           // 会员价 = 原价 × 折扣率，向下取整到元（无角分）
@@ -174,20 +212,20 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
       const bookingNo = 'BK' + Date.now() + Math.random().toString(36).slice(2, 8).toUpperCase();
       const exists = db.prepare("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ?").get(order.user_openid, order.session_id);
       if (exists) {
-        db.prepare("UPDATE bookings SET status = 'booked', pay_status = 'paid', cancel_reason = '', checkin_at = NULL WHERE id = ?").run(exists.id);
+        db.prepare("UPDATE bookings SET status = 'booked', pay_status = 'paid', cancel_reason = '', checkin_at = NULL, pay_source = ?, pass_id = ? WHERE id = ?").run(effMethod, passId, exists.id);
         db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(order.session_id);
         syncSessionStatus(order.session_id);
         booking = db.prepare(`SELECT id, booking_no, amount_fen FROM bookings WHERE id = ?`).get(exists.id);
       } else {
-        db.prepare(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status)
-                    VALUES (?, ?, ?, ?, 'booked', 'paid')`)
-          .run(bookingNo, order.user_openid, order.session_id, payFen);
+        db.prepare(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status, pay_source, pass_id)
+                    VALUES (?, ?, ?, ?, 'booked', 'paid', ?, ?)`)
+          .run(bookingNo, order.user_openid, order.session_id, payFen, effMethod, passId);
         booking = db.prepare('SELECT id, booking_no, amount_fen FROM bookings WHERE id = last_insert_rowid()').get();
         db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(order.session_id);
         syncSessionStatus(order.session_id);
       }
-      // 订单金额落实付（余额支付=会员折扣价；微信支付=原价），与 booking/退款保持严格一致
-      db.prepare('UPDATE orders SET amount_fen = ?, booking_id = ? WHERE id = ?').run(payFen, booking.id, orderId);
+      // 订单金额落实付（次卡=0/余额=会员价/微信=原价），与 booking/退款保持严格一致
+      db.prepare('UPDATE orders SET amount_fen = ?, booking_id = ?, pay_source = ? WHERE id = ?').run(payFen, booking.id, effMethod, orderId);
     }
     db.exec('COMMIT');
   } catch (e) {
@@ -325,11 +363,11 @@ function promoteFromWaitlist(sessionId) {
   const waiting = db.prepare("SELECT * FROM waitlist WHERE session_id = ? AND status = 'waiting' ORDER BY created_at, id LIMIT 1").get(sessionId);
   if (!waiting) return null;
 
-  // 生成订课单号并创建 booking
+  // 生成订课单号并创建 booking（沿用排位支付来源：次卡/余额/微信，不重复扣次）
   const bookingNo = 'BK' + Date.now() + Math.random().toString(36).slice(2, 8).toUpperCase();
-  db.prepare(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status)
-              VALUES (?, ?, ?, ?, 'booked', 'paid')`)
-    .run(bookingNo, waiting.user_openid, waiting.session_id, waiting.amount_fen);
+  db.prepare(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status, pay_source, pass_id)
+              VALUES (?, ?, ?, ?, 'booked', 'paid', ?, ?)`)
+    .run(bookingNo, waiting.user_openid, waiting.session_id, waiting.amount_fen, waiting.pay_source || 'wxpay', waiting.pass_id || 0);
   const bookingId = db.prepare('SELECT id FROM bookings WHERE booking_no = ?').get(bookingNo).id;
   // 扣减余位（退订时已 +1，这里 -1 抵消，保持满员状态）
   db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(sessionId);
@@ -426,8 +464,24 @@ function cancelWaitlist(openid, waitId) {
     db.exec('ROLLBACK');
     throw e;
   }
-  // 事务外退钱（余额支付退回余额）
-  if (refundOrder) refundOrderMoney(refundOrder.id);
+  // 事务外对称退：次卡→退次（卡已过期则作废清理）；余额→退余额；微信→原路（模拟）
+  if (refundOrder) {
+    const o = db.prepare('SELECT pay_source FROM orders WHERE id = ?').get(refundOrder.id);
+    if (o && o.pay_source === 'pass') {
+      const r = refundPass(wait.pass_id);
+      if (r === 'refunded') {
+        sendMessage({
+          user_openid: openid, type: 'pass', title: '次卡已退回',
+          content: '退出候补成功，已退回 1 次次卡次数',
+          biz_type: 'pass', biz_id: wait.pass_id || 0, jump_url: '/pages/member-card/index',
+          dedup_key: `pass_refund:${waitId}`
+        });
+      }
+      // 'expired'：卡已过期 → 次数作废清理（不提示退回）
+    } else {
+      refundOrderMoney(refundOrder.id);
+    }
+  }
   return { ok: true };
 }
 
@@ -458,7 +512,7 @@ function refundExpiredWaitlist() {
   // 截止时间 = 开课时间 - 所选偏移（start=开课时 / 1h / 2h）
   const expired = db.prepare(`
     SELECT * FROM (
-      SELECT w.id, w.user_openid, w.amount_fen, s.course_id, s.start_time, c.name AS course_name,
+      SELECT w.id, w.user_openid, w.amount_fen, w.pass_id, s.course_id, s.start_time, c.name AS course_name,
              (SELECT o.id FROM orders o WHERE o.wait_id = w.id AND o.status = 'paid' LIMIT 1) AS order_id,
              CASE w.expire_mode
                WHEN '1h' THEN datetime(s.date || ' ' || s.start_time, '-60 minutes')
@@ -482,12 +536,27 @@ function refundExpiredWaitlist() {
       db.exec('ROLLBACK');
       throw e;
     }
-    // 事务外退钱（余额支付退回余额）
-    if (row.order_id) refundOrderMoney(row.order_id);
+    // 事务外对称退：次卡→退次（卡已过期作废）；余额→退余额
+    if (row.order_id) {
+      const o = db.prepare('SELECT pay_source FROM orders WHERE id = ?').get(row.order_id);
+      if (o && o.pay_source === 'pass') {
+        const r = refundPass(row.pass_id);
+        if (r === 'refunded') {
+          sendMessage({
+            user_openid: row.user_openid, type: 'pass', title: '次卡已退回',
+            content: '候补过期未转正，已退回 1 次次卡次数',
+            biz_type: 'pass', biz_id: row.pass_id || 0, jump_url: '/pages/member-card/index',
+            dedup_key: `pass_refund_expire:${row.id}`
+          });
+        }
+      } else {
+        refundOrderMoney(row.order_id);
+      }
+    }
     // 站内信：候补过期退款
     sendMessage({
       user_openid: row.user_openid, type: 'waitlist', title: '候补退款',
-      content: `「${row.course_name}」${row.start_time} 开课前未排到空位，¥${(row.amount_fen / 100).toFixed(0)} 已自动退回`,
+      content: `「${row.course_name}」${row.start_time} 开课前未排到空位，已自动退回`,
       biz_type: 'order', biz_id: row.id, jump_url: '/pages/student-orders/index',
       dedup_key: `refund_expire:${row.id}`
     });

@@ -21,7 +21,8 @@ Page({
       { id: '1h', name: '课前 1 小时', desc: '提前 1 小时' },
       { id: '2h', name: '课前 2 小时', desc: '提前 2 小时' }
     ],
-    selectedExpire: 'start'
+    selectedExpire: 'start',
+    passHint: ''          // 次卡优先提示（有可用次卡时显示）
   },
 
   onLoad() {
@@ -35,6 +36,19 @@ Page({
     };
     this.setData({ course });
     this.loadMemberInfo();
+    this.loadPassHint();
+  },
+
+  // 次卡优先：有可用次卡 → 本次将自动扣次（后端强制）
+  loadPassHint() {
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+    if (!openid) return;
+    api.getPassAvailable(openid).then((res) => {
+      if (res.available > 0 && this.data.course.mode !== 'waitlist' || (res.available > 0)) {
+        this.setData({ passHint: `次卡优先：本次将自动扣 1 次（剩余 ${res.available} 次）` });
+      }
+    }).catch(() => {});
   },
 
   // 加载会员等级 + 储值余额 → 计算折扣价；余额够则默认选中余额支付

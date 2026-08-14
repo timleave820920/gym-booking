@@ -46,6 +46,38 @@ try { db.exec("ALTER TABLE waitlist ADD COLUMN expire_mode TEXT DEFAULT 'start'"
 try { db.exec("ALTER TABLE orders ADD COLUMN expire_mode TEXT DEFAULT 'start'"); } catch (e) {}
 try { db.exec('ALTER TABLE users ADD COLUMN coin_balance INTEGER DEFAULT 0'); } catch (e) {}
 try { db.exec('ALTER TABLE users ADD COLUMN level_lv INTEGER DEFAULT 1'); } catch (e) {}
+// 次卡包：支付来源（pass=次卡 / balance / wxpay）与扣次来源卡
+try { db.exec("ALTER TABLE bookings ADD COLUMN pay_source TEXT DEFAULT 'wxpay'"); } catch (e) {}
+try { db.exec('ALTER TABLE bookings ADD COLUMN pass_id INTEGER DEFAULT 0'); } catch (e) {}
+try { db.exec("ALTER TABLE waitlist ADD COLUMN pay_source TEXT DEFAULT 'wxpay'"); } catch (e) {}
+try { db.exec('ALTER TABLE waitlist ADD COLUMN pass_id INTEGER DEFAULT 0'); } catch (e) {}
+try { db.exec("ALTER TABLE orders ADD COLUMN pay_source TEXT DEFAULT 'balance'"); } catch (e) {}
+
+// ===== 次卡包表 =====
+db.exec(`
+  CREATE TABLE IF NOT EXISTS class_packages (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL UNIQUE,
+    total_count INTEGER NOT NULL,
+    valid_days  INTEGER NOT NULL,
+    price_fen   INTEGER NOT NULL,
+    desc        TEXT DEFAULT '',
+    active      INTEGER DEFAULT 1,
+    created_at  TEXT DEFAULT (datetime('now','localtime'))
+  );
+  CREATE TABLE IF NOT EXISTS user_passes (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_openid TEXT NOT NULL,
+    order_id    INTEGER NOT NULL,          -- 最近一次购买订单（溯源）
+    total_count INTEGER NOT NULL,          -- 当前累计次数
+    remaining   INTEGER NOT NULL,
+    expires_at  TEXT NOT NULL,             -- 作废时间（顺延累加，23:59:59）
+    status      TEXT DEFAULT 'active',     -- active / expired
+    created_at  TEXT DEFAULT (datetime('now','localtime')),
+    FOREIGN KEY (user_openid) REFERENCES users(openid)
+  );
+  CREATE INDEX IF NOT EXISTS idx_user_passes_user ON user_passes(user_openid, status);
+`);
 
 // ===== 会员体系表 =====
 

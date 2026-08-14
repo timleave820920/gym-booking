@@ -1,0 +1,59 @@
+<view class="page">
+  <view class="page-pad pt-safe">
+    <view class="head-row">
+      <view class="flex-row back-wrap" bindtap="goBack">
+        <text class="icon-back"></text>
+        <text class="page-title">次卡包</text>
+      </view>
+    </view>
+
+    <!-- 当前卡 -->
+    <view class="my-pass" wx:if="{{currentPass}}">
+      <view class="mp-left">
+        <text class="mp-label">我的次卡</text>
+        <text class="mp-num">{{currentPass.remaining}} <text class="mp-unit">次</text></text>
+        <text class="mp-expire" wx:if="{{!currentPass.expired}}">距过期 {{currentPass.daysLeft}} 天 · {{currentPass.expiresAt.slice(0, 10)}}</text>
+        <text class="mp-expire mp-danger" wx:else>已过期（剩余次数作废）</text>
+      </view>
+      <view class="mp-tag" wx:if="{{!currentPass.expired}}">使用中</view>
+      <view class="mp-tag mp-tag-gray" wx:else>已过期</view>
+    </view>
+
+    <!-- 档位 -->
+    <view class="pkg-list">
+      <view class="pkg {{selected.id === item.id ? 'pkg-on' : ''}}" wx:for="{{packages}}" wx:key="id"
+            data-id="{{item.id}}" bindtap="selectPkg">
+        <view class="pkg-head flex-between">
+          <text class="pkg-name">{{item.name}}</text>
+          <text class="pkg-price">¥{{item.price_fen / 100}}</text>
+        </view>
+        <view class="pkg-meta">{{item.total_count}} 次 · {{item.valid_days}} 天有效</view>
+        <text class="pkg-desc">{{item.desc}}</text>
+        <view class="pkg-check" wx:if="{{selected.id === item.id}}">✓</view>
+      </view>
+    </view>
+
+    <!-- 规则提示 -->
+    <view class="rule-tip">
+      <text class="rt-dot"></text>
+      <text class="rt-txt">订课时自动优先扣次卡次数，次卡不足或过期后依次扣储值余额、微信支付；重复购买次数与有效期叠加（作废日期顺延）。</text>
+    </view>
+    <view class="rule-tip rt-warn">
+      <text class="rt-dot"></text>
+      <text class="rt-txt">次卡逾期剩余次数作废，不予退款，请合理规划使用。</text>
+    </view>
+
+    <view class="spacer"></view>
+  </view>
+
+  <!-- 底部 CTA -->
+  <view class="cta-bar flex-between">
+    <view class="flex-col">
+      <text class="cta-price" wx:if="{{selected}}">¥{{selected.price_fen / 100}}</text>
+      <text class="cta-sub">{{selected ? selected.total_count + ' 次 · ' + selected.valid_days + ' 天' : '请选择档位'}}</text>
+    </view>
+    <view class="pay-btn {{paying ? 'btn-disabled' : ''}}" bindtap="buy">
+      <text>{{paying ? '处理中...' : '立即购买'}}</text>
+    </view>
+  </view>
+</view>

@@ -16,6 +16,9 @@
       <text class="amount-value">¥ {{totalPrice || course.price}}</text>
     </view>
 
+    <!-- 次卡优先提示 -->
+    <view class="pass-hint" wx:if="{{passHint}}">{{passHint}}</view>
+
     <!-- 支付方式 -->
     <view class="section-title">选择支付方式</view>
     <view class="method-list">

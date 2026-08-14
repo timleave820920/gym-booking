@@ -16,6 +16,24 @@
       </view>
     </view>
 
+    <!-- 次卡区块（D10：会员卡体现剩余次数与过期天数） -->
+    <view class="pass-block" wx:if="{{passInfo}}">
+      <view class="pass-left">
+        <text class="pass-label">次卡剩余</text>
+        <text class="pass-num">{{passInfo.remaining}} <text class="pass-unit">次</text></text>
+      </view>
+      <view class="pass-right">
+        <text class="pass-expire" wx:if="{{!passInfo.expired}}">距过期 {{passInfo.daysLeft}} 天</text>
+        <text class="pass-expire pass-expired" wx:else>已过期 · 剩余作废</text>
+        <text class="pass-date">{{passInfo.expiresAt.slice(0, 10)}} 到期</text>
+        <view class="pass-go" bindtap="goPass">去购买 ›</view>
+      </view>
+    </view>
+    <view class="pass-block pass-none" wx:else>
+      <text class="pass-label">暂无次卡</text>
+      <view class="pass-go" bindtap="goPass">去购买 ›</view>
+    </view>
+
     <!-- 会员码 -->
     <view class="scan-card">
       <view class="qr-box"><text class="qr-txt">▦</text></view>

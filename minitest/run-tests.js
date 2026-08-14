@@ -151,6 +151,7 @@ async function runSuite() {
     const db = require('../server/db.js');
     db.db.prepare("DELETE FROM orders WHERE user_openid LIKE 'uid_test_%'").run();
     db.db.prepare("DELETE FROM bookings WHERE user_openid LIKE 'uid_test_%'").run();
+    db.db.prepare("DELETE FROM user_passes WHERE user_openid LIKE 'uid_test_%'").run();
     db.db.prepare("DELETE FROM waitlist WHERE user_openid LIKE 'uid_test_%'").run();
     db.db.prepare("DELETE FROM course_sessions WHERE source='test_suite'").run();
     db.db.prepare("DELETE FROM coin_logs WHERE user_openid LIKE 'uid_test_%'").run();
@@ -572,11 +573,73 @@ async function runSuite() {
   r = await req('POST', '/api/coin/exchange', { openid: T.user2.openid, itemId: 'nope' });
   check('COIN-09', '无效奖品拒绝', r.status === 400, `msg=${r.data && r.data.message}`);
 
+  // ===== 12. 限时次卡包（单卡累加 / 扣次退次 / 候补 / 过期作废）=====
+  console.log('\n── 12. 限时次卡包 ──');
+  const P = { openid: 'uid_test_pass1', nickname: '次卡测试' };
+  const P2 = { openid: 'uid_test_pass2', nickname: '无卡用户' };
+  await req('POST', '/api/auth/login', P);
+  await req('POST', '/api/auth/login', P2);
+  r = await req('GET', '/api/passes/packages');
+  check('PASS-01', '档位列表(两档含说明)', ok(r, 200) && r.data.packages.length === 2 && r.data.packages.some(pkg => pkg.price_fen === 90000) && r.data.packages.every(pkg => pkg.desc), `n=${r.data && r.data.packages && r.data.packages.length}`);
+  // 购买 12 次档（模拟微信支付）
+  r = await req('POST', '/api/orders', { openid: P.openid, orderType: 'pass', amountFen: 90000 });
+  check('PASS-02a', '次卡下单', r.status === 201 && r.data.order.status === 'pending', `msg=${r.data && r.data.message}`);
+  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P.openid, payMethod: 'wxpay' });
+  check('PASS-02', '支付发卡(12次)', ok(r, 200) && r.data.recharge && r.data.recharge.pass.remaining === 12, `rem=${r.data && r.data.recharge && r.data.recharge.pass && r.data.recharge.pass.remaining}`);
+  // 重复购买 24 次档 → 累加 36
+  r = await req('POST', '/api/orders', { openid: P.openid, orderType: 'pass', amountFen: 180000 });
+  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P.openid, payMethod: 'wxpay' });
+  check('PASS-03', '重复购买累加(36次)', ok(r, 200) && r.data.recharge.pass.remaining === 36, `rem=${r.data && r.data.recharge && r.data.recharge.pass.remaining}`);
+  r = await req('GET', `/api/passes/my?openid=${P.openid}`);
+  check('PASS-03b', '我的次卡(36次/天数)', ok(r, 200) && r.data.pass.hasPass && r.data.pass.remaining === 36 && r.data.pass.daysLeft > 50, `rem=${r.data && r.data.pass && r.data.pass.remaining} days=${r.data && r.data.pass && r.data.pass.daysLeft}`);
+  // 订课自动扣次（有卡强制 pass，金额 0）
+  r = await req('POST', '/api/orders', { openid: P.openid, sessionId: ctx.sessionId, amountFen: 6800, orderType: 'book' });
+  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P.openid, payMethod: 'balance' });
+  check('PASS-05', '订课自动扣次(pass/¥0)', ok(r, 200) && r.data.order.pay_source === 'pass' && r.data.order.amount_fen === 0, `src=${r.data && r.data.order && r.data.order.pay_source} amt=${r.data && r.data.order && r.data.order.amount_fen}`);
+  const passBookingId = r.data.booking.id;
+  r = await req('GET', `/api/passes/my?openid=${P.openid}`);
+  check('PASS-05b', '扣次后剩余35', r.data.pass.remaining === 35, `rem=${r.data.pass.remaining}`);
+  // 退订退次
+  r = await req('DELETE', `/api/bookings/${passBookingId}?openid=${P.openid}`);
+  check('PASS-08', '退订退次', ok(r, 200), `msg=${r.data && r.data.message}`);
+  r = await req('GET', `/api/passes/my?openid=${P.openid}`);
+  check('PASS-08b', '退次后剩余36', r.data.pass.remaining === 36, `rem=${r.data.pass.remaining}`);
+  // 候补用次卡 → 退出退次
+  r = await req('POST', '/api/orders', { openid: P.openid, sessionId: ctx.fullSessionId, amountFen: 6800, orderType: 'waitlist' });
+  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P.openid, payMethod: 'wxpay' });
+  check('PASS-10', '候补用次卡', ok(r, 200) && r.data.wait && r.data.wait.status === 'waiting', `msg=${r.data && r.data.message}`);
+  r = await req('GET', `/api/passes/my?openid=${P.openid}`);
+  check('PASS-10b', '候补扣次后剩余35', r.data.pass.remaining === 35, `rem=${r.data.pass.remaining}`);
+  r = await req('GET', `/api/waitlist?openid=${P.openid}`);
+  const passWait = (r.data.waits || []).find(w => w.session_id === ctx.fullSessionId && w.status === 'waiting');
+  r = await req('DELETE', `/api/waitlist/${passWait.id}?openid=${P.openid}`);
+  check('PASS-11', '退出候补退次', ok(r, 200), `msg=${r.data && r.data.message}`);
+  r = await req('GET', `/api/passes/my?openid=${P.openid}`);
+  check('PASS-11b', '退次后剩余36', r.data.pass.remaining === 36, `rem=${r.data.pass.remaining}`);
+  // 无卡用户订课 → 非 pass（走微信）；注：tomorrowSessionId 已被候补节置满，另造新场次
+  const passFreeSid = await mkSession(tomorrowStr, '10:30', '11:30', 5, 0);
+  r = await req('POST', '/api/orders', { openid: P2.openid, sessionId: passFreeSid, amountFen: 6800, orderType: 'book' });
+  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P2.openid, payMethod: 'wxpay' });
+  check('PASS-13', '无卡走原支付方式(非pass)', ok(r, 200) && r.data.order.pay_source !== 'pass', `src=${r.data && r.data.order && r.data.order.pay_source}`);
+  // 过期作废
+  db.db.prepare(`UPDATE user_passes SET expires_at = datetime('now','localtime','-1 day') WHERE user_openid = ?`).run(P.openid);
+  const expiredN = db.expireOverduePasses();
+  check('PASS-12', '过期任务作废', expiredN >= 1, `n=${expiredN}`);
+  r = await req('GET', `/api/passes/my?openid=${P.openid}`);
+  check('PASS-12b', '过期状态展示', r.data.pass.expired === true, `expired=${r.data.pass && r.data.pass.expired}`);
+  // 次卡测试用户清理
+  db.db.prepare("DELETE FROM user_passes WHERE user_openid LIKE 'uid_test_pass%'").run();
+  db.db.prepare("DELETE FROM orders WHERE user_openid LIKE 'uid_test_pass%'").run();
+  db.db.prepare("DELETE FROM bookings WHERE user_openid LIKE 'uid_test_pass%'").run();
+  db.db.prepare("DELETE FROM waitlist WHERE user_openid LIKE 'uid_test_pass%'").run();
+  db.db.prepare("DELETE FROM users WHERE openid LIKE 'uid_test_pass%'").run();
+
   // ===== 清理测试数据 =====
   console.log('\n── 11. 清理测试数据 ──');
   try {
     db.db.prepare("DELETE FROM orders WHERE user_openid LIKE 'uid_test_%'").run();
     db.db.prepare("DELETE FROM bookings WHERE user_openid LIKE 'uid_test_%'").run();
+    db.db.prepare("DELETE FROM user_passes WHERE user_openid LIKE 'uid_test_%'").run();
     db.db.prepare("DELETE FROM waitlist WHERE user_openid LIKE 'uid_test_%'").run();
     db.db.prepare("DELETE FROM course_sessions WHERE source='test_suite'").run();
     db.db.prepare("DELETE FROM invitations WHERE inviter LIKE 'uid_test_%' OR invitee LIKE 'uid_test_%'").run();

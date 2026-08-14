@@ -258,6 +258,17 @@ module.exports = {
   getInviteStats(openid) {
     return localRequest('/api/invite/stats?openid=' + openid, 'GET');
   },
+  // ===== 次卡包 =====
+  getPassPackages() {
+    return localRequest('/api/passes/packages', 'GET');
+  },
+  getMyPass(openid) {
+    return localRequest('/api/passes/my?openid=' + openid, 'GET');
+  },
+  getPassAvailable(openid) {
+    return localRequest('/api/passes/available?openid=' + openid, 'GET');
+  },
+
   bindInvite(data) {
     return localRequest('/api/invite', 'POST', data);
   },

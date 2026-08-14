@@ -10,6 +10,7 @@ const { getMemberLevel, addBalance, refundOrderMoney, hasRechargedPlan, calcRech
 const { listInvitationDetails, inviteBoardStats, bindInvitation, rewardInviter, getInviteStats } = require('./db/invite');
 const { listCoaches, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById } = require('./db/courses');
 const { sendMessage, broadcastMessage, listMessages, unreadMessageCount, markMessageRead, markAllMessagesRead, listSessionsStartingSoon, listBookedUsersBySession } = require('./db/messages');
+const { listPassPackages, getUserPass, getUserPassInfo, applyPassPurchase, consumePass, refundPass, expireOverduePasses } = require('./db/passes');
 const { genOrderNo, createOrder, payOrder, listOrdersByUser, getOrderByNo, getRevenueStats, promoteFromWaitlist, joinWaitlist, cancelWaitlist, listWaitlistByUser, refundExpiredWaitlist } = require('./db/orders');
 const { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings } = require('./db/bookings');
 
@@ -102,5 +103,13 @@ module.exports = {
   listMyExchanges,
   checkLevelUpReward,
   rewardInviterCoins,
-  ENERGY_CONFIG
+  ENERGY_CONFIG,
+  // 次卡包
+  listPassPackages,
+  getUserPass,
+  getUserPassInfo,
+  applyPassPurchase,
+  consumePass,
+  refundPass,
+  expireOverduePasses
 };

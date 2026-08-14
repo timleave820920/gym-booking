@@ -27,6 +27,19 @@ Page({
         cardNo: 'NO. 2026 ' + String(openid.length > 6 ? openid.slice(-4) : openid).padStart(4, '0')
       });
     }).catch(() => {});
+    // 次卡信息
+    api.getMyPass(openid).then((r) => {
+      const info = r.pass;
+      if (info && info.hasPass) {
+        this.setData({ passInfo: info });
+      } else {
+        this.setData({ passInfo: null });
+      }
+    }).catch(() => {});
+  },
+
+  goPass() {
+    wx.navigateTo({ url: '/pages/passes-buy/index' });
   },
 
   go(e) {

@@ -8,6 +8,7 @@ const { refundOrderMoney } = require('./members');
 const { getSessionById, syncSessionStatus } = require('./courses');
 const { promoteFromWaitlist } = require('./orders');
 const { sendMessage } = require('./messages');
+const { refundPass } = require('./passes');
 const ENERGY_CONFIG = require('../energy-config.js');
 
 function createBooking({ user_openid, session_id, amount_fen = 0, pay_status = 'paid' }) {
@@ -222,13 +223,32 @@ function cancelBooking(openid, bookingId) {
     db.exec('ROLLBACK');
     throw e;
   }
-  // 事务外真正退钱（余额支付退回余额）
-  if (refundOrder) refundOrderMoney(refundOrder.id);
-  // 站内信：退款到账
+  // 事务外对称退：次卡→退次（卡已过期作废清理）；余额→退余额；微信→原路（模拟）
+  if (refundOrder) {
+    const o = db.prepare('SELECT pay_source FROM orders WHERE id = ?').get(refundOrder.id);
+    if (o && o.pay_source === 'pass') {
+      const r = refundPass(booking.pass_id);
+      if (r === 'refunded') {
+        sendMessage({
+          user_openid: openid, type: 'pass', title: '次卡已退回',
+          content: '退订成功，已退回 1 次次卡次数',
+          biz_type: 'pass', biz_id: booking.pass_id || 0, jump_url: '/pages/member-card/index',
+          dedup_key: `pass_refund:${bookingId}`
+        });
+      }
+      // 'expired'：卡已过期 → 次数作废清理（不提示退回）
+    } else {
+      refundOrderMoney(refundOrder.id);
+    }
+  }
+  // 站内信：退款到账（次卡订课金额为 0，仅余额/微信单退钱）
   const sInfo = getSessionById(booking.session_id);
+  const refundAmt = (booking.amount_fen || 0) / 100;
   sendMessage({
     user_openid: openid, type: 'order', title: '退款到账',
-    content: `退订「${sInfo ? sInfo.course_name : '课程'}」成功，¥${(booking.amount_fen / 100).toFixed(0)} 已原路退回`,
+    content: refundAmt > 0
+      ? `退订「${sInfo ? sInfo.course_name : '课程'}」成功，¥${refundAmt.toFixed(0)} 已原路退回`
+      : `退订「${sInfo ? sInfo.course_name : '课程'}」成功`,
     biz_type: 'order', biz_id: bookingId, jump_url: '/pages/student-orders/index',
     dedup_key: `refund:${bookingId}`
   });

@@ -188,3 +188,14 @@
 }
 .expire-on .expire-name { color: #B9FF66; }
 .expire-on .expire-desc { color: rgba(255,255,255,0.6); }
+
+/* 次卡优先提示 */
+.pass-hint {
+  margin-top: 24rpx;
+  background: #1A1A23;
+  color: #B9FF66;
+  font-size: 24rpx;
+  font-weight: 600;
+  border-radius: 16rpx;
+  padding: 18rpx 24rpx;
+}

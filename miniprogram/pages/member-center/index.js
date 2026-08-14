@@ -3,7 +3,7 @@ const api = require('../../utils/api.js');
 
 Page({
   data: {
-    gridSubs: { level: '会员折扣', recharge: '充值优惠', invite: '各得储值', honor: '荣誉展示' },
+    gridSubs: { level: '会员折扣', recharge: '充值优惠', invite: '各得储值', honor: '荣誉展示', pass: '次卡优先扣' },
     // 宣传视频：放入 server/video/promo.mp4 后把下面的 videoUrl 改成全路径即可（如 http://192.168.x.x:3000/video/promo.mp4）
     videoUrl: '',
     videoPoster: '/images/hyrox_adv_sled.jpg',
@@ -44,6 +44,19 @@ Page({
           honor: '荣誉展示'
         }
       });
+      // 次卡副标题：有卡显示剩余次数
+      const user = app.globalData.userInfo || {};
+      const openid = user.openid || wx.getStorageSync('openid');
+      if (openid) {
+        api.getMyPass(openid).then((pr) => {
+          const pInfo = pr.pass;
+          if (pInfo && pInfo.hasPass && !pInfo.expired) {
+            this.setData({ 'gridSubs.pass': `剩 ${pInfo.remaining} 次` });
+          } else if (pInfo && pInfo.expired) {
+            this.setData({ 'gridSubs.pass': '已过期·去购买' });
+          }
+        }).catch(() => {});
+      }
     }).catch(() => {});
   },
 

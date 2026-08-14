@@ -591,11 +591,11 @@ function handleCoinConfig(req, res) {
 async function handleCreateOrder(req, res) {
   const body = await readBody(req);
   const { openid, sessionId, amountFen, orderType, expireMode } = body;
-  // 充值订单无场次（sessionId 可省略或为 0）
+  // 充值/次卡订单无场次（sessionId 可省略或为 0）
   if (!openid) {
     return sendJson(res, 400, { code: 400, message: '缺少 openid' });
   }
-  if (orderType !== 'recharge' && !sessionId) {
+  if (orderType !== 'recharge' && orderType !== 'pass' && !sessionId) {
     return sendJson(res, 400, { code: 400, message: '缺少 sessionId' });
   }
   const result = db.createOrder({
@@ -632,6 +632,9 @@ async function handlePayOrder(req, res) {
     return sendJson(res, 400, { code: 400, message: result.error });
   }
   logOp(openid, 'pay', { orderId, payMethod, orderType: result.order.order_type, amountFen: result.order.amount_fen }, result.already ? 'already' : 'ok', result.order.order_no);
+  if (result.order.order_type === 'pass' && result.recharge && result.recharge.pass) {
+    logOp(openid, 'pass_buy', { orderId, pkg: result.recharge.pkgName, added: result.recharge.added, remaining: result.recharge.pass.remaining }, 'ok', result.order.order_no);
+  }
   return sendJson(res, 200, {
     code: 200,
     message: result.already ? '订单已支付' : '支付成功',
@@ -921,6 +924,19 @@ const API_ROUTES = [
       sendJson(r, 200, { code: 200, details: db.listInvitationDetails(openid) });
     } },
   { m: 'GET',    p: '/api/admin/invite-board',  f: (q, r) => sendJson(r, 200, { code: 200, board: db.inviteBoardStats() }) },
+  // ===== 次卡包 =====
+  { m: 'GET',    p: '/api/passes/packages',     f: (q, r) => sendJson(r, 200, { code: 200, packages: db.listPassPackages() }) },
+  { m: 'GET',    p: '/api/passes/my',           f: (q, r, u) => {
+      const openid = u.searchParams.get('openid');
+      if (!openid) return sendJson(r, 400, { code: 400, message: '缺少 openid' });
+      sendJson(r, 200, { code: 200, pass: db.getUserPassInfo(openid) });
+    } },
+  { m: 'GET',    p: '/api/passes/available',    f: (q, r, u) => {
+      const openid = u.searchParams.get('openid');
+      if (!openid) return sendJson(r, 400, { code: 400, message: '缺少 openid' });
+      const info = db.getUserPassInfo(openid);
+      sendJson(r, 200, { code: 200, available: info.hasPass && !info.expired ? info.remaining : 0, pass: info.hasPass ? info : null });
+    } },
   { m: 'GET',    p: '/api/coin/balance',        f: (q, r) => handleCoinBalance(q, r) },
   { m: 'GET',    p: '/api/coin/logs',           f: (q, r) => handleCoinLogs(q, r) },
   { m: 'GET',    p: '/api/coin/shop',           f: (q, r) => handleCoinShop(q, r) },
@@ -1060,6 +1076,27 @@ if (require.main === module) {
       console.error('[class reminder]', e.message);
     }
   }, 60 * 1000);
+
+  // 次卡过期任务：标记过期卡 + 发过期通知（每 5 分钟；dedup_key 防重复通知）
+  setInterval(() => {
+    try {
+      const expired = db.expireOverduePasses();
+      if (expired > 0) {
+        // 取刚过期的卡发通知（passes 表行级 dedup 用 messages dedup_key）
+        const rows = db.db.prepare("SELECT user_openid, remaining, expires_at FROM user_passes WHERE status = 'expired' AND remaining > 0").all();
+        for (const rw of rows) {
+          db.sendMessage({
+            user_openid: rw.user_openid, type: 'pass', title: '次卡已过期',
+            content: `次卡已于 ${rw.expires_at} 过期，剩余 ${rw.remaining} 次已作废`,
+            biz_type: 'pass', biz_id: 0, jump_url: '/pages/member-card/index',
+            dedup_key: `pass_expired:${rw.user_openid}`
+          });
+        }
+      }
+    } catch (e) {
+      console.error('[pass expire]', e.message);
+    }
+  }, 5 * 60 * 1000);
   });
 } else {
   // 被测试/覆盖率脚本 require：导出服务与数据库供同进程调用

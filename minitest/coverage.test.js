@@ -195,6 +195,13 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     r = await req('GET', '/api/invite/details?openid=' + U1.openid);
     assert.ok(Array.isArray(r.data.details), '邀请明细');
     r = await req('GET', '/api/admin/invite-board');
+    // 次卡包探针
+    r = await req('GET', '/api/passes/packages');
+    assert.strictEqual(r.status, 200, 'passes/packages 200');
+    r = await req('GET', '/api/passes/my?openid=' + U1.openid);
+    assert.strictEqual(r.status, 200, 'passes/my 200');
+    r = await req('GET', '/api/passes/available?openid=' + U1.openid);
+    assert.strictEqual(r.status, 200, 'passes/available 200');
     assert.ok(r.data.board, '邀请看板');
 
     // ---- 11 能量币：兑换失败/成功/记录/配置 ----
