@@ -9,10 +9,10 @@ Page({
     menus: [
       [
         { icon: 'check', name: '我的课程', url: '/pages/student-orders/index?type=course' },
-        { icon: 'trophy', name: '成就与记录', url: '/pages/student-achievements/index' }
+        { icon: 'wallet', name: '我的订单', url: '/pages/student-orders/index?type=recharge' }
       ],
       [
-        { icon: 'wallet', name: '我的订单', url: '/pages/student-orders/index?type=recharge' },
+        { icon: 'trophy', name: '成就与记录', url: '/pages/student-achievements/index' },
         { icon: 'bell', name: '消息通知', url: '/pages/student-messages/index', badge: 0 }
       ],
       [
