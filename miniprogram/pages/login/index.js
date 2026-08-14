@@ -14,35 +14,40 @@ Page({
     privacyOk: false         // 隐私授权状态（官方 wx.getPrivacySetting）
   },
 
-  // 隐私未同意时统一拦截：返回 false 并弹窗（官方：wx.getPrivacySetting 检测授权状态）
+  // 隐私授权检查：返回 Promise，resolve(true)=已授权可继续；resolve(false)=需用户先同意（弹窗已出）
+  // 修复 2026-08-14：异步检测不再用同步返回值卡死登录——未同意时弹窗并让用户同意后重试
   requirePrivacy() {
-    if (this.data.privacyOk) return true;
-    // 有本地同意标记 → 直接放行；否则先查官方授权状态
-    if (wx.getStorageSync('privacy_agreed')) {
-      this.checkPrivacySetting();
-      return true;
-    }
-    this.checkPrivacySetting();
-    return false;
-  },
-
-  // 官方隐私授权状态检测：needAuthorization=true 时弹窗征求同意
-  checkPrivacySetting() {
-    if (!wx.getPrivacySetting) {
-      // 低版本基础库（<2.32.3）：无官方 API，按本地标记兜底
-      if (!wx.getStorageSync('privacy_agreed')) this.setData({ showPrivacy: true });
-      return;
-    }
-    wx.getPrivacySetting({
-      success: (res) => {
-        this.setData({ privacyOk: !!res.privacyAuthorized });
-        if (res.needAuthorization && !res.privacyAuthorized) {
-          this.setData({ showPrivacy: true });
-        }
-      },
-      fail: () => {
-        if (!wx.getStorageSync('privacy_agreed')) this.setData({ showPrivacy: true });
+    return new Promise((resolve) => {
+      if (this.data.privacyOk || wx.getStorageSync('privacy_agreed')) {
+        resolve(true);
+        return;
       }
+      if (!wx.getPrivacySetting) {
+        // 低版本基础库：无法检测，直接放行（隐私接口由微信兜底拦截）
+        resolve(true);
+        return;
+      }
+      wx.getPrivacySetting({
+        success: (res) => {
+          if (res.privacyAuthorized) {
+            this.setData({ privacyOk: true });
+            resolve(true);
+          } else if (res.needAuthorization) {
+            // 需要授权：弹窗，用户同意后（agreePrivacy）再手动点登录
+            this.setData({ showPrivacy: true, _pendingLogin: true });
+            resolve(false);
+          } else {
+            // 无需授权（开发者工具未配置指引等）→ 放行
+            this.setData({ privacyOk: true });
+            resolve(true);
+          }
+        },
+        fail: () => {
+          // 检测失败：放行（避免卡死登录）
+          this.setData({ privacyOk: true });
+          resolve(true);
+        }
+      });
     });
   },
 
@@ -57,8 +62,10 @@ Page({
     // 分享卡片携带的邀请人 → 预填邀请码
     const code = wx.getStorageSync('pending_inviter') || '';
     if (code) this.setData({ inviterCode: code });
-    // 隐私协议弹窗（微信 2023.9 起强制：官方 wx.getPrivacySetting 检测授权状态）
-    this.checkPrivacySetting();
+    // 隐私协议检测（微信 2023.9 起强制：官方 wx.getPrivacySetting）
+    this.requirePrivacy().then((ok) => {
+      if (!ok) this.setData({ showPrivacy: true });
+    });
   },
 
   // ===== 隐私协议 =====
@@ -66,15 +73,10 @@ Page({
   agreePrivacy() {
     wx.setStorageSync('privacy_agreed', '1');
     this.setData({ showPrivacy: false, privacyOk: true });
-    // 同意后如仍需官方授权，唤起官方隐私弹窗
-    if (wx.getPrivacySetting) {
-      wx.getPrivacySetting({
-        success: (res) => {
-          if (res.needAuthorization && !res.privacyAuthorized && wx.openPrivacyContract) {
-            wx.openPrivacyContract({});
-          }
-        }
-      });
+    // 同意后若有挂起的登录意图 → 自动继续
+    if (this.data._pendingLogin) {
+      this.setData({ _pendingLogin: false });
+      this.login();
     }
   },
 
@@ -130,9 +132,13 @@ Page({
   },
 
   // ===== 演示身份快捷登录（不写数据库，直接进入对应端）=====
-  quickLogin(e) {
+  async quickLogin(e) {
     if (!this.checkAgree()) return;         // 协议未勾选 → 拦截（与正式登录一致）
-    if (!this.requirePrivacy()) return;     // 隐私未同意 → 弹窗拦截
+    const ok = await this.requirePrivacy(); // 隐私未同意 → 弹窗拦截
+    if (!ok) {
+      wx.showToast({ title: '请先同意隐私协议', icon: 'none' });
+      return;
+    }
     const role = e.currentTarget.dataset.role;
     const urls = {
       student: '/pages/student-courses/index',
@@ -215,9 +221,13 @@ Page({
   },
 
   // ===== 微信一键登录 =====
-  login() {
+  async login() {
     if (!this.checkAgree()) return;
-    if (!this.requirePrivacy()) return;   // 隐私协议未同意 → 弹窗拦截
+    const ok = await this.requirePrivacy();   // 异步检测：未同意则弹窗并中断，同意后需再点
+    if (!ok) {
+      wx.showToast({ title: '请先同意隐私协议', icon: 'none' });
+      return;
+    }
     if (this.data.loggingIn) return;
     this.setData({ loggingIn: true });
 
@@ -252,9 +262,13 @@ Page({
   },
 
   // ===== 手机号快捷登录 =====
-  phoneLogin(e) {
+  async phoneLogin(e) {
     if (!this.checkAgree()) return;
-    if (!this.requirePrivacy()) return;   // 隐私协议未同意 → 弹窗拦截
+    const ok = await this.requirePrivacy();   // 异步检测：未同意则弹窗并中断
+    if (!ok) {
+      wx.showToast({ title: '请先同意隐私协议', icon: 'none' });
+      return;
+    }
     if (this.data.loggingIn) return;
 
     const detail = e.detail || {};
