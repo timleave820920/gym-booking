@@ -12,17 +12,18 @@
 
     <!-- 金额卡 -->
     <view class="amount-card flex-col">
-      <text class="amount-label">需支付金额（元）</text>
-      <text class="amount-value">¥ {{totalPrice || course.price}}</text>
+      <text class="amount-label">{{usePass ? '本次抵扣（次数包）' : '需支付金额（元）'}}</text>
+      <text class="amount-value">¥ {{totalPrice || (usePass ? 0 : course.price)}}</text>
+      <text class="amount-sub" wx:if="{{usePass}}">次数包剩余 {{passRemaining}} 次，本次自动扣 1 次</text>
     </view>
 
     <!-- 次卡优先提示 -->
     <view class="pass-hint" wx:if="{{passHint}}">{{passHint}}</view>
 
-    <!-- 支付方式 -->
+    <!-- 支付方式（有可用次卡 → 置灰不可选，不默认选中任何一项） -->
     <view class="section-title">选择支付方式</view>
-    <view class="method-list">
-      <view class="method-row flex-between {{item.selected ? 'method-selected' : ''}}"
+    <view class="method-list {{usePass ? 'method-list-off' : ''}}">
+      <view class="method-row flex-between {{item.selected ? 'method-selected' : ''}} {{usePass ? 'method-row-off' : ''}}"
             wx:for="{{payMethods}}" wx:key="id"
             data-id="{{item.id}}" bindtap="selectMethod">
         <view class="flex-row method-left">
@@ -31,7 +32,7 @@
             <text class="method-name">{{item.name}}</text>
             <text class="method-desc">{{item.desc}}</text>
             <!-- 会员折扣提示：余额支付享等级折扣 -->
-            <text class="member-tip" wx:if="{{item.id === 2 && memberLevel && memberLevel.discount < 1}}">
+            <text class="member-tip" wx:if="{{item.id === 2 && memberLevel && memberLevel.discount < 1 && !usePass}}">
               {{memberLevel.levelName}}会员价 ¥{{memberPrice}}（{{memberLevel.discountText}}）
             </text>
           </view>
@@ -41,6 +42,8 @@
         </view>
       </view>
     </view>
+    <!-- 次卡支付说明（置灰区下补充说明，避免用户困惑为什么不能选） -->
+    <view class="pass-lock-tip" wx:if="{{usePass}}">本次使用次数包抵扣，无需选择支付方式</view>
 
     <!-- 候补自动取消时间（仅排位模式）：到期未转正自动退款 -->
     <view class="expire-section" wx:if="{{course.mode === 'waitlist'}}">
@@ -62,11 +65,11 @@
   <!-- 底部 CTA -->
   <view class="cta-bar flex-between">
     <view class="flex-col">
-      <text class="cta-price">¥ {{totalPrice || course.price}}</text>
+      <text class="cta-price">¥ {{totalPrice || (usePass ? 0 : course.price)}}</text>
       <text class="cta-sub">{{payText}}</text>
     </view>
     <view class="pay-btn" bindtap="pay">
-      <text>确认支付</text>
+      <text>{{usePass ? '使用次数包' : '确认支付'}}</text>
     </view>
   </view>
 </view>

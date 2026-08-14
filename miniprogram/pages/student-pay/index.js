@@ -22,7 +22,9 @@ Page({
       { id: '2h', name: '课前 2 小时', desc: '提前 2 小时' }
     ],
     selectedExpire: 'start',
-    passHint: ''          // 次卡优先提示（有可用次卡时显示）
+    passHint: '',          // 次卡优先提示（有可用次卡时显示）
+    usePass: false,        // 有可用次卡 → 强制次卡支付（支付方式区置灰、不默认选中）
+    passRemaining: 0       // 次卡剩余次数
   },
 
   onLoad() {
@@ -39,14 +41,21 @@ Page({
     this.loadPassHint();
   },
 
-  // 次卡优先：有可用次卡 → 本次将自动扣次（后端强制）
+  // 次卡优先：有可用次卡 → 本次将自动扣次（后端强制），支付方式区置灰且不默认选中任何一项
   loadPassHint() {
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
     if (!openid) return;
     api.getPassAvailable(openid).then((res) => {
-      if (res.available > 0 && this.data.course.mode !== 'waitlist' || (res.available > 0)) {
-        this.setData({ passHint: `次卡优先：本次将自动扣 1 次（剩余 ${res.available} 次）` });
+      if (res.available > 0) {
+        this.setData({
+          passHint: `次卡优先：本次将自动扣 1 次（剩余 ${res.available} 次）`,
+          usePass: true,
+          passRemaining: res.available,
+          // 不默认选中任何支付方式（避免误会：实际走次卡，任何选中态都会误导）
+          payMethods: this.data.payMethods.map(m => ({ ...m, selected: false }))
+        });
+        this.computeTotal();
       }
     }).catch(() => {});
   },
@@ -72,10 +81,11 @@ Page({
         balance,
         memberPrice,
         canBalancePay,
-        // 余额足够 → 默认选中余额支付（享受会员价）
+        // 有可用次卡 → 不默认选中任何支付方式（后端强制次卡，选中态会误导用户）
+        // 无次卡 → 余额足够默认选中余额支付（享受会员价）
         payMethods: this.data.payMethods.map(m => ({
           ...m,
-          selected: m.id === (canBalancePay ? 2 : 1),
+          selected: this.data.usePass ? false : (m.id === (canBalancePay ? 2 : 1)),
           desc: m.id === 2 ? `余额 ¥ ${balance.toFixed(2)}` : m.desc
         }))
       });
@@ -84,8 +94,13 @@ Page({
   },
 
   // 计算当前选中支付方式的结算价（余额支付 → 会员价；微信 → 原价；候补排位同样适用）
+  // 有次卡 → 金额 0（后端 effMethod=pass，扣次不扣钱）
   computeTotal() {
     const price = Number(this.data.course.price || 68);
+    if (this.data.usePass) {
+      this.setData({ totalPrice: 0, payText: `次数包抵扣 · 剩余 ${this.data.passRemaining} 次` });
+      return;
+    }
     const selected = this.data.payMethods.find(m => m.selected);
     const useMember = selected && selected.id === 2
       && this.data.memberLevel && this.data.memberLevel.discount < 1;
@@ -101,6 +116,8 @@ Page({
   },
 
   selectMethod(e) {
+    // 有可用次卡 → 支付方式锁定为次卡，不允许手动选择（避免误导）
+    if (this.data.usePass) return;
     const id = e.currentTarget.dataset.id;
     const payMethods = this.data.payMethods.map(m => ({
       ...m, selected: m.id === id
@@ -119,9 +136,9 @@ Page({
       wx.showToast({ title: '未登录，请先登录', icon: 'none' });
       return;
     }
-    // 余额支付预校验（余额不足拦截）
+    // 余额支付预校验（余额不足拦截；有次卡时跳过——本次走次卡不扣余额）
     const selected = this.data.payMethods.find(m => m.selected);
-    if (selected && selected.id === 2 && !this.data.canBalancePay) {
+    if (!this.data.usePass && selected && selected.id === 2 && !this.data.canBalancePay) {
       wx.showModal({
         title: '余额不足',
         content: `当前余额 ¥${this.data.balance.toFixed(2)}，本次储值支付需 ¥${this.data.memberPrice || 0}。请先充值或改用微信支付。`,
@@ -162,8 +179,10 @@ Page({
 
   // 支付回写：订单 pending → paid + 生成订课/候补
   confirmPay(orderId, openid) {
+    // 有可用次卡 → payMethod 传 pass（后端 effMethod=pass 强制次卡，金额 0）
+    // 无次卡 → 按用户选中：微信=wxpay / 余额=balance
     const selected = this.data.payMethods.find(m => m.selected);
-    const payMethod = selected && selected.id === 1 ? 'wxpay' : 'balance';
+    const payMethod = this.data.usePass ? 'pass' : (selected && selected.id === 1 ? 'wxpay' : 'balance');
     api.payOrder(orderId, { openid, payMethod }).then((res) => {
       this._paying = false;
       wx.hideLoading();
