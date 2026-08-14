@@ -126,3 +126,10 @@
   line-height: 1.7;
   color: #5B57EB;
 }
+
+/* 次卡支付说明 */
+.pay-pass {
+  font-size: 30rpx;
+  font-weight: 800;
+  color: #5B57EB;
+}

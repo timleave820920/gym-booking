@@ -18,8 +18,8 @@
         </view>
       </view>
       <view class="flex-between card-foot">
-        <text class="pay-label">实付金额</text>
-        <text class="pay-amount">¥{{payAmount}}</text>
+        <text class="pay-label">{{paySource === 'pass' ? '支付方式' : '实付金额'}}</text>
+        <text class="pay-amount {{paySource === 'pass' ? 'pay-pass' : ''}}">{{payText}}</text>
       </view>
     </view>
 

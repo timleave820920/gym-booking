@@ -190,8 +190,10 @@ Page({
       // 实付金额落全局（后端支付回写时订单金额已修正为实付：次卡=0/余额=会员折扣价/微信=原价）
       // 注意：次卡支付 amount_fen=0 也是有效值，不能用 truthy 判断（BUG 修复：0 会被误判为缺失回退原价）
       const paidFen = res.order && res.order.amount_fen;
+      const usedPass = res.order && res.order.pay_source === 'pass';
       app.globalData.payResult = {
         amount: paidFen != null ? String((paidFen / 100).toFixed(0)) : String(Number(this.data.course.price) || 0),
+        paySource: usedPass ? 'pass' : (res.order && res.order.pay_source) || '',
         isWaitlist
       };
       // 跳转支付成功落地页（携带模式）
