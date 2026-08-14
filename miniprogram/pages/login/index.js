@@ -49,7 +49,9 @@ Page({
   onLoad() {
     this.setData({
       lang: i18n.getLang() || 'zh',
-      t: i18n.t()
+      t: i18n.t(),
+      // 协议勾选状态持久化：用户首次勾选后记住（'1'=已勾选；'0'或空=未勾选）
+      agreed: wx.getStorageSync('agreed_terms') === '1'
     });
     this.loadUserCount();
     // 分享卡片携带的邀请人 → 预填邀请码
@@ -121,7 +123,10 @@ Page({
 
   // 切换协议勾选
   toggleAgree() {
-    this.setData({ agreed: !this.data.agreed });
+    const next = !this.data.agreed;
+    this.setData({ agreed: next });
+    // 持久化勾选状态（用户主动勾选后记住，下次进入免重复勾选）
+    wx.setStorageSync('agreed_terms', next ? '1' : '0');
   },
 
   // ===== 演示身份快捷登录（不写数据库，直接进入对应端）=====

@@ -37,7 +37,8 @@ try {
 
 // 本地后端地址（USE_CLOUD=false 时使用）
 // 兜底地址：真机联调 = 电脑局域网 IP（手机热点下改这里）；模拟器 = 127.0.0.1 恒可用
-const FALLBACK_BASE_URL = 'http://10.59.74.130:3000';
+// 2026-08-14: 同步为当前局域网 IP（192.168.194.11），net-config 丢失时兜底仍可连
+const FALLBACK_BASE_URL = 'http://192.168.194.11:3000';
 const LOCAL_BASE_URL = (NET_CONFIG && NET_CONFIG.baseUrl) || FALLBACK_BASE_URL;
 
 // ===== 本地后端请求 =====
