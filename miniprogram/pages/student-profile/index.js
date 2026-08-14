@@ -89,79 +89,39 @@ Page({
     this.setData({ 'user.avatar': '/images/2_556.png' });
   },
 
-  // 更换头像：微信头像 / 本地上传（2026-08-14 用户需求）
-  changeAvatar() {
+  // 更换头像：官方头像昵称填写能力（open-type="chooseAvatar"）
+  // 2026-08-14 修复：wx.getUserProfile 2022.10 起返回灰色默认头像，改用 chooseAvatar 拿真实头像
+  onChooseAvatar(e) {
+    const avatarUrl = e.detail.avatarUrl;
+    if (!avatarUrl) return;
     const openid = (app.globalData.userInfo || {}).openid || wx.getStorageSync('openid');
     if (!openid) {
       wx.showToast({ title: '请先登录', icon: 'none' });
       return;
     }
-    wx.showActionSheet({
-      itemList: ['使用微信头像', '从本地上传'],
-      success: (res) => {
-        if (res.tapIndex === 0) {
-          this.useWechatAvatar(openid);
-        } else if (res.tapIndex === 1) {
-          this.uploadLocalAvatar(openid);
-        }
-      }
-    });
-  },
-
-  // 方式一：微信头像
-  useWechatAvatar(openid) {
-    wx.getUserProfile({
-      desc: '用于更新头像',
-      success: (profileRes) => {
-        const avatarUrl = (profileRes.userInfo || {}).avatarUrl;
-        if (!avatarUrl) {
-          wx.showToast({ title: '获取头像失败', icon: 'none' });
-          return;
-        }
-        this.saveAvatar(avatarUrl, openid);
-      },
-      fail: () => {
-        wx.showToast({ title: '已取消', icon: 'none' });
-      }
-    });
-  },
-
-  // 方式二：本地上传（选图 → base64 → /api/upload → 存 /images/xxx）
-  uploadLocalAvatar(openid) {
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sizeType: ['compressed'],
-      success: (res) => {
-        const file = res.tempFiles && res.tempFiles[0];
-        if (!file) return;
-        wx.getFileSystemManager().readFile({
-          filePath: file.tempFilePath,
-          encoding: 'base64',
-          success: (readRes) => {
-            const ext = (file.tempFilePath.match(/\.(\w+)$/) || [,'png'])[1].toLowerCase();
-            const mime = ext === 'jpg' ? 'jpeg' : ext;
-            const base64 = `data:image/${mime};base64,${readRes.data}`;
-            wx.showLoading({ title: '上传中...' });
-            api.uploadImage(`avatar_${Date.now()}.${mime}`, base64).then((up) => {
-              wx.hideLoading();
-              if (up.path) {
-                this.saveAvatar(up.path, openid);
-              } else {
-                wx.showToast({ title: up.message || '上传失败', icon: 'none' });
-              }
-            }).catch(() => {
-              wx.hideLoading();
-              wx.showToast({ title: '上传失败', icon: 'none' });
-            });
-          },
-          fail: () => {
-            wx.showToast({ title: '读取图片失败', icon: 'none' });
+    // chooseAvatar 返回临时路径 → 转 base64 上传后端持久化
+    wx.getFileSystemManager().readFile({
+      filePath: avatarUrl,
+      encoding: 'base64',
+      success: (readRes) => {
+        const ext = (avatarUrl.match(/\.(\w+)$/) || [,'png'])[1].toLowerCase();
+        const mime = ext === 'jpg' ? 'jpeg' : ext;
+        const base64 = `data:image/${mime};base64,${readRes.data}`;
+        wx.showLoading({ title: '上传中...' });
+        api.uploadImage(`avatar_${Date.now()}.${mime}`, base64).then((up) => {
+          wx.hideLoading();
+          if (up.path) {
+            this.saveAvatar(up.path, openid);
+          } else {
+            wx.showToast({ title: up.message || '上传失败', icon: 'none' });
           }
+        }).catch(() => {
+          wx.hideLoading();
+          wx.showToast({ title: '上传失败', icon: 'none' });
         });
       },
       fail: () => {
-        wx.showToast({ title: '已取消', icon: 'none' });
+        wx.showToast({ title: '读取头像失败', icon: 'none' });
       }
     });
   },

@@ -116,6 +116,18 @@
   border: 3rpx solid rgba(255,255,255,0.3);
   flex-shrink: 0;
 }
+/* 头像按钮（open-type=chooseAvatar）：重置 button 默认样式，视觉即头像 */
+.avatar-btn {
+  padding: 0;
+  margin: 0;
+  background: none;
+  border-radius: 50%;
+  line-height: normal;
+  flex-shrink: 0;
+}
+.avatar-btn::after {
+  border: none;
+}
 /* 等级按钮组：按钮 + 升级提示（右对齐，提示在按钮下方） */
 .vip-lv-group {
   display: flex;
