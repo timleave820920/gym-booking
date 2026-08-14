@@ -45,10 +45,10 @@
               <text class="cb-name">{{item.name}}</text>
               <text class="cb-desc" wx:if="{{item.description}}">{{item.description}}</text>
             </view>
-            <!-- 难度火焰：余位>=5时显示；满员(0)/紧张(<5)斜条出现时隐藏 -->
+            <!-- 难度哑铃：余位>=5时显示；满员(0)/紧张(<5)斜条出现时隐藏 -->
             <view class="cb-stars" wx:if="{{item.remaining >= 5}}">
-              <text class="cb-star" wx:for="{{[1,2,3,4,5]}}" wx:for-item="sIdx" wx:key="*this"
-                    wx:if="{{sIdx <= item.level}}">🔥</text>
+              <view class="cb-dumbbell" wx:for="{{[1,2,3,4,5]}}" wx:for-item="sIdx" wx:key="*this"
+                    wx:if="{{sIdx <= item.level}}"></view>
             </view>
           </view>
 

@@ -220,9 +220,10 @@
   gap: 2rpx;
   flex-shrink: 0;
 }
-.cb-star {
-  font-size: 40rpx;          /* 与课程名字号一致，emoji 自带配色 */
-  line-height: 1;
+.cb-dumbbell {
+  width: 34rpx;               /* 小哑铃：黑描边线性图标，与课程名/全局 icon 语言一致（该页字号原略大，哑铃同步放大） */
+  height: 34rpx;
+  background: url('data:image/svg+xml;base64,''' + B64 + ''') no-repeat center/contain;
 }
 /* 预约按钮（2026-08-14 图标+文字：纯线性 SVG，同个人中心 icon-* 语言） */
 .cb-btn {
