@@ -72,32 +72,70 @@
   gap: 20rpx;
 }
 .pkg {
-  position: relative;
   background: #FFFFFF;
   border: 3rpx solid #E8E2CC;
   border-radius: 28rpx;
   padding: 28rpx;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
 }
 .pkg-on {
   border-color: #1A1A23;
   background: #FFFDF4;
 }
-.pkg-head { align-items: center; }
+.pkg-head { align-items: center; gap: 14rpx; }
 .pkg-name {
   font-size: 34rpx;
   font-weight: 800;
   color: #1A1A23;
 }
+.pkg-chip {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #5B57EB;
+  background: #EEEDFE;
+  border-radius: 999rpx;
+  padding: 4rpx 16rpx;
+  flex-shrink: 0;
+}
+.pkg-desc {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #8A8A8A;
+  line-height: 1.5;
+}
+/* 右侧：价格 + 单选圆点（仿支付方式选择） */
+.pkg-right {
+  align-items: flex-end;
+  gap: 14rpx;
+  flex-shrink: 0;
+}
 .pkg-price {
   font-size: 40rpx;
   font-weight: 800;
   color: #5B57EB;
+  line-height: 1;
 }
-.pkg-meta {
-  margin-top: 10rpx;
-  font-size: 26rpx;
-  color: #6B6B76;
-  font-weight: 600;
+.radio {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  border: 3rpx solid #D8D5CA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+.radio-on {
+  border-color: #1A1A23;
+  background: #B9FF66;
+}
+.radio-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #1A1A23;
 }
 .pkg-desc {
   display: block;
@@ -106,20 +144,6 @@
   color: #8A8A8A;
   line-height: 1.6;
   padding-right: 50rpx;
-}
-.pkg-check {
-  position: absolute;
-  right: 24rpx;
-  top: 24rpx;
-  width: 44rpx;
-  height: 44rpx;
-  border-radius: 50%;
-  background: #1A1A23;
-  color: #B9FF66;
-  font-size: 26rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 /* 规则提示 */
