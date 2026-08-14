@@ -200,13 +200,15 @@
   font-size: 32rpx;          /* 与课程名匹配但略小，不抢戏 */
   line-height: 1;
 }
-/* 预约按钮 */
+/* 预约按钮（2026-08-14 图标化：纯线性 SVG，同个人中心 icon-* 语言） */
 .cb-btn {
+  width: 72rpx;
+  height: 72rpx;
   background: var(--lime);
-  color: var(--ink-900);
-  font-size: 26rpx; font-weight: 700;
-  padding: 14rpx 32rpx;
-  border-radius: 999rpx;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 /* 已预订：深色底 */

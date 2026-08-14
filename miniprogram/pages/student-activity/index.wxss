@@ -43,9 +43,12 @@
 }
 .banner-btn {
   position: absolute; top: 216rpx; left: 0;   /* 与页面正文左对齐 */
-  background: #1A1A23; color: #FFFFFF;
-  font-size: 26rpx; font-weight: 600;
-  padding: 12rpx 32rpx; border-radius: 30rpx;
+  width: 72rpx; height: 72rpx;
+  background: #1A1A23;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .banner-img {
   position: absolute; right: 0; top: 0;
@@ -214,14 +217,16 @@
   font-size: 40rpx;          /* 与课程名字号一致，emoji 自带配色 */
   line-height: 1;
 }
-/* 预约按钮 */
+/* 预约按钮（2026-08-14 图标化：纯线性 SVG，同个人中心 icon-* 语言） */
 .cb-btn {
+  width: 72rpx;
+  height: 72rpx;
   background: #B9FF66;
-  color: #1A1A23;
-  font-size: 26rpx; font-weight: 800;
-  padding: 14rpx 32rpx;
-  border-radius: 999rpx;
+  border-radius: 20rpx;
   border: 3rpx solid #1A1A23;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 /* 已预订：深色底 */

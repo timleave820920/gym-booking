@@ -13,7 +13,7 @@
       <text class="banner-tag">MEMBER CENTER</text>
       <text class="banner-title">会员活动中心</text>
       <text class="banner-sub">会员特权 · 储值优惠 · 邀请有礼</text>
-      <view class="banner-btn">进入</view>
+      <view class="banner-btn"><view class="ico ico-enter"></view></view>
       <image class="banner-img" src="/images/2_166.png" mode="aspectFill"></image>
       <view class="banner-deco"></view>
     </view>
@@ -67,13 +67,12 @@
           <view class="cb-bottom">
             <view class="cb-price">¥{{item.price}}<text class="cb-price-mem">（会员 ¥{{item.memberPrice}}）</text></view>
             <view class="cb-btn {{item.isBooked ? 'btn-booked' : ((item.waitlisted || item.canWaitlist) ? 'btn-waitlist' : (item.isFull ? 'btn-full' : (item.status === 'ongoing' ? 'btn-ongoing' : (item.status === 'ended' ? 'btn-ended' : ''))))}}" catchtap="goDetail" data-id="{{item.id}}" data-disabled="{{item.disabled}}" data-waitlist="{{item.canWaitlist}}">
-              <text wx:if="{{item.isBooked}}">已预订</text>
-              <text wx:elif="{{item.waitlisted}}">{{t.waitlisted}}</text>
-              <text wx:elif="{{item.canWaitlist}}">{{t.waitlistBtn}}</text>
-              <text wx:elif="{{item.isFull}}">已满</text>
-              <text wx:elif="{{item.status === 'ongoing'}}">{{t.ongoing}}</text>
-              <text wx:elif="{{item.status === 'ended'}}">{{t.ended}}</text>
-              <text wx:else>预约</text>
+              <view class="ico ico-booked" wx:if="{{item.isBooked}}"></view>
+              <view class="ico ico-waitlist" wx:elif="{{item.waitlisted || item.canWaitlist}}"></view>
+              <view class="ico ico-full" wx:elif="{{item.isFull}}"></view>
+              <view class="ico ico-ongoing" wx:elif="{{item.status === 'ongoing'}}"></view>
+              <view class="ico ico-ended" wx:elif="{{item.status === 'ended'}}"></view>
+              <view class="ico ico-book" wx:else></view>
             </view>
           </view>
         </view>
