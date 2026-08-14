@@ -96,6 +96,19 @@ Page({
     this.setData({ loading: true, courseList: [] });
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
+    // 会员折扣：按当前等级规则（member-config），会员价 = 正价 × 折扣率 向下取整到元（与支付页同一规则）
+    let discount = 1;
+    if (openid) {
+      api.getMemberLevel(openid).then((r) => {
+        if (r.level && r.level.discount) this.applyDiscount(r.level.discount);
+      }).catch(() => {});
+    }
+    this.applyDiscount = (d) => {
+      discount = Number(d) || 1;
+      this.setData({
+        courseList: this.data.courseList.map(c => ({ ...c, memberPrice: Math.floor(Number(c.price) * discount) }))
+      });
+    };
     api.getSessionsByDate(full, openid).then((res) => {
       const list = (res.sessions || []).map(s => ({
         id: s.id,
@@ -111,7 +124,7 @@ Page({
         remaining: s.remaining,
         capacity: s.capacity,
         price: (s.price_fen / 100).toFixed(0),
-        memberPrice: Math.floor(Number((s.price_fen / 100).toFixed(0)) * 0.9), // 会员价 = 正价×90% 向下取整
+        memberPrice: Math.floor(Number((s.price_fen / 100).toFixed(0)) * discount), // 会员价 = 正价 × 等级折扣，向下取整到元
         img: s.cover || DEFAULT_COVER,
         bookedByMe: !!s.booked_by_me
       })).map(s => this.decorateSession(s));
@@ -128,7 +141,7 @@ Page({
           coachAvatar: DEFAULT_COACH_AVATAR, level: c.level,
           date: full,
           start: c.start, end: c.end, remaining: c.remaining, price: c.price,
-          memberPrice: Math.floor(Number(c.price) * 0.9),
+          memberPrice: Math.floor(Number(c.price) * discount),
           img: c.img, capacity: c.capacity || 20
         }));
       list.sort(this.sortSessions);
