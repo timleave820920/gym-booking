@@ -3,6 +3,7 @@ const api = require('../../utils/api.js');
 const app = getApp();
 const i18n = require('../../utils/i18n.js');
 const courseStatus = require('../../utils/course-status.js');
+const sessionCache = require('../../utils/session-cache.js');
 
 const DEFAULT_COVER = '/images/2_193.png';       // 课程未设封面时的占位图
 const DEFAULT_COACH_AVATAR = '/images/2_1468.png'; // 教练未设头像时的占位图
@@ -37,36 +38,23 @@ Page({
   },
 
   // 加载今日课程：从后端拉当天场次，按当前时间标记状态
+  // 性能优化：有本地缓存先秒开渲染，后台刷新替换；无缓存时 loaded=false 显示骨架屏
   loadTodayCourses() {
     const today = new Date();
     const full = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
+    // 秒开：先渲染本地缓存（若有）
+    const cached = sessionCache.get(full);
+    if (cached && cached.length) {
+      this.setData({ hotCourses: this.decorate(this.buildList(cached)), loaded: true, offline: false });
+    }
     api.getSessionsByDate(full, openid).then((res) => {
-      const list = (res.sessions || []).map(s => {
-        const price = (s.price_fen / 100).toFixed(0);
-        return {
-          id: s.id,
-          name: s.course_name,
-          description: s.course_desc || '',
-          coach: s.coach_name,
-          venue: s.venue_name,
-          coachAvatar: s.coach_avatar || DEFAULT_COACH_AVATAR,
-          level: s.level,
-          start: s.start_time,
-          end: s.end_time,
-          remaining: s.remaining,
-          capacity: s.capacity,
-          price,
-          memberPrice: Math.floor(Number(price) * 0.9),  // 会员价 = 正价×90% 向下取整
-          img: s.cover || DEFAULT_COVER,
-          status: this.getStatus(s.start_time, s.end_time),
-          waitlisted: !!s.waitlisted_by_me,   // 已排位标记
-          bookedByMe: !!s.booked_by_me        // 已预订标记
-        };
-      });
-      this.setData({ hotCourses: this.decorate(list), offline: false, loaded: true });
+      const list = res.sessions || [];
+      sessionCache.set(full, list);
+      this.setData({ hotCourses: this.decorate(this.buildList(list)), offline: false, loaded: true });
     }).catch(() => {
+      if (this.data.hotCourses.length > 0) return; // 已有缓存数据，保持展示
       // 后端不可用 → 用演示数据（取前 3 门课，按当日时间判断状态）
       const list = mock.courses.slice(0, 3).map(c => ({
         id: c.id, name: c.name, description: c.desc || c.description || '', coach: c.coach, venue: c.venue,
@@ -79,6 +67,32 @@ Page({
         bookedByMe: false
       }));
       this.setData({ hotCourses: this.decorate(list), offline: true, loaded: true });
+    });
+  },
+
+  // 原始场次数据 → 活动卡片列表（状态/价格即时计算）
+  buildList(sessions) {
+    return (sessions || []).map(s => {
+      const price = (s.price_fen / 100).toFixed(0);
+      return {
+        id: s.id,
+        name: s.course_name,
+        description: s.course_desc || '',
+        coach: s.coach_name,
+        venue: s.venue_name,
+        coachAvatar: s.coach_avatar || DEFAULT_COACH_AVATAR,
+        level: s.level,
+        start: s.start_time,
+        end: s.end_time,
+        remaining: s.remaining,
+        capacity: s.capacity,
+        price,
+        memberPrice: Math.floor(Number(price) * 0.9),  // 会员价 = 正价×90% 向下取整
+        img: s.cover || DEFAULT_COVER,
+        status: this.getStatus(s.start_time, s.end_time),
+        waitlisted: !!s.waitlisted_by_me,   // 已排位标记
+        bookedByMe: !!s.booked_by_me        // 已预订标记
+      };
     });
   },
 

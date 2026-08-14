@@ -290,3 +290,65 @@
   color: #B0AFA8;
   padding: 80rpx 0;
 }
+
+/* ===== 骨架屏（首屏秒开优化 2026-08-14） ===== */
+.sk-list {
+  padding: 0 0 8rpx;
+}
+.sk-card {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+  animation: sk-breathe 1.2s ease-in-out infinite;
+}
+.sk-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18rpx;
+}
+.sk-row:last-child {
+  margin-bottom: 0;
+}
+.sk-avatar {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #EFEDE6;
+  flex-shrink: 0;
+}
+.sk-lines {
+  flex: 1;
+  margin-left: 18rpx;
+}
+.sk-line {
+  height: 24rpx;
+  border-radius: 8rpx;
+  background: #EFEDE6;
+  margin-bottom: 14rpx;
+}
+.sk-line:last-child {
+  margin-bottom: 0;
+}
+.sk-chip {
+  width: 120rpx;
+  height: 36rpx;
+  border-radius: 18rpx;
+  background: #EFEDE6;
+}
+.sk-btn {
+  width: 140rpx;
+  height: 56rpx;
+  border-radius: 28rpx;
+  background: #EFEDE6;
+}
+.w60 { width: 60%; }
+.w40 { width: 40%; }
+.w30 { width: 30%; }
+.w15 { width: 15%; }
+@keyframes sk-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+

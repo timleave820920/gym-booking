@@ -3,6 +3,7 @@ const api = require('../../utils/api.js');
 const app = getApp();
 const i18n = require('../../utils/i18n.js');
 const courseStatus = require('../../utils/course-status.js');
+const sessionCache = require('../../utils/session-cache.js');
 
 const DEFAULT_COVER = '/images/2_193.png';       // 课程未设封面时的占位图
 const DEFAULT_COACH_AVATAR = '/images/2_1468.png'; // 教练未设头像时的占位图
@@ -93,17 +94,12 @@ Page({
   },
 
   // 从后端拉取当天场次；失败则回退演示数据
+  // 性能优化：有本地缓存先秒开渲染（loading=false），后台刷新替换；无缓存才显示骨架屏
   loadSessions(full) {
-    this.setData({ loading: true, courseList: [] });
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
-    // 会员折扣：按当前等级规则（member-config），会员价 = 正价 × 折扣率 向下取整到元（与支付页同一规则）
     let discount = 1;
-    if (openid) {
-      api.getMemberLevel(openid).then((r) => {
-        if (r.level && r.level.discount) this.applyDiscount(r.level.discount, r.level.levelName);
-      }).catch(() => {});
-    }
+    // 会员折扣回调：拿到等级后重算列表会员价（不阻塞首屏）
     this.applyDiscount = (d, lvName) => {
       discount = Number(d) || 1;
       this.setData({
@@ -111,29 +107,26 @@ Page({
         courseList: this.data.courseList.map(c => ({ ...c, memberPrice: Math.floor(Number(c.price) * discount) }))
       });
     };
+    // 秒开：先渲染本地缓存（若有）
+    const cached = sessionCache.get(full);
+    if (cached && cached.length) {
+      this.setData({ courseList: this.renderList(cached, full, discount), loading: false, offline: false });
+    } else {
+      this.setData({ loading: true, courseList: [] });
+    }
+    // 会员折扣（异步，不阻塞列表渲染）
+    if (openid) {
+      api.getMemberLevel(openid).then((r) => {
+        if (r.level && r.level.discount) this.applyDiscount(r.level.discount, r.level.levelName);
+      }).catch(() => {});
+    }
+    // 网络刷新：成功 → 写缓存 + 渲染新数据；失败 → 已有数据保持展示，否则回退演示数据
     api.getSessionsByDate(full, openid).then((res) => {
-      const list = (res.sessions || []).map(s => ({
-        id: s.id,
-        name: s.course_name,
-        description: s.course_desc || '',
-        category: s.category,
-        coach: s.coach_name,
-        coachAvatar: s.coach_avatar || DEFAULT_COACH_AVATAR,
-        level: s.level,
-        date: full,               // 场次所属日期
-        start: s.start_time,
-        end: s.end_time,
-        remaining: s.remaining,
-        capacity: s.capacity,
-        price: (s.price_fen / 100).toFixed(0),
-        memberPrice: Math.floor(Number((s.price_fen / 100).toFixed(0)) * discount), // 会员价 = 正价 × 等级折扣，向下取整到元
-        img: s.cover || DEFAULT_COVER,
-        bookedByMe: !!s.booked_by_me
-      })).map(s => this.decorateSession(s));
-      // 排序：未开始（最早的排第一）→ 进行中 → 已结束，同状态按开始时间
-      list.sort(this.sortSessions);
-      this.setData({ courseList: list, loading: false, offline: false });
+      const list = res.sessions || [];
+      sessionCache.set(full, list);
+      this.setData({ courseList: this.renderList(list, full, discount), loading: false, offline: false });
     }).catch(() => {
+      if (this.data.courseList.length > 0) return; // 已有缓存/数据，保持展示
       // 后端不可用 → 用 mock 演示数据（当日映射：日期数-9 → 周一..周日）
       const dayIndex = Number(full.slice(8, 10)) - 9;
       const list = mock.courses
@@ -149,6 +142,30 @@ Page({
       list.sort(this.sortSessions);
       this.setData({ courseList: list, loading: false, offline: true });
     });
+  },
+
+  // 原始场次数据 → 装饰后的课程列表（映射 + 状态 + 排序）
+  renderList(sessions, full, discount) {
+    const list = (sessions || []).map(s => ({
+      id: s.id,
+      name: s.course_name,
+      description: s.course_desc || '',
+      category: s.category,
+      coach: s.coach_name,
+      coachAvatar: s.coach_avatar || DEFAULT_COACH_AVATAR,
+      level: s.level,
+      date: full,               // 场次所属日期
+      start: s.start_time,
+      end: s.end_time,
+      remaining: s.remaining,
+      capacity: s.capacity,
+      price: (s.price_fen / 100).toFixed(0),
+      memberPrice: Math.floor(Number((s.price_fen / 100).toFixed(0)) * discount), // 会员价 = 正价 × 等级折扣，向下取整到元
+      img: s.cover || DEFAULT_COVER,
+      bookedByMe: !!s.booked_by_me
+    })).map(s => this.decorateSession(s));
+    list.sort(this.sortSessions);
+    return list;
   },
 
   // 排序：未开始在前（最早的未开始排第一），再进行中，最后已结束；同状态按开始时间升序

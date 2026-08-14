@@ -30,7 +30,26 @@
 
       <!-- 课程列表 -->
       <view class="course-list">
-      <view class="loading-tip" wx:if="{{loading}}">加载中...</view>
+      <!-- 骨架屏：无缓存首屏加载时展示（替代白屏等待） -->
+      <view class="sk-list" wx:if="{{loading}}">
+        <view class="sk-card" wx:for="{{[1,2,3]}}" wx:key="*this">
+          <view class="sk-row">
+            <view class="sk-avatar"></view>
+            <view class="sk-lines">
+              <view class="sk-line w60"></view>
+              <view class="sk-line w40"></view>
+            </view>
+          </view>
+          <view class="sk-row">
+            <view class="sk-line w30"></view>
+            <view class="sk-chip"></view>
+          </view>
+          <view class="sk-row">
+            <view class="sk-line w15"></view>
+            <view class="sk-btn"></view>
+          </view>
+        </view>
+      </view>
       <view class="course-card {{item.disabled && !item.isBooked ? 'card-full' : ''}}" wx:for="{{courseList}}" wx:key="id"
             bindtap="goDetail" data-id="{{item.id}}" data-disabled="{{item.disabled}}" data-waitlist="{{item.canWaitlist}}">
         <!-- 剩余席位 0：金色"满员"斜条；1~5：红色"紧张"斜条 -->

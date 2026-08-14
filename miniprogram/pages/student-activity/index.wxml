@@ -118,6 +118,27 @@
         </view>
       </view>
 
+      <!-- 骨架屏：无缓存首屏加载时展示（替代白屏等待） -->
+      <view class="sk-list" wx:if="{{!loaded}}">
+        <view class="sk-card" wx:for="{{[1,2,3]}}" wx:key="*this">
+          <view class="sk-row">
+            <view class="sk-avatar"></view>
+            <view class="sk-lines">
+              <view class="sk-line w60"></view>
+              <view class="sk-line w40"></view>
+            </view>
+          </view>
+          <view class="sk-row">
+            <view class="sk-line w30"></view>
+            <view class="sk-chip"></view>
+          </view>
+          <view class="sk-row">
+            <view class="sk-line w15"></view>
+            <view class="sk-btn"></view>
+          </view>
+        </view>
+      </view>
+
       <!-- 今日暂无课程 -->
       <view class="empty-today flex-col" wx:if="{{loaded && hotCourses.length === 0}}">
         <text class="empty-icon">▦</text>
