@@ -18,9 +18,14 @@ Page({
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
     api.getPassPackages().then((res) => {
-      this.setData({ packages: res.packages || [] });
+      // 单价 = 价格 / 次数，向下取整到元（¥900/12次 = ¥75/次）
+      const pkgs = (res.packages || []).map(p => ({
+        ...p,
+        unitPrice: Math.floor((p.price_fen / 100) / (p.total_count || 1))
+      }));
+      this.setData({ packages: pkgs });
       // 默认选中第一个
-      const pkgs = res.packages || [];
+      const sel = pkgs.length ? pkgs[0] : null;
       if (pkgs.length && !this.data.selected) {
         this.setData({ selected: pkgs[0] });
       }

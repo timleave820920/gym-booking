@@ -27,7 +27,7 @@
         <view class="pkg-left flex-col flex-1">
           <view class="flex-row pkg-head">
             <text class="pkg-name">{{item.name}}</text>
-            <text class="pkg-chip">{{item.total_count}} 次 · {{item.valid_days}} 天</text>
+            <text class="pkg-chip">{{item.total_count}} 次 · {{item.valid_days}} 天 · ¥{{item.unitPrice}}/次</text>
           </view>
           <text class="pkg-desc">{{item.desc}}</text>
         </view>
