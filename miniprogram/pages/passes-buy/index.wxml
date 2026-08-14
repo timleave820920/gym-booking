@@ -23,7 +23,7 @@
     <view class="pkg-list">
       <view class="pkg {{selected.id === item.id ? 'pkg-on' : ''}}" wx:for="{{packages}}" wx:key="id"
             data-id="{{item.id}}" bindtap="selectPkg">
-        <!-- 左：档位信息（仿支付选项布局） -->
+        <!-- 左：档位信息 -->
         <view class="pkg-left flex-col flex-1">
           <view class="flex-row pkg-head">
             <text class="pkg-name">{{item.name}}</text>
@@ -31,12 +31,11 @@
           </view>
           <text class="pkg-desc">{{item.desc}}</text>
         </view>
-        <!-- 右：价格 + 单选圆点（纵向，不重叠） -->
-        <view class="pkg-right flex-col">
-          <text class="pkg-price">¥{{item.price_fen / 100}}</text>
-          <view class="radio {{selected.id === item.id ? 'radio-on' : ''}}">
-            <view class="radio-dot" wx:if="{{selected.id === item.id}}"></view>
-          </view>
+        <!-- 中：价格 -->
+        <text class="pkg-price">¥{{item.price_fen / 100}}</text>
+        <!-- 右：单选圆点 -->
+        <view class="radio {{selected.id === item.id ? 'radio-on' : ''}}">
+          <view class="radio-dot" wx:if="{{selected.id === item.id}}"></view>
         </view>
       </view>
     </view>

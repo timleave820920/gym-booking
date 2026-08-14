@@ -105,18 +105,16 @@
   color: #8A8A8A;
   line-height: 1.5;
 }
-/* 右侧：价格 + 单选圆点（仿支付方式选择） */
-.pkg-right {
-  align-items: flex-end;
-  gap: 14rpx;
-  flex-shrink: 0;
-}
+/* 中列：价格（与左信息、右圆点水平居中，三列对齐） */
 .pkg-price {
   font-size: 40rpx;
   font-weight: 800;
   color: #5B57EB;
   line-height: 1;
+  margin-left: 16rpx;
+  flex-shrink: 0;
 }
+/* 右列：单选圆点（仿支付方式选择，垂直居中） */
 .radio {
   width: 40rpx;
   height: 40rpx;
@@ -126,6 +124,8 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
+  margin-left: 24rpx;
+  flex-shrink: 0;
 }
 .radio-on {
   border-color: #1A1A23;
