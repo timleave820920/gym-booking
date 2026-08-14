@@ -70,6 +70,13 @@
               <view class="ico ico-ongoing" wx:elif="{{item.status === 'ongoing'}}"></view>
               <view class="ico ico-ended" wx:elif="{{item.status === 'ended'}}"></view>
               <view class="ico ico-book" wx:else></view>
+              <text wx:if="{{item.isBooked}}">已预订</text>
+              <text wx:elif="{{item.waitlisted}}">{{t.waitlisted}}</text>
+              <text wx:elif="{{item.canWaitlist}}">{{t.waitlistBtn}}</text>
+              <text wx:elif="{{item.isFull}}">已满</text>
+              <text wx:elif="{{item.status === 'ongoing'}}">{{t.ongoing}}</text>
+              <text wx:elif="{{item.status === 'ended'}}">{{t.ended}}</text>
+              <text wx:else>预约</text>
             </view>
           </view>
         </view>
