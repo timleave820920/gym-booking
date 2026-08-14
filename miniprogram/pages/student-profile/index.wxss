@@ -179,7 +179,7 @@
 }
 .vip-pass-label {
   font-size: 22rpx;
-  color: var(--lime);
+  color: var(--coin-gold);
   font-weight: 600;
 }
 .vip-pass-num {

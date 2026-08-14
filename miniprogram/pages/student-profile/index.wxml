@@ -27,7 +27,7 @@
       <view class="vip-row" wx:if="{{member}}">
         <view class="vip-pass" wx:if="{{passInfo.hasPass}}" catchtap="goPass">
           <view class="vip-pass-left">
-            <text class="vip-pass-label">次数包</text>
+            <text class="vip-pass-label">🎟️ 次数包</text>
             <text class="vip-pass-num">{{passInfo.remaining}}<text class="vip-pass-total"> / {{passInfo.total}} 次</text></text>
           </view>
           <view class="vip-pass-right">
@@ -39,7 +39,7 @@
         <!-- 未购次数包：引导去购买 -->
         <view class="vip-pass vip-pass-empty" wx:else catchtap="goPass">
           <view class="vip-pass-left">
-            <text class="vip-pass-label">次数包</text>
+            <text class="vip-pass-label">🎟️ 次数包</text>
             <text class="vip-pass-num">尚未购买次数包</text>
           </view>
           <view class="vip-pass-right">
@@ -49,7 +49,7 @@
 
         <!-- 第三行：储值信息（底框 + 去充值改为去商店式表达） -->
         <view class="vip-row-item" bindtap="goRecharge">
-          <text class="vip-row-label">储值余额</text>
+          <text class="vip-row-label">💰 储值余额</text>
           <text class="vip-row-value">¥ {{member.balance}}</text>
           <text class="vip-row-go">去充值 →</text>
         </view>
