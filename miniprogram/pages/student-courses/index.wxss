@@ -202,7 +202,7 @@
 .cb-dumbbell {
   width: 30rpx;               /* 小哑铃：黑描边线性图标，与课程名/全局 icon 语言一致 */
   height: 30rpx;
-  background: url('data:image/svg+xml;base64,''' + B64 + ''') no-repeat center/contain;
+  background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+PHJlY3QgeD0iMiIgeT0iOS41IiB3aWR0aD0iMyIgaGVpZ2h0PSI1IiByeD0iMSIgc3Ryb2tlPSIjMUExQTIzIiBzdHJva2Utd2lkdGg9IjEuOCIvPjxyZWN0IHg9IjUiIHk9IjcuNSIgd2lkdGg9IjIuMiIgaGVpZ2h0PSI5IiByeD0iMS4xIiBzdHJva2U9IiMxQTFBMjMiIHN0cm9rZS13aWR0aD0iMS44Ii8+PHJlY3QgeD0iNy40IiB5PSIxMCIgd2lkdGg9IjEuOCIgaGVpZ2h0PSI0IiByeD0iMC45IiBzdHJva2U9IiMxQTFBMjMiIHN0cm9rZS13aWR0aD0iMS44Ii8+PHBhdGggZD0iTTkuMiAxMmg1LjYiIHN0cm9rZT0iIzFBMUEyMyIgc3Ryb2tlLXdpZHRoPSIxLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxyZWN0IHg9IjE0LjgiIHk9IjEwIiB3aWR0aD0iMS44IiBoZWlnaHQ9IjQiIHJ4PSIwLjkiIHN0cm9rZT0iIzFBMUEyMyIgc3Ryb2tlLXdpZHRoPSIxLjgiLz48cmVjdCB4PSIxNi44IiB5PSI3LjUiIHdpZHRoPSIyLjIiIGhlaWdodD0iOSIgcng9IjEuMSIgc3Ryb2tlPSIjMUExQTIzIiBzdHJva2Utd2lkdGg9IjEuOCIvPjxyZWN0IHg9IjE5IiB5PSI5LjUiIHdpZHRoPSIzIiBoZWlnaHQ9IjUiIHJ4PSIxIiBzdHJva2U9IiMxQTFBMjMiIHN0cm9rZS13aWR0aD0iMS44Ii8+PC9zdmc+') no-repeat center/contain;
 }
 /* 预约按钮（2026-08-14 图标+文字：纯线性 SVG，同个人中心 icon-* 语言） */
 .cb-btn {
