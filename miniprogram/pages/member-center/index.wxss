@@ -41,12 +41,13 @@
   justify-content: center;
   flex-shrink: 0;
 }
-.gi-lime { background: #B9FF66; }
-.gi-purple { background: #5B57EB; }
-.gi-red { background: #F8B7B8; }
-.gi-green { background: #3D9970; }
-.gi-gold { background: var(--coin-gold); }
-.gi-indigo { background: #8C84F2; }
+.gi-level { background: #534AB7; }   /* 会员等级 · 紫（尊贵/成长） */
+.gi-wallet { background: #BA7517; }  /* 储值会员 · 金（金钱） */
+.gi-invite { background: #3B6D11; }  /* 邀请好友 · 绿（活跃/裂变） */
+.gi-pass   { background: #185FA5; }  /* 次卡包 · 蓝（卡/数字） */
+.gi-shop   { background: #D85A30; }  /* 能量商店 · 橙（能量/闪电） */
+.gi-idea   { background: #1A1A23; }  /* 场馆理念 · 墨黑（品牌根基） */
+.gi-honor  { background: #A32D2D; }  /* 参赛荣誉 · 红（竞技/热忱） */
 .g-name {
   display: block;
   font-size: 28rpx;
