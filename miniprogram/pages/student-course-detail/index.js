@@ -47,7 +47,9 @@ Page({
       // 按日期+时间判断课程状态 → 三态描述文案
       const status = courseStatus.getSessionStatus(s.date, s.start_time, s.end_time);
       // 轮播图：配置了服务器端图 → 用图；未配置 → 1-5 数字占位（仍轮播演示）
-      const images = (s.images || []).filter(Boolean).slice(0, 5);
+      // 服务器端图片（/uploads/ 相对路径）需拼完整 URL，否则小程序按包内路径解析 404/500
+      const fullUrl = (p) => (p && p.startsWith('/uploads/')) ? (api.LOCAL_BASE_URL + p) : p;
+      const images = (s.images || []).filter(Boolean).slice(0, 5).map(fullUrl);
       const isPlaceholder = images.length === 0;
       const gallery = isPlaceholder ? ['1', '2', '3', '4', '5'] : images;
       // 年月日小字（2026-08-15 → 2026年8月15日 周六）
@@ -65,12 +67,12 @@ Page({
           capacity: s.capacity,
           venue: s.venue_name,
           coach: s.coach_name,
-          coachAvatar: s.coach_avatar,
+          coachAvatar: fullUrl(s.coach_avatar),
           coachBio: s.coach_bio || '资深认证教练，经验丰富',
           start: s.start_time,
           end: s.end_time,
           price: (s.price_fen / 100).toFixed(0),
-          img: s.cover || DEFAULT_COVER,
+          img: fullUrl(s.cover) || DEFAULT_COVER,
           date: s.date,
           dateText,
           address: s.address || DEFAULT_ADDRESS,
