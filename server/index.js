@@ -934,6 +934,11 @@ const API_ROUTES = [
   { m: 'GET',    p: '/api/admin/invite-board',  f: (q, r) => sendJson(r, 200, { code: 200, board: db.inviteBoardStats() }) },
   // ===== 次卡包 =====
   { m: 'GET',    p: '/api/passes/packages',     f: (q, r) => sendJson(r, 200, { code: 200, packages: db.listPassPackages() }) },
+  { m: 'GET',    p: '/api/achievements/sync',   f: (q, r, u) => {
+      const openid = u.searchParams.get('openid');
+      if (!openid) return sendJson(r, 400, { code: 400, message: '缺少 openid' });
+      sendJson(r, 200, { code: 200, ...db.syncAchievements(openid), reward: db.REWARD_COINS });
+    } },
   { m: 'GET',    p: '/api/passes/my',           f: (q, r, u) => {
       const openid = u.searchParams.get('openid');
       if (!openid) return sendJson(r, 400, { code: 400, message: '缺少 openid' });

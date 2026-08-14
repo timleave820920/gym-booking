@@ -275,6 +275,11 @@ module.exports = {
     return localRequest('/api/passes/available?openid=' + openid, 'GET');
   },
 
+  // 成就同步：检测新解锁成就并发 50 能量币（幂等）
+  syncAchievements(openid) {
+    return localRequest('/api/achievements/sync?openid=' + openid, 'GET');
+  },
+
   bindInvite(data) {
     return localRequest('/api/invite', 'POST', data);
   },

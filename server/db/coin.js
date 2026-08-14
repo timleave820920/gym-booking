@@ -19,12 +19,13 @@ function todayCoinsEarned(openid) {
  * 发放能量币（含每日上限校验）
  * @returns {number|null} 变动后余额；超限返回 null
  */
-function addCoins(openid, change, reason, refId) {
+function addCoins(openid, change, reason, refId, bypassLimit) {
   const user = findUserByOpenid(openid);
   if (!user) return null;
   if (change <= 0) return user.coin_balance || 0;
   const limit = ENERGY_CONFIG.dailyLimit || 0;
-  if (limit > 0 && todayCoinsEarned(openid) + change > limit) {
+  // bypassLimit=true：不受每日上限限制（成就奖励等长期激励）
+  if (!bypassLimit && limit > 0 && todayCoinsEarned(openid) + change > limit) {
     // 超每日上限：按剩余额度发放
     const remain = limit - todayCoinsEarned(openid);
     if (remain <= 0) return null;

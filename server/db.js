@@ -11,6 +11,7 @@ const { listInvitationDetails, inviteBoardStats, bindInvitation, rewardInviter, 
 const { listCoaches, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById, listBookedUsersWithInfo } = require('./db/courses');
 const { sendMessage, broadcastMessage, listMessages, unreadMessageCount, markMessageRead, markAllMessagesRead, listSessionsStartingSoon, listBookedUsersBySession } = require('./db/messages');
 const { listPassPackages, getUserPass, getUserPassInfo, applyPassPurchase, consumePass, refundPass, expireOverduePasses } = require('./db/passes');
+const { syncAchievements, listUserAchievementKeys, REWARD_COINS } = require('./db/achievements');
 const { genOrderNo, createOrder, payOrder, listOrdersByUser, getOrderByNo, getRevenueStats, promoteFromWaitlist, joinWaitlist, cancelWaitlist, listWaitlistByUser, refundExpiredWaitlist } = require('./db/orders');
 const { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings } = require('./db/bookings');
 
@@ -112,5 +113,9 @@ module.exports = {
   applyPassPurchase,
   consumePass,
   refundPass,
-  expireOverduePasses
+  expireOverduePasses,
+  // 成就
+  syncAchievements,
+  listUserAchievementKeys,
+  REWARD_COINS
 };

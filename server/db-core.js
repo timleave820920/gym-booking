@@ -86,6 +86,15 @@ db.exec(`
     FOREIGN KEY (user_openid) REFERENCES users(openid)
   );
   CREATE INDEX IF NOT EXISTS idx_user_passes_user ON user_passes(user_openid, status);
+
+  CREATE TABLE IF NOT EXISTS user_achievements (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_openid TEXT NOT NULL,
+    ach_key     TEXT NOT NULL,
+    coin_reward INTEGER DEFAULT 50,
+    unlocked_at TEXT DEFAULT (datetime('now','localtime')),
+    UNIQUE(user_openid, ach_key)
+  );
 `);
 
 // ===== 会员体系表 =====
