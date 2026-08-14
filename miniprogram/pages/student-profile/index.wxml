@@ -9,9 +9,11 @@
       <!-- 第一行：头像+昵称 + 等级按钮（升级提示右对齐在按钮下方） -->
       <view class="vip-top" bindtap="goMemberLevel">
         <view class="vip-user">
-          <button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+          <view class="avatar-wrap">
             <image class="vip-avatar" src="{{user.avatar}}" mode="aspectFill" binderror="avatarError"></image>
-          </button>
+            <!-- 透明 chooseAvatar 按钮覆盖头像：触发微信头像选择（不破坏布局） -->
+            <button class="avatar-picker" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar"></button>
+          </view>
           <text class="vip-name">{{user.name}}</text>
         </view>
         <view class="vip-lv-group" wx:if="{{member}}">
