@@ -556,12 +556,12 @@ async function runSuite() {
   await req('POST', `/api/orders/${coinOrder.id}/pay`, { openid: T.user2.openid });
   r = await req('GET', `/api/coin/balance?openid=${T.user2.openid}`);
   check('COIN-04', '充值得币(5%比例)', r.data.balance === 250, `balance=${r.data && r.data.balance}`);
-  // 再充 1500 → 应得 750，但每日上限 500 → 补发 250（验证日限截断）
+  // 再充 1500 → 应得 750；2026-08-14 取消每日上限 → 全额到账 250+750=1000（不再截断）
   r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: 0, amountFen: 150000, orderType: 'recharge' });
   coinOrder = r.data.order;
   await req('POST', `/api/orders/${coinOrder.id}/pay`, { openid: T.user2.openid });
   r = await req('GET', `/api/coin/balance?openid=${T.user2.openid}`);
-  check('COIN-04b', '充值得币(日限截断)', r.data.balance === 500, `balance=${r.data && r.data.balance}`);
+  check('COIN-04b', '充值得币(无限额全额到账)', r.data.balance === 1000, `balance=${r.data && r.data.balance}`);
   // 余额不足兑换拒绝
   r = await req('POST', '/api/coin/exchange', { openid: T.user2.openid, itemId: 'coach-1v1' });
   check('COIN-05', '余额不足兑换拒绝', r.status === 400 && (r.data.message || '').includes('不足'), `msg=${r.data && r.data.message}`);
