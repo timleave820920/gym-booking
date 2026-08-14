@@ -1,12 +1,17 @@
 <view class="page" wx:if="{{course}}">
   <view class="page-pad pt-16">
-    <!-- 课程信息卡 -->
+    <!-- 课程信息卡：教练头像 + 课程名/时间段/年月日星期/场馆/原价 -->
     <view class="course-card flex-row">
-      <image class="course-cover" src="{{course.img}}" mode="aspectFill"></image>
+      <image class="course-cover" src="{{course.coachAvatar || '/images/2_295.png'}}" mode="aspectFill"></image>
       <view class="flex-col flex-1 course-info">
         <text class="course-name">{{course.name}}</text>
-        <text class="course-meta">{{course.time}} · {{course.venue}} · 教练{{course.coach}}</text>
-        <text class="course-price">¥{{course.price}}</text>
+        <text class="course-time">{{course.time}}</text>
+        <text class="course-meta">{{course.dateText}}</text>
+        <text class="course-meta">{{course.venue}}</text>
+        <view class="flex-row price-row">
+          <text class="course-price">¥{{course.price}}</text>
+          <text class="price-origin">单次价</text>
+        </view>
       </view>
     </view>
 

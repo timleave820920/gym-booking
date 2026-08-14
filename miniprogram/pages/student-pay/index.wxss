@@ -13,22 +13,35 @@
   box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
 }
 .course-cover {
-  width: 152rpx; height: 152rpx;
-  border-radius: 24rpx;
-  margin-right: 24rpx;
+  width: 128rpx; height: 128rpx;
+  border-radius: 50%;
+  border: 4rpx solid #1A1A23;
+  margin-right: 28rpx;
   flex-shrink: 0;
+  background: #F0EDDF;
 }
 .course-info { justify-content: center; }
 .course-name {
   font-size: 30rpx; font-weight: 700; color: #1A1A23;
 }
+.course-time {
+  margin-top: 10rpx;
+  font-size: 28rpx; font-weight: 700; color: #1A1A23;
+}
 .course-meta {
   font-size: 24rpx; color: #6B6B76;
-  margin-top: 8rpx;
+  margin-top: 6rpx;
 }
 .course-price {
-  font-size: 30rpx; font-weight: 700; color: #1A1A23;
-  margin-top: 12rpx;
+  font-size: 32rpx; font-weight: 800; color: #E5484D;
+  margin-top: 8rpx;
+}
+.price-row {
+  gap: 10rpx;
+  align-items: baseline;
+}
+.price-origin {
+  font-size: 20rpx; color: #B0AFA8;
 }
 
 /* 金额卡 */

@@ -172,9 +172,11 @@ Page({
       id: course.id,
       name: course.name,
       coach: course.coach,
+      coachAvatar: course.coachAvatar,
       venue: course.venue,
       time: `${course.start}-${course.end}`,
       date: course.date,
+      dateText: course.dateText,
       price: Number(course.price),
       img: course.img,
       mode: 'book'

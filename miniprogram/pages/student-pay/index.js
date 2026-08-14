@@ -31,8 +31,10 @@ Page({
     const course = app.globalData.currentCourse || {
       name: 'HIIT 高强度燃脂训练',
       coach: '阿凯',
+      coachAvatar: '',
       venue: 'A馆',
       time: '10:00-11:00',
+      dateText: '',
       price: 68,
       img: '/images/3_24.png'
     };
