@@ -6,9 +6,12 @@
 
     <!-- 会员卡预览（点击进会员等级页；能量币行 catchtap 防冒泡——BUG-LEDGER #11 修复） -->
     <view class="vip-preview">
-      <!-- 第一行：我的会员 + 等级按钮（升级提示右对齐在按钮下方） -->
+      <!-- 第一行：头像+昵称 + 等级按钮（升级提示右对齐在按钮下方） -->
       <view class="vip-top" bindtap="goMemberLevel">
-        <text class="vip-name">我的会员</text>
+        <view class="vip-user">
+          <image class="vip-avatar" src="{{user.avatar}}" mode="aspectFill" binderror="avatarError"></image>
+          <text class="vip-name">{{user.name}}</text>
+        </view>
         <view class="vip-lv-group" wx:if="{{member}}">
           <view class="vip-lv" bindtap="goMemberLevel">
             <text class="vip-lv-txt">{{member.icon}} Lv.{{member.lv}}</text>

@@ -3,6 +3,7 @@ const api = require('../../utils/api.js');
 
 Page({
   data: {
+    user: { name: '微信用户', avatar: '/images/2_556.png' },  // 头像/昵称（会员区第一行）
     member: null,        // 会员卡数据（等级/余额/升级提示）
     coinBalance: 0,
     passInfo: { hasPass: false },   // 次数包信息（剩余次数/过期天数）
@@ -22,7 +23,14 @@ Page({
   },
 
   onLoad() {
-    // 用户卡已移除，无需加载头像/昵称/锻炼次数
+    // 加载用户信息（头像/昵称）——会员区第一行展示（2026-08-14 用户要求"我的会员"改为头像+昵称）
+    const user = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
+    this.setData({
+      user: {
+        name: user.name || user.nickname || '微信用户',
+        avatar: user.avatar || '/images/2_556.png'
+      }
+    });
   },
 
   onShow() {
@@ -74,6 +82,11 @@ Page({
     }).catch(() => {
       this.setData({ passInfo: { hasPass: false } });
     });
+  },
+
+  // 头像加载失败 → 兜底默认头像
+  avatarError() {
+    this.setData({ 'user.avatar': '/images/2_556.png' });
   },
 
   // 会员等级（替代原「电子会员卡」页，产品决策 2026-08-13：去掉我的会员卡页面，直接进等级页）

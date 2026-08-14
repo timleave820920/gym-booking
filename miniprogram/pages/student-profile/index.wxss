@@ -101,6 +101,21 @@
   font-weight: 700;
   color: #FFFFFF;
 }
+/* 头像 + 昵称（2026-08-14 替代"我的会员"文案） */
+.vip-user {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  min-width: 0;
+}
+.vip-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  border: 3rpx solid rgba(255,255,255,0.3);
+  flex-shrink: 0;
+}
 /* 等级按钮组：按钮 + 升级提示（右对齐，提示在按钮下方） */
 .vip-lv-group {
   display: flex;
