@@ -4,7 +4,7 @@ const i18n = require('../../utils/i18n.js');
 
 Page({
   data: {
-    agreed: true,          // 默认勾选协议
+    agreed: false,         // 协议勾选（微信审核要求：禁止默认勾选，须用户主动同意）
     loggingIn: false,
     lang: 'zh',              // 当前语言
     t: i18n.t(),             // 语言字典
@@ -139,6 +139,8 @@ Page({
 
   // ===== 演示身份快捷登录（不写数据库，直接进入对应端）=====
   quickLogin(e) {
+    if (!this.checkAgree()) return;         // 协议未勾选 → 拦截（与正式登录一致）
+    if (!this.requirePrivacy()) return;     // 隐私未同意 → 弹窗拦截
     const role = e.currentTarget.dataset.role;
     const urls = {
       student: '/pages/student-courses/index',
