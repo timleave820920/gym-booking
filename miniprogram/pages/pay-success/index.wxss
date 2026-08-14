@@ -31,12 +31,16 @@
   font-size: 48rpx;
   font-weight: 800;
   color: #1A1A23;
+  width: 100%;
+  text-align: center;
 }
 
 .success-sub {
   margin-top: 12rpx;
   font-size: 26rpx;
   color: #6B6B76;
+  width: 100%;
+  text-align: center;
 }
 
 /* 课程信息卡 */
