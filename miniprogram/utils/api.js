@@ -106,6 +106,11 @@ module.exports = {
     return localRequest('/api/auth/profile', 'POST', data);
   },
 
+  // 图片上传（base64，返回 /images/xxx 路径；用于头像/封面等）
+  uploadImage(name, base64Data) {
+    return localRequest('/api/upload', 'POST', { name, data: base64Data });
+  },
+
   // 用户列表（后台用）
   getUsers() {
     if (USE_CLOUD) {

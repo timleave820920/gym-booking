@@ -8,7 +8,7 @@
     <view class="vip-preview">
       <!-- 第一行：头像+昵称 + 等级按钮（升级提示右对齐在按钮下方） -->
       <view class="vip-top" bindtap="goMemberLevel">
-        <view class="vip-user">
+        <view class="vip-user" catchtap="changeAvatar">
           <image class="vip-avatar" src="{{user.avatar}}" mode="aspectFill" binderror="avatarError"></image>
           <text class="vip-name">{{user.name}}</text>
         </view>

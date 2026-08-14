@@ -89,6 +89,99 @@ Page({
     this.setData({ 'user.avatar': '/images/2_556.png' });
   },
 
+  // 更换头像：微信头像 / 本地上传（2026-08-14 用户需求）
+  changeAvatar() {
+    const openid = (app.globalData.userInfo || {}).openid || wx.getStorageSync('openid');
+    if (!openid) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    wx.showActionSheet({
+      itemList: ['使用微信头像', '从本地上传'],
+      success: (res) => {
+        if (res.tapIndex === 0) {
+          this.useWechatAvatar(openid);
+        } else if (res.tapIndex === 1) {
+          this.uploadLocalAvatar(openid);
+        }
+      }
+    });
+  },
+
+  // 方式一：微信头像
+  useWechatAvatar(openid) {
+    wx.getUserProfile({
+      desc: '用于更新头像',
+      success: (profileRes) => {
+        const avatarUrl = (profileRes.userInfo || {}).avatarUrl;
+        if (!avatarUrl) {
+          wx.showToast({ title: '获取头像失败', icon: 'none' });
+          return;
+        }
+        this.saveAvatar(avatarUrl, openid);
+      },
+      fail: () => {
+        wx.showToast({ title: '已取消', icon: 'none' });
+      }
+    });
+  },
+
+  // 方式二：本地上传（选图 → base64 → /api/upload → 存 /images/xxx）
+  uploadLocalAvatar(openid) {
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sizeType: ['compressed'],
+      success: (res) => {
+        const file = res.tempFiles && res.tempFiles[0];
+        if (!file) return;
+        wx.getFileSystemManager().readFile({
+          filePath: file.tempFilePath,
+          encoding: 'base64',
+          success: (readRes) => {
+            const ext = (file.tempFilePath.match(/\.(\w+)$/) || [,'png'])[1].toLowerCase();
+            const mime = ext === 'jpg' ? 'jpeg' : ext;
+            const base64 = `data:image/${mime};base64,${readRes.data}`;
+            wx.showLoading({ title: '上传中...' });
+            api.uploadImage(`avatar_${Date.now()}.${mime}`, base64).then((up) => {
+              wx.hideLoading();
+              if (up.path) {
+                this.saveAvatar(up.path, openid);
+              } else {
+                wx.showToast({ title: up.message || '上传失败', icon: 'none' });
+              }
+            }).catch(() => {
+              wx.hideLoading();
+              wx.showToast({ title: '上传失败', icon: 'none' });
+            });
+          },
+          fail: () => {
+            wx.showToast({ title: '读取图片失败', icon: 'none' });
+          }
+        });
+      },
+      fail: () => {
+        wx.showToast({ title: '已取消', icon: 'none' });
+      }
+    });
+  },
+
+  // 保存头像：更新全局 + 调后端持久化
+  saveAvatar(avatarUrl, openid) {
+    // 本地先更新（即时反馈）
+    this.setData({ 'user.avatar': avatarUrl });
+    if (app.globalData.userInfo) {
+      app.globalData.userInfo.avatar = avatarUrl;
+      wx.setStorageSync('userInfo', app.globalData.userInfo);
+    }
+    // 后端持久化
+    api.updateProfile({ openid, avatar: avatarUrl }).then(() => {
+      wx.showToast({ title: '头像已更新', icon: 'success' });
+    }).catch(() => {
+      wx.showToast({ title: '更新失败，请重试', icon: 'none' });
+    });
+  },
+
   // 会员等级（替代原「电子会员卡」页，产品决策 2026-08-13：去掉我的会员卡页面，直接进等级页）
   goMemberLevel() {
     wx.navigateTo({ url: '/pages/member-level/index' });
