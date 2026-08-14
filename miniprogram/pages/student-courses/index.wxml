@@ -63,7 +63,7 @@
 
           <!-- 底行：价格（会员价紧跟右侧）+ 按钮 -->
           <view class="cb-bottom">
-            <view class="cb-price">¥{{item.price}}<text class="cb-price-mem">（会员 ¥{{item.memberPrice}}）</text></view>
+            <view class="cb-price">¥{{item.price}}<text class="cb-price-mem">（{{memberLevelName}}会员 ¥{{item.memberPrice}}）</text></view>
             <view class="cb-btn {{item.isBooked ? 'btn-booked' : ((item.waitlisted || item.canWaitlist) ? 'btn-waitlist' : (item.isFull ? 'btn-full' : (item.status === 'ongoing' ? 'btn-ongoing' : (item.status === 'ended' ? 'btn-ended' : ''))))}}" catchtap="goDetail" data-id="{{item.id}}" data-disabled="{{item.disabled}}" data-waitlist="{{item.canWaitlist}}">
               <view class="ico ico-booked" wx:if="{{item.isBooked}}"></view>
               <view class="ico ico-waitlist" wx:elif="{{item.waitlisted || item.canWaitlist}}"></view>

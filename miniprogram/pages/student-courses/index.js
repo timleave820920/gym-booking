@@ -17,7 +17,8 @@ Page({
     offline: false,      // 后端不可用回退演示数据
     greeting: '',        // 时段问候 + 昵称
     user: { date: '' },  // 当前日期（年月日 + 星期）
-    t: i18n.t()          // 语言字典
+    t: i18n.t(),         // 语言字典
+    memberLevelName: '会员'  // 当前会员等级名（青铜/白银/黄金/钻石），价格旁标注
   },
 
   onLoad() {
@@ -100,12 +101,13 @@ Page({
     let discount = 1;
     if (openid) {
       api.getMemberLevel(openid).then((r) => {
-        if (r.level && r.level.discount) this.applyDiscount(r.level.discount);
+        if (r.level && r.level.discount) this.applyDiscount(r.level.discount, r.level.levelName);
       }).catch(() => {});
     }
-    this.applyDiscount = (d) => {
+    this.applyDiscount = (d, lvName) => {
       discount = Number(d) || 1;
       this.setData({
+        memberLevelName: lvName || '会员',
         courseList: this.data.courseList.map(c => ({ ...c, memberPrice: Math.floor(Number(c.price) * discount) }))
       });
     };
