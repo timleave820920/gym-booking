@@ -25,7 +25,6 @@ Page({
       }));
       this.setData({ packages: pkgs });
       // 默认选中第一个
-      const sel = pkgs.length ? pkgs[0] : null;
       if (pkgs.length && !this.data.selected) {
         this.setData({ selected: pkgs[0] });
       }
