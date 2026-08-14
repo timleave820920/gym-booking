@@ -18,7 +18,10 @@
         </view>
         <view class="vip-lv-group" wx:if="{{member}}">
           <view class="vip-lv" bindtap="goMemberLevel">
-            <text class="vip-lv-txt">{{member.icon}} {{member.name}}</text>
+            <view class="flex-row lv-inline">
+              <text class="lv-emoji">{{member.icon}}</text>
+              <text class="vip-lv-txt">{{member.name}}</text>
+            </view>
           </view>
           <text class="vip-lv-hint" wx:if="{{member.hint}}">{{member.hint}}</text>
         </view>

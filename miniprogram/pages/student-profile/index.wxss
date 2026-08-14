@@ -160,6 +160,17 @@
   font-size: 22rpx;
   font-weight: 700;
   color: #1A1A23;
+  line-height: 1;
+}
+/* 奖牌 emoji 与等级名同行垂直居中（text 混排共用基线导致中文偏低，拆分 flex 修正） */
+.lv-inline {
+  align-items: center;
+  gap: 6rpx;
+}
+.lv-emoji {
+  font-size: 30rpx;
+  line-height: 1;
+  transform: translateY(1rpx);   /* emoji 视觉中心微调 */
 }
 .vip-lv-hint {
   font-size: 20rpx;

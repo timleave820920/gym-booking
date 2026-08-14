@@ -5,7 +5,10 @@
       <view class="card-top">
         <text class="card-name">综合训练馆 · 会员卡</text>
         <view class="card-lv">
-          <text class="card-lv-txt">{{level.icon}} Lv.{{level.lv}}</text>
+          <view class="flex-row lv-inline">
+            <text class="lv-emoji">{{level.icon}}</text>
+            <text class="card-lv-txt">Lv.{{level.lv}}</text>
+          </view>
         </view>
       </view>
       <text class="card-no">{{cardNo}}</text>

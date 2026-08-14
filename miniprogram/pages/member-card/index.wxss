@@ -35,6 +35,16 @@
   font-size: 22rpx;
   font-weight: 700;
   color: #1A1A23;
+  line-height: 1;
+}
+.lv-inline {
+  align-items: center;
+  gap: 6rpx;
+}
+.lv-emoji {
+  font-size: 30rpx;
+  line-height: 1;
+  transform: translateY(1rpx);
 }
 .card-no {
   display: block;
