@@ -513,3 +513,27 @@ button.privacy-btn::after {
   color: #5B57EB;
   font-weight: 600;
 }
+
+/* 昵称匹配提示 + 快捷登录 */
+.nick-match {
+  margin-top: 16rpx;
+  background: #EEEDFE;
+  border-radius: 16rpx;
+  padding: 14rpx 20rpx;
+  align-items: center;
+  justify-content: space-between;
+}
+.nick-match-txt {
+  font-size: 24rpx;
+  color: #1A1A23;
+  font-weight: 600;
+}
+.nick-login-btn {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+  background: #5B57EB;
+  border-radius: 999rpx;
+  padding: 8rpx 22rpx;
+  flex-shrink: 0;
+}

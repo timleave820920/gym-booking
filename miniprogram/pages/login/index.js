@@ -9,7 +9,8 @@ Page({
     lang: 'zh',              // 当前语言
     t: i18n.t(),             // 语言字典
     userCount: 0,            // 当前注册用户数
-    inviterCode: '',         // 邀请码（分享卡片自动带入，可手动修改）
+    nickInput: '',           // 昵称输入（测试账号快捷登录）
+    matchedTest: null,        // 匹配到的测试账号
     showPrivacy: false,      // 隐私协议弹窗（首次启动）
     privacyOk: false         // 隐私授权状态（官方 wx.getPrivacySetting）
   },
@@ -59,9 +60,6 @@ Page({
       agreed: wx.getStorageSync('agreed_terms') === '1'
     });
     this.loadUserCount();
-    // 分享卡片携带的邀请人 → 预填邀请码
-    const code = wx.getStorageSync('pending_inviter') || '';
-    if (code) this.setData({ inviterCode: code });
     // 隐私协议检测（微信 2023.9 起强制：官方 wx.getPrivacySetting）
     this.requirePrivacy().then((ok) => {
       if (!ok) this.setData({ showPrivacy: true });
@@ -96,8 +94,34 @@ Page({
     wx.navigateTo({ url: '/pages/agreement/index?type=service' });
   },
 
-  onInviteInput(e) {
-    this.setData({ inviterCode: e.detail.value });
+  // 测试账号表：昵称 → 角色（与后端 demo_ 账号一一对应）
+  TEST_ACCOUNTS: { '喻馥雅': 'coach', '蚂蚁': 'student', '艳子': 'student' },
+
+  onNickInput(e) {
+    const nick = String(e.detail.value || '').trim();
+    const role = this.TEST_ACCOUNTS[nick] || null;
+    this.setData({
+      nickInput: e.detail.value,
+      matchedTest: role ? { nick, role } : null
+    });
+  },
+
+  // 测试账号快捷登录（喻馥雅=教练 / 蚂蚁·艳子=学员）
+  nickLogin() {
+    const mt = this.data.matchedTest;
+    if (!mt) return;
+    if (!this.checkAgree()) return;
+    const nick = mt.nick;
+    wx.showModal({
+      title: '测试账号登录',
+      content: `将以「${nick}」${mt.role === 'coach' ? '（教练）' : '（学员）'}身份登录，确认？`,
+      confirmText: '确认',
+      success: (r) => {
+        if (r.confirm) {
+          this.doLogin({ name: nick, avatar: '/images/2_556.png' }, nick);
+        }
+      }
+    });
   },
 
   onShow() {
@@ -325,24 +349,24 @@ Page({
   },
 
   // ===== 执行登录（对接后端：首次=注册，再次=登录）=====
-  doLogin(userProfile) {
+  // 昵称 → openid（与后端测试账号一致的 djb2 哈希）
+  hashNick(nick) {
+    let h = 5381;
+    for (let i = 0; i < nick.length; i++) h = ((h * 33) ^ nick.charCodeAt(i)) >>> 0;
+    return 'demo_' + h.toString(36);
+  },
+
+  doLogin(userProfile, testNick) {
     wx.login({
       success: (res) => {
         const code = res.code || '';
 
-        // 演示阶段：按微信昵称生成稳定 openid
-        //  - 「田立」/ 未授权默认 → demo_user（保留现有账号与历史数据）
-        //  - 其他昵称（真机预览用真实微信号授权）→ demo_<昵称哈希>，独立测试账号
+        // 演示阶段：
+        //  - 输入昵称匹配测试账号（喻馥雅/蚂蚁/艳子）→ 用该账号登录（testNick 传入）
+        //  - 微信一键登录 / 手机号登录 → 统一「田立」demo_user
         // ⚠️ 正式上线：接入 jscode2session 用真实 openid 替换本段
-        const nick = String(userProfile.name || '').trim();
-        let openid;
-        if (!nick || nick === '田立') {
-          openid = 'demo_user';
-        } else {
-          let h = 5381;
-          for (let i = 0; i < nick.length; i++) h = ((h * 33) ^ nick.charCodeAt(i)) >>> 0;
-          openid = 'demo_' + h.toString(36);
-        }
+        const nick = String((testNick || userProfile.name) || '').trim();
+        const openid = testNick ? this.hashNick(testNick) : 'demo_user';
         wx.setStorageSync('openid', openid);
 
         // 请求后端注册/登录
@@ -411,14 +435,13 @@ Page({
     });
   },
 
-  // 邀请追踪：用邀请码绑定邀请关系（防刷由后端校验；失败不阻断登录）
+  // 邀请追踪：从分享卡片捕获的邀请人（pending_inviter）绑定邀请关系（防刷由后端校验；失败不阻断登录）
   bindInvite(openid) {
-    const code = String(this.data.inviterCode || '').trim();
+    const code = String(wx.getStorageSync('pending_inviter') || '').trim();
     if (!code) return;
     const api = require('../../utils/api.js');
     api.bindInvite({ inviter: code, invitee: openid }).then(() => {
       wx.removeStorageSync('pending_inviter');
-      this.setData({ inviterCode: '' });
       wx.showToast({ title: '邀请关系绑定成功', icon: 'none' });
     }).catch((err) => {
       console.warn('[invite] 绑定失败', err && err.message);

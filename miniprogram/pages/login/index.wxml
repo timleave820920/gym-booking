@@ -38,11 +38,15 @@
       <text class="phone-btn-txt">{{t.phoneLogin}}</text>
     </button>
 
-    <!-- 邀请码（选填）：好友分享卡片自动带入，也可手动填写 -->
+    <!-- 昵称（测试账号快捷登录）：输入 喻馥雅/蚂蚁/艳子 直接登录对应账号 -->
     <view class="invite-field flex-row">
-      <text class="invite-label">邀请码</text>
-      <input class="invite-input" placeholder="选填，填好友的邀请码双方得奖励"
-             placeholder-class="invite-ph" value="{{inviterCode}}" bindinput="onInviteInput" />
+      <text class="invite-label">昵称</text>
+      <input class="invite-input" placeholder="输入昵称（喻馥雅/蚂蚁/艳子）快捷登录"
+             placeholder-class="invite-ph" value="{{nickInput}}" bindinput="onNickInput" />
+    </view>
+    <view class="nick-match flex-row" wx:if="{{matchedTest}}">
+      <text class="nick-match-txt">检测到测试账号「{{matchedTest.nick}}」{{matchedTest.role === 'coach' ? '· 教练' : '· 学员'}}</text>
+      <view class="nick-login-btn" bindtap="nickLogin">以此账号登录 →</view>
     </view>
 
     <!-- 协议勾选 -->
