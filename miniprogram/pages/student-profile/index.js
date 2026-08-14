@@ -5,7 +5,7 @@ Page({
   data: {
     member: null,        // 会员卡数据（等级/余额/升级提示）
     coinBalance: 0,
-    rewards: 0,          // 未读储值奖励数
+    passInfo: { hasPass: false },   // 次数包信息（剩余次数/过期天数）
     menus: [
       [
         { icon: 'check', name: '我的课程', url: '/pages/student-orders/index?type=course' },
@@ -67,10 +67,12 @@ Page({
         coinBalance: lv.coinBalance || 0
       });
     }).catch(() => {});
-    // 未读储值奖励数
-    api.getMyRewards(openid).then((res) => {
-      this.setData({ rewards: (res.rewards || []).length });
-    }).catch(() => {});
+    // 次数包（次卡）信息：剩余次数 / 过期天数
+    api.getMyPass(openid).then((res) => {
+      this.setData({ passInfo: res.pass || { hasPass: false } });
+    }).catch(() => {
+      this.setData({ passInfo: { hasPass: false } });
+    });
   },
 
   // 会员等级（替代原「电子会员卡」页，产品决策 2026-08-13：去掉我的会员卡页面，直接进等级页）
@@ -88,9 +90,9 @@ Page({
     wx.navigateTo({ url: '/pages/coin-shop/index' });
   },
 
-  // 领取奖励 → 跳会员等级页看余额
-  claimReward() {
-    wx.navigateTo({ url: '/pages/member-level/index' });
+  // 次数包：去购买/查看
+  goPass() {
+    wx.navigateTo({ url: '/pages/passes-buy/index' });
   },
 
   // 退出登录

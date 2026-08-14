@@ -27,9 +27,27 @@
         <text class="vip-coins-value">{{coinBalance}}</text>
         <text class="vip-coins-go">去商店 →</text>
       </view>
-      <!-- 未读奖励提示 -->
-      <view class="reward-ribbon" wx:if="{{rewards > 0}}" catchtap="claimReward">
-        <text>🎉 有 {{rewards}} 笔储值奖励待领取</text>
+      <!-- 次数包（次卡）行：显示剩余次数 / 过期天数 -->
+      <view class="vip-pass" wx:if="{{passInfo.hasPass}}" catchtap="goPass">
+        <view class="vip-pass-left">
+          <text class="vip-pass-label">次数包</text>
+          <text class="vip-pass-num">{{passInfo.remaining}}<text class="vip-pass-total"> / {{passInfo.total}} 次</text></text>
+        </view>
+        <view class="vip-pass-right">
+          <text class="vip-pass-days" wx:if="{{!passInfo.expired}}">剩余 {{passInfo.daysLeft}} 天</text>
+          <text class="vip-pass-days vip-pass-days-expired" wx:else>已过期</text>
+          <text class="vip-pass-go">详情 →</text>
+        </view>
+      </view>
+      <!-- 无次数包：引导查看 -->
+      <view class="vip-pass vip-pass-empty" wx:elif="{{member}}" catchtap="goPass">
+        <view class="vip-pass-left">
+          <text class="vip-pass-label">次数包</text>
+          <text class="vip-pass-num">尚未购买</text>
+        </view>
+        <view class="vip-pass-right">
+          <text class="vip-pass-go">去了解 →</text>
+        </view>
       </view>
     </view>
 
