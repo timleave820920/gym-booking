@@ -100,6 +100,10 @@
   font-size: 30rpx;
   font-weight: 700;
   color: #FFFFFF;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* 头像 + 昵称（2026-08-14 替代"我的会员"文案） */
 .vip-user {
@@ -124,6 +128,9 @@
   border-radius: 50%;
   line-height: normal;
   flex-shrink: 0;
+  display: flex;          /* button 默认 block → flex，保证与昵称同一行靠左 */
+  align-items: center;
+  justify-content: center;
 }
 .avatar-btn::after {
   border: none;
