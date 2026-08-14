@@ -362,7 +362,7 @@ button::after {
 }
 
 /* ===== 通用布局 ===== */
-.flex-row { display: flex; flex-direction: row; }
+.flex-row { display: flex; flex-direction: row; align-items: center; }   /* 图标+文字同行默认垂直居中（2026-08-14 统一） */
 .flex-col { display: flex; flex-direction: column; }
 .flex-center { display: flex; align-items: center; justify-content: center; }
 .flex-between { display: flex; align-items: center; justify-content: space-between; }

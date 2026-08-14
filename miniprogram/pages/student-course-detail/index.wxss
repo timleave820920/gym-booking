@@ -137,15 +137,16 @@
 .nav-btn {
   flex-shrink: 0;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 6rpx;
+  justify-content: center;
+  gap: 8rpx;
   background: #1A1A23;
   color: #B9FF66;
-  font-size: 22rpx;
+  font-size: 24rpx;
   font-weight: 700;
   border-radius: 16rpx;
-  padding: 14rpx 22rpx;
+  padding: 16rpx 26rpx;
 }
 .nav-ico {
   width: 28rpx;
