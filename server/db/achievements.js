@@ -43,7 +43,8 @@ const ACHIEVEMENTS = [
   { key: 'member_365',   name: '周年之约', check: c => c.memberDays >= 365 }
 ];
 
-const REWARD_COINS = 50;
+const ENERGY_CONFIG = require('../energy-config');
+const REWARD_COINS = (ENERGY_CONFIG.earnRules && ENERGY_CONFIG.earnRules.achievement) || 50;
 
 const { db } = require('../db-core');
 const { findUserByOpenid } = require('./users');

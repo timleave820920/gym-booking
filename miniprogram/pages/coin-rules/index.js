@@ -17,7 +17,8 @@ Page({
         { icon: '💪', name: '完成一节课', desc: '签到成功时额外发放', reward: `+${r.attendClass || 0} 币` },
         { icon: '🤝', name: '邀请好友', desc: '每成功邀请 1 位好友', reward: `+${r.invite || 0} 币` },
         { icon: '💰', name: '储值充值', desc: '每充值 ¥100', reward: `+${r.recharge || 0} 币` },
-        { icon: '⭐', name: '会员升级', desc: '每次升级到更高等级', reward: `+${r.levelUp || 0} 币` }
+        { icon: '⭐', name: '会员升级', desc: '每次升级到更高等级', reward: `+${r.levelUp || 0} 币` },
+        { icon: '🏅', name: '解锁成就', desc: '每解锁 1 项成就（30 项时间线）', reward: `+${r.achievement || 50} 币` }
       ];
       this.setData({
         rules,
