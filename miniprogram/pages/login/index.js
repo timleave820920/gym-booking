@@ -10,14 +10,40 @@ Page({
     t: i18n.t(),             // 语言字典
     userCount: 0,            // 当前注册用户数
     inviterCode: '',         // 邀请码（分享卡片自动带入，可手动修改）
-    showPrivacy: false       // 隐私协议弹窗（首次启动）
+    showPrivacy: false,      // 隐私协议弹窗（首次启动）
+    privacyOk: false         // 隐私授权状态（官方 wx.getPrivacySetting）
   },
 
-  // 隐私未同意时统一拦截：返回 false 并弹窗
+  // 隐私未同意时统一拦截：返回 false 并弹窗（官方：wx.getPrivacySetting 检测授权状态）
   requirePrivacy() {
-    if (wx.getStorageSync('privacy_agreed')) return true;
-    this.setData({ showPrivacy: true });
+    if (this.data.privacyOk) return true;
+    // 有本地同意标记 → 直接放行；否则先查官方授权状态
+    if (wx.getStorageSync('privacy_agreed')) {
+      this.checkPrivacySetting();
+      return true;
+    }
+    this.checkPrivacySetting();
     return false;
+  },
+
+  // 官方隐私授权状态检测：needAuthorization=true 时弹窗征求同意
+  checkPrivacySetting() {
+    if (!wx.getPrivacySetting) {
+      // 低版本基础库（<2.32.3）：无官方 API，按本地标记兜底
+      if (!wx.getStorageSync('privacy_agreed')) this.setData({ showPrivacy: true });
+      return;
+    }
+    wx.getPrivacySetting({
+      success: (res) => {
+        this.setData({ privacyOk: !!res.privacyAuthorized });
+        if (res.needAuthorization && !res.privacyAuthorized) {
+          this.setData({ showPrivacy: true });
+        }
+      },
+      fail: () => {
+        if (!wx.getStorageSync('privacy_agreed')) this.setData({ showPrivacy: true });
+      }
+    });
   },
 
   onLoad() {
@@ -29,22 +55,20 @@ Page({
     // 分享卡片携带的邀请人 → 预填邀请码
     const code = wx.getStorageSync('pending_inviter') || '';
     if (code) this.setData({ inviterCode: code });
-    // 隐私协议弹窗（微信 2023.9 起强制：首次启动需明确征求同意，否则 getUserProfile/getPhoneNumber 被拦截）
-    if (!wx.getStorageSync('privacy_agreed')) {
-      this.setData({ showPrivacy: true });
-    }
+    // 隐私协议弹窗（微信 2023.9 起强制：官方 wx.getPrivacySetting 检测授权状态）
+    this.checkPrivacySetting();
   },
 
   // ===== 隐私协议 =====
-  // 同意隐私协议（用户主动点击"同意并继续"）
+  // 同意隐私协议：官方授权组件回调（open-type="agreePrivacyAuthorization" 触发）
   agreePrivacy() {
     wx.setStorageSync('privacy_agreed', '1');
-    this.setData({ showPrivacy: false });
-    // 同意后尝试唤起微信官方隐私授权弹窗（需在后台配置隐私指引）
+    this.setData({ showPrivacy: false, privacyOk: true });
+    // 同意后如仍需官方授权，唤起官方隐私弹窗
     if (wx.getPrivacySetting) {
       wx.getPrivacySetting({
         success: (res) => {
-          if (res.needAuthorization) {
+          if (res.needAuthorization && !res.privacyAuthorized && wx.openPrivacyContract) {
             wx.openPrivacyContract({});
           }
         }
@@ -69,6 +93,16 @@ Page({
         showCancel: false
       });
     }
+  },
+
+  // 查看服务协议全文（弹窗展示核心条款）
+  viewService() {
+    wx.showModal({
+      title: '用户服务协议',
+      content: '本服务提供课程预约、订课支付、候补排位、签到核销、储值管理、会员体系等功能。您同意：①同一场次仅可预约一次；②退订按退款规则原路退回；③候补按先到先得转正；④遵守用户行为规范，不利用系统漏洞谋取利益。完整协议见《服务协议》。',
+      showCancel: false,
+      confirmText: '知道了'
+    });
   },
 
   onInviteInput(e) {

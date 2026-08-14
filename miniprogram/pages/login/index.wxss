@@ -494,3 +494,22 @@
   background: #1A1A23;
   color: #FFFFFF;
 }
+
+/* 官方授权按钮：重置 button 默认样式（继承 .privacy-btn 视觉） */
+button.privacy-btn {
+  padding: 0;
+  margin: 0;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: normal;
+}
+button.privacy-btn::after {
+  border: none;
+}
+
+/* 协议链接（勾选行内可点击） */
+.agree-link {
+  color: #5B57EB;
+  font-weight: 600;
+}
