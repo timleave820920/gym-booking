@@ -133,39 +133,67 @@
 }
 .ach-grid {
   margin-top: 24rpx;
-  gap: 20rpx;
+  display: flex;
+  flex-wrap: wrap;
 }
 .ach-item {
-  flex: 1;
-  background: #FFFFFF;
-  border-radius: 28rpx;
-  padding: 24rpx 0;
+  width: 33.33%;            /* 每行最多 3 个奖章 */
+  padding: 20rpx 0 24rpx;
   align-items: center;
-  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.04);
 }
-.medal {
-  width: 72rpx; height: 72rpx;
+/* 奖牌（双层圆环 + 中央图标 + 底部缎带） */
+.badge {
+  position: relative;
+  width: 96rpx; height: 100rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.badge-ring {
+  width: 84rpx; height: 84rpx;
   border-radius: 50%;
+  background: #1A1A23;               /* 深色外环（奖牌金属环感） */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.medal-txt {
-  font-size: 30rpx; font-weight: 800; color: #1A1A23;
+.badge-core {
+  width: 66rpx; height: 66rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.badge-icon {
+  font-size: 32rpx; font-weight: 800; color: #1A1A23;
   line-height: 1;
 }
-.medal-txt-off {
+.badge-icon-off {
   color: #B0AFA8;
 }
+.ribbon {
+  position: absolute;
+  bottom: 0;
+  width: 16rpx; height: 30rpx;
+  border-radius: 2rpx 2rpx 0 0;
+}
+.ribbon-l {
+  left: 50%;
+  transform: translateX(-20rpx) rotate(22deg);
+  transform-origin: top;
+}
+.ribbon-r {
+  left: 50%;
+  transform: translateX(4rpx) rotate(-22deg);
+  transform-origin: top;
+}
 .ach-name {
-  margin-top: 12rpx;
+  margin-top: 16rpx;
   font-size: 22rpx; font-weight: 600; color: #1A1A23;
+  text-align: center;
 }
 .ach-name-off {
   color: #B0AFA8;
-}
-.ach-desc {
-  margin-top: 6rpx;
-  font-size: 20rpx; color: #8A8A8A;
-  padding: 0 12rpx;
-  text-align: center;
 }
 /* 阶段分组 */
 .ach-head {
@@ -185,8 +213,11 @@
   align-items: center;
   gap: 12rpx;
 }
+.stage-name {
+  font-size: 28rpx; font-weight: 800; color: #1A1A23;
+}
 .stage-label {
-  font-size: 26rpx; font-weight: 700; color: #1A1A23;
+  font-size: 22rpx; font-weight: 500; color: #8A8A8A;
 }
 .stage-count {
   font-size: 20rpx; color: #8A8A8A;

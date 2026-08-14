@@ -57,16 +57,23 @@
 
       <view class="ach-stage" wx:for="{{stages}}" wx:key="label" wx:for-item="stage">
         <view class="stage-head flex-row">
+          <text class="stage-name">{{stage.name}}</text>
           <text class="stage-label">{{stage.label}}</text>
           <text class="stage-count">{{stage.unlockedCount}}/{{stage.items.length}}</text>
         </view>
-        <view class="ach-grid flex-row">
+        <view class="ach-grid">
           <view class="ach-item flex-col" wx:for="{{stage.items}}" wx:for-item="ach" wx:key="id">
-            <view class="medal flex-center" style="background: {{ach.unlocked ? ach.color : '#F0EDDF'}}">
-              <text class="medal-txt {{ach.unlocked ? '' : 'medal-txt-off'}}">{{ach.unlocked ? ach.icon : '?'}}</text>
+            <!-- 奖牌 + 缎带 -->
+            <view class="badge">
+              <view class="badge-ring">
+                <view class="badge-core" style="background: {{ach.unlocked ? ach.color : '#EDEBE2'}}">
+                  <text class="badge-icon {{ach.unlocked ? '' : 'badge-icon-off'}}">{{ach.unlocked ? ach.icon : '?'}}</text>
+                </view>
+              </view>
+              <view class="ribbon ribbon-l" style="background: {{ach.unlocked ? ach.color : '#D8D5CA'}}"></view>
+              <view class="ribbon ribbon-r" style="background: {{ach.unlocked ? ach.color : '#D8D5CA'}}"></view>
             </view>
             <text class="ach-name {{ach.unlocked ? '' : 'ach-name-off'}}">{{ach.name}}</text>
-            <text class="ach-desc">{{ach.desc}}</text>
           </view>
         </view>
       </view>

@@ -151,12 +151,18 @@ Page({
         inviteCount: (invRes && invRes.invited) || 0
       };
 
-      // 30 项成就判定 + 按阶段分组
+      // 30 项成就判定 + 按阶段分组（每阶段命名）
       const enriched = ACHIEVEMENTS.map(a => ({ ...a, unlocked: !!a.check(ctx) }));
-      const stageOrder = ['第 1-5 天', '第 2-4 周', '第 1-3 个月', '第 2-4 季度', '一整年'];
-      const stages = stageOrder.map(label => {
+      const stageOrder = [
+        { name: '萌芽期', label: '第 1-5 天' },
+        { name: '成长期', label: '第 2-4 周' },
+        { name: '进阶期', label: '第 1-3 个月' },
+        { name: '蜕变期', label: '第 2-4 季度' },
+        { name: '巅峰期', label: '一整年' }
+      ];
+      const stages = stageOrder.map(({ name, label }) => {
         const items = enriched.filter(a => a.stage === label);
-        return { label, items, unlockedCount: items.filter(i => i.unlocked).length };
+        return { name, label, items, unlockedCount: items.filter(i => i.unlocked).length };
       });
       const unlockedTotal = enriched.filter(a => a.unlocked).length;
 
