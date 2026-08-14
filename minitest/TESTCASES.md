@@ -125,3 +125,25 @@
 | 营收统计 REV | 2 | 1 | 1 | 0 |
 | 边界安全 SEC | 4 | 1 | 2 | 1 |
 | **合计** | **49** | **18** | **20** | **11** |
+
+## 12. 限时次卡包（PASS，2026-08-14 新增）
+
+> 依据「次卡包设计方案 v2」（单卡累加模式）。测试数据独立 openid（uid_test_pass_*）。
+
+| ID | 名称 | 优先级 | 前置 | 步骤 | 预期结果 |
+|---|---|---|---|---|---|
+| PASS-01 | 档位列表 | P0 | 种子含两档 | GET /api/passes/packages | 200，两档：12次/60天/¥900、24次/120天/¥1800，含 desc |
+| PASS-02 | 购买并发卡 | P0 | 用户无卡 | POST /api/orders(orderType=pass,¥900) → 支付 | 201→200；GET /api/passes/my：remaining=12，expires_at≈60天后 |
+| PASS-03 | 重复购买累加 | P0 | 有有效卡 | 再买 24 次档 → 支付 | remaining=12+24=36；expires_at = 原 expires_at +120 天（顺延） |
+| PASS-04 | 卡已过期后购买 | P1 | 卡已过期 | 新购 12 次 | 新建卡：remaining=12，expires_at=购买日+60天 |
+| PASS-05 | 订课扣次 | P0 | 有有效卡 | 订课（book）→ 支付 | pay_source=pass，remaining-1，订单金额 ¥0 |
+| PASS-06 | 次卡优先于余额 | P0 | 卡+余额都有 | 订课支付 | 自动扣次（不扣余额），余额不变 |
+| PASS-07 | 无卡走余额 | P1 | 无卡有余额 | 订课支付 balance | pay_source=balance，扣会员价 |
+| PASS-08 | 退订退次 | P0 | PASS-05 后 | DELETE /api/bookings/:id | 退订成功，remaining+1（有效期不变） |
+| PASS-09 | 退订退次·卡已过期 | P1 | 构造过期卡 | 对 pass 订课退订 | 成功；次数作废清理（remaining 不变） |
+| PASS-10 | 候补用次卡 | P0 | 满员场次+有卡 | 排位 waitlist（次卡）→ 支付 | pay_source=pass，remaining-1，waiting |
+| PASS-11 | 退出候补退次 | P0 | PASS-10 后 | DELETE /api/waitlist/:id | 退次 remaining+1 |
+| PASS-12 | 过期自动作废 | P1 | 构造过期卡 | 到期后查 /api/passes/my | status=expired，remaining 保留展示但不可用 |
+| PASS-13 | 次数不足回退 | P1 | remaining=0 有余额 | 订课支付 | 自动走余额（会员价），非次卡 |
+| PASS-14 | 并发防负 | P1 | remaining=1 | 并发订 2 课 | 仅 1 单成功扣次，另 1 单余额兜底或拒绝，remaining 不为负 |
+| PASS-15 | 幂等扣次 | P1 | 已扣次订单 | 重复支付/重复订课 | 不重复扣次 |
