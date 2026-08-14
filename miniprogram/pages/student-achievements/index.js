@@ -154,11 +154,11 @@ Page({
       // 30 项成就判定 + 按阶段分组（每阶段命名）
       const enriched = ACHIEVEMENTS.map(a => ({ ...a, unlocked: !!a.check(ctx) }));
       const stageOrder = [
-        { name: '萌芽期', label: '第 1-5 天' },
-        { name: '成长期', label: '第 2-4 周' },
-        { name: '进阶期', label: '第 1-3 个月' },
-        { name: '蜕变期', label: '第 2-4 季度' },
-        { name: '巅峰期', label: '一整年' }
+        { name: '火星', label: '第 1-5 天' },
+        { name: '火苗', label: '第 2-4 周' },
+        { name: '火焰', label: '第 1-3 个月' },
+        { name: '烈焰', label: '第 2-4 季度' },
+        { name: '燎原', label: '一整年' }
       ];
       const stages = stageOrder.map(({ name, label }) => {
         const items = enriched.filter(a => a.stage === label);
