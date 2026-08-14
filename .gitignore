@@ -26,7 +26,7 @@ server/data/*.db
 # git 侧改用 .git/info/exclude 忽略（不随仓库走，不影响工具打包）。
 server/data/*.db-shm
 server/data/*.db-wal
-server/data/*.db.bak
+server/data/*.db.bak*
 server/data/*.tmp
 
 # 关键操作日志（运行时产物，不入库）
