@@ -5,48 +5,55 @@
     </view>
 
     <!-- 会员卡预览（点击进会员等级页；能量币行 catchtap 防冒泡——BUG-LEDGER #11 修复） -->
-    <view class="vip-preview" bindtap="goMemberLevel">
-      <view class="vip-top">
+    <view class="vip-preview">
+      <!-- 第一行：我的会员 + 等级按钮（升级提示右对齐在按钮下方） -->
+      <view class="vip-top" bindtap="goMemberLevel">
         <text class="vip-name">我的会员</text>
-        <view class="vip-lv" wx:if="{{member}}">
-          <text class="vip-lv-txt">{{member.icon}} Lv.{{member.lv}}</text>
+        <view class="vip-lv-group" wx:if="{{member}}">
+          <view class="vip-lv" bindtap="goMemberLevel">
+            <text class="vip-lv-txt">{{member.icon}} Lv.{{member.lv}}</text>
+          </view>
+          <text class="vip-lv-hint" wx:if="{{member.hint}}">{{member.hint}}</text>
         </view>
       </view>
-      <view class="vip-mid" wx:if="{{member}}">
-        <view class="vip-bal">
-          <text class="vip-bal-label">储值余额</text>
-          <text class="vip-bal-value">¥ {{member.balance}}</text>
+      <view class="vip-loading" wx:if="{{!member}}">加载中...</view>
+
+      <!-- 第二行：次数包（已购：剩余次数/过期天数；未购：引导去购买） -->
+      <view class="vip-row" wx:if="{{member}}">
+        <view class="vip-pass" wx:if="{{passInfo.hasPass}}" catchtap="goPass">
+          <view class="vip-pass-left">
+            <text class="vip-pass-label">次数包</text>
+            <text class="vip-pass-num">{{passInfo.remaining}}<text class="vip-pass-total"> / {{passInfo.total}} 次</text></text>
+          </view>
+          <view class="vip-pass-right">
+            <text class="vip-pass-days" wx:if="{{!passInfo.expired}}">剩余 {{passInfo.daysLeft}} 天</text>
+            <text class="vip-pass-days vip-pass-days-expired" wx:else>已过期</text>
+            <text class="vip-pass-go">详情 →</text>
+          </view>
         </view>
-        <view class="vip-btn" catchtap="goRecharge">去充值</view>
-      </view>
-      <view class="vip-hint" wx:if="{{member}}">{{member.hint}}</view>
-      <view class="vip-loading" wx:else>加载中...</view>
-      <!-- 能量币行 -->
-      <view class="vip-coins" wx:if="{{member}}" catchtap="goCoinShop">
-        <text class="vip-coins-label">⚡ 能量币</text>
-        <text class="vip-coins-value">{{coinBalance}}</text>
-        <text class="vip-coins-go">去商店 →</text>
-      </view>
-      <!-- 次数包（次卡）行：显示剩余次数 / 过期天数 -->
-      <view class="vip-pass" wx:if="{{passInfo.hasPass}}" catchtap="goPass">
-        <view class="vip-pass-left">
-          <text class="vip-pass-label">次数包</text>
-          <text class="vip-pass-num">{{passInfo.remaining}}<text class="vip-pass-total"> / {{passInfo.total}} 次</text></text>
+        <!-- 未购次数包：引导去购买 -->
+        <view class="vip-pass vip-pass-empty" wx:else catchtap="goPass">
+          <view class="vip-pass-left">
+            <text class="vip-pass-label">次数包</text>
+            <text class="vip-pass-num">尚未购买次数包</text>
+          </view>
+          <view class="vip-pass-right">
+            <text class="vip-pass-go">去购买 →</text>
+          </view>
         </view>
-        <view class="vip-pass-right">
-          <text class="vip-pass-days" wx:if="{{!passInfo.expired}}">剩余 {{passInfo.daysLeft}} 天</text>
-          <text class="vip-pass-days vip-pass-days-expired" wx:else>已过期</text>
-          <text class="vip-pass-go">详情 →</text>
+
+        <!-- 第三行：储值信息（底框 + 去充值改为去商店式表达） -->
+        <view class="vip-row-item" bindtap="goRecharge">
+          <text class="vip-row-label">储值余额</text>
+          <text class="vip-row-value">¥ {{member.balance}}</text>
+          <text class="vip-row-go">去充值 →</text>
         </view>
-      </view>
-      <!-- 无次数包：引导查看 -->
-      <view class="vip-pass vip-pass-empty" wx:elif="{{member}}" catchtap="goPass">
-        <view class="vip-pass-left">
-          <text class="vip-pass-label">次数包</text>
-          <text class="vip-pass-num">尚未购买</text>
-        </view>
-        <view class="vip-pass-right">
-          <text class="vip-pass-go">去了解 →</text>
+
+        <!-- 能量币行 -->
+        <view class="vip-row-item" catchtap="goCoinShop">
+          <text class="vip-row-label">⚡ 能量币</text>
+          <text class="vip-row-value">{{coinBalance}}</text>
+          <text class="vip-row-go">去商店 →</text>
         </view>
       </view>
     </view>

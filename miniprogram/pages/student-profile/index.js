@@ -62,7 +62,8 @@ Page({
           lv: lv.levelLv,
           icon: lv.levelIcon || '🏅',
           balance,
-          hint: lv.next ? `再上 ${lv.next.min - lv.totalClasses} 节课升级${lv.next.name} · 会员价 ${Math.round(lv.next.discount * 100)} 折` : '已达最高等级'
+          // 升级提示：仅显示"再上N节课升级X"（2026-08-14 用户要求去掉"会员价折扣"后半句）
+          hint: lv.next ? `再上 ${lv.next.min - lv.totalClasses} 节课升级${lv.next.name}` : '已达最高等级'
         },
         coinBalance: lv.coinBalance || 0
       });

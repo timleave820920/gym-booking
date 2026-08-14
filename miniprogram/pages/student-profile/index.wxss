@@ -101,6 +101,13 @@
   font-weight: 700;
   color: #FFFFFF;
 }
+/* 等级按钮组：按钮 + 升级提示（右对齐，提示在按钮下方） */
+.vip-lv-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6rpx;
+}
 .vip-lv {
   background: #B9FF66;
   border: 3rpx solid #1A1A23;
@@ -112,46 +119,24 @@
   font-weight: 700;
   color: #1A1A23;
 }
-.vip-mid {
-  margin-top: 20rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.vip-bal-label {
-  display: block;
-  font-size: 22rpx;
+.vip-lv-hint {
+  font-size: 20rpx;
   color: rgba(255,255,255,0.6);
-}
-.vip-bal-value {
-  display: block;
-  margin-top: 4rpx;
-  font-size: 40rpx;
-  font-weight: 800;
-  color: #B9FF66;
-}
-.vip-btn {
-  background: #B9FF66;
-  border: 3rpx solid #1A1A23;
-  border-radius: 40rpx;
-  padding: 14rpx 36rpx;
-  font-size: 26rpx;
-  font-weight: 700;
-  color: #1A1A23;
-}
-.vip-hint {
-  margin-top: 20rpx;
-  font-size: 22rpx;
-  color: #B9FF66;
 }
 .vip-loading {
   margin-top: 20rpx;
   font-size: 22rpx;
   color: rgba(255,255,255,0.5);
 }
-/* 次数包行（次卡信息：剩余次数/过期天数，2026-08-14 替代储值奖励 ribbon） */
+/* 统一信息行容器（次数包/储值/能量币共用） */
+.vip-row {
+  margin-top: 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+/* 次数包行（次卡信息：剩余次数/过期天数） */
 .vip-pass {
-  margin-top: 16rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -202,8 +187,8 @@
   color: rgba(255,255,255,0.6);
   font-weight: 400;
 }
-.vip-coins {
-  margin-top: 16rpx;
+/* 通用信息行（储值/能量币）：底框 + 左侧标签 + 数值 + 右侧"去xx →" */
+.vip-row-item {
   display: flex;
   align-items: center;
   gap: 12rpx;
@@ -211,20 +196,21 @@
   border-radius: 16rpx;
   padding: 14rpx 20rpx;
 }
-.vip-coins-label {
+.vip-row-label {
   font-size: 22rpx;
   color: var(--coin-gold);
   font-weight: 600;
 }
-.vip-coins-value {
+.vip-row-value {
   font-size: 30rpx;
   font-weight: 800;
-  color: var(--coin-gold);
+  color: #FFFFFF;
 }
-.vip-coins-go {
+.vip-row-go {
   margin-left: auto;
   font-size: 20rpx;
-  color: rgba(255,255,255,0.6);
+  color: var(--lime);
+  font-weight: 600;
 }
 
 /* 会员体系图标（对齐菜单风格） */
