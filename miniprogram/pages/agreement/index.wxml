@@ -1,0 +1,28 @@
+<view class="page">
+  <view class="page-pad">
+    <text class="doc-title">{{title}}</text>
+    <text class="doc-sub">{{meta}}</text>
+
+    <block wx:for="{{sections}}" wx:key="id">
+      <!-- 章节标题 -->
+      <view class="doc-section" wx:if="{{item.type === 'section'}}">
+        <text class="doc-section-title">{{item.title}}</text>
+      </view>
+      <!-- 段落 -->
+      <text class="doc-para" wx:if="{{item.type === 'para'}}">{{item.text}}</text>
+      <!-- 要点列表 -->
+      <view class="doc-li" wx:if="{{item.type === 'li'}}">
+        <text class="doc-li-dot">•</text>
+        <text class="doc-li-text">{{item.text}}</text>
+      </view>
+    </block>
+
+    <!-- 联系方式 -->
+    <view class="contact-card" wx:if="{{showContact}}">
+      <text class="contact-title">联系我们</text>
+      <text class="contact-line">如对协议有任何疑问，请通过小程序「我的」→「联系我们」页添加小助理微信咨询</text>
+    </view>
+
+    <text class="doc-foot">* 本协议以小程序内公示版本为准</text>
+  </view>
+</view>

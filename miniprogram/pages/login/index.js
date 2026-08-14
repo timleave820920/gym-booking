@@ -82,27 +82,14 @@ Page({
     wx.showToast({ title: '需要同意隐私协议后才能使用', icon: 'none' });
   },
 
-  // 查看隐私协议全文
+  // 查看隐私协议全文（跳转协议页，可完整阅读）
   viewPrivacy() {
-    if (wx.openPrivacyContract) {
-      wx.openPrivacyContract({});
-    } else {
-      wx.showModal({
-        title: '用户隐私保护协议',
-        content: '本小程序收集您的昵称、头像、手机号（可选）等信息，用于课程预约、订课支付、签到等服务。详情请查看《用户隐私保护协议》。',
-        showCancel: false
-      });
-    }
+    wx.navigateTo({ url: '/pages/agreement/index?type=privacy' });
   },
 
-  // 查看服务协议全文（弹窗展示核心条款）
+  // 查看服务协议全文（跳转协议页，可完整阅读）
   viewService() {
-    wx.showModal({
-      title: '用户服务协议',
-      content: '本服务提供课程预约、订课支付、候补排位、签到核销、储值管理、会员体系等功能。您同意：①同一场次仅可预约一次；②退订按退款规则原路退回；③候补按先到先得转正；④遵守用户行为规范，不利用系统漏洞谋取利益。完整协议见《服务协议》。',
-      showCancel: false,
-      confirmText: '知道了'
-    });
+    wx.navigateTo({ url: '/pages/agreement/index?type=service' });
   },
 
   onInviteInput(e) {
