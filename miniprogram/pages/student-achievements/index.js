@@ -12,6 +12,81 @@ function fmtNum(n) {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
+// ===== 30 项成就时间线（2026-08-14 设计定稿）=====
+// 约束：前期（第1-5天）密集达成 · 后期固定节奏 · 相邻成就最大间隔 ≤ 14 天 · 至少达成一项
+// day 为设计触发时间点（展示用），实际解锁由 check 条件判定（可提前达成，如次数/连续达标即解锁）
+const ACHIEVEMENTS = [
+  // ── 阶段一：第 1-5 天（密集起步）──
+  { id: 1,  name: '初次见面', icon: '约', color: '#B9FF66', stage: '第 1-5 天', day: 1,
+    desc: '完成首次预约订课', check: (c) => c.bookedCount >= 1 },
+  { id: 2,  name: '第一滴汗', icon: '汗', color: '#FFD166', stage: '第 1-5 天', day: 1,
+    desc: '完成第 1 次锻炼', check: (c) => c.totalClasses >= 1 },
+  { id: 3,  name: '签到首秀', icon: '签', color: '#4ECDC4', stage: '第 1-5 天', day: 1,
+    desc: '完成第 1 次签到', check: (c) => c.checkedIn >= 1 },
+  { id: 4,  name: '三日不辍', icon: '三', color: '#FF8C42', stage: '第 1-5 天', day: 3,
+    desc: '连续锻炼 3 天', check: (c) => c.streak >= 3 },
+  { id: 5,  name: '五日坚持', icon: '五', color: '#B9FF66', stage: '第 1-5 天', day: 5,
+    desc: '连续锻炼 5 天', check: (c) => c.streak >= 5 },
+
+  // ── 阶段二：第 2-4 周 ──
+  { id: 6,  name: '十日之基', icon: '十', color: '#4ECDC4', stage: '第 2-4 周', day: 14,
+    desc: '累计锻炼 10 次', check: (c) => c.totalClasses >= 10 },
+  { id: 7,  name: '七日满贯', icon: '七', color: '#5B57EB', stage: '第 2-4 周', day: 21,
+    desc: '连续锻炼 7 天', check: (c) => c.streak >= 7 },
+  { id: 8,  name: '双周不辍', icon: '双', color: '#185FA5', stage: '第 2-4 周', day: 28,
+    desc: '连续锻炼 14 天', check: (c) => c.streak >= 14 },
+
+  // ── 阶段三：第 1-3 个月 ──
+  { id: 9,  name: '满月之约', icon: '月', color: '#7F77DD', stage: '第 1-3 个月', day: 42,
+    desc: '成为会员满 30 天', check: (c) => c.memberDays >= 30 },
+  { id: 10, name: '二十次历练', icon: '廿', color: '#534AB7', stage: '第 1-3 个月', day: 56,
+    desc: '累计锻炼 20 次', check: (c) => c.totalClasses >= 20 },
+  { id: 11, name: '百日筑基', icon: '百', color: '#3C3489', stage: '第 1-3 个月', day: 84,
+    desc: '累计锻炼 30 次', check: (c) => c.totalClasses >= 30 },
+
+  // ── 阶段四：第 2-4 季度（固定节奏 · 每 2 周一项）──
+  { id: 12, name: '四十次淬炼', icon: '四', color: '#D85A30', stage: '第 2-4 季度', day: 98,
+    desc: '累计锻炼 40 次', check: (c) => c.totalClasses >= 40 },
+  { id: 13, name: '双月笃行', icon: '双', color: '#BA7517', stage: '第 2-4 季度', day: 112,
+    desc: '成为会员满 60 天', check: (c) => c.memberDays >= 60 },
+  { id: 14, name: '储值先行', icon: '储', color: '#F8D044', stage: '第 2-4 季度', day: 126,
+    desc: '完成首次储值', check: (c) => c.rechargeFen > 0 },
+  { id: 15, name: '引伴同行', icon: '伴', color: '#D85A30', stage: '第 2-4 季度', day: 140,
+    desc: '成功邀请 1 位好友', check: (c) => c.inviteCount >= 1 },
+  { id: 16, name: '多面手', icon: '手', color: '#7F77DD', stage: '第 2-4 季度', day: 154,
+    desc: '体验 4 种不同课程', check: (c) => c.courseKinds >= 4 },
+  { id: 17, name: '六十次磨砺', icon: '六', color: '#E5484D', stage: '第 2-4 季度', day: 168,
+    desc: '累计锻炼 60 次', check: (c) => c.totalClasses >= 60 },
+  { id: 18, name: '能量新星', icon: '能', color: '#B9FF66', stage: '第 2-4 季度', day: 182,
+    desc: '能量币余额达 200', check: (c) => c.coins >= 200 },
+  { id: 19, name: '老友记', icon: '友', color: '#5B57EB', stage: '第 2-4 季度', day: 196,
+    desc: '成功邀请 3 位好友', check: (c) => c.inviteCount >= 3 },
+  { id: 20, name: '八十次突破', icon: '八', color: '#D85A30', stage: '第 2-4 季度', day: 210,
+    desc: '累计锻炼 80 次', check: (c) => c.totalClasses >= 80 },
+  { id: 21, name: '单课宗师', icon: '时', color: '#BA7517', stage: '第 2-4 季度', day: 224,
+    desc: '累计锻炼时长 50 小时', check: (c) => c.totalMinutes >= 3000 },
+  { id: 22, name: '百炼成钢', icon: '钢', color: '#A32D2D', stage: '第 2-4 季度', day: 238,
+    desc: '累计锻炼 100 次', check: (c) => c.totalClasses >= 100 },
+  { id: 23, name: '能量达人', icon: '力', color: '#B9FF66', stage: '第 2-4 季度', day: 252,
+    desc: '能量币余额达 500', check: (c) => c.coins >= 500 },
+  { id: 24, name: '一百二十次', icon: '贰', color: '#D85A30', stage: '第 2-4 季度', day: 266,
+    desc: '累计锻炼 120 次', check: (c) => c.totalClasses >= 120 },
+  { id: 25, name: '连续三十', icon: '连', color: '#185FA5', stage: '第 2-4 季度', day: 280,
+    desc: '连续锻炼 30 天', check: (c) => c.streak >= 30 },
+  { id: 26, name: '储值升级', icon: '金', color: '#F8D044', stage: '第 2-4 季度', day: 294,
+    desc: '累计储值 ¥2000', check: (c) => c.rechargeFen >= 200000 },
+  { id: 27, name: '一百五十次', icon: '伍', color: '#E5484D', stage: '第 2-4 季度', day: 308,
+    desc: '累计锻炼 150 次', check: (c) => c.totalClasses >= 150 },
+  { id: 28, name: '三季之约', icon: '季', color: '#BA7517', stage: '第 2-4 季度', day: 322,
+    desc: '成为会员满 270 天', check: (c) => c.memberDays >= 270 },
+  { id: 29, name: '双百小时', icon: '百', color: '#534AB7', stage: '第 2-4 季度', day: 350,
+    desc: '累计锻炼时长 100 小时', check: (c) => c.totalMinutes >= 6000 },
+
+  // ── 阶段五：一整年 ──
+  { id: 30, name: '周年之约', icon: '年', color: '#F8D044', stage: '一整年', day: 364,
+    desc: '成为会员满 365 天', check: (c) => c.memberDays >= 365 }
+];
+
 Page({
   data: {
     stats: [
@@ -22,8 +97,9 @@ Page({
     streak: 0,
     weekRecord: [],
     weekCount: 0,
-    weekGoal: false,
-    achievements: [],
+    stages: [],          // 成就时间线（按阶段分组）
+    unlockedTotal: 0,
+    unlockedAll: false,
     loading: true,
     offline: false
   },
@@ -32,7 +108,6 @@ Page({
     this.loadAchievements();
   },
 
-  // 用真实订课数据计算成就（已参加 = 已订且场次已结束，与「我的」页锻炼次数口径一致）
   loadAchievements() {
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
@@ -40,14 +115,21 @@ Page({
       this.setData({ loading: false });
       return;
     }
-    api.getMyBookings(openid).then((res) => {
-      // 已参加的场次：状态 booked 且课程已结束
-      const attended = (res.bookings || []).filter(b =>
+    // 并行拉取：订课 / 会员(注册天数+能量币) / 充值 / 邀请
+    Promise.all([
+      api.getMyBookings(openid).catch(() => null),
+      api.getMemberLevel(openid).catch(() => null),
+      api.getMyRecharges(openid, 0, 100).catch(() => null),
+      api.getInviteStats(openid).catch(() => null)
+    ]).then(([bkRes, lvRes, reRes, invRes]) => {
+      const bookings = (bkRes && bkRes.bookings) || [];
+      const attended = bookings.filter(b =>
         b.status === 'booked' &&
         courseStatus.getSessionStatus(b.date, b.start_time, b.end_time) === 'ended'
       );
       const dates = attended.map(b => b.date);
       const totalClasses = attended.length;
+      const checkedIn = attended.filter(b => b.checkin_at).length;
       const totalMinutes = attended.reduce((s, b) => s + (b.duration_min || 60), 0);
       const calories = totalMinutes * KCAL_PER_MIN;
       const streak = this.calcStreak(dates);
@@ -55,14 +137,28 @@ Page({
       const weekCount = weekRecord.reduce((s, d) => s + d.count, 0);
       const hoursText = totalMinutes >= 60 ? `${Math.round(totalMinutes / 60)}h` : `${totalMinutes}分钟`;
 
-      const achievements = [
-        { name: '新人首练', color: '#B9FF66', unlocked: totalClasses >= 1, desc: '完成第 1 次训练' },
-        { name: '燃脂之星', color: '#5B57EB', unlocked: calories >= 1000, desc: '累计消耗 1000 千卡' },
-        { name: '十次训练', color: '#F8B7B8', unlocked: totalClasses >= 10, desc: '累计 10 次训练' },
-        { name: '坚持10小时', color: '#3D9970', unlocked: totalMinutes >= 600, desc: '累计训练 10 小时' },
-        { name: '连续7天', color: '#F8D044', unlocked: streak >= 7, desc: '连续打卡 7 天' },
-        { name: '百次挑战', color: '#8C84F2', unlocked: totalClasses >= 100, desc: '累计 100 次训练' }
-      ];
+      // 成就判定上下文
+      const ctx = {
+        bookedCount: bookings.length,
+        totalClasses,
+        checkedIn,
+        streak,
+        totalMinutes,
+        courseKinds: new Set(attended.map(b => b.course_name)).size,
+        memberDays: (lvRes && lvRes.level && lvRes.level.memberDays) || 0,
+        coins: (lvRes && lvRes.level && lvRes.level.coinBalance) || 0,
+        rechargeFen: (reRes && reRes.recharges || []).reduce((s, r) => s + (r.amount_fen || 0), 0),
+        inviteCount: (invRes && invRes.invited) || 0
+      };
+
+      // 30 项成就判定 + 按阶段分组
+      const enriched = ACHIEVEMENTS.map(a => ({ ...a, unlocked: !!a.check(ctx) }));
+      const stageOrder = ['第 1-5 天', '第 2-4 周', '第 1-3 个月', '第 2-4 季度', '一整年'];
+      const stages = stageOrder.map(label => {
+        const items = enriched.filter(a => a.stage === label);
+        return { label, items, unlockedCount: items.filter(i => i.unlocked).length };
+      });
+      const unlockedTotal = enriched.filter(a => a.unlocked).length;
 
       this.setData({
         stats: [
@@ -73,13 +169,13 @@ Page({
         streak,
         weekRecord,
         weekCount,
-        weekGoal: weekCount >= 3,
-        achievements,
+        stages,
+        unlockedTotal,
+        unlockedAll: unlockedTotal >= 30,
         loading: false,
         offline: false
       });
     }).catch(() => {
-      // 后端不可用 → 空态（不展示假数据）
       this.setData({ loading: false, offline: true });
     });
   },

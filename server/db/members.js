@@ -46,6 +46,8 @@ function getMemberLevel(openid) {
     levelMin: level.min,
     next: next ? { name: next.name, min: next.min, discount: next.discount } : null,
     progress: next ? Math.min(100, Math.round((total - level.min) / (next.min - level.min) * 100)) : 100,
+    created_at: user.created_at || '',
+    memberDays: user.created_at ? Math.max(0, Math.floor((Date.now() - new Date(String(user.created_at).replace(' ', 'T')).getTime()) / 864e5)) : 0,
     balanceFen: user.balance_fen || 0,
     coinBalance: user.coin_balance || 0
   };

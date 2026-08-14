@@ -147,16 +147,56 @@
   width: 72rpx; height: 72rpx;
   border-radius: 50%;
 }
-.medal-icon {
-  width: 44rpx; height: 44rpx;
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" fill="none"><path d="M12 30V25.5L8 27L6 21.5L10.5 18L6 14.5L8 9L12 10.5V6H24V10.5L28 9L30 14.5L25.5 18L30 21.5L28 27L24 25.5V30H12Z" stroke="%231A1A23" stroke-width="2" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+.medal-txt {
+  font-size: 30rpx; font-weight: 800; color: #1A1A23;
+  line-height: 1;
 }
-.medal-off {
-  opacity: 0.35;
+.medal-txt-off {
+  color: #B0AFA8;
 }
 .ach-name {
   margin-top: 12rpx;
   font-size: 22rpx; font-weight: 600; color: #1A1A23;
+}
+.ach-name-off {
+  color: #B0AFA8;
+}
+.ach-desc {
+  margin-top: 6rpx;
+  font-size: 20rpx; color: #8A8A8A;
+  padding: 0 12rpx;
+  text-align: center;
+}
+/* 阶段分组 */
+.ach-head {
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+.ach-progress {
+  font-size: 24rpx; font-weight: 700; color: #5B57EB;
+}
+.ach-progress-full {
+  color: #3D9970;
+}
+.ach-stage {
+  margin-top: 28rpx;
+}
+.stage-head {
+  align-items: center;
+  gap: 12rpx;
+}
+.stage-label {
+  font-size: 26rpx; font-weight: 700; color: #1A1A23;
+}
+.stage-count {
+  font-size: 20rpx; color: #8A8A8A;
+  background: #F0EDDF;
+  border-radius: 999rpx;
+  padding: 2rpx 14rpx;
+}
+/* 本周记录总次数 */
+.week-total {
+  font-size: 26rpx; font-weight: 700; color: #5B57EB;
 }
 
 .list-spacer { height: 60rpx; }

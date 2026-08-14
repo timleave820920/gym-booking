@@ -24,21 +24,20 @@
       </view>
     </view>
 
-    <!-- 连续打卡 -->
+    <!-- 连续打卡（无箭头） -->
     <view class="streak-card flex-row">
       <text class="icon-flame"></text>
       <view class="flex-col flex-1">
         <text class="streak-title">已连续坚持 {{streak}} 天</text>
         <text class="streak-sub">刷新本月最长记录，继续保持！</text>
       </view>
-      <text class="icon-chevron"></text>
     </view>
 
-    <!-- 本周记录 -->
+    <!-- 本周记录（无达标标签） -->
     <view class="week-card" wx:if="{{!loading}}">
       <view class="flex-between">
         <text class="card-title">本周锻炼记录</text>
-        <view class="tag {{weekGoal ? 'tag-green' : 'tag-orange'}}">{{weekCount}} 次 · {{weekGoal ? '达标' : '未达标'}}</view>
+        <text class="week-total">{{weekCount}} 次</text>
       </view>
       <view class="week-row flex-row">
         <view class="day-item flex-col {{item.today ? 'day-today' : (item.active ? 'day-on' : '')}}"
@@ -49,15 +48,26 @@
       </view>
     </view>
 
-    <!-- 成就徽章 -->
+    <!-- 成就时间线（30 项 · 阶段分组） -->
     <view class="ach-section" wx:if="{{!loading}}">
-      <text class="card-title">成就徽章</text>
-      <view class="ach-grid flex-row">
-        <view class="ach-item flex-col" wx:for="{{achievements}}" wx:key="name">
-          <view class="medal flex-center" style="background: {{item.unlocked ? item.color : '#F0EDDF'}}">
-            <view class="medal-icon {{item.unlocked ? '' : 'medal-off'}}"></view>
+      <view class="flex-between ach-head">
+        <text class="card-title">成就时间线</text>
+        <text class="ach-progress {{unlockedAll ? 'ach-progress-full' : ''}}">{{unlockedAll ? '全部达成 🏆' : '已解锁 ' + unlockedTotal + ' / 30'}}</text>
+      </view>
+
+      <view class="ach-stage" wx:for="{{stages}}" wx:key="label" wx:for-item="stage">
+        <view class="stage-head flex-row">
+          <text class="stage-label">{{stage.label}}</text>
+          <text class="stage-count">{{stage.unlockedCount}}/{{stage.items.length}}</text>
+        </view>
+        <view class="ach-grid flex-row">
+          <view class="ach-item flex-col" wx:for="{{stage.items}}" wx:for-item="ach" wx:key="id">
+            <view class="medal flex-center" style="background: {{ach.unlocked ? ach.color : '#F0EDDF'}}">
+              <text class="medal-txt {{ach.unlocked ? '' : 'medal-txt-off'}}">{{ach.unlocked ? ach.icon : '?'}}</text>
+            </view>
+            <text class="ach-name {{ach.unlocked ? '' : 'ach-name-off'}}">{{ach.name}}</text>
+            <text class="ach-desc">{{ach.desc}}</text>
           </view>
-          <text class="ach-name">{{item.name}}</text>
         </view>
       </view>
     </view>
