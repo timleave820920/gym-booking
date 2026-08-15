@@ -107,11 +107,15 @@
 }
 /* 2026-08-15: 昵称行（编辑态/非编辑态）+ 完善资料提示条 */
 .vip-name-row {
+  position: relative;
+  z-index: 3;              /* 在头像选择按钮(z-index:2)之上，保证昵称可点 */
   display: flex;
   align-items: center;
   gap: 8rpx;
   min-width: 0;
   max-width: 300rpx;
+  min-height: 60rpx;       /* 扩大点击区域（昵称短时也易点中） */
+  padding: 0 16rpx;
 }
 .nick-edit-ico {
   font-size: 24rpx;
@@ -173,6 +177,10 @@
   top: 0; left: 0;
   width: 72rpx;
   height: 72rpx;
+  min-width: 72rpx;        /* 收紧 button 默认最小尺寸，防撑大误触昵称 */
+  min-height: 72rpx;
+  max-width: 72rpx;
+  max-height: 72rpx;
   border-radius: 50%;
   padding: 0;
   margin: 0;
