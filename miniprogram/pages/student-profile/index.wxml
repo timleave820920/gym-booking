@@ -20,7 +20,8 @@
           </view>
           <view class="vip-name-row" wx:else>
             <input class="nick-input" type="nickname" placeholder="点输入，可一键填入微信昵称"
-                   placeholder-class="invite-ph" value="{{nickDraft}}" bindinput="onNickInput" focus="{{true}}" />
+                   placeholder-class="invite-ph" value="{{nickDraft}}" bindinput="onNickInput"
+                   bindblur="autoSaveNick" focus="{{true}}" />
             <text class="nick-save" bindtap="saveNick">保存</text>
           </view>
         </view>

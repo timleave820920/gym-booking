@@ -203,10 +203,24 @@ Page({
     this.setData({ nickDraft: e.detail.value });
   },
 
-  saveNick() {
+  // 2026-08-15: 失焦自动保存——微信 nickname 键盘「一键填入微信昵称」后自动收起键盘触发 blur，
+  // 此时昵称已确定，直接保存（无需再点「保存」）；手动输入的用户仍可用保存按钮
+  autoSaveNick() {
+    const nick = String(this.data.nickDraft || '').trim();
+    const current = String((this.data.user && this.data.user.name) || '').trim();
+    if (!nick || nick === current) {
+      // 空值或未变化 → 直接退出编辑态（不弹错误，避免打扰）
+      this.setData({ editingNick: false });
+      return;
+    }
+    this.saveNick(true);
+  },
+
+  // 保存昵称（silent=true 时由失焦自动触发，空值不弹错）
+  saveNick(silent) {
     const nick = String(this.data.nickDraft || '').trim();
     if (!nick) {
-      wx.showToast({ title: '请输入昵称', icon: 'none' });
+      if (!silent) wx.showToast({ title: '请输入昵称', icon: 'none' });
       return;
     }
     const openid = (app.globalData.userInfo || {}).openid || wx.getStorageSync('openid');
@@ -216,7 +230,7 @@ Page({
         app.globalData.userInfo.name = nick;
         wx.setStorageSync('userInfo', app.globalData.userInfo);
       }
-      wx.showToast({ title: '昵称已更新', icon: 'success' });
+      if (!silent) wx.showToast({ title: '昵称已更新', icon: 'success' });
       this.afterProfileDone();
     }).catch(() => {
       wx.showToast({ title: '保存失败，请重试', icon: 'none' });
