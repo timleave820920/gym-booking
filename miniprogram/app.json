@@ -36,6 +36,7 @@
     "pages/admin-create-course/index",
     "pages/admin-db/index"
   ],
+  "requiredPrivateInfos": ["chooseAvatar", "nickName"],
   "window": {
     "navigationBarBackgroundColor": "#F9F4DF",
     "navigationBarTitleText": "综合训练馆",
