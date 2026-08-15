@@ -28,7 +28,7 @@ Page({
     this.setData({
       user: {
         name: user.name || user.nickname || '微信用户',
-        avatar: user.avatar || '/images/2_556.png'
+        avatar: api.toFullUrl(user.avatar) || '/images/2_556.png'
       },
       // 2026-08-15: 注册不强制设置资料 → 新用户在此提示（可选）
       showProfileTip: this.needProfileTip(user)
@@ -152,13 +152,15 @@ Page({
 
   // 保存头像：更新全局 + 调后端持久化
   saveAvatar(avatarUrl, openid) {
+    // 云托管模式：/images/xxx → 完整公网 URL（容器内文件需 HTTP 访问，包内相对路径在真机加载失败会回退默认头像）
+    const displayUrl = api.toFullUrl(avatarUrl);
     // 本地先更新（即时反馈）
-    this.setData({ 'user.avatar': avatarUrl });
+    this.setData({ 'user.avatar': displayUrl });
     if (app.globalData.userInfo) {
-      app.globalData.userInfo.avatar = avatarUrl;
+      app.globalData.userInfo.avatar = displayUrl;
       wx.setStorageSync('userInfo', app.globalData.userInfo);
     }
-    // 后端持久化
+    // 后端持久化（存相对路径，便于本地/云端一致解析）
     api.updateProfile({ openid, avatar: avatarUrl }).then(() => {
       wx.showToast({ title: '头像已更新', icon: 'success' });
       this.afterProfileDone();

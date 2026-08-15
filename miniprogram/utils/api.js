@@ -33,13 +33,55 @@ const CLOUD_ENV = 'gym-prod-timleave001'; // 云环境 ID（注册正式小程�
 // 本地后端地址（USE_CLOUD=false 时使用）—— 唯一配置源，改这里 + 重新编译即可
 // 局域网模式：http://<电脑局域网IP>:3000（换网络/IP 变了就改这里）
 // 公网穿透模式：cpolar/ngrok 等隧道 URL（隧道重启域名会变，也要同步改这里）
-// 2026-08-15 18:22: 临时随机隧道（固定域名待 cpolar 客服处理），URL=4dc65872.r22.cpolar.top
-const FALLBACK_BASE_URL = 'https://4dc65872.r22.cpolar.top';
+// 2026-08-15 19:35: 微信云托管正式部署，URL=gym-server-297498-11-1469244356.sh.run.tcloudbase.com
+const FALLBACK_BASE_URL = 'https://gym-server-297498-11-1469244356.sh.run.tcloudbase.com';
 const LOCAL_BASE_URL = FALLBACK_BASE_URL;
 
-// ===== 本地后端请求 =====
+// ===== 云托管模式（2026-08-15 新增） =====
+// true  = 用 wx.cloud.callContainer 直连云托管（微信私有协议，无需配置 request 合法域名/无需备案）
+// false = 用 wx.request 直连 FALLBACK_BASE_URL（本地/cpolar/普通 HTTPS）
+// 官方规则：使用微信云托管作为后端可无需配置通讯域名（callContainer 走微信私有协议）
+const USE_TCB = true;
+const TCB_ENV = 'prod-d0g3mnc4m283b5b36'; // 云托管环境 ID（用户控制台显示）
+const TCB_SERVICE = 'gym-server';         // 云托管容器服务名（callContainer 必填）
+// 云托管公网域名（图片等静态资源用；callContainer 走私有协议，但 <image> 加载需要公网 URL）
+const TCB_BASE_URL = 'https://gym-server-297498-11-1469244356.sh.run.tcloudbase.com';
+
+// 相对路径 → 完整 URL（头像/封面等后端转存到 /images/ 的资源）
+// 云托管模式：容器内文件需通过公网域名 HTTP 访问；本地模式：直接用包内相对路径
+function toFullUrl(p) {
+  if (!p) return '';
+  if (/^https?:\/\//.test(p)) return p;         // 已是完整 URL
+  if (USE_TCB) return TCB_BASE_URL + p;          // 云托管：拼公网域名
+  return p;                                       // 本地：包内相对路径直接显示
+}
+
+// ===== 本地后端请求（USE_TCB=true 时走云托管 callContainer，否则 wx.request） =====
 function localRequest(path, method = 'GET', data = {}) {
   return new Promise((resolve, reject) => {
+    // 云托管模式：微信私有协议直连，无需配置 request 合法域名
+    if (USE_TCB) {
+      wx.cloud.callContainer({
+        config: { env: TCB_ENV },
+        service: TCB_SERVICE,  // 容器服务名（必填，缺省会报 INVALID_PATH）
+        path,
+        method,
+        data,
+        success: (res) => {
+          const status = res.statusCode || 200;
+          if (status >= 200 && status < 300) {
+            resolve(res.data);
+          } else {
+            reject({ code: status, message: (res.data && res.data.message) || '请求失败' });
+          }
+        },
+        fail: (err) => {
+          console.error('[api][tcb] 请求失败', path, JSON.stringify(err));
+          reject({ code: -1, message: '无法连接云端服务，请稍后重试' });
+        }
+      });
+      return;
+    }
     wx.request({
       url: LOCAL_BASE_URL + path,
       method,
@@ -83,6 +125,10 @@ module.exports = {
   USE_CLOUD,
   CLOUD_ENV,
   LOCAL_BASE_URL,
+  USE_TCB,
+  TCB_ENV,
+  TCB_SERVICE,
+  toFullUrl,
 
   // 注册/登录（首次=注册，再次=登录）
   login(data) {
