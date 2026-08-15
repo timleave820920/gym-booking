@@ -35,11 +35,17 @@ Page({
     });
   },
 
-  // 是否提示完善资料：注册时跳过设置 或 昵称为空/默认名
+  // 是否提示完善资料：注册时跳过设置 或 昵称/头像未设置（昵称为空/默认名，头像为默认占位图）
+  // 2026-08-15: 用户已设置微信头像+昵称 → 不再显示提示条
   needProfileTip(user) {
     const pending = wx.getStorageSync('pendingProfileSetup');
     const name = String((user && (user.name || user.nickname)) || '').trim();
-    return !!pending || !name || name === '微信用户';
+    const avatar = String((user && user.avatar) || '').trim();
+    const hasCustomAvatar = !!avatar && avatar !== '/images/2_556.png';
+    const nameOk = !!name && name !== '微信用户';
+    // 注册时跳过设置（pending）→ 提示；头像+昵称都设置了 → 不提示
+    if (pending) return true;
+    return !nameOk || !hasCustomAvatar;
   },
 
   onShow() {
