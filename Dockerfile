@@ -16,5 +16,8 @@ WORKDIR /app/server
 # 云托管端口（控制台配置为 3000）
 EXPOSE 3000
 
-# 启动（PORT 由云托管环境变量注入，默认 3000）
-CMD ["node", "index.js"]
+# 启动：先跑 seed 初始化基础数据（幂等：课程/场次/配置），再启动后端
+# 数据库文件不入 git（.gitignore 排除 server/data/*.db），容器首次启动时
+# 由 seed.js 自动建库并填充种子数据；用户数据（bookings/orders等）为空
+# 如需带真实数据，用数据迁移方案（见上云迁移指南.md A2 阶段）
+CMD ["sh", "-c", "node seed.js && node index.js"]
