@@ -57,9 +57,10 @@
         <view class="ribbon" wx:if="{{item.remaining > 0 && item.remaining < 5}}">紧张</view>
 
         <view class="cb-main">
-          <!-- 顶行：教练头像 + 课程名 + 难度点阵 -->
+          <!-- 顶行：教练头像（点击进教练介绍页）+ 课程名 + 难度点阵 -->
           <view class="cb-top">
-            <image class="cb-avatar" src="{{item.coachAvatar}}" mode="aspectFill" data-idx="{{index}}" binderror="avatarError"></image>
+            <image class="cb-avatar" src="{{item.coachAvatar}}" mode="aspectFill" data-idx="{{index}}" binderror="avatarError"
+                   catchtap="goCoachProfile" data-coach-id="{{item.coachId}}"></image>
             <view class="cb-title">
               <text class="cb-name">{{item.name}}</text>
               <text class="cb-desc" wx:if="{{item.description}}">{{item.description}}</text>

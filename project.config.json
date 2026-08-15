@@ -26,7 +26,7 @@
       "outputPath": ""
     }
   },
-  "appid": "wx509088154a505409",
+  "appid": "wx0aee5332d4ef20fd",
   "projectname": "综合训练馆订课系统",
   "compileType": "miniprogram",
   "simulatorPluginLibVersion": {},
@@ -34,5 +34,6 @@
     "ignore": [],
     "include": []
   },
-  "editorSetting": {}
+  "editorSetting": {},
+  "libVersion": "3.17.1"
 }

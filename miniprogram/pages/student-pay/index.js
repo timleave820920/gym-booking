@@ -24,7 +24,8 @@ Page({
     selectedExpire: 'start',
     passHint: '',          // 次卡优先提示（有可用次卡时显示）
     usePass: false,        // 有可用次卡 → 强制次卡支付（支付方式区置灰、不默认选中）
-    passRemaining: 0       // 次卡剩余次数
+    passRemaining: 0,      // 次卡剩余次数
+    passExpired: false     // 有卡但对所选场次日期不可用（次数包已过期）→ 只能用储值/微信支付
   },
 
   onLoad() {
@@ -39,25 +40,57 @@ Page({
       img: '/images/3_24.png'
     };
     this.setData({ course });
+  },
+
+  // 2026-08-15: 每次回到页面刷新余额/次卡——修复「充值返回后仍显示余额不足」
+  // （原逻辑只在 onLoad 加载一次，充值返回后余额不更新导致无法继续支付）
+  onShow() {
     this.loadMemberInfo();
     this.loadPassHint();
   },
 
-  // 次卡优先：有可用次卡 → 本次将自动扣次（后端强制），支付方式区置灰且不默认选中任何一项
+  // 次卡：有可用次卡 → 加入「次卡抵扣」选项并默认选中；用户可切换储值/微信（2026-08-15）
   loadPassHint() {
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
     if (!openid) return;
-    api.getPassAvailable(openid).then((res) => {
+    // 2026-08-15: 传上课日期判断——卡今天过期不能订明天及以后场次
+    const date = (this.data.course && this.data.course.date) || '';
+    api.getPassAvailable(openid, date).then((res) => {
       if (res.available > 0) {
+        // 加入次卡选项（若尚未存在）并默认选中
+        const hasPassItem = this.data.payMethods.some(m => m.id === 3);
+        const payMethods = hasPassItem
+          ? this.data.payMethods.map(m => ({ ...m, selected: m.id === 3 }))
+          : [
+              ...this.data.payMethods.map(m => ({ ...m, selected: false })),
+              { id: 3, name: '次卡抵扣', desc: `本次扣 1 次（剩余 ${res.available} 次）`, icon: 'pass', selected: true }
+            ];
         this.setData({
-          passHint: `次卡优先：本次将自动扣 1 次（剩余 ${res.available} 次）`,
+          passHint: `已默认选择次卡抵扣（剩余 ${res.available} 次），可切换储值或微信支付`,
           usePass: true,
+          passExpired: false,
           passRemaining: res.available,
-          // 不默认选中任何支付方式（避免误会：实际走次卡，任何选中态都会误导）
-          payMethods: this.data.payMethods.map(m => ({ ...m, selected: false }))
+          payMethods
         });
         this.computeTotal();
+      } else if (res.expiredForDate) {
+        // 有次卡但对本次场次不可用（已过期/不覆盖上课日）→ 提示只能用储值/微信
+        this.setData({
+          passHint: '次数包已过期，本次只能用储值或微信支付',
+          usePass: false,
+          passExpired: true,
+          payMethods: this.data.payMethods.filter(m => m.id !== 3)
+        });
+        this.computeTotal();
+      } else {
+        // 无次卡：清除可能的次卡选项
+        this.setData({
+          passHint: '',
+          usePass: false,
+          passExpired: false,
+          payMethods: this.data.payMethods.filter(m => m.id !== 3)
+        });
       }
     }).catch(() => {});
   },
@@ -83,13 +116,16 @@ Page({
         balance,
         memberPrice,
         canBalancePay,
-        // 有可用次卡 → 不默认选中任何支付方式（后端强制次卡，选中态会误导用户）
-        // 无次卡 → 余额足够默认选中余额支付（享受会员价）
-        payMethods: this.data.payMethods.map(m => ({
+      // 有可用次卡 → 保持次卡默认选中（2026-08-15: 修复与 loadPassHint 的竞态——次卡已加载时
+      // 不得被 loadMemberInfo 的选中逻辑覆盖成"全不选中"）；无次卡 → 余额足够默认选中余额支付
+      payMethods: this.data.payMethods.map(m => {
+        const keepPass = this.data.usePass && m.id === 3;
+        return {
           ...m,
-          selected: this.data.usePass ? false : (m.id === (canBalancePay ? 2 : 1)),
+          selected: keepPass || (!this.data.usePass && m.id === (canBalancePay ? 2 : 1)),
           desc: m.id === 2 ? `余额 ¥ ${balance.toFixed(2)}` : m.desc
-        }))
+        };
+      })
       });
       this.computeTotal();
     }).catch(() => {});
@@ -118,13 +154,13 @@ Page({
   },
 
   selectMethod(e) {
-    // 有可用次卡 → 支付方式锁定为次卡，不允许手动选择（避免误导）
-    if (this.data.usePass) return;
+    // 2026-08-15: 有次卡也可切换支付方式——次卡(3)/储值(2)/微信(1) 自由选择，默认选中次卡
     const id = e.currentTarget.dataset.id;
     const payMethods = this.data.payMethods.map(m => ({
       ...m, selected: m.id === id
     }));
-    this.setData({ payMethods });
+    const usePass = id === 3;
+    this.setData({ payMethods, usePass });
     this.computeTotal();   // 切换方式 → 结算价联动
   },
 

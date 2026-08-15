@@ -466,6 +466,96 @@
   line-height: 1.7;
 }
 .privacy-text { color: #6B6B76; }
+
+/* ===== 2026-08-15: 登录后完善资料弹窗 ===== */
+.profile-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(26, 26, 35, 0.55);
+  z-index: 998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 60rpx;
+}
+.profile-dialog {
+  width: 100%;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 48rpx 40rpx 40rpx;
+  box-shadow: 0 16rpx 48rpx rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.profile-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #1A1A23;
+}
+.profile-sub {
+  font-size: 24rpx;
+  color: #B0AFA8;
+  margin-top: 8rpx;
+  margin-bottom: 32rpx;
+}
+.profile-avatar-btn {
+  width: 160rpx;
+  height: 160rpx;
+  padding: 0;
+  background: transparent;
+  line-height: normal;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 28rpx;
+}
+.profile-avatar-btn::after { border: none; }
+.profile-avatar {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 50%;
+  border: 4rpx solid #C6F04B;
+  background: #F0EDDF;
+}
+.profile-avatar-tip {
+  font-size: 22rpx;
+  color: #6B6B76;
+  margin-top: 8rpx;
+}
+.profile-nick-input {
+  width: 100%;
+  height: 88rpx;
+  background: #F5F3E9;
+  border-radius: 16rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  color: #1A1A23;
+  box-sizing: border-box;
+  margin-bottom: 28rpx;
+}
+.profile-save-btn {
+  width: 100%;
+  height: 88rpx;
+  background: #C6F04B;
+  color: #1A1A23;
+  font-size: 30rpx;
+  font-weight: 700;
+  border-radius: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid #1A1A23;
+  line-height: 84rpx;
+}
+.profile-save-btn::after { border: none; }
+.profile-save-btn[disabled] { opacity: 0.6; }
+.profile-skip {
+  font-size: 24rpx;
+  color: #6B6B76;
+  margin-top: 24rpx;
+  text-decoration: underline;
+}
 .privacy-link {
   color: #5B57EB;
   font-weight: 600;

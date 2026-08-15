@@ -14,7 +14,16 @@
             <!-- 透明 chooseAvatar 按钮覆盖头像：触发微信头像选择（不破坏布局） -->
             <button class="avatar-picker" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar"></button>
           </view>
-          <text class="vip-name">{{user.name}}</text>
+          <!-- 昵称：非编辑态显示 + 铅笔入口；编辑态为微信昵称输入（键盘可一键填入微信昵称） -->
+          <view class="vip-name-row" wx:if="{{!editingNick}}" bindtap="startEditNick">
+            <text class="vip-name">{{user.name}}</text>
+            <text class="nick-edit-ico">✎</text>
+          </view>
+          <view class="vip-name-row" wx:else>
+            <input class="nick-input" type="nickname" placeholder="点输入，可一键填入微信昵称"
+                   placeholder-class="invite-ph" value="{{nickDraft}}" bindinput="onNickInput" focus="{{true}}" />
+            <text class="nick-save" bindtap="saveNick">保存</text>
+          </view>
         </view>
         <view class="vip-lv-group" wx:if="{{member}}">
           <view class="vip-lv" bindtap="goMemberLevel">
@@ -25,6 +34,10 @@
           </view>
           <text class="vip-lv-hint" wx:if="{{member.hint}}">{{member.hint}}</text>
         </view>
+      </view>
+      <!-- 2026-08-15: 新用户完善资料提示（可选，点头像换微信头像 / 点昵称填微信昵称） -->
+      <view class="profile-tip" wx:if="{{showProfileTip}}" bindtap="startEditNick">
+        <text class="profile-tip-txt">设置微信头像昵称（可选）— 点头像换微信头像，点昵称一键填入 →</text>
       </view>
       <view class="vip-loading" wx:if="{{!member}}">加载中...</view>
 

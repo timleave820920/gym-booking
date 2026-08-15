@@ -12,7 +12,13 @@ Page({
     nickInput: '',           // 昵称输入（测试账号快捷登录）
     matchedTest: null,        // 匹配到的测试账号
     showPrivacy: false,      // 隐私协议弹窗（首次启动）
-    privacyOk: false         // 隐私授权状态（官方 wx.getPrivacySetting）
+    privacyOk: false,         // 隐私授权状态（官方 wx.getPrivacySetting）
+    // 2026-08-15: 登录后引导设置头像昵称（新用户/昵称为空时）
+    showProfileSetup: false,
+    avatarPath: '',          // 头像显示路径（选完为临时路径，保存时上传）
+    avatarTmpPath: '',       // 新选头像的临时路径
+    nickDraft: '',           // 昵称草稿
+    savingProfile: false     // 保存中（防连点）
   },
 
   // 隐私授权检查：返回 Promise，resolve(true)=已授权可继续；resolve(false)=需用户先同意（弹窗已出）
@@ -94,8 +100,8 @@ Page({
     wx.navigateTo({ url: '/pages/agreement/index?type=service' });
   },
 
-  // 测试账号表：昵称 → 角色（与后端 demo_ 账号一一对应）
-  TEST_ACCOUNTS: { '喻馥雅': 'coach', '蚂蚁': 'student', '艳子': 'student' },
+  // 测试账号表：昵称 → 角色（与后端 demo_ 账号一一对应；田立=demo_user 本人历史账号）
+  TEST_ACCOUNTS: { '田立': 'student', '喻馥雅': 'coach', '蚂蚁': 'student', '艳子': 'student' },
 
   onNickInput(e) {
     const nick = String(e.detail.value || '').trim();
@@ -125,8 +131,38 @@ Page({
   },
 
   onShow() {
+    // 2026-08-15: 已注册用户免登录——storage 有登录态且后端确认用户存在 → 直达对应首页
+    this.tryAutoEnter();
     // 每次回到登录页刷新用户数（清空后立即更新）
     this.loadUserCount();
+  },
+
+  // 已登录用户启动直达（预约页/教练课表），不再展示登录页；后端查无此人（清库后）→ 清除本地登录态回登录页
+  tryAutoEnter() {
+    const ui = wx.getStorageSync('userInfo');
+    const openid = (ui && ui.openid) || wx.getStorageSync('openid');
+    if (!ui || !openid) return;
+    if (this._autoChecking) return;
+    this._autoChecking = true;
+    api.checkLogin(openid).then((res) => {
+      if (res.exists) {
+        const role = ui.role || 'student';
+        if (role === 'coach') {
+          wx.reLaunch({ url: '/pages/coach-schedule/index' });
+        } else {
+          wx.reLaunch({ url: '/pages/student-courses/index' });
+        }
+      } else {
+        // 用户已不存在（数据库清空）→ 清本地登录态，走正常注册登录
+        wx.removeStorageSync('userInfo');
+        wx.removeStorageSync('openid');
+        wx.removeStorageSync('token');
+      }
+    }).catch(() => {
+      // 网络异常：不阻断登录页展示（可手动登录）
+    }).finally(() => {
+      this._autoChecking = false;
+    });
   },
 
   // 拉取当前注册用户数
@@ -164,13 +200,17 @@ Page({
       return;
     }
     const role = e.currentTarget.dataset.role;
+    // 2026-08-15: 教练入口 → 默认用「喻馥雅」教练身份登录（后端真实测试账号，coach_id=1，
+    // 清库后可自动重建）；不再使用本地伪造 demo_coach（后端无此用户，接口会失败）
+    if (role === 'coach') {
+      this.doLogin({ name: '喻馥雅', avatar: '/images/2_1468.png' }, '喻馥雅');
+      return;
+    }
     const urls = {
-      student: '/pages/student-courses/index',
-      coach: '/pages/coach-schedule/index'
+      student: '/pages/student-courses/index'
     };
     const names = {
-      student: '学员',
-      coach: '教练'
+      student: '学员'
     };
     const token = 'demo_' + role + '_' + Date.now();
     const userInfo = {
@@ -338,9 +378,9 @@ Page({
     return true;
   },
 
-  // 登录完成：默认使用「田立」身份直接登录（测试模式，跳过完善资料弹层）
+  // 登录完成：默认身份不再冒充「田立」（2026-08-15：微信登录昵称留空，由完善资料弹窗引导设置）
   finishLogin(profile) {
-    const name = (!profile.name || profile.name === '微信用户' || profile.name === '小陈同学') ? '田立' : profile.name;
+    const name = (!profile.name || profile.name === '微信用户' || profile.name === '小陈同学') ? '' : profile.name;
     this.doLogin({
       ...profile,
       name,
@@ -359,14 +399,15 @@ Page({
   doLogin(userProfile, testNick) {
     wx.login({
       success: (res) => {
-        const code = res.code || '';
+        // 2026-08-15: 演示账号（昵称快捷登录，含田立）不传 code → 后端不换真实 openid（保留 demo 历史数据）；
+        // 微信一键/手机号登录传 code → 后端 code2Session 换真实 openid（朋友各自新号）
+        const code = testNick ? '' : (res.code || '');
 
         // 演示阶段：
-        //  - 输入昵称匹配测试账号（喻馥雅/蚂蚁/艳子）→ 用该账号登录（testNick 传入）
-        //  - 微信一键登录 / 手机号登录 → 统一「田立」demo_user
-        // ⚠️ 正式上线：接入 jscode2session 用真实 openid 替换本段
+        //  - 输入昵称匹配测试账号（田立/喻馥雅/蚂蚁/艳子）→ 用该账号登录（testNick 传入）
+        //  - 微信一键登录 / 手机号登录 → 前端兜底 openid（真实 openid 由后端 code 换号返回）
         const nick = String((testNick || userProfile.name) || '').trim();
-        const openid = testNick ? this.hashNick(testNick) : 'demo_user';
+        const openid = testNick === '田立' ? 'demo_user' : (testNick ? this.hashNick(testNick) : 'demo_user');
         wx.setStorageSync('openid', openid);
 
         // 请求后端注册/登录
@@ -375,7 +416,9 @@ Page({
           openid,
           nickname: userProfile.name || '',
           avatar: userProfile.avatar || '',
-          phone: userProfile.phone || ''
+          phone: userProfile.phone || '',
+          // 2026-08-15: 喻馥雅=教练测试账号 → 注册时落 role=coach（清库后重建账号需要）
+          role: testNick === '喻馥雅' ? 'coach' : undefined
         }).then((res2) => {
           const isNewUser = res2.isNewUser;
           const user = res2.user;
@@ -397,6 +440,9 @@ Page({
           };
           wx.setStorageSync('token', token);
           wx.setStorageSync('userInfo', userInfo);
+          // 2026-08-15: 用后端返回的真实 openid 覆盖兜底值（code 换号成功后即微信真实 openid，
+          // 修复：原来只存 demo_user 兜底，页面读 storage 的 openid 全变成田立）
+          wx.setStorageSync('openid', userInfo.openid);
           app.globalData.userInfo = userInfo;
           app.globalData.role = userInfo.role;
 
@@ -404,6 +450,17 @@ Page({
 
           // 邀请追踪：登录后绑定邀请关系（分享卡片携带或手动填写的邀请码）
           this.bindInvite(userInfo.openid);
+
+          // 2026-08-15: 注册不再强制设置头像昵称——1 次点击完成注册直达首页；
+          // 需完善资料的用户在个人中心顶部看到提示（点头像换微信头像/点昵称填微信昵称，可选）
+          const name = String(userInfo.name || '').trim();
+          const isDemoUser = userInfo.openid === 'demo_user';
+          const needSetup = isNewUser || (!isDemoUser && (!name || name === '微信用户' || name === '田立'));
+          if (needSetup) {
+            wx.setStorageSync('pendingProfileSetup', 1);
+          } else {
+            wx.removeStorageSync('pendingProfileSetup');
+          }
 
           // 区分注册/登录提示
           wx.showToast({
@@ -446,6 +503,94 @@ Page({
     }).catch((err) => {
       console.warn('[invite] 绑定失败', err && err.message);
     });
+  },
+
+  // ===== 2026-08-15: 完善资料（头像+昵称，微信官方「头像昵称填写能力」）=====
+  onChooseAvatar(e) {
+    const path = e.detail.avatarUrl;
+    if (!path) return;
+    this.setData({ avatarPath: path, avatarTmpPath: path });
+  },
+
+  onProfileNick(e) {
+    this.setData({ nickDraft: e.detail.value });
+  },
+
+  saveProfile() {
+    if (this.data.savingProfile) return;
+    const nick = String(this.data.nickDraft || '').trim();
+    if (!nick) {
+      wx.showToast({ title: '请输入昵称', icon: 'none' });
+      return;
+    }
+    const openid = wx.getStorageSync('openid');
+    this.setData({ savingProfile: true });
+    const avatarPath = this.data.avatarTmpPath || '';
+    // 保存昵称 + （选了头像则先上传再一并保存）
+    const doSave = (avatarUrl) => {
+      const api = require('../../utils/api.js');
+      api.updateProfile({ openid, nickname: nick, avatar: avatarUrl || '' }).then((res) => {
+        const ui = wx.getStorageSync('userInfo') || {};
+        const newUi = {
+          ...ui,
+          name: nick,
+          avatar: avatarUrl || ui.avatar || '/images/2_556.png',
+          openid: ui.openid || openid
+        };
+        wx.setStorageSync('userInfo', newUi);
+        wx.setStorageSync('openid', newUi.openid);
+        app.globalData.userInfo = newUi;
+        this.setData({ savingProfile: false, showProfileSetup: false });
+        wx.showToast({ title: '资料已保存', icon: 'success' });
+        setTimeout(() => this.afterProfileSaved(newUi), 600);
+      }).catch((err) => {
+        this.setData({ savingProfile: false });
+        wx.showToast({ title: (err && err.message) || '保存失败，请重试', icon: 'none' });
+      });
+    };
+    // 2026-08-15: 微信 chooseAvatar 选「微信头像」时 avatarUrl 是网络 URL（thirdwx.qlogo.cn）——
+    // 直接存 URL 会因合法域名校验显示失败（回退默认头像），改为后端下载转存到 /images/
+    if (avatarPath) {
+      if (/^https?:\/\//.test(avatarPath)) {
+        wx.showLoading({ title: '同步头像中...' });
+        return api.avatarDownload(avatarPath).then((dl) => {
+          wx.hideLoading();
+          doSave(dl.path || '');
+        }).catch(() => {
+          wx.hideLoading();
+          doSave('');
+        });
+      }
+      wx.getFileSystemManager().readFile({
+        filePath: avatarPath,
+        encoding: 'base64',
+        success: (r) => {
+          const api = require('../../utils/api.js');
+          api.uploadImage('avatar_' + Date.now() + '.png', 'data:image/png;base64,' + r.data)
+            .then((u) => doSave(u.path || ''))
+            .catch(() => doSave(''));
+        },
+        fail: () => doSave('')
+      });
+    } else {
+      doSave('');
+    }
+  },
+
+  skipProfile() {
+    if (this.data.savingProfile) return;
+    this.setData({ showProfileSetup: false });
+    const ui = wx.getStorageSync('userInfo') || {};
+    wx.showToast({ title: '稍后可再修改资料', icon: 'none' });
+    setTimeout(() => this.afterProfileSaved(ui), 500);
+  },
+
+  afterProfileSaved(ui) {
+    if (ui && ui.role === 'coach') {
+      wx.redirectTo({ url: '/pages/coach-schedule/index' });
+    } else {
+      wx.switchTab({ url: '/pages/student-courses/index' });
+    }
   },
 
   noop() {}

@@ -181,6 +181,13 @@ Page({
     wx.navigateTo({ url: '/pages/student-checkin/index?id=' + id });
   },
 
+  // 2026-08-14: 点课程卡片 → 课程详情页（详情页按钮按状态显示：已预订/排位中）
+  goDetail(e) {
+    const sessionId = e.currentTarget.dataset.session;
+    if (!sessionId) return;
+    wx.navigateTo({ url: '/pages/student-course-detail/index?session_id=' + sessionId });
+  },
+
   goHome() { wx.switchTab({ url: '/pages/member-center/index' }); },
   goCourses() { wx.switchTab({ url: '/pages/student-courses/index' }); },
   goProfile() { wx.switchTab({ url: '/pages/student-profile/index' }); }

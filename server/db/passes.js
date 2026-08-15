@@ -13,8 +13,8 @@ const { db } = require('../db-core');
   const rows = db.prepare('SELECT COUNT(*) c FROM class_packages').get().c;
   if (rows === 0) {
     const stmt = db.prepare('INSERT INTO class_packages (name, total_count, valid_days, price_fen, desc) VALUES (?,?,?,?,?)');
-    stmt.run('月卡', 12, 60, 90000, '60 天内有效，逾期剩余次数作废；可与已有次卡叠加次数并顺延有效期');
-    stmt.run('双月卡', 24, 120, 180000, '120 天内有效，逾期剩余次数作废；可与已有次卡叠加次数并顺延有效期');
+    stmt.run('12次包', 12, 60, 90000, '60 天内有效，逾期剩余次数作废；可与已有次卡叠加次数并顺延有效期');
+    stmt.run('24次包', 24, 120, 180000, '120 天内有效，逾期剩余次数作废；可与已有次卡叠加次数并顺延有效期');
   }
 })();
 
@@ -30,6 +30,22 @@ function getUserPass(openid) {
     WHERE user_openid = ? AND status = 'active' AND remaining > 0 AND expires_at > datetime('now','localtime')
     ORDER BY expires_at LIMIT 1
   `).get(openid) || null;
+}
+
+/** 按上课日期判断次卡可用：卡必须覆盖上课日（date(expires_at) >= 课程日期）
+ *  —— 卡今天过期 → 不能预订明天及以后场次；无 date 时退化为当前时刻判断（兼容） */
+function getUserPassForDate(openid, date) {
+  const params = [openid];
+  let cond = "AND expires_at > datetime('now','localtime')";
+  if (date) {
+    cond += " AND date(expires_at) >= date(?)";
+    params.push(date);
+  }
+  return db.prepare(`
+    SELECT * FROM user_passes
+    WHERE user_openid = ? AND status = 'active' AND remaining > 0 ${cond}
+    ORDER BY expires_at LIMIT 1
+  `).get(...params) || null;
 }
 
 /** 当前卡完整信息（含已过期标记，供展示；过期卡也返回，status 由 expired 标志表达） */
@@ -125,6 +141,7 @@ function expireOverduePasses() {
 module.exports = {
   listPassPackages,
   getUserPass,
+  getUserPassForDate,
   getUserPassInfo,
   applyPassPurchase,
   consumePass,

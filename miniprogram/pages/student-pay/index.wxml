@@ -22,17 +22,17 @@
       <text class="amount-sub" wx:if="{{usePass}}">次数包剩余 {{passRemaining}} 次，本次自动扣 1 次</text>
     </view>
 
-    <!-- 次卡优先提示 -->
-    <view class="pass-hint" wx:if="{{passHint}}">{{passHint}}</view>
+    <!-- 次卡提示（expiredForDate 时警示样式） -->
+    <view class="pass-hint {{passExpired ? 'pass-hint-warn' : ''}}" wx:if="{{passHint}}">{{passHint}}</view>
 
-    <!-- 支付方式（有可用次卡 → 置灰不可选，不默认选中任何一项） -->
+    <!-- 支付方式（有次卡默认选中次卡，可切换储值/微信，2026-08-15） -->
     <view class="section-title">选择支付方式</view>
-    <view class="method-list {{usePass ? 'method-list-off' : ''}}">
-      <view class="method-row flex-between {{item.selected ? 'method-selected' : ''}} {{usePass ? 'method-row-off' : ''}}"
+    <view class="method-list">
+      <view class="method-row flex-between {{item.selected ? 'method-selected' : ''}}"
             wx:for="{{payMethods}}" wx:key="id"
             data-id="{{item.id}}" bindtap="selectMethod">
         <view class="flex-row method-left">
-          <view class="method-icon flex-center {{item.id === 1 ? 'icon-wallet' : 'icon-card'}}"></view>
+          <view class="method-icon flex-center {{item.id === 1 ? 'icon-wallet' : (item.id === 3 ? 'icon-pass' : 'icon-card')}}"></view>
           <view class="flex-col">
             <text class="method-name">{{item.name}}</text>
             <text class="method-desc">{{item.desc}}</text>
@@ -47,8 +47,8 @@
         </view>
       </view>
     </view>
-    <!-- 次卡支付说明（置灰区下补充说明，避免用户困惑为什么不能选） -->
-    <view class="pass-lock-tip" wx:if="{{usePass}}">本次使用次数包抵扣，无需选择支付方式</view>
+    <!-- 次卡选中说明 -->
+    <view class="pass-lock-tip" wx:if="{{usePass}}">当前使用次卡抵扣，可切换储值或微信支付</view>
 
     <!-- 候补自动取消时间（仅排位模式）：到期未转正自动退款 -->
     <view class="expire-section" wx:if="{{course.mode === 'waitlist'}}">

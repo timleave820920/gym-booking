@@ -1,0 +1,88 @@
+<view class="page">
+  <!-- 导航 -->
+  <view class="cp-nav">
+    <view class="cp-back" bindtap="goBack">‹</view>
+    <text class="cp-nav-title">教练介绍</text>
+    <view class="cp-nav-sp"></view>
+  </view>
+
+  <!-- 生活照（placeholder，教练未配置时显示占位） -->
+  <view class="cp-life">
+    <image wx:if="{{coach.life_photo}}" class="cp-life-img" src="{{coach.life_photo}}" mode="aspectFill" />
+    <view wx:else class="cp-life-ph">📷 教练生活照</view>
+  </view>
+
+  <!-- 教练档案卡 -->
+  <view class="coach-card" wx:if="{{coach}}">
+    <view class="coach-top">
+      <image class="coach-avatar" src="{{coach.avatar || '/images/2_556.png'}}" mode="aspectFill" />
+      <view class="coach-main">
+        <view class="coach-name-line">
+          <text class="coach-name">{{coach.name}}</text>
+          <text class="coach-badge">金牌教练</text>
+        </view>
+        <text class="coach-meta">{{coach.bio || '专业教练'}}</text>
+      </view>
+    </view>
+    <view class="coach-tags" wx:if="{{skills.length}}">
+      <text class="coach-tag on" wx:for="{{skills}}" wx:key="*this">{{item}}</text>
+    </view>
+  </view>
+
+  <!-- 技能认证 | 比赛成绩（左右并行两卡） -->
+  <view class="cp-cred" wx:if="{{certs.length || achievements.length}}">
+    <view class="cred-card">
+      <text class="cred-title">技能认证</text>
+      <view class="cred-item" wx:for="{{certs}}" wx:key="*this">
+        <view class="cred-dot"></view>
+        <text>{{item}}</text>
+      </view>
+      <text class="cred-empty" wx:if="{{!certs.length}}">暂无</text>
+    </view>
+    <view class="cred-card">
+      <text class="cred-title">比赛成绩</text>
+      <view class="cred-item gold" wx:for="{{achievements}}" wx:key="*this">
+        <view class="cred-dot"></view>
+        <text>{{item}}</text>
+      </view>
+      <text class="cred-empty" wx:if="{{!achievements.length}}">暂无</text>
+    </view>
+  </view>
+
+  <!-- TA 的课程：周日期条 + 当日课程 -->
+  <view class="cp-section" id="course-section">
+    <text class="cp-section-title">TA 的课程</text>
+  </view>
+  <view class="cp-datebar">
+    <view class="cp-date {{item.selected ? 'on' : ''}}" wx:for="{{weekDays}}" wx:key="full"
+          data-full="{{item.full}}" bindtap="selectDate">
+      <text class="cd-w {{item.selected ? 'cd-w-on' : ''}}">{{item.weekday}}</text>
+      <text class="cd-n {{item.selected ? 'cd-n-on' : ''}}">{{item.date}}</text>
+    </view>
+  </view>
+
+  <!-- 当日课程列表（复用预约页课程条结构） -->
+  <view class="course-list" wx:if="{{!loading}}">
+    <view class="course-item" wx:for="{{daySessions}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+      <view class="ci-time">
+        <text class="ci-time-val">{{item.start_time}}</text>
+        <text class="ci-time-range">{{item.end_time}}</text>
+      </view>
+      <view class="ci-divider"></view>
+      <view class="ci-info">
+        <text class="ci-name">{{item.course_name}}</text>
+        <text class="ci-sub">{{item.venue_name}}</text>
+        <text class="ci-seat">余位 <text class="ci-seat-num {{item.isFull ? 'ci-seat-zero' : ''}}">{{item.remaining}}</text>/{{item.capacity}}</text>
+      </view>
+      <view class="ci-btn {{item.isFull ? 'full' : ''}}">{{item.isFull ? '满员' : '可约'}}</view>
+    </view>
+    <view class="course-empty" wx:if="{{!daySessions.length}}">
+      <text class="course-empty-txt">今天暂无「{{coach ? coach.name : ''}}」的课程</text>
+      <text class="course-empty-sub">换个日期看看吧</text>
+    </view>
+  </view>
+
+  <!-- 底部主 CTA（全页唯一墨黑主行动） -->
+  <view class="cp-cta-sub">点课程条可直接预约 · 满员可候补</view>
+  <view class="cp-cta" bindtap="scrollToCourses">约 TA 的课</view>
+</view>

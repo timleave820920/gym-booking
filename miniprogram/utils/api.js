@@ -24,22 +24,18 @@ const USE_CLOUD = false;
 
 const CLOUD_ENV = 'gym-prod-timleave001'; // 云环境 ID（注册正式小程序后启用）
 
-// 局域网 IP 自动适配：优先读取后端启动时生成的 net-config.json
-// （由 server/index.js 探测本机 IP 写入；IP 变了重新启动后端即可）
-// 注意：开发者工具可能因 gitignore 过滤/缓存不打进该文件（BUG-LEDGER #6），
-// 故下面保留了「写死 IP」的兜底——真机连不上时改这里 + 重新编译即可。
-let NET_CONFIG = null;
-try {
-  NET_CONFIG = require('./net-config.json');
-} catch (e) {
-  /* 未打包或后端从未启动；走兜底地址 */
-}
+// 2026-08-14 21:35 重大修正：废弃 net-config.json 自动适配作为前端地址源。
+// 原因：net-config.json 是后端启动时自动写入的运行时产物，并行后端实例
+// （PORT/IP 各不相同）会互相覆盖——实测被 192.168.101.7:3536 覆盖后，
+// 前端优先读到错误地址，真机登录报"本地服务器没有启动"。
+// 现在地址唯一来源 = FALLBACK_BASE_URL（人工配置，见下）。
 
-// 本地后端地址（USE_CLOUD=false 时使用）
-// 兜底地址：真机联调 = 电脑局域网 IP（手机热点下改这里）；模拟器 = 127.0.0.1 恒可用
-// 2026-08-14: 同步为当前局域网 IP（192.168.194.11），net-config 丢失时兜底仍可连
-const FALLBACK_BASE_URL = 'http://192.168.194.11:3000';
-const LOCAL_BASE_URL = (NET_CONFIG && NET_CONFIG.baseUrl) || FALLBACK_BASE_URL;
+// 本地后端地址（USE_CLOUD=false 时使用）—— 唯一配置源，改这里 + 重新编译即可
+// 局域网模式：http://<电脑局域网IP>:3000（换网络/IP 变了就改这里）
+// 公网穿透模式：cpolar/ngrok 等隧道 URL（隧道重启域名会变，也要同步改这里）
+// 2026-08-15 18:22: 临时随机隧道（固定域名待 cpolar 客服处理），URL=4dc65872.r22.cpolar.top
+const FALLBACK_BASE_URL = 'https://4dc65872.r22.cpolar.top';
+const LOCAL_BASE_URL = FALLBACK_BASE_URL;
 
 // ===== 本地后端请求 =====
 function localRequest(path, method = 'GET', data = {}) {
@@ -97,6 +93,11 @@ module.exports = {
     return localRequest('/api/auth/login', 'POST', data);
   },
 
+  // 2026-08-15: 登录态检查（已注册用户启动直达首页，免登录页）
+  checkLogin(openid) {
+    return localRequest('/api/auth/check?openid=' + openid, 'GET');
+  },
+
   // 更新用户资料
   updateProfile(data) {
     if (USE_CLOUD) {
@@ -109,6 +110,19 @@ module.exports = {
   // 图片上传（base64，返回 /images/xxx 路径；用于头像/封面等）
   uploadImage(name, base64Data) {
     return localRequest('/api/upload', 'POST', { name, data: base64Data });
+  },
+
+  // 2026-08-15: 微信头像下载转存（thirdwx.qlogo.cn URL → /images/ 本地文件，避免合法域名校验失败回退默认头像）
+  avatarDownload(url) {
+    return localRequest('/api/avatar-download', 'POST', { url });
+  },
+
+  // 2026-08-15: 教练介绍页
+  getCoachProfile(coachId) {
+    return localRequest('/api/coaches/' + coachId, 'GET');
+  },
+  getCoachSessions(coachId, from, to) {
+    return localRequest(`/api/coaches/${coachId}/sessions?from=${from}&to=${to}`, 'GET');
   },
 
   // 用户列表（后台用）
@@ -271,8 +285,10 @@ module.exports = {
   getMyPass(openid) {
     return localRequest('/api/passes/my?openid=' + openid, 'GET');
   },
-  getPassAvailable(openid) {
-    return localRequest('/api/passes/available?openid=' + openid, 'GET');
+  getPassAvailable(openid, date) {
+    // date=上课日期(YYYY-MM-DD)：按日期判断次卡是否覆盖上课日（2026-08-15）
+    const q = date ? '&date=' + encodeURIComponent(date) : '';
+    return localRequest('/api/passes/available?openid=' + openid + q, 'GET');
   },
 
   // 成就同步：检测新解锁成就并发 50 能量币（幂等）

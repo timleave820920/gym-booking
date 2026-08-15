@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>教练介绍页 UI 设计 · 综合训练馆订课系统</title>
+<style>
+  :root {
+    --cream: #F9F4DF; --lime: #B9FF66; --purple: #5B57EB;
+    --dark: #1A1A23; --gray: #6B6B76; --light: #B0AFA8;
+    --divider: #F0EDDF; --divider-strong: #D9D4C0;
+    --red: #E5484D; --gold: #EF9F27; --white: #FFFFFF;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; background: var(--cream); color: var(--dark); padding: 32px 40px 60px; }
+  .page-title { font-size: 24px; font-weight: 800; letter-spacing: 1px; }
+  .page-sub { font-size: 13px; color: var(--gray); margin-top: 6px; max-width: 860px; line-height: 1.7; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 28px; margin-top: 28px; }
+  .variant { background: var(--white); border-radius: 16px; padding: 18px; box-shadow: 0 8px 28px rgba(0,0,0,0.07); }
+  .v-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .v-tag { background: var(--dark); color: var(--lime); font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; letter-spacing: 1px; }
+  .v-name { font-size: 15px; font-weight: 700; }
+  .phone { background: var(--cream); border-radius: 14px; padding: 14px; border: 1px solid #E3DEC9; position: relative; }
+  .v-note { font-size: 12px; color: var(--gray); line-height: 1.7; margin-top: 12px; padding: 10px 12px; background: #F7F4E8; border-radius: 10px; }
+  .v-note b { color: var(--dark); }
+  .reuse { font-size: 11px; color: var(--gray); background: #F7F4E8; border-radius: 6px; padding: 2px 8px; margin-left: 6px; white-space: nowrap; }
+
+  /* ========== 教练介绍页（复用现有组件体系） ========== */
+  .coach-page {
+    width: 375px; margin: 0 auto; background: var(--cream);
+    min-height: 640px; border-radius: 10px; overflow: hidden;
+    position: relative; padding-bottom: 88px;
+  }
+  /* 顶部导航：返回 + 标题（复用预约页 head-row 语法） */
+  .cp-nav { display: flex; align-items: center; padding: 14px 20px 4px; }
+  .cp-back { width: 56rpx; height: 56rpx; width: 28px; height: 28px; background: var(--white); border-radius: 50%; border: 1.5px solid var(--dark); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; }
+  .cp-nav-title { flex: 1; text-align: center; font-size: 16px; font-weight: 800; }
+  .cp-nav-sp { width: 28px; }
+
+  /* 教练档案卡：白卡 32rpx 圆角（复用白卡语法：无描边+轻阴影） */
+  .coach-card { background: var(--white); border-radius: 16px; margin: 12px 16px 0; padding: 20px 18px 16px; box-shadow: 0 6px 20px rgba(26,26,35,0.06); }
+  .coach-top { display: flex; align-items: center; gap: 14px; }
+  .coach-avatar { width: 72px; height: 72px; border-radius: 50%; background: var(--divider); border: 3px solid var(--lime); display: flex; align-items: center; justify-content: center; font-size: 30px; color: var(--gray); flex-shrink: 0; }
+  .coach-name-line { display: flex; align-items: center; gap: 8px; }
+  .coach-name { font-size: 20px; font-weight: 800; }
+  .coach-badge { background: var(--lime); color: var(--dark); font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--dark); }
+  .coach-meta { font-size: 12px; color: var(--gray); margin-top: 5px; }
+  .coach-tags { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .coach-tag { background: var(--divider); color: var(--gray); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+  .coach-tag.on { background: var(--dark); color: var(--lime); }
+  /* 简介（bio） */
+  .coach-bio { font-size: 12px; color: var(--gray); line-height: 1.8; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--divider); }
+
+  /* 课程列表区 */
+  .cp-section { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 8px; }
+  .cp-section-title { font-size: 15px; font-weight: 800; }
+  .cp-section-more { font-size: 12px; color: var(--gray); }
+
+  /* 课程条：复用预约页 course-card 结构（时间块 | 分隔线 | 信息 | 可约 lime 按钮） */
+  .course-item { background: var(--white); border-radius: 14px; margin: 0 16px 10px; padding: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 14px rgba(26,26,35,0.05); }
+  .ci-time { display: flex; flex-direction: column; align-items: center; min-width: 62px; }
+  .ci-time-val { font-size: 16px; font-weight: 800; }
+  .ci-time-range { font-size: 10px; color: var(--light); margin-top: 2px; }
+  .ci-divider { width: 1px; height: 40px; background: var(--divider-strong); }
+  .ci-info { flex: 1; min-width: 0; }
+  .ci-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ci-sub { font-size: 11px; color: var(--gray); margin-top: 4px; }
+  .ci-seat { font-size: 11px; color: var(--gray); margin-top: 2px; }
+  .ci-seat b { color: var(--dark); }
+  /* 可约按钮：荧光绿次按钮（黑描边 pill，复用 btn-primary 次行动语法） */
+  .ci-btn { background: var(--lime); color: var(--dark); font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--dark); flex-shrink: 0; }
+  .ci-btn.full { background: var(--divider); color: var(--light); border-color: var(--divider-strong); }
+
+  /* 底部固定主 CTA：墨黑（全页唯一主行动） */
+  .cp-cta { position: absolute; left: 16px; right: 16px; bottom: 16px; background: var(--dark); color: var(--lime); font-size: 15px; font-weight: 800; text-align: center; padding: 14px 0; border-radius: 999px; letter-spacing: 1px; }
+  .cp-cta-sub { position: absolute; left: 16px; right: 16px; bottom: 60px; text-align: center; font-size: 10px; color: var(--light); }
+
+  /* 顶部生活照（placeholder，白卡+虚线提示） */
+  .cp-life { margin: 10px 16px 0; }
+  .cp-life-ph { height: 150px; background: var(--divider); border-radius: 16px; border: 1.5px dashed var(--divider-strong); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--light); letter-spacing: 1px; }
+
+  /* 技能认证 | 比赛成绩：左右并行两卡 */
+  .cp-cred { display: flex; gap: 10px; margin: 12px 16px 0; }
+  .cred-card { flex: 1; background: var(--white); border-radius: 14px; padding: 12px; box-shadow: 0 4px 14px rgba(26,26,35,0.05); }
+  .cred-title { font-size: 12px; font-weight: 800; margin-bottom: 8px; }
+  .cred-item { font-size: 10.5px; color: var(--gray); line-height: 1.6; display: flex; align-items: flex-start; gap: 5px; }
+  .cred-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--lime); border: 1px solid var(--dark); margin-top: 5px; flex-shrink: 0; }
+  .cred-item.gold { color: var(--dark); font-weight: 600; }
+  .cred-item.gold .cred-dot { background: var(--gold); }
+
+  /* 周日期选择条：复用预约页 date-bar（白卡 24rpx，选中荧光绿） */
+  .cp-datebar { display: flex; gap: 8px; margin: 10px 16px 12px; }
+  .cp-date { flex: 1; background: var(--white); border-radius: 12px; padding: 8px 0; display: flex; flex-direction: column; align-items: center; border: 1.5px solid transparent; }
+  .cp-date.on { background: var(--dark); }
+  .cd-w { font-size: 10px; color: var(--gray); }
+  .cd-n { font-size: 14px; font-weight: 800; margin-top: 2px; }
+  .cp-date.on .cd-w, .cp-date.on .cd-n { color: var(--lime); }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">教练介绍页 UI 设计 · 综合训练馆订课系统</h1>
+<p class="page-sub">
+  学员侧教练档案页（<code>/pages/coach-profile/index?coach_id=1</code>）——展示教练介绍 + TA 的课程，点课程条直达详情页约课。
+  严格复用 DESIGN-SYSTEM.md v1.1：奶油底画布、白卡 32rpx 圆角无描边、墨黑唯一主 CTA、荧光绿仅作次行动/选中点缀。
+</p>
+
+<div class="grid">
+  <!-- ============ 主版本 ============ -->
+  <div class="variant">
+    <div class="v-head"><span class="v-tag">V1</span><span class="v-name">主版本（推荐）</span></div>
+    <div class="phone">
+      <div class="coach-page">
+        <!-- 导航 -->
+        <div class="cp-nav">
+          <view class="cp-back">‹</view>
+          <text class="cp-nav-title">教练介绍</text>
+          <view class="cp-nav-sp"></view>
+        </div>
+        <!-- 顶部生活照（placeholder） -->
+        <div class="cp-life">
+          <div class="cp-life-ph">📷 教练生活照（占位）</div>
+        </div>
+        <!-- 教练档案卡 -->
+        <div class="coach-card">
+          <div class="coach-top">
+            <div class="coach-avatar">喻</div>
+            <div>
+              <div class="coach-name-line">
+                <span class="coach-name">喻馥雅</span>
+                <span class="coach-badge">金牌教练</span>
+              </div>
+              <div class="coach-meta">Hyrox 综合训练 · 教练编号 HY-01</div>
+              <div class="coach-tags">
+                <span class="coach-tag on">器械混合</span>
+                <span class="coach-tag">高效燃脂</span>
+                <span class="coach-tag">体适能</span>
+              </div>
+            </div>
+          </div>
+          <div class="coach-bio">
+            6 年功能性训练教学经验，主攻 Hyrox 竞赛训练与体适能提升。擅长把复杂的训练动作拆解成可执行的节奏，带你高效燃脂、突破瓶颈。
+          </div>
+        </div>
+        <!-- 技能认证 | 比赛成绩（左右并行两卡） -->
+        <div class="cp-cred">
+          <div class="cred-card">
+            <div class="cred-title">技能认证</div>
+            <div class="cred-item"><span class="cred-dot"></span>Hybrid 教练资格认证</div>
+            <div class="cred-item"><span class="cred-dot"></span>莱美体能师认证</div>
+            <div class="cred-item"><span class="cred-dot"></span>急救员认证</div>
+          </div>
+          <div class="cred-card">
+            <div class="cred-title">比赛成绩</div>
+            <div class="cred-item gold"><span class="cred-dot"></span>Hyrox 2026 成都城市赛 · 年龄组冠军</div>
+            <div class="cred-item"><span class="cred-dot"></span>CrossFit Open 2025 · 前 5%</div>
+          </div>
+        </div>
+        <!-- 课程区：周日期选择（复用预约页 date-bar）+ 当日课程 -->
+        <div class="cp-section">
+          <text class="cp-section-title">TA 的课程</text>
+        </div>
+        <div class="cp-datebar">
+          <div class="cp-date on"><text class="cd-w">今天</text><text class="cd-n">15</text></div>
+          <div class="cp-date"><text class="cd-w">周六</text><text class="cd-n">16</text></div>
+          <div class="cp-date"><text class="cd-w">周日</text><text class="cd-n">17</text></div>
+          <div class="cp-date"><text class="cd-w">周一</text><text class="cd-n">18</text></div>
+          <div class="cp-date"><text class="cd-w">周二</text><text class="cd-n">19</text></div>
+          <div class="cp-date"><text class="cd-w">周三</text><text class="cd-n">20</text></div>
+          <div class="cp-date"><text class="cd-w">周四</text><text class="cd-n">21</text></div>
+        </div>
+        <div class="course-item">
+          <div class="ci-time"><span class="ci-time-val">18:00</span><span class="ci-time-range">8月15日</span></div>
+          <div class="ci-divider"></div>
+          <div class="ci-info">
+            <div class="ci-name">Hyrox冲冲冲</div>
+            <div class="ci-sub">成华好事馆</div>
+            <div class="ci-seat">余位 <b>2</b>/3</div>
+          </div>
+          <div class="ci-btn">可约</div>
+        </div>
+        <div class="course-item">
+          <div class="ci-time"><span class="ci-time-val">19:00</span><span class="ci-time-range">8月15日</span></div>
+          <div class="ci-divider"></div>
+          <div class="ci-info">
+            <div class="ci-name">Hyrox冲冲冲</div>
+            <div class="ci-sub">成华好事馆</div>
+            <div class="ci-seat">余位 <b>3</b>/3</div>
+          </div>
+          <div class="ci-btn">可约</div>
+        </div>
+        <div class="course-item">
+          <div class="ci-time"><span class="ci-time-val">10:00</span><span class="ci-time-range">8月16日</span></div>
+          <div class="ci-divider"></div>
+          <div class="ci-info">
+            <div class="ci-name">Hyrox新手</div>
+            <div class="ci-sub">成华好事馆</div>
+            <div class="ci-seat">余位 <b>0</b>/3</div>
+          </div>
+          <div class="ci-btn full">满员</div>
+        </div>
+        <!-- 主 CTA -->
+        <div class="cp-cta-sub">点课程条可直接预约 · 满员可候补</div>
+        <div class="cp-cta">约 TA 的课</div>
+      </div>
+    </div>
+    <div class="v-note">
+      <b>复用清单：</b>白卡语法（预约页 card）· 荧光绿 pill 按钮（支付页次按钮）· 黑描边头像（详情页预约墙）· 课程条结构（预约页 course-card）· 周日期选择条（预约页 date-bar，选中墨黑+荧光绿）· 墨黑主 CTA（全页唯一）。
+      <br><b>新增区域：</b>①顶部生活照 placeholder（白卡虚线占位）②技能认证｜比赛成绩左右并行两卡（荧光绿/金色圆点 + 灰字列表）③TA 的课程 = 周日期选择（默认今天）+ 当日课程。
+      <br><b>入口：</b>课程详情页教练卡片点击进入；课程条点击 → 复用详情页约课链路。
+    </div>
+  </div>
+
+  <!-- ============ 变体 B：强调头（黑底头部） ============ -->
+  <div class="variant">
+    <div class="v-head"><span class="v-tag">V2</span><span class="v-name">变体：墨黑头部强调</span></div>
+    <div class="phone">
+      <div class="coach-page">
+        <div style="background:var(--dark); border-radius:0 0 20px 20px; padding: 10px 20px 22px; margin: -14px -14px 0;">
+          <div class="cp-nav" style="padding:6px 0 10px;">
+            <view class="cp-back" style="background:var(--dark); color:var(--lime); border-color:var(--lime);">‹</view>
+            <text class="cp-nav-title" style="color:var(--lime);">教练介绍</text>
+            <view class="cp-nav-sp"></view>
+          </div>
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div class="coach-avatar" style="width:64px; height:64px; font-size:26px; border-color:var(--lime); background:rgba(185,255,102,0.12); color:var(--lime);">喻</div>
+            <div>
+              <div class="coach-name-line">
+                <span class="coach-name" style="color:var(--white);">喻馥雅</span>
+                <span class="coach-badge">金牌教练</span>
+              </div>
+              <div class="coach-meta" style="color:rgba(255,255,255,0.6);">Hyrox 综合训练 · HY-01</div>
+              <div class="coach-tags">
+                <span class="coach-tag on">器械混合</span>
+                <span class="coach-tag" style="background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.8);">高效燃脂</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="coach-card" style="margin-top:14px;">
+          <div class="coach-bio" style="border-top:none; padding-top:0; margin-top:0;">
+            6 年功能性训练教学经验，主攻 Hyrox 竞赛训练与体适能提升。擅长把复杂的训练动作拆解成可执行的节奏。
+          </div>
+        </div>
+        <div class="cp-section"><text class="cp-section-title">TA 的课程</text><text class="cp-section-more">近 3 天</text></div>
+        <div class="course-item">
+          <div class="ci-time"><span class="ci-time-val">18:00</span><span class="ci-time-range">8月15日</span></div>
+          <div class="ci-divider"></div>
+          <div class="ci-info"><div class="ci-name">Hyrox冲冲冲</div><div class="ci-sub">成华好事馆</div><div class="ci-seat">余位 <b>2</b>/3</div></div>
+          <div class="ci-btn">可约</div>
+        </div>
+        <div class="cp-cta-sub">点课程条可直接预约 · 满员可候补</div>
+        <div class="cp-cta">约 TA 的课</div>
+      </div>
+    </div>
+    <div class="v-note">
+      <b>差异：</b>头部用墨黑底 + 荧光绿点缀（呼应"墨黑骨架+荧光绿能量"），教练区更聚焦；课程区保持同一套课程条。
+      <br><b>取舍：</b>黑底头部视觉冲击更强，但奶油底页面多了一块墨黑——按设计铁律「墨黑不大量铺底」，V1 更符合规范。
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -21,6 +21,7 @@ Page({
     isPlaceholder: false,
     bookedCount: 0,
     bookedUsers: [],
+    isWaitlisted: false,
     offline: false,
     t: i18n.t()
   },
@@ -67,6 +68,7 @@ Page({
           capacity: s.capacity,
           venue: s.venue_name,
           coach: s.coach_name,
+          coachId: s.coach_id,
           coachAvatar: fullUrl(s.coach_avatar),
           coachBio: s.coach_bio || '资深认证教练，经验丰富',
           start: s.start_time,
@@ -88,6 +90,7 @@ Page({
         bookedCount: (s.bookedUsers || []).length,
         bookedUsers: s.bookedUsers || [],
         isBooked: !!s.booked_by_me,
+        isWaitlisted: !!s.waitlisted_by_me,
         status,
         // 训练详情：管理员配置的长文描述；未配置回退 placeholder
         descText: s.course_desc || DEFAULT_TRAINING,
@@ -158,10 +161,24 @@ Page({
     });
   },
 
+  // 2026-08-15: 教练卡片 → 教练介绍页
+  goCoachProfile(e) {
+    const coachId = e.currentTarget.dataset.coach;
+    if (!coachId) {
+      wx.showToast({ title: '暂无教练信息', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({ url: '/pages/coach-profile/index?coach_id=' + coachId });
+  },
+
   // 立即预订 -> 直接进入支付页（携带真实场次数据）
   bookNow() {
     if (this.data.isBooked) {
       wx.showToast({ title: '您已预订该课程', icon: 'none' });
+      return;
+    }
+    if (this.data.isWaitlisted) {
+      wx.showToast({ title: '排位中，等待转正', icon: 'none' });
       return;
     }
     if (this.data.status === 'ongoing' || this.data.status === 'ended') {

@@ -7,11 +7,13 @@
 # 干净库模式（DB_PATH 指向临时库）：
 #   每次提交都是「全新 schema + seed」验证，不再依赖开发后端是否在跑，
 #   schema 类 bug 本地即可抓（BUG-LEDGER #1 教训），且不污染共享开发库。
+#   2026-08-15: 库路径加 $$（进程号）后缀——并行会话同时提交时不互踩（原固定路径冲突导致测试失败）
 # ============================================================
 echo "▶ [安全网] 提交前自动测试（干净库模式）..."
 
-DB_PATH=/tmp/gym-test-clean.db node "$(dirname "$0")/../minitest/run-tests.js"
+DB_PATH=/tmp/gym-test-clean-$$.db node "$(dirname "$0")/../minitest/run-tests.js"
 RESULT=$?
+rm -f /tmp/gym-test-clean-$$.db* 2>/dev/null
 
 # 判定：红 = 禁止提交
 if [ $RESULT -ne 0 ]; then

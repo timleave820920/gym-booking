@@ -8,7 +8,7 @@ const { getMemberLevel, addBalance, applyRecharge, refundOrderMoney, calcRecharg
 const { getSessionById, syncSessionStatus } = require('./courses');
 const { rewardInviter } = require('./invite');
 const { sendMessage } = require('./messages');
-const { listPassPackages, getUserPass, consumePass, refundPass, applyPassPurchase } = require('./passes');
+const { listPassPackages, getUserPass, getUserPassForDate, consumePass, refundPass, applyPassPurchase } = require('./passes');
 const MEMBER_CONFIG = require('../member-config.js');
 const ENERGY_CONFIG = require('../energy-config.js');
 
@@ -111,9 +111,21 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
     return { ok: false, error: '订单已失效，无法支付' };
   }
 
-  // 次卡优先（设计方案 R3/D3）：订课/候补且用户有可用次卡 → 强制用次卡（不可跳过）
-  const canUsePass = (order.order_type === 'book' || order.order_type === 'waitlist') && !!getUserPass(order.user_openid);
-  const effMethod = canUsePass ? 'pass' : pay_method;
+  // 次卡（设计方案 R3/D3 + 2026-08-15 调整）：订课/候补且用户**显式选择次卡**（payMethod='pass'）才用次卡
+  // ——留选择余地：用户可用储值/微信支付；后端仍校验卡有效性（覆盖上课日）
+  // 2026-08-15: 按上课日期判断——卡必须覆盖上课日（卡今天过期不能预订明天及以后场次）
+  let pass = null;
+  if (order.order_type === 'book' || order.order_type === 'waitlist') {
+    if (order.session_id) {
+      const sRow = db.prepare('SELECT date FROM course_sessions WHERE id = ?').get(order.session_id);
+      pass = sRow ? getUserPassForDate(order.user_openid, sRow.date) : getUserPass(order.user_openid);
+    } else {
+      pass = getUserPass(order.user_openid);
+    }
+  }
+  // 仅用户选次卡且卡可用 → 用次卡；选次卡但卡不可用 → 回退微信支付（杜绝白嫖：不扣次但金额 0）
+  const canUsePass = (pay_method === 'pass') && !!pass;
+  const effMethod = canUsePass ? 'pass' : (pay_method === 'pass' ? 'wxpay' : pay_method);
 
   // 会员价预校验：储值支付需余额充足（不足直接拒绝，避免事务回滚）
   // 订课 + 候补都校验（修复 BUG-LEDGER #9：候补 balance 支付原不校验不扣款，退出却退款=刷钱漏洞）

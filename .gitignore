@@ -31,3 +31,7 @@ server/data/*.tmp
 
 # 关键操作日志（运行时产物，不入库）
 server/logs/
+
+# 环境变量（含 AppSecret，严禁入库）
+server/.env
+.env

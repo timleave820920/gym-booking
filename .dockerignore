@@ -1,0 +1,15 @@
+# 排除文件（部署包精简）
+node_modules/
+server/data/*.bak*
+server/data/gym.db-shm
+server/data/gym.db-wal
+server/logs/
+*.log
+.git/
+.workbuddy/
+miniprogram/
+web/
+cloudfunctions/
+minitest/
+*.md
+!Dockerfile

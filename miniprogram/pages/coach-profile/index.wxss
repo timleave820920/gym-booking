@@ -1,0 +1,241 @@
+/* 教练介绍页（V1 设计稿落地，2026-08-15）
+ * 设计语言：奶油底画布 + 白卡 32rpx 圆角无描边 + 墨黑唯一主 CTA + 荧光绿点缀
+ * Token 与 app.wxss 全局一致 */
+.page {
+  min-height: 100vh;
+  padding: 0 0 140rpx;
+  box-sizing: border-box;
+}
+
+/* ===== 导航 ===== */
+.cp-nav {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 32rpx 8rpx;
+}
+.cp-back {
+  width: 56rpx;
+  height: 56rpx;
+  background: #FFFFFF;
+  border-radius: 50%;
+  border: 3rpx solid #1A1A23;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 800;
+  color: #1A1A23;
+  line-height: 1;
+}
+.cp-nav-title {
+  flex: 1;
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #1A1A23;
+}
+.cp-nav-sp { width: 56rpx; }
+
+/* ===== 生活照 ===== */
+.cp-life { margin: 16rpx 32rpx 0; }
+.cp-life-img {
+  width: 100%;
+  height: 300rpx;
+  border-radius: 32rpx;
+  display: block;
+}
+.cp-life-ph {
+  height: 300rpx;
+  background: #F0EDDF;
+  border-radius: 32rpx;
+  border: 3rpx dashed #D9D4C0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  color: #B0AFA8;
+  letter-spacing: 2rpx;
+}
+
+/* ===== 教练档案卡（白卡语法） ===== */
+.coach-card {
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  margin: 20rpx 32rpx 0;
+  padding: 32rpx;
+  box-shadow: 0 8rpx 28rpx rgba(26, 26, 35, 0.06);
+}
+.coach-top { display: flex; align-items: center; gap: 24rpx; }
+.coach-avatar {
+  width: 144rpx;
+  height: 144rpx;
+  border-radius: 50%;
+  border: 4rpx solid #B9FF66;
+  background: #F0EDDF;
+  flex-shrink: 0;
+}
+.coach-main { flex: 1; min-width: 0; }
+.coach-name-line { display: flex; align-items: center; gap: 12rpx; }
+.coach-name { font-size: 40rpx; font-weight: 800; color: #1A1A23; }
+.coach-badge {
+  background: #B9FF66;
+  color: #1A1A23;
+  font-size: 20rpx;
+  font-weight: 700;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid #1A1A23;
+}
+.coach-meta {
+  font-size: 24rpx;
+  color: #6B6B76;
+  margin-top: 10rpx;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.coach-tags { display: flex; gap: 12rpx; margin-top: 20rpx; flex-wrap: wrap; }
+.coach-tag {
+  background: #F0EDDF;
+  color: #6B6B76;
+  font-size: 22rpx;
+  font-weight: 600;
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+}
+.coach-tag.on { background: #1A1A23; color: #B9FF66; }
+
+/* ===== 技能认证｜比赛成绩（左右并行） ===== */
+.cp-cred { display: flex; gap: 20rpx; margin: 20rpx 32rpx 0; }
+.cred-card {
+  flex: 1;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 24rpx;
+  box-shadow: 0 8rpx 28rpx rgba(26, 26, 35, 0.06);
+}
+.cred-title { font-size: 26rpx; font-weight: 800; color: #1A1A23; margin-bottom: 16rpx; }
+.cred-item {
+  font-size: 22rpx;
+  color: #6B6B76;
+  line-height: 1.6;
+  display: flex;
+  align-items: flex-start;
+  gap: 10rpx;
+  margin-bottom: 10rpx;
+}
+.cred-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #B9FF66;
+  border: 2rpx solid #1A1A23;
+  margin-top: 10rpx;
+  flex-shrink: 0;
+}
+.cred-item.gold { color: #1A1A23; font-weight: 600; }
+.cred-item.gold .cred-dot { background: #EF9F27; }
+.cred-empty { font-size: 22rpx; color: #B0AFA8; }
+
+/* ===== TA 的课程 ===== */
+.cp-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx 32rpx 12rpx;
+}
+.cp-section-title { font-size: 32rpx; font-weight: 800; color: #1A1A23; }
+
+/* 周日期条（复用预约页 date-bar：白卡 24rpx，选中墨黑+荧光绿） */
+.cp-datebar { display: flex; gap: 12rpx; margin: 8rpx 32rpx 20rpx; }
+.cp-date {
+  flex: 1;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 16rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.cp-date.on { background: #1A1A23; }
+.cd-w { font-size: 20rpx; color: #6B6B76; }
+.cd-n { font-size: 28rpx; font-weight: 800; color: #1A1A23; margin-top: 4rpx; }
+.cp-date.on .cd-w, .cp-date.on .cd-n { color: #B9FF66; }
+
+/* 课程条（复用预约页 course-card 结构） */
+.course-list { padding: 0 32rpx; }
+.course-item {
+  background: #FFFFFF;
+  border-radius: 28rpx;
+  margin-bottom: 20rpx;
+  padding: 28rpx;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  box-shadow: 0 6rpx 20rpx rgba(26, 26, 35, 0.05);
+}
+.ci-time { display: flex; flex-direction: column; align-items: center; min-width: 120rpx; }
+.ci-time-val { font-size: 32rpx; font-weight: 800; color: #1A1A23; }
+.ci-time-range { font-size: 20rpx; color: #B0AFA8; margin-top: 4rpx; }
+.ci-divider { width: 2rpx; height: 80rpx; background: #D9D4C0; }
+.ci-info { flex: 1; min-width: 0; }
+.ci-name {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #1A1A23;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ci-sub { font-size: 22rpx; color: #6B6B76; margin-top: 6rpx; }
+.ci-seat { font-size: 22rpx; color: #6B6B76; margin-top: 4rpx; }
+.ci-seat-num { color: #1A1A23; font-weight: 700; }
+.ci-seat-zero { color: #E5484D; }
+.ci-btn {
+  background: #B9FF66;
+  color: #1A1A23;
+  font-size: 24rpx;
+  font-weight: 700;
+  padding: 14rpx 28rpx;
+  border-radius: 999rpx;
+  border: 3rpx solid #1A1A23;
+  flex-shrink: 0;
+}
+.ci-btn.full { background: #F0EDDF; color: #B0AFA8; border-color: #D9D4C0; }
+.course-empty {
+  padding: 80rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.course-empty-txt { font-size: 26rpx; color: #6B6B76; }
+.course-empty-sub { font-size: 22rpx; color: #B0AFA8; margin-top: 8rpx; }
+
+/* ===== 底部主 CTA（墨黑，全页唯一） ===== */
+.cp-cta {
+  position: fixed;
+  left: 32rpx;
+  right: 32rpx;
+  bottom: 32rpx;
+  background: #1A1A23;
+  color: #B9FF66;
+  font-size: 30rpx;
+  font-weight: 800;
+  text-align: center;
+  padding: 26rpx 0;
+  border-radius: 999rpx;
+  letter-spacing: 2rpx;
+  z-index: 10;
+}
+.cp-cta-sub {
+  position: fixed;
+  left: 32rpx;
+  right: 32rpx;
+  bottom: 116rpx;
+  text-align: center;
+  font-size: 20rpx;
+  color: #B0AFA8;
+  z-index: 10;
+}

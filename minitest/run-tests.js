@@ -221,7 +221,10 @@ async function runSuite() {
     resolve(s.id);
   });
   ctx.sessionId = await mkSession(todayStr, '21:00', '22:00', 10, 0);
-  ctx.fullSessionId = await mkSession(todayStr, '22:00', '23:00', 1, 1);   // 满员（未来时段避免过期退款干扰）
+  // 满员场次：避开"已开课"时段——refundExpiredWaitlist 会在 GET /api/waitlist 时把已开课场次的候补自动退款，
+  // 若测试在开课时间(22:00)之后运行会误杀候补队列（WTL-06/07 必挂）；21 点后跑测试改用明天日期
+  const fullDate = (new Date().getHours() >= 21) ? tomorrowStr : todayStr;
+  ctx.fullSessionId = await mkSession(fullDate, '22:00', '23:00', 1, 1);   // 满员（未来时段避免过期退款干扰）
   ctx.tomorrowSessionId = await mkSession(tomorrowStr, '09:00', '10:00', 5, 0);
   console.log(`  [准备] 测试场次: 普通#${ctx.sessionId} 满员#${ctx.fullSessionId} 明日#${ctx.tomorrowSessionId}`);
 
@@ -595,9 +598,9 @@ async function runSuite() {
   check('PASS-03', '重复购买累加(36次)', ok(r, 200) && r.data.recharge.pass.remaining === 36, `rem=${r.data && r.data.recharge && r.data.recharge.pass.remaining}`);
   r = await req('GET', `/api/passes/my?openid=${P.openid}`);
   check('PASS-03b', '我的次卡(36次/天数)', ok(r, 200) && r.data.pass.hasPass && r.data.pass.remaining === 36 && r.data.pass.daysLeft > 50, `rem=${r.data && r.data.pass && r.data.pass.remaining} days=${r.data && r.data.pass && r.data.pass.daysLeft}`);
-  // 订课自动扣次（有卡强制 pass，金额 0）
+  // 订课用次卡（2026-08-15: 次卡改为用户显式选择，payMethod 传 pass；金额 0）
   r = await req('POST', '/api/orders', { openid: P.openid, sessionId: ctx.sessionId, amountFen: 6800, orderType: 'book' });
-  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P.openid, payMethod: 'balance' });
+  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P.openid, payMethod: 'pass' });
   check('PASS-05', '订课自动扣次(pass/¥0)', ok(r, 200) && r.data.order.pay_source === 'pass' && r.data.order.amount_fen === 0, `src=${r.data && r.data.order && r.data.order.pay_source} amt=${r.data && r.data.order && r.data.order.amount_fen}`);
   const passBookingId = r.data.booking.id;
   r = await req('GET', `/api/passes/my?openid=${P.openid}`);
@@ -613,9 +616,9 @@ async function runSuite() {
   check('PASS-08c', '重订(复用booking)扣次金额0', ok(r, 200) && r.data.order.amount_fen === 0 && r.data.booking.amount_fen === 0, `orderAmt=${r.data && r.data.order && r.data.order.amount_fen} bookingAmt=${r.data && r.data.booking && r.data.booking.amount_fen}`);
   r = await req('GET', `/api/passes/my?openid=${P.openid}`);
   check('PASS-08d', '重订扣次后剩余35', r.data.pass.remaining === 35, `rem=${r.data.pass.remaining}`);
-  // 候补用次卡 → 退出退次
+  // 候补用次卡 → 退出退次（2026-08-15: 次卡改为用户显式选择，payMethod 传 pass）
   r = await req('POST', '/api/orders', { openid: P.openid, sessionId: ctx.fullSessionId, amountFen: 6800, orderType: 'waitlist' });
-  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P.openid, payMethod: 'wxpay' });
+  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P.openid, payMethod: 'pass' });
   check('PASS-10', '候补用次卡', ok(r, 200) && r.data.wait && r.data.wait.status === 'waiting', `msg=${r.data && r.data.message}`);
   r = await req('GET', `/api/passes/my?openid=${P.openid}`);
   check('PASS-10b', '候补扣次后剩余34', r.data.pass.remaining === 34, `rem=${r.data.pass.remaining}`);

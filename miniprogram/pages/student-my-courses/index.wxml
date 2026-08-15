@@ -27,9 +27,9 @@
         <text class="empty-txt">加载中...</text>
       </view>
 
-      <!-- 待上课：课程卡片（订课 + 候补排位，界面一致） -->
+      <!-- 待上课：课程卡片（订课 + 候补排位，界面一致；点卡片可进详情） -->
       <view class="my-list" wx:if="{{!loading && tab === 0 && courses.length > 0}}">
-        <view class="my-card" wx:for="{{courses}}" wx:key="id">
+        <view class="my-card" wx:for="{{courses}}" wx:key="id" bindtap="goDetail" data-session="{{item.sessionId}}">
           <view class="flex-between card-top">
             <view class="tag {{item.isWait ? 'tag-purple' : 'tag-green'}}">{{item.status}}</view>
             <text class="card-date">{{item.date}}</text>
@@ -47,10 +47,10 @@
           </view>
           <text class="wait-expire" wx:if="{{item.isWait}}">{{item.expireText}}</text>
           <view class="flex-row card-actions">
-            <view class="btn-sm btn-outline" wx:if="{{!item.isWait}}" bindtap="refund" data-id="{{item.id}}" data-name="{{item.name}}">退订</view>
-            <view class="btn-sm btn-outline" wx:if="{{item.isWait}}" bindtap="exitWaitlist" data-id="{{item.id}}" data-name="{{item.name}}">退出候补</view>
-            <view class="btn-sm btn-primary" wx:if="{{!item.isWait && item.statusType === 'pending' && item.canCheckin}}" bindtap="checkin" data-id="{{item.id}}">签到</view>
-            <view class="btn-sm btn-purple" wx:if="{{item.isWait}}" bindtap="showWaitHint">排位</view>
+            <view class="btn-sm btn-outline" wx:if="{{!item.isWait}}" catchtap="refund" data-id="{{item.id}}" data-name="{{item.name}}">退订</view>
+            <view class="btn-sm btn-outline" wx:if="{{item.isWait}}" catchtap="exitWaitlist" data-id="{{item.id}}" data-name="{{item.name}}">退出候补</view>
+            <view class="btn-sm btn-primary" wx:if="{{!item.isWait && item.statusType === 'pending' && item.canCheckin}}" catchtap="checkin" data-id="{{item.id}}">签到</view>
+            <view class="btn-sm btn-purple" wx:if="{{item.isWait}}" catchtap="showWaitHint">排位</view>
           </view>
         </view>
       </view>

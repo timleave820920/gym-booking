@@ -29,8 +29,17 @@ Page({
       user: {
         name: user.name || user.nickname || '微信用户',
         avatar: user.avatar || '/images/2_556.png'
-      }
+      },
+      // 2026-08-15: 注册不强制设置资料 → 新用户在此提示（可选）
+      showProfileTip: this.needProfileTip(user)
     });
+  },
+
+  // 是否提示完善资料：注册时跳过设置 或 昵称为空/默认名
+  needProfileTip(user) {
+    const pending = wx.getStorageSync('pendingProfileSetup');
+    const name = String((user && (user.name || user.nickname)) || '').trim();
+    return !!pending || !name || name === '微信用户';
   },
 
   onShow() {
@@ -91,15 +100,30 @@ Page({
 
   // 更换头像：官方头像昵称填写能力（open-type="chooseAvatar"）
   // 2026-08-14 修复：wx.getUserProfile 2022.10 起返回灰色默认头像，改用 chooseAvatar 拿真实头像
-  onChooseAvatar(e) {
-    const avatarUrl = e.detail.avatarUrl;
+  onChooseAvatar(e) {    const avatarUrl = e.detail.avatarUrl;
     if (!avatarUrl) return;
     const openid = (app.globalData.userInfo || {}).openid || wx.getStorageSync('openid');
     if (!openid) {
       wx.showToast({ title: '请先登录', icon: 'none' });
       return;
     }
-    // chooseAvatar 返回临时路径 → 转 base64 上传后端持久化
+    // chooseAvatar 返回临时路径 → 转 base64 上传后端持久化；
+    // 2026-08-15: 选「微信头像」时是网络 URL（thirdwx.qlogo.cn）→ 后端下载转存到 /images/（直接显示，不依赖合法域名白名单）
+    if (/^https?:\/\//.test(avatarUrl)) {
+      wx.showLoading({ title: '同步头像中...' });
+      api.avatarDownload(avatarUrl).then((r2) => {
+        wx.hideLoading();
+        if (r2.path) {
+          this.saveAvatar(r2.path, openid);
+        } else {
+          wx.showToast({ title: r2.message || '头像同步失败', icon: 'none' });
+        }
+      }).catch(() => {
+        wx.hideLoading();
+        wx.showToast({ title: '头像同步失败', icon: 'none' });
+      });
+      return;
+    }
     wx.getFileSystemManager().readFile({
       filePath: avatarUrl,
       encoding: 'base64',
@@ -137,9 +161,50 @@ Page({
     // 后端持久化
     api.updateProfile({ openid, avatar: avatarUrl }).then(() => {
       wx.showToast({ title: '头像已更新', icon: 'success' });
+      this.afterProfileDone();
     }).catch(() => {
       wx.showToast({ title: '更新失败，请重试', icon: 'none' });
     });
+  },
+
+  // ===== 2026-08-15: 昵称编辑（type=nickname，键盘可一键填入微信昵称）=====
+  startEditNick() {
+    const user = this.data.user || {};
+    this.setData({
+      editingNick: true,
+      nickDraft: (user.name && user.name !== '微信用户') ? user.name : ''
+    });
+  },
+
+  onNickInput(e) {
+    this.setData({ nickDraft: e.detail.value });
+  },
+
+  saveNick() {
+    const nick = String(this.data.nickDraft || '').trim();
+    if (!nick) {
+      wx.showToast({ title: '请输入昵称', icon: 'none' });
+      return;
+    }
+    const openid = (app.globalData.userInfo || {}).openid || wx.getStorageSync('openid');
+    api.updateProfile({ openid, nickname: nick }).then(() => {
+      this.setData({ editingNick: false, 'user.name': nick });
+      if (app.globalData.userInfo) {
+        app.globalData.userInfo.name = nick;
+        wx.setStorageSync('userInfo', app.globalData.userInfo);
+      }
+      wx.showToast({ title: '昵称已更新', icon: 'success' });
+      this.afterProfileDone();
+    }).catch(() => {
+      wx.showToast({ title: '保存失败，请重试', icon: 'none' });
+    });
+  },
+
+  // 资料设置完成 → 清除提示标记
+  afterProfileDone() {
+    wx.removeStorageSync('pendingProfileSetup');
+    const user = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
+    this.setData({ showProfileTip: this.needProfileTip(user) });
   },
 
   // 会员等级（替代原「电子会员卡」页，产品决策 2026-08-13：去掉我的会员卡页面，直接进等级页）

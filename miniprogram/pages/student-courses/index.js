@@ -152,6 +152,7 @@ Page({
       description: s.course_desc || '',
       category: s.category,
       coach: s.coach_name,
+      coachId: s.coach_id,
       coachAvatar: s.coach_avatar || DEFAULT_COACH_AVATAR,
       level: s.level,
       date: full,               // 场次所属日期
@@ -194,9 +195,9 @@ Page({
       isFull,
       isBooked,
       status,
-      // 已预订/进行中/已结束 → 不可点击；满员未开始 → 可点（进候补）
-      canWaitlist: isFull && status === 'upcoming',
-      disabled: isBooked || status !== 'upcoming' || (isFull && status !== 'upcoming'),
+      // 满员未开始且未预订 → 可点（进候补）；已预订 → 可点进详情（详情页按钮显示"已预订"）
+      canWaitlist: isFull && status === 'upcoming' && !isBooked,
+      disabled: !isBooked && status !== 'upcoming',
       // 已预订优先于满员显示
       seatFull: !isBooked && remaining <= 2
     };
@@ -217,8 +218,18 @@ Page({
       this.goWaitlist(id);
       return;
     }
-    if (e.currentTarget.dataset.disabled) return; // 已预订/进行中/已结束 不可点击
+    if (e.currentTarget.dataset.disabled) return; // 进行中/已结束（未预订）不可点击；已预订可进详情
     wx.navigateTo({ url: `/pages/student-course-detail/index?session_id=${id}` });
+  },
+
+  // 课程条上点教练头像 → 教练介绍页（catchtap 已阻止冒泡，不影响进详情）
+  goCoachProfile(e) {
+    const coachId = e.currentTarget.dataset.coachId;
+    if (!coachId) {
+      wx.showToast({ title: '暂无教练信息', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({ url: '/pages/coach-profile/index?coach_id=' + coachId });
   },
 
   // 满员课程 → 候补排位支付

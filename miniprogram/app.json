@@ -4,6 +4,7 @@
     "pages/student-courses/index",
     "pages/student-activity/index",
     "pages/student-course-detail/index",
+    "pages/coach-profile/index",
     "pages/student-pay/index",
     "pages/pay-success/index",
     "pages/student-my-courses/index",

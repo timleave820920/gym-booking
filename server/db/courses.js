@@ -173,7 +173,7 @@ const SESSION_SELECT = `
          (s.capacity - s.booked_count) AS remaining,
          c.id AS course_id, c.name AS course_name, c.category, c.level, c.duration_min, c.price_fen, c.cover,
          c.description AS course_desc, c.tags AS course_tags, c.images AS course_images, c.summary AS course_summary,
-         c.address, c.lat, c.lng, co.name AS coach_name, co.avatar AS coach_avatar, co.bio AS coach_bio, v.name AS venue_name
+         c.address, c.lat, c.lng, co.id AS coach_id, co.name AS coach_name, co.avatar AS coach_avatar, co.bio AS coach_bio, v.name AS venue_name
   FROM course_sessions s
   JOIN courses c ON c.id = s.course_id
   JOIN coaches co ON co.id = s.coach_id
@@ -192,15 +192,24 @@ function listSessionsByCoach(date, coachId) {
 }
 
 /** 按日期范围 + 课程查场次（排表管理页，含全部状态） */
-function listSessionsByRange(from, to, courseId) {
+function listSessionsByRange(from, to, courseId, coachId) {
   let sql = `${SESSION_SELECT} WHERE s.date >= ? AND s.date <= ?`;
   const params = [from, to];
   if (courseId) {
     sql += ' AND s.course_id = ?';
     params.push(courseId);
   }
+  if (coachId) {
+    sql += ' AND s.coach_id = ?';
+    params.push(coachId);
+  }
   sql += ' ORDER BY s.date, s.start_time';
   return db.prepare(sql).all(...params);
+}
+
+/** 教练详情（含生活照/技能认证/比赛成绩，2026-08-15 教练介绍页） */
+function getCoachById(id) {
+  return db.prepare("SELECT * FROM coaches WHERE id = ? AND status = 'active'").get(id) || null;
 }
 
 /**
@@ -267,15 +276,41 @@ function syncSessionStatus(sessionId) {
  * @returns {{ok:true, booking:object}|{ok:false, error:string}}
  */
 // ===== 导出 =====
-/** 已预约用户信息列表（详情页预约墙：头像+昵称，横向滑动） */
-function listBookedUsersWithInfo(sessionId) {
-  return db.prepare(`
+/** 已预约用户信息列表（详情页预约墙：头像+昵称+同堂次数，横向滑动）
+ *  coCount：查看者(viewerOpenid)与该用户共同 booked 过的场次数（含当前场；>9 由前端显示 ...）
+ *  测试假用户（openid 以 fake_ 开头）：coCount 用确定性伪随机 0-5（同场次稳定、跨场次不同），
+ *  便于测试圆标数字样式（seed-fake-users.js 造数） */
+function listBookedUsersWithInfo(sessionId, viewerOpenid) {
+  const list = db.prepare(`
     SELECT u.openid, u.nickname, u.avatar
     FROM bookings b
     JOIN users u ON u.openid = b.user_openid
     WHERE b.session_id = ? AND b.status = 'booked'
     ORDER BY b.created_at, b.id
   `).all(sessionId);
+  if (!viewerOpenid) return list.map(u => ({ ...u, coCount: 0 }));
+  // 同堂次数：查看者与每个预订者「同场次均 booked」的场次数（含当前场），一次查询批量算
+  const rows = db.prepare(`
+    SELECT b2.user_openid AS peer, COUNT(DISTINCT b1.session_id) AS cnt
+    FROM bookings b1
+    JOIN bookings b2 ON b1.session_id = b2.session_id
+    WHERE b1.user_openid = ? AND b1.status = 'booked' AND b2.status = 'booked'
+    GROUP BY b2.user_openid
+  `).all(viewerOpenid);
+  const coMap = {};
+  for (const r of rows) if (r.peer !== viewerOpenid) coMap[r.peer] = r.cnt;
+  return list.map(u => {
+    if (u.openid.startsWith('fake_')) return { ...u, coCount: fakeCoCount(String(sessionId), u.openid) };
+    return { ...u, coCount: coMap[u.openid] || 0 };
+  });
 }
 
-module.exports = { listCoaches, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById, syncSessionStatus, listBookedUsersWithInfo };
+/** 假用户同堂次数：字符串哈希 → 0-5（同一场次同一用户恒定） */
+function fakeCoCount(sessionId, peer) {
+  const s = sessionId + ':' + peer;
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h % 6;
+}
+
+module.exports = { listCoaches, getCoachById, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById, syncSessionStatus, listBookedUsersWithInfo };

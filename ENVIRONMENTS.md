@@ -75,4 +75,24 @@ git push → L2 闸门（CI 干净库跑测试+覆盖率）→ 红：打回改
 
 ---
 
+## 六、公网穿透测试模式（2026-08-14 新增，拉朋友真机测试用）
+
+**背景**：拉朋友真机测试需要后端公网可达。方案演进：Cloudflare Quick Tunnel（境外边缘，慢且断）→ **cpolar 免费隧道（国内节点，稳定 0.26~0.30s）**。
+
+| 项 | 当前值 |
+|---|---|
+| 公网地址 | `https://35d0ecae.r22.cpolar.top`（免费版域名**重启会变**） |
+| 前端地址源 | **唯一人工配置**：`miniprogram/utils/api.js` 的 `FALLBACK_BASE_URL`（局域网/公网切换只改这一处；net-config.json 已废弃，见 BUG-LEDGER #14） |
+| 启动方式 | 双击 `server/start-cpolar-tunnel.bat`（启动后窗口显示新域名 → 同步到 api.js → 重新编译） |
+| AppID | **测试号** `wxd63f6b720b3021ea`（project.config.json；任何微信可扫预览码，无成员限制） |
+| 真机要求 | ①工具勾选「不校验合法域名」②真机小程序右上角「···」→「打开调试」 |
+
+**注意事项**：
+- 后端进程不能关；电脑重启后需重新：起隧道（bat）→ 同步 api.js 域名 → 重新编译
+- 测试号**不能上传发布**（体验版/正式版需真实 AppID）；正式发布前把 project.config.json 的 appid 换回
+- 测试号 secret 仅填 `server/.env`（已 gitignore），不入库
+- 假用户测试数据：`node server/seed-fake-users.js`（幂等重置，见开发总结 2026-08-14）
+
+---
+
 *创建：2026-08-13（L3 发布闸门第一步）。环境有变化时更新此文件并同步 CONVENTIONS。*

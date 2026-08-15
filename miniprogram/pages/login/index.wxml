@@ -41,7 +41,7 @@
     <!-- 昵称（测试账号快捷登录）：输入 喻馥雅/蚂蚁/艳子 直接登录对应账号 -->
     <view class="invite-field flex-row">
       <text class="invite-label">昵称</text>
-      <input class="invite-input" placeholder="输入昵称（喻馥雅/蚂蚁/艳子）快捷登录"
+      <input class="invite-input" placeholder="输入昵称（田立/喻馥雅/蚂蚁/艳子）快捷登录"
              placeholder-class="invite-ph" value="{{nickInput}}" bindinput="onNickInput" />
     </view>
     <view class="nick-match flex-row" wx:if="{{matchedTest}}">
@@ -78,6 +78,25 @@
     </view>
     <text class="db-count">当前注册用户人数：{{userCount}} 人</text>
     <text class="demo-hint">{{t.demoHint}}</text>
+  </view>
+
+  <!-- 2026-08-15: 登录后完善资料（新用户/昵称为空时弹出；微信官方头像昵称填写能力——
+       微信禁止静默获取头像昵称，此处已优化为最简：点头像选「微信头像」+ 键盘「填入微信昵称」一键 → 保存即完成注册） -->
+  <view class="profile-mask" wx:if="{{showProfileSetup}}" catchtouchmove="noop">
+    <view class="profile-dialog">
+      <view class="profile-title">使用微信头像和昵称</view>
+      <view class="profile-sub">点击头像选「微信头像」，昵称框键盘点「填入微信昵称」即可</view>
+      <button class="profile-avatar-btn" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
+        <image class="profile-avatar" src="{{avatarPath || '/images/2_556.png'}}" mode="aspectFill"></image>
+        <text class="profile-avatar-tip">点这里选微信头像</text>
+      </button>
+      <input class="profile-nick-input" type="nickname" placeholder="点输入，键盘上可一键填入微信昵称"
+             placeholder-class="invite-ph" value="{{nickDraft}}" bindinput="onProfileNick" />
+      <button class="profile-save-btn" bindtap="saveProfile" disabled="{{savingProfile}}">
+        {{savingProfile ? '保存中...' : '使用微信头像昵称，完成注册'}}
+      </button>
+      <text class="profile-skip" bindtap="skipProfile">稍后设置（先逛逛）</text>
+    </view>
   </view>
 
   <!-- 隐私协议弹窗（首次启动，微信 2023.9 强制） -->

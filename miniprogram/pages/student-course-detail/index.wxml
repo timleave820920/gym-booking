@@ -66,20 +66,27 @@
       </view>
       <scroll-view class="avatar-scroll" scroll-x wx:if="{{bookedUsers.length}}" enhanced show-scrollbar="{{false}}">
         <view class="avatar-item" wx:for="{{bookedUsers}}" wx:key="openid">
-          <image class="avatar-img" src="{{item.avatar || '/images/2_556.png'}}" mode="aspectFill"></image>
-          <text class="avatar-name">{{item.nickname}}</text>
+          <view class="avatar-wrap">
+            <image class="avatar-img" src="{{item.avatar || '/images/2_556.png'}}" mode="aspectFill"></image>
+            <view class="co-tag">{{item.coCount > 9 ? '...' : item.coCount}}</view>
+          </view>
+          <text class="avatar-name">{{item.nickname || '微信用户'}}</text>
         </view>
       </scroll-view>
+      <text class="co-tip" wx:if="{{bookedUsers.length}}">*数字代表您与该健身达人的同堂次数</text>
       <text class="booked-empty" wx:else>还没有人预约，快来抢占第一个席位</text>
     </view>
 
-    <!-- 教练：头像 + 名字 + 右侧说明 -->
-    <view class="coach-card flex-row">
+    <!-- 教练：头像 + 名字 + 右侧说明（点击进入教练介绍页，2026-08-15） -->
+    <view class="coach-card flex-row" bindtap="goCoachProfile" data-coach="{{course.coachId}}">
       <view class="flex-col coach-left">
         <image class="coach-avatar" src="{{course.coachAvatar || '/images/2_295.png'}}" mode="aspectFill"></image>
         <text class="coach-name">{{course.coach}}</text>
       </view>
-      <text class="coach-bio">{{course.coachBio}}</text>
+      <view class="coach-bio-box">
+        <text class="coach-bio">{{course.coachBio}}</text>
+        <text class="coach-more">查看教练介绍 ›</text>
+      </view>
     </view>
 
     <!-- 训练详情 -->
@@ -97,8 +104,9 @@
       <text class="price-value">¥ {{course.price}}</text>
       <text class="price-sub">单次 ¥{{course.price}} · 约课后直接支付</text>
     </view>
-    <view class="book-btn {{isBooked ? 'booked' : (status === 'ongoing' || status === 'ended' ? 'booked' : '')}}" bindtap="bookNow" data-booked="{{isBooked}}">
+    <view class="book-btn {{isBooked || isWaitlisted ? 'booked' : (status === 'ongoing' || status === 'ended' ? 'booked' : '')}}" bindtap="bookNow" data-booked="{{isBooked}}">
       <text wx:if="{{isBooked}}">已预订</text>
+      <text wx:elif="{{isWaitlisted}}">排位中</text>
       <text wx:elif="{{status === 'ongoing'}}">{{t.ongoing}}</text>
       <text wx:elif="{{status === 'ended'}}">{{t.ended}}</text>
       <text wx:else>{{t.bookImmediate}}</text>

@@ -212,6 +212,12 @@
   border-radius: 16rpx;
   padding: 18rpx 24rpx;
 }
+/* 次数包已过期警示（2026-08-15） */
+.pass-hint-warn {
+  background: #FDF3E7;
+  color: #D9534F;
+  border: 2rpx solid #E8A0A0;
+}
 
 /* 次卡支付：支付方式区置灰（2026-08-14 用户需求：有次卡不显示可选项） */
 .method-list-off {

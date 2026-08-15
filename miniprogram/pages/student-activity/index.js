@@ -79,6 +79,7 @@ Page({
         name: s.course_name,
         description: s.course_desc || '',
         coach: s.coach_name,
+        coachId: s.coach_id,
         venue: s.venue_name,
         coachAvatar: s.coach_avatar || DEFAULT_COACH_AVATAR,
         level: s.level,
@@ -115,7 +116,8 @@ Page({
         isBooked,
         waitlisted,
         canWaitlist: isFull && status === 'upcoming' && !isBooked && !waitlisted,
-        disabled: isBooked || waitlisted || status !== 'upcoming'
+        // 已预订可点击进详情，不置灰；候补/未开始之外的状态置灰
+        disabled: waitlisted || (!isBooked && status !== 'upcoming')
       };
     });
   },
@@ -191,13 +193,14 @@ Page({
       this.goWaitlist(id);
       return;
     }
-    if (item.isBooked) {
-      wx.showToast({ title: '已预订', icon: 'none' });
-      return;
-    }
     // 已排位 → 不可再次排位/预约
     if (item.waitlisted) {
       wx.showToast({ title: '已排位，等待转正', icon: 'none' });
+      return;
+    }
+    // 已预订 → 直接进详情（详情页按钮显示"已预订"，2026-08-14 放开拦截）
+    if (item.isBooked) {
+      wx.navigateTo({ url: `/pages/student-course-detail/index?session_id=${id}` });
       return;
     }
     // 进行中 / 已结束的课程不可点击
@@ -209,6 +212,16 @@ Page({
       return;
     }
     wx.navigateTo({ url: `/pages/student-course-detail/index?session_id=${id}` });
+  },
+
+  // 课程条上点教练头像 → 教练介绍页（catchtap 已阻止冒泡，不影响进详情）
+  goCoachProfile(e) {
+    const coachId = e.currentTarget.dataset.coachId;
+    if (!coachId) {
+      wx.showToast({ title: '暂无教练信息', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({ url: '/pages/coach-profile/index?coach_id=' + coachId });
   },
 
   // 满员课程 → 候补排位支付（与本周列表一致）

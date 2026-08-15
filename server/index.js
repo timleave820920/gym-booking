@@ -28,6 +28,19 @@ const fs = require('node:fs');
 const db = require('./db');
 const { logOp } = require('./logger');
 
+// ===== 加载 .env（WX_APPID / WX_SECRET / PORT 等；不覆盖已存在的环境变量）=====
+// 2026-08-14 添加：真机朋友测试需要真实 openid，secret 放 server/.env（gitignore，不入库）
+try {
+  const envPath = require('node:path').join(__dirname, '.env');
+  const envContent = require('node:fs').readFileSync(envPath, 'utf8');
+  for (const line of envContent.split('\n')) {
+    const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/);
+    if (m && process.env[m[1]] === undefined) {
+      process.env[m[1]] = m[2];
+    }
+  }
+} catch (e) { /* .env 不存在时静默跳过 */ }
+
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0'; // 允许局域网访问（真机调试）
 
@@ -72,7 +85,7 @@ function writeNetConfig() {
 
 // ===== 微信小程序配置（从环境变量读取，勿硬编码 secret）=====
 // 启动方式：WX_APPID=xxx WX_SECRET=yyy node server/index.js
-const WX_APPID = process.env.WX_APPID || 'wx509088154a505409'; // 你的 AppID
+const WX_APPID = process.env.WX_APPID || 'wx0aee5332d4ef20fd'; // 与 project.config.json 前端 AppID 一致（正式小程序 2026-08-15）
 const WX_SECRET = process.env.WX_SECRET || '';                  // AppSecret（开发环境可临时填入）
 
 // ===== 工具函数 =====
@@ -177,6 +190,11 @@ async function handleLogin(req, res) {
   if (user) {
     // 已注册 → 登录：更新登录信息
     user = db.touchLogin(finalOpenid);
+    // 2026-08-14: 登录携带昵称且库中昵称为空 → 补全（详情页预约墙头像下方显示昵称）
+    const curNick = (user.nickname || '').trim();
+    if (nickname && nickname.trim() && !curNick) {
+      user = db.updateProfile(finalOpenid, { nickname: nickname.trim(), avatar: avatar || user.avatar || '' });
+    }
     return sendJson(res, 200, {
       code: 200,
       message: '登录成功',
@@ -775,6 +793,47 @@ function handleUpload(req, res, body) {
   return sendJson(res, 200, { code: 200, path: urlPrefix + fileName, message: '上传成功' });
 }
 
+// ===== 微信头像下载转存（2026-08-15）=====
+// chooseAvatar 选「微信头像」返回 thirdwx.qlogo.cn 网络 URL，直接存 URL 会因合法域名校验显示失败
+// （回退默认头像）；这里服务端下载后转存到 miniprogram/images/，包内相对路径直接显示
+function handleAvatarDownload(req, res, body) {
+  const { url } = body || {};
+  if (!url || !/^https:\/\/thirdwx\.qlogo\.cn\//.test(String(url))) {
+    return sendJson(res, 400, { code: 400, message: '仅支持微信头像链接(thirdwx.qlogo.cn)' });
+  }
+  const req2 = https.get(url, (res2) => {
+    if (res2.statusCode !== 200) {
+      req2.destroy();
+      return sendJson(res, 502, { code: 502, message: '头像下载失败' });
+    }
+    const chunks = [];
+    res2.on('data', c => chunks.push(c));
+    res2.on('end', () => {
+      try {
+        const buf = Buffer.concat(chunks);
+        if (buf.length === 0 || buf.length > 512 * 1024) {
+          return sendJson(res, 400, { code: 400, message: '头像为空或超过 512KB' });
+        }
+        const ct = res2.headers['content-type'] || '';
+        if (!/^image\//.test(ct)) {
+          return sendJson(res, 400, { code: 400, message: '非图片内容' });
+        }
+        const ext = (ct.split('/')[1] || 'png').replace('jpeg', 'jpg');
+        const fileName = `avatar_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
+        const imgDir = path.join(__dirname, '..', 'miniprogram', 'images');
+        if (!fs.existsSync(imgDir)) fs.mkdirSync(imgDir, { recursive: true });
+        fs.writeFileSync(path.join(imgDir, fileName), buf);
+        sendJson(res, 200, { code: 200, path: '/images/' + fileName, message: '头像转存成功' });
+      } catch (e) {
+        sendJson(res, 500, { code: 500, message: '转存失败: ' + e.message });
+      }
+    });
+    res2.on('error', () => sendJson(res, 502, { code: 502, message: '头像下载失败' }));
+  });
+  req2.on('error', () => sendJson(res, 502, { code: 502, message: '头像下载失败' }));
+  req2.setTimeout(8000, () => { req2.destroy(); });
+}
+
 // ===== 排表管理：范围场次 / 取消 / 改容量 / 规则替换 =====
 function handleSessionsByRange(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
@@ -866,12 +925,13 @@ function handleSessionDetail(req, res, id) {
   let result = s;
   if (openid) {
     const booked = db.db.prepare("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ? AND status = 'booked'").get(openid, s.id);
-    result = { ...s, booked_by_me: !!booked };
+    const waited = db.db.prepare("SELECT id FROM waitlist WHERE user_openid = ? AND session_id = ? AND status = 'waiting'").get(openid, s.id);
+    result = { ...s, booked_by_me: !!booked, waitlisted_by_me: !!waited };
   }
   // 轮播图 JSON → 数组；已预约用户（预约墙头像+昵称）
   let images = [];
   try { images = JSON.parse(result.course_images || '[]'); } catch (e) { images = []; }
-  const bookedUsers = db.listBookedUsersWithInfo(result.id);
+  const bookedUsers = db.listBookedUsersWithInfo(result.id, openid);
   return sendJson(res, 200, { code: 200, session: { ...result, images, bookedUsers } });
 }
 
@@ -900,6 +960,13 @@ function toPublicUser(user) {
 // m: method ｜ p: 字符串精确路径 或 正则 ｜ f: handler(req, res, url)
 const API_ROUTES = [
   { m: 'POST',   p: '/api/auth/login',          f: (q, r) => handleLogin(q, r) },
+  // 2026-08-15: 登录态检查（已注册用户启动小程序免登录直达首页）
+  { m: 'GET',    p: '/api/auth/check',          f: (q, r, u) => {
+      const openid = u.searchParams.get('openid');
+      if (!openid) return sendJson(r, 400, { code: 400, message: '缺少 openid' });
+      const user = db.findUserByOpenid(openid);
+      sendJson(r, 200, { code: 200, exists: !!user, user: user ? toPublicUser(user) : null });
+    } },
   { m: 'POST',   p: '/api/auth/profile',        f: async (q, r) => handleProfile(q, r) },
   { m: 'GET',    p: '/api/users',               f: (q, r) => handleUsers(q, r) },
   { m: 'GET',    p: '/api/users/stats',         f: (q, r) => handleStats(q, r) },
@@ -947,8 +1014,13 @@ const API_ROUTES = [
   { m: 'GET',    p: '/api/passes/available',    f: (q, r, u) => {
       const openid = u.searchParams.get('openid');
       if (!openid) return sendJson(r, 400, { code: 400, message: '缺少 openid' });
+      // 2026-08-15: 支持按上课日期判断（date=YYYY-MM-DD，缺省退化为当前时刻判断）
+      const date = u.searchParams.get('date') || null;
       const info = db.getUserPassInfo(openid);
-      sendJson(r, 200, { code: 200, available: info.hasPass && !info.expired ? info.remaining : 0, pass: info.hasPass ? info : null });
+      const pass = date ? db.getUserPassForDate(openid, date) : db.getUserPass(openid);
+      // 有卡但对该日期不可用（已彻底过期 / 卡覆盖不了上课日）→ 前端显示「次数包已过期」
+      const expiredForDate = info.hasPass && !pass;
+      sendJson(r, 200, { code: 200, available: pass ? pass.remaining : 0, expiredForDate, pass: info.hasPass ? info : null });
     } },
   { m: 'GET',    p: '/api/coin/balance',        f: (q, r) => handleCoinBalance(q, r) },
   { m: 'GET',    p: '/api/coin/logs',           f: (q, r) => handleCoinLogs(q, r) },
@@ -994,6 +1066,11 @@ const API_ROUTES = [
       const body = await readBody(q);
       handleUpload(q, r, body);
     } },
+  // 2026-08-15: 微信头像下载转存（thirdwx.qlogo.cn → /images/）
+  { m: 'POST',   p: '/api/avatar-download',     f: async (q, r) => {
+      const body = await readBody(q);
+      handleAvatarDownload(q, r, body);
+    } },
   { m: 'GET',    p: '/api/admin/sessions',      f: (q, r) => handleSessionsByRange(q, r) },
   { m: 'DELETE', p: /^\/api\/sessions\/\d+$/, f: (q, r, u) => handleCancelSession(q, r, u.pathname.split('/')[3]) },
   { m: 'PUT',    p: /^\/api\/sessions\/\d+$/, f: async (q, r, u) => {
@@ -1011,6 +1088,24 @@ const API_ROUTES = [
       const coachId = Number(u.searchParams.get('coach_id') || 0);
       if (!date || !coachId) return sendJson(r, 400, { code: 400, message: '缺少 date 或 coach_id 参数' });
       const sessions = db.listSessionsByCoach(date, coachId);
+      sendJson(r, 200, { code: 200, sessions });
+    } },
+  // 2026-08-15: 教练介绍页——详情（档案/生活照/认证/成绩）+ 指定日期范围课程
+  { m: 'GET',    p: /^\/api\/coaches\/\d+$/,    f: (q, r, u) => {
+      const id = Number(u.pathname.split('/')[3]);
+      const coach = db.getCoachById(id);
+      if (!coach) return sendJson(r, 404, { code: 404, message: '教练不存在' });
+      let certs = [], achievements = [];
+      try { certs = JSON.parse(coach.certs || '[]'); } catch (e) {}
+      try { achievements = JSON.parse(coach.achievements || '[]'); } catch (e) {}
+      sendJson(r, 200, { code: 200, coach: { ...coach, certs, achievements } });
+    } },
+  { m: 'GET',    p: /^\/api\/coaches\/\d+\/sessions$/, f: (q, r, u) => {
+      const id = Number(u.pathname.split('/')[3]);
+      const from = u.searchParams.get('from');
+      const to = u.searchParams.get('to');
+      if (!from || !to) return sendJson(r, 400, { code: 400, message: '缺少 from/to 日期参数' });
+      const sessions = db.listSessionsByRange(from, to, 0, id);
       sendJson(r, 200, { code: 200, sessions });
     } },
   { m: 'GET',    p: /^\/api\/sessions\/\d+$/, f: (q, r, u) => handleSessionDetail(q, r, u.pathname.split('/')[3]) }

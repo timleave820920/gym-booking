@@ -202,6 +202,28 @@
   border: 3rpx solid #E8E2CC;
   background: #F0EDDF;
 }
+/* 头像右下角同堂次数小圆标（>9 前端显示 "..."；荧光绿底黑描边，对齐设计语言） */
+.avatar-wrap {
+  position: relative;
+  width: 88rpx;
+  height: 88rpx;
+}
+.co-tag {
+  position: absolute;
+  right: -8rpx;
+  bottom: -8rpx;
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  background: #C6F04B;
+  border: 2rpx solid #1A1A23;
+  color: #1A1A23;
+  font-size: 18rpx;
+  font-weight: 500;
+  line-height: 30rpx;
+  text-align: center;
+  box-sizing: border-box;
+}
 .avatar-name {
   font-size: 20rpx;
   color: #6B6B76;
@@ -214,6 +236,13 @@
   display: block;
   margin-top: 20rpx;
   font-size: 24rpx;
+  color: #B0AFA8;
+}
+/* 同堂次数说明小字（预约墙下方） */
+.co-tip {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 20rpx;
   color: #B0AFA8;
 }
 
@@ -249,6 +278,16 @@
   color: #6B6B76;
   line-height: 1.8;
   padding-top: 8rpx;
+}
+/* 2026-08-15: 教练卡可点击进介绍页 */
+.coach-bio-box { flex: 1; min-width: 0; }
+.coach-more {
+  display: block;
+  font-size: 22rpx;
+  color: #1A1A23;
+  font-weight: 700;
+  margin-top: 6rpx;
+  text-decoration: underline;
 }
 
 /* 训练详情 */
