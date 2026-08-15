@@ -98,9 +98,24 @@ Page({
     this.setData({ 'user.avatar': '/images/2_556.png' });
   },
 
-  // 更换头像：官方头像昵称填写能力（open-type="chooseAvatar"）
+  // 点击头像 → 调 wx.chooseAvatar API（2026-08-15 弃用 open-type button 覆盖层：
+  // button 默认点击区域会溢出误触昵称/保存按钮；API 方式点头像图片即触发，无覆盖层）
+  onTapAvatar() {
+    wx.chooseAvatar({
+      success: (res) => {
+        this.handleAvatarChosen({ detail: { avatarUrl: res.avatarUrl } });
+      },
+      fail: () => { /* 用户取消选择，忽略 */ }
+    });
+  },
+
+  // 更换头像：官方头像昵称填写能力（wx.chooseAvatar / open-type="chooseAvatar" 共用处理）
   // 2026-08-14 修复：wx.getUserProfile 2022.10 起返回灰色默认头像，改用 chooseAvatar 拿真实头像
-  onChooseAvatar(e) {    const avatarUrl = e.detail.avatarUrl;
+  onChooseAvatar(e) {    this.handleAvatarChosen(e);
+  },
+
+  handleAvatarChosen(e) {
+    const avatarUrl = (e && e.detail && e.detail.avatarUrl) || '';
     if (!avatarUrl) return;
     const openid = (app.globalData.userInfo || {}).openid || wx.getStorageSync('openid');
     if (!openid) {

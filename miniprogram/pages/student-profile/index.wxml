@@ -10,9 +10,8 @@
       <view class="vip-top">
         <view class="vip-user">
           <view class="avatar-wrap">
-            <image class="vip-avatar" src="{{user.avatar}}" mode="aspectFill" binderror="avatarError"></image>
-            <!-- 透明 chooseAvatar 按钮覆盖头像：触发微信头像选择（不破坏布局） -->
-            <button class="avatar-picker" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar"></button>
+            <image class="vip-avatar" src="{{user.avatar}}" mode="aspectFill" binderror="avatarError" bindtap="onTapAvatar"></image>
+            <!-- 2026-08-15: 改用 wx.chooseAvatar API（弃用 open-type=chooseAvatar 覆盖按钮——button 默认点击区域会误触昵称/保存按钮） -->
           </view>
           <!-- 昵称：非编辑态显示 + 铅笔入口；编辑态为微信昵称输入（键盘可一键填入微信昵称） -->
           <view class="vip-name-row" wx:if="{{!editingNick}}" bindtap="startEditNick">
