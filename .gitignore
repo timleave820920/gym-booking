@@ -1,5 +1,7 @@
 # 项目数据与本地缓存（不入库）
-# 2026-08-16：.workbuddy/ 会话日志入库（评审 #4 价值：知识资产必须版本控制，本地独有数据=随时蒸发）
+# 2026-08-16：.workbuddy/ 会话日志（memory/）入库——知识资产必须版本控制；其余调试产物（封面/截图/诊断转储/automations）保持忽略
+.workbuddy/*
+!.workbuddy/memory/
 
 # 预览二维码（临时产物）
 preview-qrcode.*
