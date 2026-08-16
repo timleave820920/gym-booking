@@ -6,53 +6,52 @@
  *  - 订课/候补支付顺序：次卡 → 余额 → 微信（后端强制，不可跳过）
  *  - 退订对称退次；退时卡已过期 → 次数作废清理（D2/D3）
  */
-const { db } = require('../db-core');
+const { db, driver } = require('../db-core');
 const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 
 // ===== 档位种子（可配置：数据库里增改，前端动态读取）=====
-(function seedPackages() {
-  const rows = db.prepare('SELECT COUNT(*) c FROM class_packages').get().c;
+(async function seedPackages() {
+  const rows = (await driver.get('SELECT COUNT(*) c FROM class_packages')).c;
   if (rows === 0) {
-    const stmt = db.prepare('INSERT INTO class_packages (name, total_count, valid_days, price_fen, desc) VALUES (?,?,?,?,?)');
-    stmt.run('12次包', 12, 60, 90000, '60 天内有效，逾期剩余次数作废；可与已有次卡叠加次数并顺延有效期');
-    stmt.run('24次包', 24, 120, 180000, '120 天内有效，逾期剩余次数作废；可与已有次卡叠加次数并顺延有效期');
+    await driver.run('INSERT INTO class_packages (name, total_count, valid_days, price_fen, desc) VALUES (?,?,?,?,?)', ['12次包', 12, 60, 90000, '60 天内有效，逾期剩余次数作废；可与已有次卡叠加次数并顺延有效期']);
+    await driver.run('INSERT INTO class_packages (name, total_count, valid_days, price_fen, desc) VALUES (?,?,?,?,?)', ['24次包', 24, 120, 180000, '120 天内有效，逾期剩余次数作废；可与已有次卡叠加次数并顺延有效期']);
   }
 })();
 
 /** 可售档位列表 */
-function listPassPackages() {
-  return db.prepare("SELECT id, name, total_count, valid_days, price_fen, desc FROM class_packages WHERE active = 1 ORDER BY price_fen").all();
+async function listPassPackages() {
+  return await driver.all("SELECT id, name, total_count, valid_days, price_fen, desc FROM class_packages WHERE active = 1 ORDER BY price_fen");
 }
 
 /** 当前有效次卡（active 且未过期且剩余>0；无则 null） */
-function getUserPass(openid) {
+async function getUserPass(openid) {
   // 当前时刻显式传北京字符串（time.js），不依赖 SQLite 系统时区（BUG-LEDGER #28）
-  return db.prepare(`
+  return await driver.get(`
     SELECT * FROM user_passes
     WHERE user_openid = ? AND status = 'active' AND remaining > 0 AND expires_at > ?
     ORDER BY expires_at LIMIT 1
-  `).get(openid, time.nowDateTimeStr()) || null;
+  `, [openid, time.nowDateTimeStr()]) || null;
 }
 
 /** 按上课日期判断次卡可用：卡必须覆盖上课日（date(expires_at) >= 课程日期）
  *  —— 卡今天过期 → 不能预订明天及以后场次；无 date 时退化为当前时刻判断（兼容） */
-function getUserPassForDate(openid, date) {
+async function getUserPassForDate(openid, date) {
   const params = [openid, time.nowDateTimeStr()];
   let cond = "AND expires_at > ?";
   if (date) {
     cond += " AND date(expires_at) >= date(?)";
     params.push(date);
   }
-  return db.prepare(`
+  return await driver.get(`
     SELECT * FROM user_passes
     WHERE user_openid = ? AND status = 'active' AND remaining > 0 ${cond}
     ORDER BY expires_at LIMIT 1
-  `).get(...params) || null;
+  `, [...params]) || null;
 }
 
 /** 当前卡完整信息（含已过期标记，供展示；过期卡也返回，status 由 expired 标志表达） */
-function getUserPassInfo(openid) {
-  const pass = db.prepare("SELECT * FROM user_passes WHERE user_openid = ? ORDER BY id DESC LIMIT 1").get(openid);
+async function getUserPassInfo(openid) {
+  const pass = await driver.get("SELECT * FROM user_passes WHERE user_openid = ? ORDER BY id DESC LIMIT 1", [openid]);
   if (!pass) return { hasPass: false };
   // 过期判定：expires_at 是北京时间字符串 → parseBeijing 统一换算绝对时刻，与系统时区无关（BUG-LEDGER #28）
   const nowTs = Date.now();
@@ -82,25 +81,23 @@ function expiryAt(d) {
  * ⚠️ 由 payOrder 在其事务内调用（不在此开事务，避免嵌套）；单条 SQL 原子
  * @returns {{ok:true, pass:object, added:number}|{ok:false,error:string}}
  */
-function applyPassPurchase({ openid, orderId, packageId }) {
-  const pkg = db.prepare('SELECT * FROM class_packages WHERE id = ? AND active = 1').get(packageId);
+async function applyPassPurchase({ openid, orderId, packageId }) {
+  const pkg = await driver.get('SELECT * FROM class_packages WHERE id = ? AND active = 1', [packageId]);
   if (!pkg) return { ok: false, error: '无效的次卡套餐' };
-  const cur = db.prepare("SELECT * FROM user_passes WHERE user_openid = ? AND status = 'active' AND expires_at > ? ORDER BY id DESC LIMIT 1").get(openid, time.nowDateTimeStr());
+  const cur = await driver.get("SELECT * FROM user_passes WHERE user_openid = ? AND status = 'active' AND expires_at > ? ORDER BY id DESC LIMIT 1", [openid, time.nowDateTimeStr()]);
   let pass;
   if (cur) {
     // 有有效卡 → 累加次数 + 顺延作废日期（剩 N 天买 M 天 → 作废期 = 原作废期 + M 天）
     const base = time.parseBeijing(cur.expires_at);
     const newExp = expiryAt(new Date(base.getTime() + pkg.valid_days * 864e5));
-    db.prepare('UPDATE user_passes SET remaining = remaining + ?, total_count = total_count + ?, expires_at = ?, order_id = ? WHERE id = ?')
-      .run(pkg.total_count, pkg.total_count, newExp, orderId, cur.id);
-    pass = db.prepare('SELECT * FROM user_passes WHERE id = ?').get(cur.id);
+    await driver.run('UPDATE user_passes SET remaining = remaining + ?, total_count = total_count + ?, expires_at = ?, order_id = ? WHERE id = ?', [pkg.total_count, pkg.total_count, newExp, orderId, cur.id]);
+    pass = await driver.get('SELECT * FROM user_passes WHERE id = ?', [cur.id]);
   } else {
     // 无有效卡 → 从购买日重算
     const exp = expiryAt(new Date(Date.now() + pkg.valid_days * 864e5));
-    db.prepare(`INSERT INTO user_passes (user_openid, order_id, total_count, remaining, expires_at, status)
-                VALUES (?, ?, ?, ?, ?, 'active')`)
-      .run(openid, orderId, pkg.total_count, pkg.total_count, exp);
-    pass = db.prepare('SELECT * FROM user_passes WHERE id = last_insert_rowid()').get();
+    await driver.run(`INSERT INTO user_passes (user_openid, order_id, total_count, remaining, expires_at, status)
+                VALUES (?, ?, ?, ?, ?, 'active')`, [openid, orderId, pkg.total_count, pkg.total_count, exp]);
+    pass = await driver.get('SELECT * FROM user_passes WHERE id = last_insert_rowid()');
   }
   return { ok: true, pass, added: pkg.total_count };
 }
@@ -109,10 +106,10 @@ function applyPassPurchase({ openid, orderId, packageId }) {
  * 扣次（订课/候补支付时，事务内调用）
  * @returns {number|null} pass_id（无可用次卡返回 null）
  */
-function consumePass(openid) {
-  const pass = getUserPass(openid);
+async function consumePass(openid) {
+  const pass = await getUserPass(openid);
   if (!pass) return null;
-  db.prepare('UPDATE user_passes SET remaining = remaining - 1 WHERE id = ? AND remaining > 0').run(pass.id);
+  await driver.run('UPDATE user_passes SET remaining = remaining - 1 WHERE id = ? AND remaining > 0', [pass.id]);
   return pass.id;
 }
 
@@ -120,24 +117,24 @@ function consumePass(openid) {
  * 退次（退订/退出候补对称退款；卡已过期 → 次数作废清理）
  * @returns {'refunded'|'expired'|'none'}
  */
-function refundPass(passId) {
+async function refundPass(passId) {
   if (!passId) return 'none';
-  const pass = db.prepare('SELECT * FROM user_passes WHERE id = ?').get(passId);
+  const pass = await driver.get('SELECT * FROM user_passes WHERE id = ?', [passId]);
   if (!pass) return 'none';
   const nowStr = time.nowDateTimeStr();
   if (pass.status !== 'active' || String(pass.expires_at) <= nowStr) {
     // 卡已过期 → 作废清理
-    db.prepare("UPDATE user_passes SET status = 'expired' WHERE id = ?").run(passId);
+    await driver.run("UPDATE user_passes SET status = 'expired' WHERE id = ?", [passId]);
     return 'expired';
   }
-  db.prepare('UPDATE user_passes SET remaining = remaining + 1 WHERE id = ?').run(passId);
+  await driver.run('UPDATE user_passes SET remaining = remaining + 1 WHERE id = ?', [passId]);
   return 'refunded';
 }
 
 /** 过期任务：把已过期的卡标记 expired（返回过期卡数；用于消息通知） */
-function expireOverduePasses() {
-  const rows = db.prepare("SELECT id FROM user_passes WHERE status = 'active' AND expires_at <= ?").all(time.nowDateTimeStr());
-  for (const r of rows) db.prepare("UPDATE user_passes SET status = 'expired' WHERE id = ?").run(r.id);
+async function expireOverduePasses() {
+  const rows = await driver.all("SELECT id FROM user_passes WHERE status = 'active' AND expires_at <= ?", [time.nowDateTimeStr()]);
+  for (const r of rows) await driver.run("UPDATE user_passes SET status = 'expired' WHERE id = ?", [r.id]);
   return rows.length;
 }
 

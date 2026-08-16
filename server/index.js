@@ -26,6 +26,7 @@ const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs');
 const db = require('./db');
+const { driver } = require('./db');
 const { logOp } = require('./logger');
 
 // ===== 加载 .env（WX_APPID / WX_SECRET / PORT 等；不覆盖已存在的环境变量）=====
@@ -185,27 +186,27 @@ async function handleLogin(req, res) {
   }
 
   // 2. 查库：是否已注册
-  let user = db.findUserByOpenid(finalOpenid);
+  let user = await db.findUserByOpenid(finalOpenid);
 
   if (user) {
     // 已注册 → 登录：更新登录信息
-    user = db.touchLogin(finalOpenid);
+    user = await db.touchLogin(finalOpenid);
     // 2026-08-14: 登录携带昵称且库中昵称为空 → 补全（详情页预约墙头像下方显示昵称）
     const curNick = (user.nickname || '').trim();
     if (nickname && nickname.trim() && !curNick) {
-      user = db.updateProfile(finalOpenid, { nickname: nickname.trim(), avatar: avatar || user.avatar || '' });
+      user = await db.updateProfile(finalOpenid, { nickname: nickname.trim(), avatar: avatar || user.avatar || '' });
     }
     return sendJson(res, 200, {
       code: 200,
       message: '登录成功',
       isNewUser: false,
       wechatVerified,
-      user: toPublicUser(user)
+      user: await toPublicUser(user)
     });
   }
 
   // 3. 未注册 → 注册
-  user = db.createUser({
+  user = await db.createUser({
     openid: finalOpenid,
     nickname: nickname || '',
     avatar: avatar || '',
@@ -217,7 +218,7 @@ async function handleLogin(req, res) {
     message: '注册成功',
     isNewUser: true,
     wechatVerified,
-    user: toPublicUser(user)
+    user: await toPublicUser(user)
   });
 }
 
@@ -227,63 +228,63 @@ async function handleProfile(req, res) {
   if (!openid) {
     return sendJson(res, 400, { code: 400, message: '缺少 openid' });
   }
-  const user = db.findUserByOpenid(openid);
+  const user = await db.findUserByOpenid(openid);
   if (!user) {
     return sendJson(res, 404, { code: 404, message: '用户不存在，请先登录' });
   }
-  const updated = db.updateProfile(openid, { nickname, avatar });
+  const updated = await db.updateProfile(openid, { nickname, avatar });
   return sendJson(res, 200, {
     code: 200,
     message: '资料已更新',
-    user: toPublicUser(updated)
+    user: await toPublicUser(updated)
   });
 }
 
-function handleUsers(req, res) {
-  const users = db.listUsers();
+async function handleUsers(req, res) {
+  const users = await db.listUsers();
   return sendJson(res, 200, { code: 200, users: users.map(toPublicUser) });
 }
 
-function handleStats(req, res) {
+async function handleStats(req, res) {
   // 支持 ?openid=xxx 返回该用户真实锻炼数据
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid');
   const base = {
     code: 200,
-    totalUsers: db.countUsers()
+    totalUsers: await db.countUsers()
   };
   if (openid) {
     base.myStats = {
-      finishedWorkouts: db.countFinishedWorkouts(openid),  // 已完成锻炼次数
-      upcomingBookings: db.countUpcomingBookings(openid),  // 待上课数
-      totalBookings: db.countBookingsByUser(openid)        // 已订课总数
+      finishedWorkouts: await db.countFinishedWorkouts(openid),  // 已完成锻炼次数
+      upcomingBookings: await db.countUpcomingBookings(openid),  // 待上课数
+      totalBookings: await db.countBookingsByUser(openid)        // 已订课总数
     };
   }
   return sendJson(res, 200, base);
 }
 
 // 删除单个用户（?id=xxx 或 ?openid=xxx）
-function handleDeleteUser(req, res) {
+async function handleDeleteUser(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const id = url.searchParams.get('id');
   const openid = url.searchParams.get('openid');
 
   let deleted = false;
   if (id) {
-    deleted = db.deleteUserById(id);
+    deleted = await db.deleteUserById(id);
   } else if (openid) {
-    deleted = db.deleteUserByOpenid(openid);
+    deleted = await db.deleteUserByOpenid(openid);
   }
 
   if (!deleted) {
     return sendJson(res, 404, { code: 404, message: '用户不存在或已删除' });
   }
-  return sendJson(res, 200, { code: 200, message: '用户已删除', totalUsers: db.countUsers() });
+  return sendJson(res, 200, { code: 200, message: '用户已删除', totalUsers: await db.countUsers() });
 }
 
 // 清空所有用户
-function handleClearUsers(req, res) {
-  const removed = db.clearUsers();
+async function handleClearUsers(req, res) {
+  const removed = await db.clearUsers();
   return sendJson(res, 200, {
     code: 200,
     message: `已清空 ${removed} 名用户`,
@@ -299,7 +300,7 @@ async function handleCreateBooking(req, res) {
   if (!openid || !sessionId) {
     return sendJson(res, 400, { code: 400, message: '缺少 openid 或 sessionId' });
   }
-  const result = db.createBooking({
+  const result = await db.createBooking({
     user_openid: openid,
     session_id: sessionId,
     amount_fen: amountFen || 0,
@@ -312,19 +313,19 @@ async function handleCreateBooking(req, res) {
 }
 
 // 查询我的订课（GET /api/bookings?openid=xxx&status=booked）
-function handleListBookings(req, res) {
+async function handleListBookings(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid');
   const status = url.searchParams.get('status') || undefined;
   if (!openid) {
     return sendJson(res, 400, { code: 400, message: '缺少 openid' });
   }
-  const bookings = db.listBookingsByUser(openid, status);
+  const bookings = await db.listBookingsByUser(openid, status);
   return sendJson(res, 200, { code: 200, bookings });
 }
 
 // 退订（DELETE /api/bookings/:id?openid=xxx）
-function handleCancelBooking(req, res) {
+async function handleCancelBooking(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const pathParts = url.pathname.split('/');
   const bookingId = parseInt(pathParts[pathParts.length - 1], 10);
@@ -332,12 +333,12 @@ function handleCancelBooking(req, res) {
   if (!bookingId || !openid) {
     return sendJson(res, 400, { code: 400, message: '缺少订课ID或openid' });
   }
-  const result = db.cancelBooking(openid, bookingId);
+  const result = await db.cancelBooking(openid, bookingId);
   if (!result.ok) {
-    logOp(openid, 'refund', { bookingId }, 'fail');
+    await logOp(openid, 'refund', { bookingId }, 'fail');
     return sendJson(res, 400, { code: 400, message: result.error });
   }
-  logOp(openid, 'refund', { bookingId, promoted: !!(result.promoted) }, 'ok');
+  await logOp(openid, 'refund', { bookingId, promoted: !!(result.promoted) }, 'ok');
   return sendJson(res, 200, {
     code: 200,
     message: '已退订',
@@ -348,10 +349,10 @@ function handleCancelBooking(req, res) {
 // ===== 签到（checkin）=====
 
 // 签到凭证信息（GET /api/checkin/:id，学员二维码页）
-function handleCheckinInfo(req, res) {
+async function handleCheckinInfo(req, res) {
   const pathParts = req.url.split('/');
   const bookingId = parseInt(pathParts[pathParts.length - 1], 10);
-  const info = db.getCheckinInfo(bookingId);
+  const info = await db.getCheckinInfo(bookingId);
   if (!info) return sendJson(res, 404, { code: 404, message: '订课记录不存在' });
   return sendJson(res, 200, { code: 200, info });
 }
@@ -365,20 +366,20 @@ async function handleCheckin(req, res) {
   if (!bookingId || !openid) {
     return sendJson(res, 400, { code: 400, message: '缺少订课ID或openid' });
   }
-  const result = db.checkinBooking({ bookingId, coachOpenid: openid });
+  const result = await db.checkinBooking({ bookingId, coachOpenid: openid });
   if (!result.ok) {
-    logOp(openid, 'checkin', { bookingId }, 'fail');
+    await logOp(openid, 'checkin', { bookingId }, 'fail');
     return sendJson(res, 400, { code: 400, message: result.error });
   }
-  logOp(result.booking.user_openid, 'checkin', { bookingId, course: result.booking.course_name }, 'ok', result.booking.booking_no);
+  await logOp(result.booking.user_openid, 'checkin', { bookingId, course: result.booking.course_name }, 'ok', result.booking.booking_no);
   return sendJson(res, 200, { code: 200, message: '签到成功', booking: result.booking });
 }
 
 // 按场次查订课名单（GET /api/sessions/:id/students，教练端）
-function handleSessionStudents(req, res) {
+async function handleSessionStudents(req, res) {
   const pathParts = req.url.split('/');
   const sessionId = parseInt(pathParts[pathParts.length - 2], 10);
-  const students = db.listBookingsBySession(sessionId);
+  const students = await db.listBookingsBySession(sessionId);
   const checked = students.filter(s => s.checkin_at).length;
   return sendJson(res, 200, { code: 200, students, checked, total: students.length });
 }
@@ -392,7 +393,7 @@ async function handleJoinWaitlist(req, res) {
   if (!openid || !sessionId) {
     return sendJson(res, 400, { code: 400, message: '缺少 openid 或 sessionId' });
   }
-  const result = db.joinWaitlist({
+  const result = await db.joinWaitlist({
     user_openid: openid,
     session_id: sessionId,
     amount_fen: amountFen || 0,
@@ -405,20 +406,20 @@ async function handleJoinWaitlist(req, res) {
 }
 
 // 查询我的候补（GET /api/waitlist?openid=xxx，附带过期退款任务）
-function handleListWaitlist(req, res) {
+async function handleListWaitlist(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid');
   if (!openid) {
     return sendJson(res, 400, { code: 400, message: '缺少 openid' });
   }
   // 顺带执行过期退款任务（课程已开始未排到 → 自动退款）
-  const refunded = db.refundExpiredWaitlist();
-  const waits = db.listWaitlistByUser(openid);
+  const refunded = await db.refundExpiredWaitlist();
+  const waits = await db.listWaitlistByUser(openid);
   return sendJson(res, 200, { code: 200, waits, refunded });
 }
 
 // 退出候补（DELETE /api/waitlist/:id?openid=xxx）
-function handleCancelWaitlist(req, res) {
+async function handleCancelWaitlist(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const pathParts = url.pathname.split('/');
   const waitId = parseInt(pathParts[pathParts.length - 1], 10);
@@ -426,7 +427,7 @@ function handleCancelWaitlist(req, res) {
   if (!waitId || !openid) {
     return sendJson(res, 400, { code: 400, message: '缺少排位ID或openid' });
   }
-  const result = db.cancelWaitlist(openid, waitId);
+  const result = await db.cancelWaitlist(openid, waitId);
   if (!result.ok) {
     return sendJson(res, 400, { code: 400, message: result.error });
   }
@@ -436,23 +437,23 @@ function handleCancelWaitlist(req, res) {
 // ===== 会员体系（member）=====
 
 // 会员等级信息（GET /api/member/level?openid=xxx）
-function handleMemberLevel(req, res) {
+async function handleMemberLevel(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid');
   if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
-  const level = db.getMemberLevel(openid);
+  const level = await db.getMemberLevel(openid);
   if (!level) return sendJson(res, 404, { code: 404, message: '用户不存在' });
   return sendJson(res, 200, { code: 200, level });
 }
 
 // 充值套餐（GET /api/member/plans?openid=xxx，带 openid 时按用户首充状态计算赠送）
-function handleMemberPlans(req, res) {
+async function handleMemberPlans(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid');
-  const plans = db.RECHARGE_PLANS.map(p => {
+  const plans = await Promise.all(db.RECHARGE_PLANS.map(async p => {
     // 每档首充送 30% / 复充送 10%（配置在 member-config.js）
     const { bonus, isFirst } = openid
-      ? db.calcRechargeBonus(openid, p.amount)
+      ? await db.calcRechargeBonus(openid, p.amount)
       : { bonus: Math.round(p.amount * p.firstBonusRate), isFirst: true };
     return {
       id: p.id, amount: p.amount,
@@ -463,7 +464,7 @@ function handleMemberPlans(req, res) {
       bonus, bonusYuan: bonus / 100,
       totalYuan: (p.amount + bonus) / 100
     };
-  });
+  }));
   return sendJson(res, 200, { code: 200, plans });
 }
 
@@ -497,14 +498,14 @@ function handleMemberConfig(req, res) {
 }
 
 // 充值记录（GET /api/member/recharges?openid=xxx）
-function handleMemberRecharges(req, res) {
+async function handleMemberRecharges(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid');
   if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
   // 分页参数（默认最近 10 笔）
   const offset = parseInt(url.searchParams.get('offset') || '0', 10) || 0;
   const limit = parseInt(url.searchParams.get('limit') || '10', 10) || 10;
-  const recharges = db.listRecharges(openid, offset, limit);
+  const recharges = await db.listRecharges(openid, offset, limit);
   return sendJson(res, 200, { code: 200, recharges, hasMore: recharges.length >= limit });
 }
 
@@ -513,26 +514,26 @@ async function handleInvite(req, res) {
   const body = await readBody(req);
   const { inviter, invitee } = body;
   if (!inviter || !invitee) return sendJson(res, 400, { code: 400, message: '缺少 inviter 或 invitee' });
-  const result = db.bindInvitation({ inviter, invitee });
+  const result = await db.bindInvitation({ inviter, invitee });
   if (!result.ok) return sendJson(res, 400, { code: 400, message: result.error });
   return sendJson(res, 200, { code: 200, message: '邀请关系已建立' });
 }
 
 // 邀请战绩（GET /api/invite/stats?openid=xxx）
-function handleInviteStats(req, res) {
+async function handleInviteStats(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid');
   if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
-  const stats = db.getInviteStats(openid);
+  const stats = await db.getInviteStats(openid);
   return sendJson(res, 200, { code: 200, ...stats });
 }
 
 // 未读储值奖励（GET /api/member/rewards?openid=xxx，登录庆祝用）
-function handleMemberRewards(req, res) {
+async function handleMemberRewards(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid');
   if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
-  const rewards = db.listUnreadBalanceLogs(openid);
+  const rewards = await db.listUnreadBalanceLogs(openid);
   return sendJson(res, 200, { code: 200, rewards });
 }
 
@@ -541,36 +542,36 @@ async function handleMemberRewardsRead(req, res) {
   const body = await readBody(req);
   const { openid } = body;
   if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
-  db.markBalanceLogsRead(openid);
+  await db.markBalanceLogsRead(openid);
   return sendJson(res, 200, { code: 200, message: '已标记' });
 }
 
 // ===== 能量币（coin）=====
 
 // 余额 + 今日获取（GET /api/coin/balance?openid=xxx）
-function handleCoinBalance(req, res) {
+async function handleCoinBalance(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid');
   if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
-  const info = db.getCoinInfo(openid);
+  const info = await db.getCoinInfo(openid);
   if (!info) return sendJson(res, 404, { code: 404, message: '用户不存在' });
   return sendJson(res, 200, { code: 200, ...info });
 }
 
 // 流水（GET /api/coin/logs?openid=xxx）
-function handleCoinLogs(req, res) {
+async function handleCoinLogs(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid');
   if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
-  const logs = db.listCoinLogs(openid);
+  const logs = await db.listCoinLogs(openid);
   return sendJson(res, 200, { code: 200, logs });
 }
 
 // 商店奖品（GET /api/coin/shop?openid=xxx）
-function handleCoinShop(req, res) {
+async function handleCoinShop(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid') || '';
-  const items = db.listShopItems(openid);
+  const items = await db.listShopItems(openid);
   return sendJson(res, 200, { code: 200, items });
 }
 
@@ -579,21 +580,21 @@ async function handleCoinExchange(req, res) {
   const body = await readBody(req);
   const { openid, itemId } = body;
   if (!openid || !itemId) return sendJson(res, 400, { code: 400, message: '缺少 openid 或 itemId' });
-  const result = db.exchangeCoinItem({ openid, itemId });
+  const result = await db.exchangeCoinItem({ openid, itemId });
   if (!result.ok) {
-    logOp(openid, 'exchange', { itemId }, 'fail');
+    await logOp(openid, 'exchange', { itemId }, 'fail');
     return sendJson(res, 400, { code: 400, message: result.error });
   }
-  logOp(openid, 'exchange', { itemId, cost: result.exchange && result.exchange.cost }, 'ok', result.exchange && result.exchange.exchange_no);
+  await logOp(openid, 'exchange', { itemId, cost: result.exchange && result.exchange.cost }, 'ok', result.exchange && result.exchange.exchange_no);
   return sendJson(res, 200, { code: 200, message: '兑换成功', exchange: result.exchange });
 }
 
 // 我的兑换记录（GET /api/coin/exchanges?openid=xxx）
-function handleCoinExchanges(req, res) {
+async function handleCoinExchanges(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid');
   if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
-  const exchanges = db.listMyExchanges(openid);
+  const exchanges = await db.listMyExchanges(openid);
   return sendJson(res, 200, { code: 200, exchanges });
 }
 
@@ -616,7 +617,7 @@ async function handleCreateOrder(req, res) {
   if (orderType !== 'recharge' && orderType !== 'pass' && !sessionId) {
     return sendJson(res, 400, { code: 400, message: '缺少 sessionId' });
   }
-  const result = db.createOrder({
+  const result = await db.createOrder({
     user_openid: openid,
     session_id: sessionId,
     amount_fen: amountFen || 0,
@@ -640,18 +641,18 @@ async function handlePayOrder(req, res) {
   if (!orderId || !openid) {
     return sendJson(res, 400, { code: 400, message: '缺少订单ID或openid' });
   }
-  const result = db.payOrder({
+  const result = await db.payOrder({
     openid,
     orderId,
     pay_method: payMethod || 'balance'
   });
   if (!result.ok) {
-    logOp(openid, 'pay', { orderId, payMethod, orderType: 'unknown' }, 'fail');
+    await logOp(openid, 'pay', { orderId, payMethod, orderType: 'unknown' }, 'fail');
     return sendJson(res, 400, { code: 400, message: result.error });
   }
-  logOp(openid, 'pay', { orderId, payMethod, orderType: result.order.order_type, amountFen: result.order.amount_fen }, result.already ? 'already' : 'ok', result.order.order_no);
+  await logOp(openid, 'pay', { orderId, payMethod, orderType: result.order.order_type, amountFen: result.order.amount_fen }, result.already ? 'already' : 'ok', result.order.order_no);
   if (result.order.order_type === 'pass' && result.recharge && result.recharge.pass) {
-    logOp(openid, 'pass_buy', { orderId, pkg: result.recharge.pkgName, added: result.recharge.added, remaining: result.recharge.pass.remaining }, 'ok', result.order.order_no);
+    await logOp(openid, 'pass_buy', { orderId, pkg: result.recharge.pkgName, added: result.recharge.added, remaining: result.recharge.pass.remaining }, 'ok', result.order.order_no);
   }
   return sendJson(res, 200, {
     code: 200,
@@ -666,27 +667,27 @@ async function handlePayOrder(req, res) {
 }
 
 // 查询我的订单（GET /api/orders?openid=xxx&status=paid）
-function handleListOrders(req, res) {
+async function handleListOrders(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid');
   const status = url.searchParams.get('status') || undefined;
   if (!openid) {
     return sendJson(res, 400, { code: 400, message: '缺少 openid' });
   }
-  const orders = db.listOrdersByUser(openid, status);
+  const orders = await db.listOrdersByUser(openid, status);
   return sendJson(res, 200, { code: 200, orders });
 }
 
 // 营收统计（GET /api/revenue，管理后台）
-function handleRevenue(req, res) {
-  const stats = db.getRevenueStats();
+async function handleRevenue(req, res) {
+  const stats = await db.getRevenueStats();
   return sendJson(res, 200, { code: 200, ...stats });
 }
 
 // ===== 课程管理（电脑端课程编辑网页用）=====
 
 // 下拉选项元数据
-function handleMeta(req, res) {
+async function handleMeta(req, res) {
   const imgDir = path.join(__dirname, '..', 'miniprogram', 'images');
   let images = [];
   try {
@@ -694,9 +695,9 @@ function handleMeta(req, res) {
   } catch (e) { /* 目录不存在则空 */ }
   return sendJson(res, 200, {
     code: 200,
-    coaches: db.listCoaches(),
-    venues: db.listVenues(),
-    categories: [...new Set(['Hybrid综合训练', '燃脂团课', '力量训练', '瑜伽普拉提', '骑行有氧'].concat(db.listCourses().map(c => c.category)))],
+    coaches: await db.listCoaches(),
+    venues: await db.listVenues(),
+    categories: [...new Set(['Hybrid综合训练', '燃脂团课', '力量训练', '瑜伽普拉提', '骑行有氧'].concat((await db.listCourses()).map(c => c.category)))],
     levels: [1, 2, 3, 4, 5],
     durations: [30, 45, 60, 90, 120],
     prices: [50, 58, 68, 80, 88, 90, 108, 128],
@@ -710,16 +711,16 @@ function handleMeta(req, res) {
   });
 }
 
-function handleListCourses(req, res) {
-  return sendJson(res, 200, { code: 200, courses: db.listCourses() });
+async function handleListCourses(req, res) {
+  return sendJson(res, 200, { code: 200, courses: await db.listCourses() });
 }
 
-function handleCreateCourse(req, res, body) {
+async function handleCreateCourse(req, res, body) {
   const { name, category, level, duration_min, price_fen, cover, description, status, rules } = body || {};
   if (!name || !category) {
     return sendJson(res, 400, { code: 400, message: '课程名称与分类必填' });
   }
-  const course = db.createCourse({
+  const course = await db.createCourse({
     name, category,
     level: level || 3,
     duration_min: duration_min || 60,
@@ -729,31 +730,31 @@ function handleCreateCourse(req, res, body) {
   return sendJson(res, 201, { code: 201, message: '课程已创建', course: { id: course.id } });
 }
 
-function handleUpdateCourse(req, res, id, body) {
+async function handleUpdateCourse(req, res, id, body) {
   if (!body || !body.name) {
     return sendJson(res, 400, { code: 400, message: '课程名称必填' });
   }
-  const ok = db.updateCourse(id, body);
+  const ok = await db.updateCourse(id, body);
   if (!ok) return sendJson(res, 404, { code: 404, message: '课程不存在' });
   return sendJson(res, 200, { code: 200, message: '课程已保存' });
 }
 
-function handleDeleteCourse(req, res, id) {
-  const result = db.deleteCourse(id);
+async function handleDeleteCourse(req, res, id) {
+  const result = await db.deleteCourse(id);
   if (!result.ok) {
     return sendJson(res, 409, { code: 409, message: `课程存在 ${result.bookings} 条预约记录，无法删除` });
   }
   return sendJson(res, 200, { code: 200, message: '课程已删除' });
 }
 
-function handlePublishCourse(req, res, id, body) {
+async function handlePublishCourse(req, res, id, body) {
   const { start_date, end_date } = body || {};
   if (!start_date || !end_date) {
     return sendJson(res, 400, { code: 400, message: '请选择发布起止日期' });
   }
-  const course = db.listCourses().find(c => c.id === Number(id));
+  const course = (await db.listCourses()).find(c => c.id === Number(id));
   if (!course) return sendJson(res, 404, { code: 404, message: '课程不存在' });
-  const result = db.publishSessions(Number(id), start_date, end_date);
+  const result = await db.publishSessions(Number(id), start_date, end_date);
   if (result.reason === 'no_rules') {
     return sendJson(res, 400, { code: 400, message: '请先添加至少一条每周排课规则' });
   }
@@ -835,65 +836,65 @@ function handleAvatarDownload(req, res, body) {
 }
 
 // ===== 排表管理：范围场次 / 取消 / 改容量 / 规则替换 =====
-function handleSessionsByRange(req, res) {
+async function handleSessionsByRange(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const from = url.searchParams.get('from');
   const to = url.searchParams.get('to');
   const courseId = url.searchParams.get('course_id') ? Number(url.searchParams.get('course_id')) : 0;
   if (!from || !to) return sendJson(res, 400, { code: 400, message: '缺少 from/to 日期参数' });
-  const sessions = db.listSessionsByRange(from, to, courseId || null);
+  const sessions = await db.listSessionsByRange(from, to, courseId || null);
   return sendJson(res, 200, { code: 200, sessions });
 }
 
-function handleCancelSession(req, res, id) {
-  const result = db.cancelSession(Number(id));
+async function handleCancelSession(req, res, id) {
+  const result = await db.cancelSession(Number(id));
   if (!result.ok) return sendJson(res, 400, { code: 400, message: result.error });
   return sendJson(res, 200, { code: 200, message: '场次已取消' });
 }
 
-function handleUpdateSession(req, res, id, body) {
-  const result = db.updateSessionCapacity(Number(id), body.capacity);
+async function handleUpdateSession(req, res, id, body) {
+  const result = await db.updateSessionCapacity(Number(id), body.capacity);
   if (!result.ok) return sendJson(res, 400, { code: 400, message: result.error });
   return sendJson(res, 200, { code: 200, message: '容量已更新' });
 }
 
-function handleReplaceRules(req, res, id, body) {
-  const course = db.listCourses().find(c => c.id === Number(id));
+async function handleReplaceRules(req, res, id, body) {
+  const course = (await db.listCourses()).find(c => c.id === Number(id));
   if (!course) return sendJson(res, 404, { code: 404, message: '课程不存在' });
-  const result = db.replaceRules(Number(id), body.rules || []);
+  const result = await db.replaceRules(Number(id), body.rules || []);
   if (!result.ok) return sendJson(res, 400, { code: 400, message: result.error });
   return sendJson(res, 200, { code: 200, message: '排课规则已保存' });
 }
 
 // ===== 消息中心（站内信）=====
-function handleListMessages(req, res) {
+async function handleListMessages(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid');
   const page = Number(url.searchParams.get('page') || 1);
   if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
-  const messages = db.listMessages(openid, page);
-  const unread = db.unreadMessageCount(openid);
+  const messages = await db.listMessages(openid, page);
+  const unread = await db.unreadMessageCount(openid);
   return sendJson(res, 200, { code: 200, messages, unread, page });
 }
 
-function handleUnreadCount(req, res) {
+async function handleUnreadCount(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid');
   if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
-  return sendJson(res, 200, { code: 200, unread: db.unreadMessageCount(openid) });
+  return sendJson(res, 200, { code: 200, unread: await db.unreadMessageCount(openid) });
 }
 
-function handleMarkRead(req, res, id, body) {
+async function handleMarkRead(req, res, id, body) {
   const openid = (body || {}).openid;
   if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
-  db.markMessageRead(Number(id), openid);
+  await db.markMessageRead(Number(id), openid);
   return sendJson(res, 200, { code: 200, message: '已读' });
 }
 
-function handleMarkAllRead(req, res, body) {
+async function handleMarkAllRead(req, res, body) {
   const openid = (body || {}).openid;
   if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
-  const n = db.markAllMessagesRead(openid);
+  const n = await db.markAllMessagesRead(openid);
   return sendJson(res, 200, { code: 200, message: `已将 ${n} 条消息标记为已读`, cleared: n });
 }
 
@@ -909,37 +910,37 @@ function serveStatic(res, filePath) {
 }
 
 // ===== 场次查询（学员端课程列表/详情）=====
-function handleSessionsByDate(req, res, date) {
+async function handleSessionsByDate(req, res, date) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid') || null;
-  const sessions = db.listSessionsByDateForUser(date, openid);
+  const sessions = await db.listSessionsByDateForUser(date, openid);
   return sendJson(res, 200, { code: 200, date, sessions });
 }
 
-function handleSessionDetail(req, res, id) {
-  const s = db.getSessionById(Number(id));
+async function handleSessionDetail(req, res, id) {
+  const s = await db.getSessionById(Number(id));
   if (!s) return sendJson(res, 404, { code: 404, message: '场次不存在' });
   // 携带 openid 时标记是否已订
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid') || null;
   let result = s;
   if (openid) {
-    const booked = db.db.prepare("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ? AND status = 'booked'").get(openid, s.id);
-    const waited = db.db.prepare("SELECT id FROM waitlist WHERE user_openid = ? AND session_id = ? AND status = 'waiting'").get(openid, s.id);
+    const booked = await driver.get("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ? AND status = 'booked'", [openid, s.id]);
+    const waited = await driver.get("SELECT id FROM waitlist WHERE user_openid = ? AND session_id = ? AND status = 'waiting'", [openid, s.id]);
     result = { ...s, booked_by_me: !!booked, waitlisted_by_me: !!waited };
   }
   // 轮播图 JSON → 数组；已预约用户（预约墙头像+昵称）
   let images = [];
   try { images = JSON.parse(result.course_images || '[]'); } catch (e) { images = []; }
-  const bookedUsers = db.listBookedUsersWithInfo(result.id, openid);
+  const bookedUsers = await db.listBookedUsersWithInfo(result.id, openid);
   return sendJson(res, 200, { code: 200, session: { ...result, images, bookedUsers } });
 }
 
-function toPublicUser(user) {
+async function toPublicUser(user) {
   let coach_id = null;
   if (user.role === 'coach') {
     // 教练账号 → 返回绑定的教练档案 id（DESIGN #D1 设教练后可能不是 1，前端工作台按 coach_id 加载）
-    const c = db.findCoachByOpenid(user.openid);
+    const c = await db.findCoachByOpenid(user.openid);
     coach_id = c ? c.id : null;
   }
   return {
@@ -966,108 +967,108 @@ function toPublicUser(user) {
 // ===== 路由表（批4：if-else 链 → 声明式路由） =====
 // m: method ｜ p: 字符串精确路径 或 正则 ｜ f: handler(req, res, url)
 const API_ROUTES = [
-  { m: 'POST',   p: '/api/auth/login',          f: (q, r) => handleLogin(q, r) },
+  { m: 'POST',   p: '/api/auth/login',          f: async(q, r) => await handleLogin(q, r) },
   // 2026-08-15: 登录态检查（已注册用户启动小程序免登录直达首页）
-  { m: 'GET',    p: '/api/auth/check',          f: (q, r, u) => {
+  { m: 'GET',    p: '/api/auth/check',          f: async(q, r, u) => {
       const openid = u.searchParams.get('openid');
       if (!openid) return sendJson(r, 400, { code: 400, message: '缺少 openid' });
-      const user = db.findUserByOpenid(openid);
-      sendJson(r, 200, { code: 200, exists: !!user, user: user ? toPublicUser(user) : null });
+      const user = await db.findUserByOpenid(openid);
+      sendJson(r, 200, { code: 200, exists: !!user, user: user ? await toPublicUser(user) : null });
     } },
-  { m: 'POST',   p: '/api/auth/profile',        f: async (q, r) => handleProfile(q, r) },
-  { m: 'GET',    p: '/api/users',               f: (q, r) => handleUsers(q, r) },
-  { m: 'GET',    p: '/api/users/stats',         f: (q, r) => handleStats(q, r) },
-  { m: 'DELETE', p: '/api/users',               f: (q, r) => handleDeleteUser(q, r) },
-  { m: 'DELETE', p: '/api/users/clear',         f: (q, r) => handleClearUsers(q, r) },
-  { m: 'POST',   p: '/api/bookings',            f: async (q, r) => handleCreateBooking(q, r) },
-  { m: 'GET',    p: '/api/bookings',            f: (q, r) => handleListBookings(q, r) },
-  { m: 'DELETE', p: /^\/api\/bookings\//,    f: (q, r) => handleCancelBooking(q, r) },
-  { m: 'POST',   p: /^\/api\/bookings\/\d+\/checkin$/, f: async (q, r) => handleCheckin(q, r) },
-  { m: 'GET',    p: /^\/api\/checkin\/\d+$/, f: (q, r) => handleCheckinInfo(q, r) },
-  { m: 'GET',    p: /^\/api\/sessions\/\d+\/students$/, f: (q, r) => handleSessionStudents(q, r) },
-  { m: 'POST',   p: '/api/waitlist',            f: async (q, r) => handleJoinWaitlist(q, r) },
-  { m: 'GET',    p: '/api/waitlist',            f: (q, r) => handleListWaitlist(q, r) },
-  { m: 'DELETE', p: /^\/api\/waitlist\//,    f: (q, r) => handleCancelWaitlist(q, r) },
-  { m: 'POST',   p: '/api/orders',              f: async (q, r) => handleCreateOrder(q, r) },
-  { m: 'POST',   p: /^\/api\/orders\/\d+\/pay$/, f: async (q, r) => handlePayOrder(q, r) },
-  { m: 'GET',    p: '/api/orders',              f: (q, r) => handleListOrders(q, r) },
-  { m: 'GET',    p: '/api/revenue',             f: (q, r) => handleRevenue(q, r) },
-  { m: 'GET',    p: '/api/member/level',        f: (q, r) => handleMemberLevel(q, r) },
-  { m: 'GET',    p: '/api/member/plans',        f: (q, r) => handleMemberPlans(q, r) },
+  { m: 'POST',   p: '/api/auth/profile',        f: async (q, r) => await handleProfile(q, r) },
+  { m: 'GET',    p: '/api/users',               f: async(q, r) => await handleUsers(q, r) },
+  { m: 'GET',    p: '/api/users/stats',         f: async(q, r) => await handleStats(q, r) },
+  { m: 'DELETE', p: '/api/users',               f: async(q, r) => await handleDeleteUser(q, r) },
+  { m: 'DELETE', p: '/api/users/clear',         f: async(q, r) => await handleClearUsers(q, r) },
+  { m: 'POST',   p: '/api/bookings',            f: async (q, r) => await handleCreateBooking(q, r) },
+  { m: 'GET',    p: '/api/bookings',            f: async(q, r) => await handleListBookings(q, r) },
+  { m: 'DELETE', p: /^\/api\/bookings\//,    f: async(q, r) => await handleCancelBooking(q, r) },
+  { m: 'POST',   p: /^\/api\/bookings\/\d+\/checkin$/, f: async (q, r) => await handleCheckin(q, r) },
+  { m: 'GET',    p: /^\/api\/checkin\/\d+$/, f: async(q, r) => await handleCheckinInfo(q, r) },
+  { m: 'GET',    p: /^\/api\/sessions\/\d+\/students$/, f: async(q, r) => await handleSessionStudents(q, r) },
+  { m: 'POST',   p: '/api/waitlist',            f: async (q, r) => await handleJoinWaitlist(q, r) },
+  { m: 'GET',    p: '/api/waitlist',            f: async(q, r) => await handleListWaitlist(q, r) },
+  { m: 'DELETE', p: /^\/api\/waitlist\//,    f: async(q, r) => await handleCancelWaitlist(q, r) },
+  { m: 'POST',   p: '/api/orders',              f: async (q, r) => await handleCreateOrder(q, r) },
+  { m: 'POST',   p: /^\/api\/orders\/\d+\/pay$/, f: async (q, r) => await handlePayOrder(q, r) },
+  { m: 'GET',    p: '/api/orders',              f: async(q, r) => await handleListOrders(q, r) },
+  { m: 'GET',    p: '/api/revenue',             f: async(q, r) => await handleRevenue(q, r) },
+  { m: 'GET',    p: '/api/member/level',        f: async(q, r) => await handleMemberLevel(q, r) },
+  { m: 'GET',    p: '/api/member/plans',        f: async(q, r) => await handleMemberPlans(q, r) },
   { m: 'GET',    p: '/api/member/config',       f: (q, r) => handleMemberConfig(q, r) },
-  { m: 'GET',    p: '/api/member/recharges',    f: (q, r) => handleMemberRecharges(q, r) },
-  { m: 'GET',    p: '/api/member/rewards',      f: (q, r) => handleMemberRewards(q, r) },
-  { m: 'POST',   p: '/api/member/rewards/read', f: async (q, r) => handleMemberRewardsRead(q, r) },
-  { m: 'POST',   p: '/api/invite',              f: async (q, r) => handleInvite(q, r) },
-  { m: 'GET',    p: '/api/invite/stats',        f: (q, r) => handleInviteStats(q, r) },
-  { m: 'GET',    p: '/api/invite/details',      f: (q, r, u) => {
+  { m: 'GET',    p: '/api/member/recharges',    f: async(q, r) => await handleMemberRecharges(q, r) },
+  { m: 'GET',    p: '/api/member/rewards',      f: async(q, r) => await handleMemberRewards(q, r) },
+  { m: 'POST',   p: '/api/member/rewards/read', f: async (q, r) => await handleMemberRewardsRead(q, r) },
+  { m: 'POST',   p: '/api/invite',              f: async (q, r) => await handleInvite(q, r) },
+  { m: 'GET',    p: '/api/invite/stats',        f: async(q, r) => await handleInviteStats(q, r) },
+  { m: 'GET',    p: '/api/invite/details',      f: async(q, r, u) => {
       const openid = u.searchParams.get('openid');
       if (!openid) return sendJson(r, 400, { code: 400, message: '缺少 openid' });
-      sendJson(r, 200, { code: 200, details: db.listInvitationDetails(openid) });
+      sendJson(r, 200, { code: 200, details: await db.listInvitationDetails(openid) });
     } },
-  { m: 'GET',    p: '/api/admin/invite-board',  f: (q, r) => sendJson(r, 200, { code: 200, board: db.inviteBoardStats() }) },
+  { m: 'GET',    p: '/api/admin/invite-board',  f: async(q, r) => sendJson(r, 200, { code: 200, board: await db.inviteBoardStats() }) },
   // ===== 次卡包 =====
-  { m: 'GET',    p: '/api/passes/packages',     f: (q, r) => sendJson(r, 200, { code: 200, packages: db.listPassPackages() }) },
-  { m: 'GET',    p: '/api/achievements/sync',   f: (q, r, u) => {
+  { m: 'GET',    p: '/api/passes/packages',     f: async(q, r) => sendJson(r, 200, { code: 200, packages: await db.listPassPackages() }) },
+  { m: 'GET',    p: '/api/achievements/sync',   f: async(q, r, u) => {
       const openid = u.searchParams.get('openid');
       if (!openid) return sendJson(r, 400, { code: 400, message: '缺少 openid' });
-      sendJson(r, 200, { code: 200, ...db.syncAchievements(openid), reward: db.REWARD_COINS });
+      sendJson(r, 200, { code: 200, ...await db.syncAchievements(openid), reward: db.REWARD_COINS });
     } },
-  { m: 'GET',    p: '/api/passes/my',           f: (q, r, u) => {
+  { m: 'GET',    p: '/api/passes/my',           f: async(q, r, u) => {
       const openid = u.searchParams.get('openid');
       if (!openid) return sendJson(r, 400, { code: 400, message: '缺少 openid' });
-      sendJson(r, 200, { code: 200, pass: db.getUserPassInfo(openid) });
+      sendJson(r, 200, { code: 200, pass: await db.getUserPassInfo(openid) });
     } },
-  { m: 'GET',    p: '/api/passes/available',    f: (q, r, u) => {
+  { m: 'GET',    p: '/api/passes/available',    f: async(q, r, u) => {
       const openid = u.searchParams.get('openid');
       if (!openid) return sendJson(r, 400, { code: 400, message: '缺少 openid' });
       // 2026-08-15: 支持按上课日期判断（date=YYYY-MM-DD，缺省退化为当前时刻判断）
       const date = u.searchParams.get('date') || null;
-      const info = db.getUserPassInfo(openid);
-      const pass = date ? db.getUserPassForDate(openid, date) : db.getUserPass(openid);
+      const info = await db.getUserPassInfo(openid);
+      const pass = date ? await db.getUserPassForDate(openid, date) : await db.getUserPass(openid);
       // 有卡但对该日期不可用（已彻底过期 / 卡覆盖不了上课日）→ 前端显示「次数包已过期」
       const expiredForDate = info.hasPass && !pass;
       sendJson(r, 200, { code: 200, available: pass ? pass.remaining : 0, expiredForDate, pass: info.hasPass ? info : null });
     } },
-  { m: 'GET',    p: '/api/coin/balance',        f: (q, r) => handleCoinBalance(q, r) },
-  { m: 'GET',    p: '/api/coin/logs',           f: (q, r) => handleCoinLogs(q, r) },
-  { m: 'GET',    p: '/api/coin/shop',           f: (q, r) => handleCoinShop(q, r) },
-  { m: 'GET',    p: '/api/coin/exchanges',      f: (q, r) => handleCoinExchanges(q, r) },
+  { m: 'GET',    p: '/api/coin/balance',        f: async(q, r) => await handleCoinBalance(q, r) },
+  { m: 'GET',    p: '/api/coin/logs',           f: async(q, r) => await handleCoinLogs(q, r) },
+  { m: 'GET',    p: '/api/coin/shop',           f: async(q, r) => await handleCoinShop(q, r) },
+  { m: 'GET',    p: '/api/coin/exchanges',      f: async(q, r) => await handleCoinExchanges(q, r) },
   { m: 'GET',    p: '/api/coin/config',         f: (q, r) => handleCoinConfig(q, r) },
-  { m: 'POST',   p: '/api/coin/exchange',       f: async (q, r) => handleCoinExchange(q, r) },
-  { m: 'GET',    p: '/api/messages',            f: (q, r) => handleListMessages(q, r) },
-  { m: 'GET',    p: '/api/messages/unread-count', f: (q, r) => handleUnreadCount(q, r) },
+  { m: 'POST',   p: '/api/coin/exchange',       f: async (q, r) => await handleCoinExchange(q, r) },
+  { m: 'GET',    p: '/api/messages',            f: async(q, r) => await handleListMessages(q, r) },
+  { m: 'GET',    p: '/api/messages/unread-count', f: async(q, r) => await handleUnreadCount(q, r) },
   { m: 'POST',   p: /^\/api\/messages\/\d+\/read$/, f: async (q, r, u) => {
       const id = u.pathname.split('/')[3];
       const body = await readBody(q);
-      handleMarkRead(q, r, id, body);
+      await handleMarkRead(q, r, id, body);
     } },
   { m: 'POST',   p: '/api/messages/read-all',   f: async (q, r) => {
       const body = await readBody(q);
-      handleMarkAllRead(q, r, body);
+      await handleMarkAllRead(q, r, body);
     } },
   { m: 'GET',    p: '/api/health',              f: (q, r) => sendJson(r, 200, { code: 200, status: 'ok', time: new Date().toISOString() }) },
-  { m: 'GET',    p: '/api/meta',                f: (q, r) => handleMeta(q, r) },
-  { m: 'GET',    p: '/api/courses',             f: (q, r) => handleListCourses(q, r) },
+  { m: 'GET',    p: '/api/meta',                f: async(q, r) => await handleMeta(q, r) },
+  { m: 'GET',    p: '/api/courses',             f: async(q, r) => await handleListCourses(q, r) },
   { m: 'POST',   p: '/api/courses',             f: async (q, r) => {
       const body = await readBody(q);
-      handleCreateCourse(q, r, body);
+      await handleCreateCourse(q, r, body);
     } },
   { m: 'PUT',    p: /^\/api\/courses\/\d+$/, f: async (q, r, u) => {
       const id = u.pathname.split('/')[3];
       const body = await readBody(q);
-      handleUpdateCourse(q, r, id, body);
+      await handleUpdateCourse(q, r, id, body);
     } },
-  { m: 'DELETE', p: /^\/api\/courses\/\d+$/, f: (q, r, u) => handleDeleteCourse(q, r, u.pathname.split('/')[3]) },
+  { m: 'DELETE', p: /^\/api\/courses\/\d+$/, f: async(q, r, u) => await handleDeleteCourse(q, r, u.pathname.split('/')[3]) },
   { m: 'POST',   p: /^\/api\/courses\/\d+\/publish$/, f: async (q, r, u) => {
       const id = u.pathname.split('/')[3];
       const body = await readBody(q);
-      handlePublishCourse(q, r, id, body);
+      await handlePublishCourse(q, r, id, body);
     } },
   { m: 'PUT',    p: /^\/api\/courses\/\d+\/rules$/, f: async (q, r, u) => {
       const id = u.pathname.split('/')[3];
       const body = await readBody(q);
-      handleReplaceRules(q, r, id, body);
+      await handleReplaceRules(q, r, id, body);
     } },
   { m: 'POST',   p: '/api/upload',              f: async (q, r) => {
       const body = await readBody(q);
@@ -1078,81 +1079,81 @@ const API_ROUTES = [
       const body = await readBody(q);
       handleAvatarDownload(q, r, body);
     } },
-  { m: 'GET',    p: '/api/admin/sessions',      f: (q, r) => handleSessionsByRange(q, r) },
-  { m: 'DELETE', p: /^\/api\/sessions\/\d+$/, f: (q, r, u) => handleCancelSession(q, r, u.pathname.split('/')[3]) },
+  { m: 'GET',    p: '/api/admin/sessions',      f: async(q, r) => await handleSessionsByRange(q, r) },
+  { m: 'DELETE', p: /^\/api\/sessions\/\d+$/, f: async(q, r, u) => await handleCancelSession(q, r, u.pathname.split('/')[3]) },
   { m: 'PUT',    p: /^\/api\/sessions\/\d+$/, f: async (q, r, u) => {
       const id = u.pathname.split('/')[3];
       const body = await readBody(q);
-      handleUpdateSession(q, r, id, body);
+      await handleUpdateSession(q, r, id, body);
     } },
-  { m: 'GET',    p: '/api/sessions',            f: (q, r, u) => {
+  { m: 'GET',    p: '/api/sessions',            f: async(q, r, u) => {
       const date = u.searchParams.get('date');
       if (!date) return sendJson(r, 400, { code: 400, message: '缺少 date 参数（YYYY-MM-DD）' });
-      handleSessionsByDate(q, r, date);
+      await handleSessionsByDate(q, r, date);
     } },
-  { m: 'GET',    p: '/api/coach/schedule',      f: (q, r, u) => {
+  { m: 'GET',    p: '/api/coach/schedule',      f: async(q, r, u) => {
       const date = u.searchParams.get('date');
       const coachId = Number(u.searchParams.get('coach_id') || 0);
       if (!date || !coachId) return sendJson(r, 400, { code: 400, message: '缺少 date 或 coach_id 参数' });
-      const sessions = db.listSessionsByCoach(date, coachId);
+      const sessions = await db.listSessionsByCoach(date, coachId);
       sendJson(r, 200, { code: 200, sessions });
     } },
   // 2026-08-15: 教练介绍页——详情（档案/生活照/认证/成绩）+ 指定日期范围课程
-  { m: 'GET',    p: /^\/api\/coaches\/\d+$/,    f: (q, r, u) => {
+  { m: 'GET',    p: /^\/api\/coaches\/\d+$/,    f: async(q, r, u) => {
       const id = Number(u.pathname.split('/')[3]);
-      const coach = db.getCoachById(id);
+      const coach = await db.getCoachById(id);
       if (!coach) return sendJson(r, 404, { code: 404, message: '教练不存在' });
       let certs = [], achievements = [];
       try { certs = JSON.parse(coach.certs || '[]'); } catch (e) {}
       try { achievements = JSON.parse(coach.achievements || '[]'); } catch (e) {}
       sendJson(r, 200, { code: 200, coach: { ...coach, certs, achievements } });
     } },
-  { m: 'GET',    p: /^\/api\/coaches\/\d+\/sessions$/, f: (q, r, u) => {
+  { m: 'GET',    p: /^\/api\/coaches\/\d+\/sessions$/, f: async(q, r, u) => {
       const id = Number(u.pathname.split('/')[3]);
       const from = u.searchParams.get('from');
       const to = u.searchParams.get('to');
       if (!from || !to) return sendJson(r, 400, { code: 400, message: '缺少 from/to 日期参数' });
-      const sessions = db.listSessionsByRange(from, to, 0, id);
+      const sessions = await db.listSessionsByRange(from, to, 0, id);
       sendJson(r, 200, { code: 200, sessions });
     } },
   // ===== 教练工作台（DESIGN #D1）=====
   // 我的学员（已签到聚合）
-  { m: 'GET',    p: '/api/coach/students',       f: (q, r, u) => {
+  { m: 'GET',    p: '/api/coach/students',       f: async(q, r, u) => {
       const openid = u.searchParams.get('coach_openid') || '';
       if (!openid) return sendJson(r, 400, { code: 400, message: '缺少 coach_openid 参数' });
-      const students = db.listCoachStudents(openid);
+      const students = await db.listCoachStudents(openid);
       if (!students) return sendJson(r, 404, { code: 404, message: '教练档案不存在，请先设置教练档案' });
       sendJson(r, 200, { code: 200, students });
     } },
   // 学员跟课记录（教练查某学员全部签到课程）
-  { m: 'GET',    p: '/api/coach/student-lessons', f: (q, r, u) => {
+  { m: 'GET',    p: '/api/coach/student-lessons', f: async(q, r, u) => {
       const coachOpenid = u.searchParams.get('coach_openid') || '';
       const studentOpenid = u.searchParams.get('student_openid') || '';
       if (!coachOpenid || !studentOpenid) return sendJson(r, 400, { code: 400, message: '缺少 coach_openid 或 student_openid 参数' });
-      const lessons = db.listStudentLessons(coachOpenid, studentOpenid);
+      const lessons = await db.listStudentLessons(coachOpenid, studentOpenid);
       if (!lessons) return sendJson(r, 404, { code: 404, message: '教练档案不存在，请先设置教练档案' });
       sendJson(r, 200, { code: 200, lessons });
     } },
   // 学员笔记（仅本人）
-  { m: 'GET',    p: '/api/coach/notes',          f: (q, r, u) => {
+  { m: 'GET',    p: '/api/coach/notes',          f: async(q, r, u) => {
       const coachOpenid = u.searchParams.get('coach_openid') || '';
       const studentOpenid = u.searchParams.get('student_openid') || '';
       if (!coachOpenid || !studentOpenid) return sendJson(r, 400, { code: 400, message: '缺少 coach_openid 或 student_openid 参数' });
-      sendJson(r, 200, { code: 200, note: db.getCoachNote(coachOpenid, studentOpenid) });
+      sendJson(r, 200, { code: 200, note: await db.getCoachNote(coachOpenid, studentOpenid) });
     } },
   { m: 'PUT',    p: '/api/coach/notes',          f: async (q, r, u) => {
       const body = await readBody(q);
       const { coach_openid: coachOpenid = '', student_openid: studentOpenid = '', content = '' } = body || {};
       if (!coachOpenid || !studentOpenid) return sendJson(r, 400, { code: 400, message: '缺少 coach_openid 或 student_openid' });
       if (typeof content !== 'string' || content.length > 500) return sendJson(r, 400, { code: 400, message: '笔记内容需为文本且不超过 500 字' });
-      sendJson(r, 200, { code: 200, note: db.upsertCoachNote(coachOpenid, studentOpenid, content) });
+      sendJson(r, 200, { code: 200, note: await db.upsertCoachNote(coachOpenid, studentOpenid, content) });
     } },
   // 月度结算（只读聚合）
-  { m: 'GET',    p: '/api/coach/settlement',     f: (q, r, u) => {
+  { m: 'GET',    p: '/api/coach/settlement',     f: async(q, r, u) => {
       const coachId = Number(u.searchParams.get('coach_id') || 0);
       const month = u.searchParams.get('month') || '';
       if (!coachId || !month) return sendJson(r, 400, { code: 400, message: '缺少 coach_id 或 month 参数（YYYY-MM）' });
-      const s = db.getCoachSettlement(coachId, month);
+      const s = await db.getCoachSettlement(coachId, month);
       if (!s) return sendJson(r, 400, { code: 400, message: 'month 格式应为 YYYY-MM' });
       sendJson(r, 200, { code: 200, settlement: s });
     } },
@@ -1161,19 +1162,20 @@ const API_ROUTES = [
       const body = await readBody(q);
       const { openid = '', coach_id: coachId = 0 } = body || {};
       if (!openid || !coachId) return sendJson(r, 400, { code: 400, message: '缺少 openid 或 coach_id' });
-      const res = db.assignCoach(openid, coachId);
+      const res = await db.assignCoach(openid, coachId);
       if (!res.ok) return sendJson(r, 400, { code: 400, message: res.error });
-      logOp('admin', 'coach_assign', { openid, coachId }, 'ok');
+      await logOp('admin', 'coach_assign', { openid, coachId }, 'ok');
       sendJson(r, 200, { code: 200, ok: true });
     } },
-  { m: 'GET',    p: /^\/api\/sessions\/\d+$/, f: (q, r, u) => handleSessionDetail(q, r, u.pathname.split('/')[3]) }
+  { m: 'GET',    p: /^\/api\/sessions\/\d+$/, f: async(q, r, u) => await handleSessionDetail(q, r, u.pathname.split('/')[3]) }
 ];
 
-// 教练简介种子：喻馥雅（课程详情页教练说明 placeholder）
-try {
-  db.db.prepare("UPDATE coaches SET bio = ? WHERE name = '喻馥雅' AND (bio IS NULL OR bio = '')")
-    .run('Hyrox个人精英运动员，40+引体达人，二娃妈妈，素人零基础');
-} catch (e) {}
+// 教练简介种子：喻馥雅（课程详情页教练说明 placeholder；IIFE 包裹因 CJS 无顶层 await）
+(async () => {
+  try {
+    await driver.run("UPDATE coaches SET bio = ? WHERE name = '喻馥雅' AND (bio IS NULL OR bio = '')", ['Hyrox个人精英运动员，40+引体达人，二娃妈妈，素人零基础']);
+  } catch (e) {}
+})();
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -1233,13 +1235,13 @@ if (require.main === module) {
   console.log('========================================');
 
   // 消息中心：开课提醒定时任务（每 60 秒扫描未来 2 小时内开场的场次，通知已订学员）
-  setInterval(() => {
+  setInterval(async() => {
     try {
-      const sessions = db.listSessionsStartingSoon(2);
+      const sessions = await db.listSessionsStartingSoon(2);
       for (const s of sessions) {
-        const users = db.listBookedUsersBySession(s.id);
+        const users = await db.listBookedUsersBySession(s.id);
         for (const oid of users) {
-          db.sendMessage({
+          await db.sendMessage({
             user_openid: oid, type: 'remind', title: '开课提醒',
             content: `${s.start_time}「${s.course_name}」即将开课，记得提前 15 分钟到场热身`,
             biz_type: 'course', biz_id: s.id, jump_url: '/pages/student-my-courses/index',
@@ -1253,14 +1255,14 @@ if (require.main === module) {
   }, 60 * 1000);
 
   // 次卡过期任务：标记过期卡 + 发过期通知（每 5 分钟；dedup_key 防重复通知）
-  setInterval(() => {
+  setInterval(async() => {
     try {
-      const expired = db.expireOverduePasses();
+      const expired = await db.expireOverduePasses();
       if (expired > 0) {
         // 取刚过期的卡发通知（passes 表行级 dedup 用 messages dedup_key）
-        const rows = db.db.prepare("SELECT user_openid, remaining, expires_at FROM user_passes WHERE status = 'expired' AND remaining > 0").all();
+        const rows = await driver.all("SELECT user_openid, remaining, expires_at FROM user_passes WHERE status = 'expired' AND remaining > 0");
         for (const rw of rows) {
-          db.sendMessage({
+          await db.sendMessage({
             user_openid: rw.user_openid, type: 'pass', title: '次卡已过期',
             content: `次卡已于 ${rw.expires_at} 过期，剩余 ${rw.remaining} 次已作废`,
             biz_type: 'pass', biz_id: 0, jump_url: '/pages/member-card/index',

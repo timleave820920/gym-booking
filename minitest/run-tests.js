@@ -162,10 +162,10 @@ async function runSuite() {
     db.db.prepare("DELETE FROM balance_logs WHERE user_openid LIKE 'uid_test_%'").run();
     db.db.prepare("DELETE FROM member_recharges WHERE user_openid LIKE 'uid_test_%'").run();
     db.db.prepare("DELETE FROM invitations WHERE inviter LIKE 'uid_test_%' OR invitee LIKE 'uid_test_%'").run();
-    ['uid_test_tianli','uid_test_student2','uid_test_coach','uid_test_holder'].forEach(o => {
-      const u = db.findUserByOpenid(o);
-      if (u) db.deleteUserById(u.id);
-    });
+    for (const o of ['uid_test_tianli','uid_test_student2','uid_test_coach','uid_test_holder']) {
+      const u = await db.findUserByOpenid(o);
+      if (u) await db.deleteUserById(u.id);
+    }
     console.log('  [预清理] 上次残留测试数据已清除');
   } catch (e) {
     console.log('  [预清理] 跳过: ' + e.message);
@@ -628,12 +628,12 @@ async function runSuite() {
 
   // MEM-12 会员价向下取整到元（¥80 课程 × 青铜 98 折 = 78.4 → 实扣 ¥78，无角分）
   const memSessionId = await mkSession(todayStr, '20:30', '21:30', 5, 0);
-  const balBefore = dbx.getMemberLevel(T.user1.openid).balanceFen;
+  const balBefore = (await dbx.getMemberLevel(T.user1.openid)).balanceFen;
   r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: memSessionId, amountFen: 8000, orderType: 'book' });
   check('MEM-12a', '取整用例下单', r.status === 201, `status=${r.status}`);
   r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user1.openid, payMethod: 'balance' });
   check('MEM-12b', '取整用例支付成功', ok(r, 200), `msg=${r.data && r.data.message}`);
-  const balAfter = dbx.getMemberLevel(T.user1.openid).balanceFen;
+  const balAfter = (await dbx.getMemberLevel(T.user1.openid)).balanceFen;
   check('MEM-12', '会员价取整实扣¥78（非78.4）', (balBefore - balAfter) === 7800, `扣款=${(balBefore - balAfter) / 100}元（应 78）`);
   // MSG-01：订课支付成功 → 站内信「订课成功」（回归 BUG-LEDGER #12：payOrder 直接内联建 booking，绕过 createBooking 埋点致订课无消息）
   r = await req('GET', `/api/messages?openid=${T.user1.openid}`);
@@ -753,7 +753,7 @@ async function runSuite() {
   check('PASS-13', '无卡走原支付方式(非pass)', ok(r, 200) && r.data.order.pay_source !== 'pass', `src=${r.data && r.data.order && r.data.order.pay_source}`);
   // 过期作废
   db.db.prepare(`UPDATE user_passes SET expires_at = datetime('now','localtime','-1 day') WHERE user_openid = ?`).run(P.openid);
-  const expiredN = db.expireOverduePasses();
+  const expiredN = await db.expireOverduePasses();
   check('PASS-12', '过期任务作废', expiredN >= 1, `n=${expiredN}`);
   r = await req('GET', `/api/passes/my?openid=${P.openid}`);
   check('PASS-12b', '过期状态展示', r.data.pass.expired === true, `expired=${r.data.pass && r.data.pass.expired}`);
@@ -781,10 +781,10 @@ async function runSuite() {
     db.db.prepare("DELETE FROM coin_exchanges WHERE user_openid LIKE 'uid_test_%'").run();
     db.db.prepare("UPDATE users SET coin_balance = 0 WHERE openid LIKE 'uid_test_%'").run();
     // 清理测试用户（注意可能被引用）
-    ['uid_test_tianli','uid_test_student2','uid_test_coach','uid_test_holder'].forEach(o => {
-      const u = db.findUserByOpenid(o);
-      if (u) db.deleteUserById(u.id);
-    });
+    for (const o of ['uid_test_tianli','uid_test_student2','uid_test_coach','uid_test_holder']) {
+      const u = await db.findUserByOpenid(o);
+      if (u) await db.deleteUserById(u.id);
+    }
     console.log('  ✅ 测试数据已清理');
   } catch (e) {
     console.log('  ⚠️ 清理异常（不影响结果）: ' + e.message);

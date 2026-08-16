@@ -8,8 +8,8 @@
 const ACHIEVEMENTS = [
   // ── 火星（第 1-5 天）──
   { key: 'first_book',   name: '初次见面', check: c => c.bookedCount >= 1 },
-  { key: 'first_workout',name: '第一滴汗', check: c => c.totalClasses >= 1 },
-  { key: 'first_checkin',name: '签到首秀', check: c => c.checkedIn >= 1 },
+  { key: 'first_workout', name: '第一滴汗', check: c => c.totalClasses >= 1 },
+  { key: 'first_checkin', name: '签到首秀', check: c => c.checkedIn >= 1 },
   { key: 'streak_3',     name: '三日不辍', check: c => c.streak >= 3 },
   { key: 'streak_5',     name: '五日坚持', check: c => c.streak >= 5 },
   // ── 火苗（第 2-4 周）──
@@ -46,23 +46,23 @@ const ACHIEVEMENTS = [
 const ENERGY_CONFIG = require('../energy-config');
 const REWARD_COINS = (ENERGY_CONFIG.earnRules && ENERGY_CONFIG.earnRules.achievement) || 50;
 
-const { db } = require('../db-core');
+const { db, driver } = require('../db-core');
 const { findUserByOpenid } = require('./users');
 const { addCoins } = require('./coin');
 const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 
 /** 9 维判定上下文（与前端 student-achievements 口径一致） */
-function computeAchievementContext(openid) {
-  const user = findUserByOpenid(openid);
+async function computeAchievementContext(openid) {
+  const user = await findUserByOpenid(openid);
   if (!user) return null;
 
-  const bookings = db.prepare(`
+  const bookings = await driver.all(`
     SELECT b.status, b.checkin_at, b.created_at, s.date, s.end_time, c.duration_min, c.name AS course_name
     FROM bookings b
     JOIN course_sessions s ON s.id = b.session_id
     JOIN courses c ON c.id = s.course_id
     WHERE b.user_openid = ?
-  `).all(openid);
+  `, [openid]);
 
   // 已参加 = 已订（booked）且场次已结束（日期早于今天，或今天且结束时间已过）——与前端一致
   // 取时间走 time.js（显式北京时间，不依赖容器系统时区，BUG-LEDGER #28）
@@ -93,39 +93,38 @@ function computeAchievementContext(openid) {
     courseKinds: new Set(attended.map(b => b.course_name)).size,
     memberDays: user.created_at ? Math.max(0, Math.floor((Date.now() - time.parseBeijing(user.created_at).getTime()) / 864e5)) : 0,
     coins: user.coin_balance || 0,
-    rechargeFen: (db.prepare("SELECT COALESCE(SUM(amount_fen),0) s FROM member_recharges WHERE user_openid = ?").get(openid).s) || 0,
-    inviteCount: (db.prepare('SELECT COUNT(*) c FROM invitations WHERE inviter = ?').get(openid).c) || 0
+    rechargeFen: ((await driver.get("SELECT COALESCE(SUM(amount_fen),0) s FROM member_recharges WHERE user_openid = ?", [openid])).s) || 0,
+    inviteCount: ((await driver.get('SELECT COUNT(*) c FROM invitations WHERE inviter = ?', [openid])).c) || 0
   };
 }
 
 /** 已解锁成就 key 集合 */
-function listUserAchievementKeys(openid) {
-  return db.prepare('SELECT ach_key FROM user_achievements WHERE user_openid = ?').all(openid).map(r => r.ach_key);
+async function listUserAchievementKeys(openid) {
+  return (await driver.all('SELECT ach_key FROM user_achievements WHERE user_openid = ?', [openid])).map(r => r.ach_key);
 }
 
 /**
  * 同步成就：对"达成但未记录"的成就插入记录并发放 50 能量币（幂等）
  * @returns {{ newly: Array<{key,name}>, unlockedKeys: string[], unlockedCount: number }}
  */
-function syncAchievements(openid) {
-  const ctx = computeAchievementContext(openid);
+async function syncAchievements(openid) {
+  const ctx = await computeAchievementContext(openid);
   if (!ctx) return { newly: [], unlockedKeys: [], unlockedCount: 0 };
   const newly = [];
   for (const a of ACHIEVEMENTS) {
     if (!a.check(ctx)) continue;
-    const exists = db.prepare('SELECT id FROM user_achievements WHERE user_openid = ? AND ach_key = ?').get(openid, a.key);
+    const exists = await driver.get('SELECT id FROM user_achievements WHERE user_openid = ? AND ach_key = ?', [openid, a.key]);
     if (exists) continue;
-    db.prepare('INSERT INTO user_achievements (user_openid, ach_key, coin_reward) VALUES (?, ?, ?)')
-      .run(openid, a.key, REWARD_COINS);
+    await driver.run('INSERT INTO user_achievements (user_openid, ach_key, coin_reward) VALUES (?, ?, ?)', [openid, a.key, REWARD_COINS]);
     try {
       // 成就奖励为长期激励，不受每日能量币上限限制
-      addCoins(openid, REWARD_COINS, `解锁成就「${a.name}」`, 'ACH-' + a.key, true);
+      await addCoins(openid, REWARD_COINS, `解锁成就「${a.name}」`, 'ACH-' + a.key, true);
     } catch (e) {
       // 发币失败不阻断（记录已存在，后续不会重发）
     }
     newly.push({ key: a.key, name: a.name });
   }
-  const unlockedKeys = listUserAchievementKeys(openid);
+  const unlockedKeys = await listUserAchievementKeys(openid);
   return { newly, unlockedKeys, unlockedCount: unlockedKeys.length };
 }
 

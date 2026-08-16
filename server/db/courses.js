@@ -1,22 +1,22 @@
 /**
  * 课程域（courses）：课程模板、场次排课、规则、教练/场地
  */
-const { db } = require('../db-core');
+const { db, driver } = require('../db-core');
 const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 
-function listCoaches() {
-  return db.prepare("SELECT id, name, skills, status FROM coaches WHERE status='active' OR 1=1 ORDER BY id").all();
+async function listCoaches() {
+  return await driver.all("SELECT id, name, skills, status FROM coaches WHERE status='active' OR 1=1 ORDER BY id");
 }
 
 /** 场地列表（下拉选项用） */
-function listVenues() {
-  return db.prepare('SELECT id, name, capacity, status FROM venues ORDER BY id').all();
+async function listVenues() {
+  return await driver.all('SELECT id, name, capacity, status FROM venues ORDER BY id');
 }
 
 /** 课程列表（含排课规则） */
-function listCourses() {
-  const courses = db.prepare('SELECT * FROM courses ORDER BY id').all();
-  const rules = db.prepare('SELECT * FROM schedule_templates ORDER BY id').all();
+async function listCourses() {
+  const courses = await driver.all('SELECT * FROM courses ORDER BY id');
+  const rules = await driver.all('SELECT * FROM schedule_templates ORDER BY id');
   const byCourse = {};
   for (const r of rules) {
     (byCourse[r.course_id] = byCourse[r.course_id] || []).push({
@@ -32,12 +32,12 @@ function listCourses() {
 }
 
 /** 课程规则列表 */
-function getRules(courseId) {
-  return db.prepare('SELECT * FROM schedule_templates WHERE course_id = ? ORDER BY weekday, start_time').all(courseId);
+async function getRules(courseId) {
+  return await driver.all('SELECT * FROM schedule_templates WHERE course_id = ? ORDER BY weekday, start_time', [courseId]);
 }
 
 /** 替换课程规则（先删后插，事务内） */
-function replaceRules(courseId, rules) {
+async function replaceRules(courseId, rules) {
   rules = rules || [];
   // 规则自冲突校验：同星期 + 同场地 + 时间重叠 → 拒绝（用户要求：同一场地不允许时间重合）
   for (let i = 0; i < rules.length; i++) {
@@ -49,29 +49,27 @@ function replaceRules(courseId, rules) {
       }
     }
   }
-  db.prepare('DELETE FROM schedule_templates WHERE course_id = ?').run(courseId);
-  const ins = db.prepare(`INSERT INTO schedule_templates (course_id, weekday, start_time, end_time, venue_id, coach_id, capacity)
-                          VALUES (?, ?, ?, ?, ?, ?, ?)`);
+  await driver.run('DELETE FROM schedule_templates WHERE course_id = ?', [courseId]);
   for (const r of rules || []) {
-    ins.run(courseId, r.weekday, r.start_time, r.end_time, r.venue_id, r.coach_id, r.capacity);
+    await driver.run(`INSERT INTO schedule_templates (course_id, weekday, start_time, end_time, venue_id, coach_id, capacity)
+                          VALUES (?, ?, ?, ?, ?, ?, ?)`, [courseId, r.weekday, r.start_time, r.end_time, r.venue_id, r.coach_id, r.capacity]);
   }
   return { ok: true };
 }
 
 /** 新增课程（含规则） @returns 新课程对象 */
-function createCourse(data) {
-  const res = db.prepare(`INSERT INTO courses (name, category, level, duration_min, price_fen, cover, description, tags, status)
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(data.name, data.category, data.level, data.duration_min, data.price_fen, data.cover || '', data.description || '', data.tags || '', data.status || 'published');
+async function createCourse(data) {
+  const res = await driver.run(`INSERT INTO courses (name, category, level, duration_min, price_fen, cover, description, tags, status)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [data.name, data.category, data.level, data.duration_min, data.price_fen, data.cover || '', data.description || '', data.tags || '', data.status || 'published']);
   const id = res.lastInsertRowid;
-  replaceRules(id, data.rules || []);
+  await replaceRules(id, data.rules || []);
   return { id, ...data };
 }
 
 /** 更新课程（含规则） @returns 是否成功 */
-function updateCourse(id, data) {
+async function updateCourse(id, data) {
   // 部分更新容错：未传字段沿用原值（修复 500——探针发现，BUG-LEDGER #4）
-  const cur = db.prepare('SELECT * FROM courses WHERE id = ?').get(id);
+  const cur = await driver.get('SELECT * FROM courses WHERE id = ?', [id]);
   if (!cur) return false;
   const d = {
     name: data.name ?? cur.name,
@@ -89,11 +87,10 @@ function updateCourse(id, data) {
     lng: data.lng ?? cur.lng,
     status: data.status ?? cur.status
   };
-  const res = db.prepare(`UPDATE courses SET name=?, category=?, level=?, duration_min=?, price_fen=?, cover=?, description=?, tags=?, images=?, summary=?, address=?, lat=?, lng=?, status=?, updated_at=?
-                          WHERE id = ?`)
-    .run(d.name, d.category, d.level, d.duration_min, d.price_fen, d.cover, d.description, d.tags, d.images, d.summary, d.address, d.lat, d.lng, d.status, time.nowDateTimeStr(), id);
+  const res = await driver.run(`UPDATE courses SET name=?, category=?, level=?, duration_min=?, price_fen=?, cover=?, description=?, tags=?, images=?, summary=?, address=?, lat=?, lng=?, status=?, updated_at=?
+                          WHERE id = ?`, [d.name, d.category, d.level, d.duration_min, d.price_fen, d.cover, d.description, d.tags, d.images, d.summary, d.address, d.lat, d.lng, d.status, time.nowDateTimeStr(), id]);
   if (res.changes === 0) return false;
-  replaceRules(id, data.rules || []);
+  await replaceRules(id, data.rules || []);
   return true;
 }
 
@@ -101,18 +98,18 @@ function updateCourse(id, data) {
  * 删除课程（级联删规则与场次；场次有订单则拒绝）
  * @returns {{ok:boolean, bookings?:number}}
  */
-function deleteCourse(id) {
-  const b = db.prepare('SELECT COUNT(*) c FROM bookings b JOIN course_sessions s ON s.id = b.session_id WHERE s.course_id = ?').get(id).c;
+async function deleteCourse(id) {
+  const b = (await driver.get('SELECT COUNT(*) c FROM bookings b JOIN course_sessions s ON s.id = b.session_id WHERE s.course_id = ?', [id])).c;
   if (b > 0) return { ok: false, bookings: b };
-  db.exec('BEGIN');
+  await driver.exec('BEGIN');
   try {
-    db.prepare('DELETE FROM schedule_templates WHERE course_id = ?').run(id);
-    db.prepare('DELETE FROM course_sessions WHERE course_id = ?').run(id);
-    db.prepare('DELETE FROM courses WHERE id = ?').run(id);
-    db.exec('COMMIT');
+    await driver.run('DELETE FROM schedule_templates WHERE course_id = ?', [id]);
+    await driver.run('DELETE FROM course_sessions WHERE course_id = ?', [id]);
+    await driver.run('DELETE FROM courses WHERE id = ?', [id]);
+    await driver.exec('COMMIT');
     return { ok: true };
   } catch (e) {
-    db.exec('ROLLBACK');
+    await driver.exec('ROLLBACK');
     throw e;
   }
 }
@@ -125,23 +122,20 @@ function deleteCourse(id) {
  * 场地时间冲突检测：同场地、同日期、时间区间重叠（start < 对方end 且 end > 对方start）
  * 排除已取消场次；excludeId 用于排除自身（更新场景）
  */
-function hasTimeConflict(venueId, date, startTime, endTime, excludeId) {
-  const row = db.prepare(`SELECT COUNT(*) c FROM course_sessions
+async function hasTimeConflict(venueId, date, startTime, endTime, excludeId) {
+  const row = await driver.get(`SELECT COUNT(*) c FROM course_sessions
     WHERE venue_id = ? AND date = ? AND status != 'cancelled'
       AND start_time < ? AND end_time > ?
-      AND (? IS NULL OR id != ?)`).get(venueId, date, endTime, startTime, excludeId || null, excludeId || 0);
+      AND (? IS NULL OR id != ?)`, [venueId, date, endTime, startTime, excludeId || null, excludeId || 0]);
   return row.c > 0;
 }
 
-function publishSessions(courseId, startDate, endDate) {
-  const rules = getRules(courseId);
+async function publishSessions(courseId, startDate, endDate) {
+  const rules = await getRules(courseId);
   if (rules.length === 0) return { created: 0, skipped: 0, conflicts: [], reason: 'no_rules' };
 
-  const exists = new Set(db.prepare("SELECT date || '_' || start_time || '_' || venue_id k FROM course_sessions WHERE course_id = ?")
-    .all(courseId).map(r => r.k));
+  const exists = new Set((await driver.all("SELECT date || '_' || start_time || '_' || venue_id k FROM course_sessions WHERE course_id = ?", [courseId])).map(r => r.k));
 
-  const ins = db.prepare(`INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source)
-                          VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'published', 'manual')`);
   let created = 0, skipped = 0;
   const conflicts = [];
 
@@ -155,12 +149,13 @@ function publishSessions(courseId, startDate, endDate) {
       const key = `${iso}_${r.start_time}_${r.venue_id}`;
       if (exists.has(key)) { skipped++; continue; }
       // 同场地时间冲突 → 跳过并记录（用户要求：同一场地不允许时间重合的课程）
-      if (hasTimeConflict(r.venue_id, iso, r.start_time, r.end_time)) {
+      if (await hasTimeConflict(r.venue_id, iso, r.start_time, r.end_time)) {
         conflicts.push({ date: iso, start_time: r.start_time, end_time: r.end_time, venue_id: r.venue_id });
         skipped++;
         continue;
       }
-      ins.run(courseId, r.coach_id, r.venue_id, iso, r.start_time, r.end_time, r.capacity);
+      await driver.run(`INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'published', 'manual')`, [courseId, r.coach_id, r.venue_id, iso, r.start_time, r.end_time, r.capacity]);
       exists.add(key);
       created++;
     }
@@ -181,19 +176,18 @@ const SESSION_SELECT = `
   JOIN venues v ON v.id = s.venue_id`;
 
 /** 按日期查已发布场次（学员端课程列表） */
-function listSessionsByDate(date) {
+async function listSessionsByDate(date) {
   // published=可订；full=已满员（列表需显示供候补入口）——修复：满员场次被过滤不可见（BUG-LEDGER #7）
-  return db.prepare(`${SESSION_SELECT} WHERE s.date = ? AND s.status IN ('published','full') ORDER BY s.start_time`).all(date);
+  return await driver.all(`${SESSION_SELECT} WHERE s.date = ? AND s.status IN ('published','full') ORDER BY s.start_time`, [date]);
 }
 
 /** 按日期 + 教练查已发布场次（教练端今日课表） */
-function listSessionsByCoach(date, coachId) {
-  return db.prepare(`${SESSION_SELECT} WHERE s.date = ? AND s.coach_id = ? AND s.status IN ('published','full') ORDER BY s.start_time`)
-    .all(date, coachId);
+async function listSessionsByCoach(date, coachId) {
+  return await driver.all(`${SESSION_SELECT} WHERE s.date = ? AND s.coach_id = ? AND s.status IN ('published','full') ORDER BY s.start_time`, [date, coachId]);
 }
 
 /** 按日期范围 + 课程查场次（排表管理页，含全部状态） */
-function listSessionsByRange(from, to, courseId, coachId) {
+async function listSessionsByRange(from, to, courseId, coachId) {
   let sql = `${SESSION_SELECT} WHERE s.date >= ? AND s.date <= ?`;
   const params = [from, to];
   if (courseId) {
@@ -205,26 +199,26 @@ function listSessionsByRange(from, to, courseId, coachId) {
     params.push(coachId);
   }
   sql += ' ORDER BY s.date, s.start_time';
-  return db.prepare(sql).all(...params);
+  return await driver.all(sql, [...params]);
 }
 
 /** 教练详情（含生活照/技能认证/比赛成绩，2026-08-15 教练介绍页） */
-function getCoachById(id) {
-  return db.prepare("SELECT * FROM coaches WHERE id = ? AND status = 'active'").get(id) || null;
+async function getCoachById(id) {
+  return await driver.get("SELECT * FROM coaches WHERE id = ? AND status = 'active'", [id]) || null;
 }
 
 /**
  * 取消场次：仅允许无人预约的场次（booked_count=0 且无订单记录）
  * @returns {{ok:boolean, error?:string}}
  */
-function cancelSession(id) {
-  const s = db.prepare('SELECT id, booked_count, status FROM course_sessions WHERE id = ?').get(id);
+async function cancelSession(id) {
+  const s = await driver.get('SELECT id, booked_count, status FROM course_sessions WHERE id = ?', [id]);
   if (!s) return { ok: false, error: '场次不存在' };
   if (s.status === 'cancelled') return { ok: false, error: '该场次已取消' };
-  const orders = db.prepare('SELECT COUNT(*) c FROM bookings WHERE session_id = ? AND status = \'booked\'').get(id).c;
+  const orders = (await driver.get('SELECT COUNT(*) c FROM bookings WHERE session_id = ? AND status = \'booked\'', [id])).c;
   const total = s.booked_count || 0;
   if (orders > 0 || total > 0) return { ok: false, error: `该场次已有 ${Math.max(orders, total)} 名学员预约，无法取消` };
-  db.prepare("UPDATE course_sessions SET status = 'cancelled' WHERE id = ?").run(id);
+  await driver.run("UPDATE course_sessions SET status = 'cancelled' WHERE id = ?", [id]);
   return { ok: true };
 }
 
@@ -232,41 +226,41 @@ function cancelSession(id) {
  * 调整场次容量：新容量不能小于已约数
  * @returns {{ok:boolean, error?:string}}
  */
-function updateSessionCapacity(id, capacity) {
+async function updateSessionCapacity(id, capacity) {
   const cap = Number(capacity);
   if (!Number.isFinite(cap) || cap <= 0) return { ok: false, error: '容量必须为正整数' };
-  const s = db.prepare('SELECT id, booked_count, status FROM course_sessions WHERE id = ?').get(id);
+  const s = await driver.get('SELECT id, booked_count, status FROM course_sessions WHERE id = ?', [id]);
   if (!s) return { ok: false, error: '场次不存在' };
   if (s.status !== 'published') return { ok: false, error: '该场次已取消，无法调整' };
   if (cap < (s.booked_count || 0)) return { ok: false, error: `容量不能小于已预约人数（${s.booked_count}）` };
-  db.prepare('UPDATE course_sessions SET capacity = ? WHERE id = ?').run(cap, id);
+  await driver.run('UPDATE course_sessions SET capacity = ? WHERE id = ?', [cap, id]);
   return { ok: true };
 }
 
 /** 按日期查场次，并标记当前用户是否已预订/已排位（openid 可选） */
-function listSessionsByDateForUser(date, openid) {
-  const sessions = listSessionsByDate(date);
+async function listSessionsByDateForUser(date, openid) {
+  const sessions = await listSessionsByDate(date);
   if (!openid) return sessions;
   // 查该用户已预订的场次 id 集合（仅 booked 状态）
-  const bookedRows = db.prepare("SELECT session_id FROM bookings WHERE user_openid = ? AND status = 'booked'").all(openid);
+  const bookedRows = await driver.all("SELECT session_id FROM bookings WHERE user_openid = ? AND status = 'booked'", [openid]);
   const bookedSet = new Set(bookedRows.map(r => r.session_id));
   // 查该用户候补排位中的场次 id 集合（仅 waiting 状态）
-  const waitRows = db.prepare("SELECT session_id FROM waitlist WHERE user_openid = ? AND status = 'waiting'").all(openid);
+  const waitRows = await driver.all("SELECT session_id FROM waitlist WHERE user_openid = ? AND status = 'waiting'", [openid]);
   const waitSet = new Set(waitRows.map(r => r.session_id));
   return sessions.map(s => ({ ...s, booked_by_me: bookedSet.has(s.id), waitlisted_by_me: waitSet.has(s.id) }));
 }
 
 /** 场次详情（学员端课程详情） */
-function getSessionById(id) {
-  return db.prepare(`${SESSION_SELECT} WHERE s.id = ?`).get(id) || null;
+async function getSessionById(id) {
+  return await driver.get(`${SESSION_SELECT} WHERE s.id = ?`, [id]) || null;
 }
 
 /**
  * 满员状态联动：booked_count >= capacity → full，否则 published
  * 每次 booked_count 变更后调用（订课/退订/转正），保证场次状态与余位一致
  */
-function syncSessionStatus(sessionId) {
-  db.prepare("UPDATE course_sessions SET status = CASE WHEN booked_count >= capacity THEN 'full' ELSE 'published' END WHERE id = ?").run(sessionId);
+async function syncSessionStatus(sessionId) {
+  await driver.run("UPDATE course_sessions SET status = CASE WHEN booked_count >= capacity THEN 'full' ELSE 'published' END WHERE id = ?", [sessionId]);
 }
 
 // ===== 订课（bookings）=====
@@ -281,23 +275,23 @@ function syncSessionStatus(sessionId) {
  *  coCount：查看者(viewerOpenid)与该用户共同 booked 过的场次数（含当前场；>9 由前端显示 ...）
  *  测试假用户（openid 以 fake_ 开头）：coCount 用确定性伪随机 0-5（同场次稳定、跨场次不同），
  *  便于测试圆标数字样式（seed-fake-users.js 造数） */
-function listBookedUsersWithInfo(sessionId, viewerOpenid) {
-  const list = db.prepare(`
+async function listBookedUsersWithInfo(sessionId, viewerOpenid) {
+  const list = await driver.all(`
     SELECT u.openid, u.nickname, u.avatar
     FROM bookings b
     JOIN users u ON u.openid = b.user_openid
     WHERE b.session_id = ? AND b.status = 'booked'
     ORDER BY b.created_at, b.id
-  `).all(sessionId);
+  `, [sessionId]);
   if (!viewerOpenid) return list.map(u => ({ ...u, coCount: 0 }));
   // 同堂次数：查看者与每个预订者「同场次均 booked」的场次数（含当前场），一次查询批量算
-  const rows = db.prepare(`
+  const rows = await driver.all(`
     SELECT b2.user_openid AS peer, COUNT(DISTINCT b1.session_id) AS cnt
     FROM bookings b1
     JOIN bookings b2 ON b1.session_id = b2.session_id
     WHERE b1.user_openid = ? AND b1.status = 'booked' AND b2.status = 'booked'
     GROUP BY b2.user_openid
-  `).all(viewerOpenid);
+  `, [viewerOpenid]);
   const coMap = {};
   for (const r of rows) if (r.peer !== viewerOpenid) coMap[r.peer] = r.cnt;
   return list.map(u => {

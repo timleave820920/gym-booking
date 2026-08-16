@@ -19,8 +19,8 @@
 
 - [ ] **P0｜S1. db-driver.js 双驱动抽象层** — 新文件：SqliteDriver（node:sqlite 同步包 async 接口）/ MysqlDriver（mysql2 惰性 require 占位）+ createDriver 工厂（DB_DRIVER 切换）；db-core.js 挂 `driver` 导出（SQLite 模式复用现有 db 实例）；行为零变化，150 全绿
 - [ ] **P0｜S2. 时间函数与方言点收口** — SQL 内 `datetime()/date()/time()` 89 处改 time.js 传参（符合规矩 #9）；orders.js:543-545 候补过期 `datetime(s.date||' '||s.start_time, '-60/-120 min')` 改业务层计算传参；INSERT OR IGNORE×3 / ON CONFLICT×1 → INSERT IGNORE；strftime×3 业务层化；time.js 新增 addMinutes 工具
-- [ ] **P0｜S3. db/*.js async 化** — 11 模块 259 处 prepare/get/run → `await driver.*`；事务改 driver.tx()（bookings.createBooking 拆 inner 实现供 orders 事务内复用，不嵌套 BEGIN）；分模块提交每步全绿
-- [ ] **P0｜S4. index.js + seed + minitest async 化** — 54 处调用 + handle* 全 async + 外层错误捕获返回 500；seed/seed-fake-users async；run-tests/coverage async 适配；150 全绿 + TZ=UTC 全量
+- [x] **P0｜S3. db/*.js async 化** — 11 模块 prepare/get/run → `await driver.*`（tokenizer 级转换脚本 server/migrate-async.js，已删除）；事务走 driver.exec('BEGIN'/'COMMIT')；同步函数保持同步；db-core 导出 driver 供各模块导入
+- [x] **P0｜S4. index.js + seed + minitest async 化** — 全部 handle* + API_ROUTES async；db.xxx 聚合调用补 await（known 迭代收敛：转换引入的 await 会把更多函数变 async，4 轮收敛）；顶层种子包 IIFE；handleMemberPlans 改 Promise.all；136 用例全绿 + TZ=UTC 全量通过
 - [ ] **P0｜S5. MySQL 生产路径落地** — db-core 双方言建表（MySQL 版 18 表一次建齐无 ALTER 段，VARCHAR(19) 时间列）；Dockerfile `npm install mysql2` + 环境变量模板；用户控制台开通 MySQL + 配 DB_DRIVER/MYSQL_* 环境变量；部署 + deploy-smoke.sh 扩展（登录落库证据）+ 真机重建验证（#25 验收）
 - [ ] **P1｜S6. 数据迁移 + 文档收尾** — scripts/migrate-sqlite-to-mysql.js（清理假用户后全表迁）；生产迁移执行 + 行数对账；CLAUDE.md（零依赖→仅 mysql2）/ 持久化手册（CFS 弃、MySQL 方向）/ 评审文档待办更新
 
