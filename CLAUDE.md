@@ -33,6 +33,11 @@ DB_PATH=/tmp/gym-test-clean.db node minitest/run-tests.js   # 干净库模式：
 node minitest/run-tests.js http://127.0.0.1:3000            # 连已有后端（调试用）
 node --test --experimental-test-coverage minitest/coverage.test.js  # 覆盖率探针
 
+# 部署冒烟（云托管重建后必跑，区分新/旧镜像，防 #12 重演）
+bash deploy-smoke.sh          # 默认探测云端（自动读 api.js FALLBACK_BASE_URL）
+bash deploy-smoke.sh 5        # 重建窗口期：每 10s 重试，最多 5 次
+bash deploy-smoke.sh http://127.0.0.1:3000   # 本地验证
+
 # 语法检查（重构/拆分后必做）
 node --check server/index.js
 ```
