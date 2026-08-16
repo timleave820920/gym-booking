@@ -56,7 +56,7 @@ Page({
             duration: `${b.duration_min}分钟`,
             price: (b.amount_fen / 100).toFixed(0),
             checked: b.checkin_at ? true : false,
-            // 签到时间窗口（与后端一致 BUG-LEDGER #10）：当天 + 开课前30分钟~结束后2小时
+            // 签到时间窗口（与后端一致，2026-08-16 统一为课后 30 分钟 DESIGN #D1）：当天 + 开课前30分钟~结束后30分钟
             canCheckin: this.inCheckinWindow(b.date, b.start_time, b.end_time)
           };
           if (this.isSessionEnded(b.date, b.end_time)) {
@@ -110,14 +110,14 @@ Page({
     return now.getHours() * 60 + now.getMinutes() >= h * 60 + m;
   },
 
-  // 签到时间窗口（与后端规则一致，BUG-LEDGER #10）：当天 + 开课前30分钟 ~ 结束后2小时
+  // 签到时间窗口（与后端规则一致，2026-08-16 统一为课后 30 分钟 DESIGN #D1）：当天 + 开课前30分钟 ~ 结束后30分钟
   inCheckinWindow(date, startTime, endTime) {
     const now = new Date();
     const todayFull = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     if (date !== todayFull) return false;
     const toMin = (s) => { const [h, m] = (s || '00:00').split(':').map(Number); return h * 60 + m; };
     const nowMin = now.getHours() * 60 + now.getMinutes();
-    return nowMin >= toMin(startTime) - 30 && nowMin <= toMin(endTime) + 120;
+    return nowMin >= toMin(startTime) - 30 && nowMin <= toMin(endTime) + 30;
   },
 
   // 排位按钮提示（候补状态说明）

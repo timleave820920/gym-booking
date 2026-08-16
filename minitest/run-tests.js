@@ -72,10 +72,13 @@ const T = {
   coach: { openid: 'uid_test_coach', nickname: '测试教练', role: 'coach' },
   holder: { openid: 'uid_test_holder', nickname: '占位学员' }
 };
-const today = new Date();
-const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-const tomorrow = new Date(today.getTime() + 86400000);
-const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+// 日期/时间统一取北京时间（time.js 显式时区），保证测试在任何系统时区
+// （本地 Windows / CI UTC / 模拟容器 TZ=UTC）下与后端判定口径一致（BUG-LEDGER #28）
+const timeMod = require('../server/time.js');
+const todayStr = timeMod.todayStr();
+const _tm = timeMod.parts(new Date(Date.now() + 86400000));
+const tomorrowStr = `${_tm.y}-${String(_tm.mo).padStart(2, '0')}-${String(_tm.d).padStart(2, '0')}`;
+const beijingHM = (d) => { const p = timeMod.parts(d); return `${String(p.h).padStart(2, '0')}:${String(p.mi).padStart(2, '0')}`; };
 
 // 运行时状态
 const ctx = {
@@ -175,6 +178,23 @@ async function runSuite() {
   r = await req('GET', '/api/meta');
   check('SYS-02', '下拉元数据', ok(r, 200), `status=${r.status}`);
 
+  // ===== 0.5 时间模块（防时区回归，BUG-LEDGER #28）=====
+  // 断言与系统时区无关：UTC 纪元 → 北京应为 08:00；任意系统时区下结果一致。
+  // 若 time.js 被回退成隐式系统时区（如裸 new Date().getHours()），UTC 环境（CI/云托管）会红。
+  console.log('\n── 1.5 时间模块（北京时间）──');
+  const timeMod = require('../server/time.js');
+  const epoch = timeMod.parts(new Date(0)); // 1970-01-01T00:00:00Z
+  check('TIME-01', '纪元UTC0点=北京8点', epoch.h === 8 && epoch.mi === 0 && epoch.y === 1970, `h=${epoch.h} mi=${epoch.mi}`);
+  const beijingParts = timeMod.parts();
+  const tsNow = Date.now();
+  const bjMin = beijingParts.h * 60 + beijingParts.mi;
+  const utcMin = new Date(tsNow).getUTCHours() * 60 + new Date(tsNow).getUTCMinutes();
+  const diff = (((bjMin - (utcMin + 480)) % 1440) + 1440) % 1440; // 北京 - (UTC+8)，归一化
+  check('TIME-02', '北京=UTC+8（误差<2分钟）', diff <= 2 || diff >= 1438, `bj=${bjMin} utc=${utcMin} diff=${diff}`);
+  const roundTrip = timeMod.parseBeijing(timeMod.nowDateTimeStr()).getTime();
+  check('TIME-03', 'nowDateTimeStr↔parseBeijing 往返<5分钟', Math.abs(roundTrip - tsNow) < 5 * 60 * 1000, `delta=${Math.abs(roundTrip - tsNow) / 1000}s`);
+  check('TIME-04', '签到窗口判定用北京分钟', timeMod.nowMin() === bjMin, `nowMin=${timeMod.nowMin()} bj=${bjMin}`);
+
   // ===== 1. 账号登录 =====
   console.log('\n── 2. 账号与登录 ──');
   r = await req('POST', '/api/auth/login', T.user1);
@@ -212,6 +232,26 @@ async function runSuite() {
   r = await req('GET', `/api/sessions/1?openid=${T.user1.openid}`);
   check('SES-06', '详情含轮播图/预约墙', ok(r, 200) && Array.isArray(r.data.session.images) && Array.isArray(r.data.session.bookedUsers) && typeof r.data.session.coach_bio === 'string', `img=${JSON.stringify(r.data && r.data.session && r.data.session.images)} users=${r.data && r.data.session && r.data.session.bookedUsers && r.data.session.bookedUsers.length}`);
 
+  // ===== 教练详情页（CPR-xx）：只显示未开始的课程；席位展示 已约/总数（BUG-LEDGER #19/#20）=====
+  const coachStatus = require(path.join(PROJECT_ROOT, 'miniprogram/utils/course-status.js'));
+  r = await req('GET', '/api/coaches/1');
+  check('CPR-01', '教练详情', ok(r, 200) && r.data.coach && r.data.coach.name, `coach=${JSON.stringify(r.data && r.data.coach)}`);
+  r = await req('GET', `/api/coaches/1/sessions?from=${todayStr}&to=${tomorrowStr}`);
+  check('CPR-02', '教练场次含席位/时间字段', ok(r, 200) && Array.isArray(r.data.sessions) && r.data.sessions.every(s => typeof s.booked_count === 'number' && s.capacity && s.start_time && s.end_time), `count=${r.data && r.data.sessions && r.data.sessions.length}`);
+  // 前端过滤逻辑（course-status.js 是纯函数，直接 require 断言）
+  const F = (d, st, et, now) => coachStatus.getSessionStatus(d, st, et, now);
+  check('CPR-03', '已结束场次判定 ended', F('2026-08-15', '10:00', '11:00', new Date('2026-08-15T12:00:00')) === 'ended', '');
+  check('CPR-04', '进行中场次判定 ongoing', F('2026-08-15', '10:00', '11:00', new Date('2026-08-15T10:30:00')) === 'ongoing', '');
+  check('CPR-05', '未开始场次判定 upcoming', F('2026-08-15', '10:00', '11:00', new Date('2026-08-15T09:00:00')) === 'upcoming', '');
+  // 模拟教练详情页 filterDay：进行中/已结束课程被过滤，仅剩未开始
+  const fakeSessions = [
+    { date: '2026-08-15', start_time: '09:00', end_time: '10:00', booked_count: 3, capacity: 5, status: 'published' }, // 已结束
+    { date: '2026-08-15', start_time: '10:00', end_time: '11:00', booked_count: 2, capacity: 5, status: 'published' }, // 进行中
+    { date: '2026-08-15', start_time: '13:00', end_time: '14:00', booked_count: 5, capacity: 5, status: 'full' }        // 未开始（满员也显示）
+  ];
+  const visibleCp = fakeSessions.filter(s => coachStatus.getSessionStatus(s.date, s.start_time, s.end_time, new Date('2026-08-15T10:30:00')) === 'upcoming');
+  check('CPR-06', '教练页过滤：进行中/已结束不显示', visibleCp.length === 1 && visibleCp[0].start_time === '13:00', `visible=${JSON.stringify(visibleCp.map(s => s.start_time))}`);
+
   // 造一个今天的测试场次（有余位）
   const mkSession = (date, start, end, cap, booked) => new Promise((resolve) => {
     const db = require('../server/db.js');
@@ -223,7 +263,7 @@ async function runSuite() {
   ctx.sessionId = await mkSession(todayStr, '21:00', '22:00', 10, 0);
   // 满员场次：避开"已开课"时段——refundExpiredWaitlist 会在 GET /api/waitlist 时把已开课场次的候补自动退款，
   // 若测试在开课时间(22:00)之后运行会误杀候补队列（WTL-06/07 必挂）；21 点后跑测试改用明天日期
-  const fullDate = (new Date().getHours() >= 21) ? tomorrowStr : todayStr;
+  const fullDate = (timeMod.parts().h >= 21) ? tomorrowStr : todayStr;
   ctx.fullSessionId = await mkSession(fullDate, '22:00', '23:00', 1, 1);   // 满员（未来时段避免过期退款干扰）
   ctx.tomorrowSessionId = await mkSession(tomorrowStr, '09:00', '10:00', 5, 0);
   console.log(`  [准备] 测试场次: 普通#${ctx.sessionId} 满员#${ctx.fullSessionId} 明日#${ctx.tomorrowSessionId}`);
@@ -338,22 +378,28 @@ async function runSuite() {
   console.log('\n── 6. 签到考勤 ──');
   // 独立的"明天场次"（避免 WTL-08 改日期污染）
   const tmr2 = await mkSession(tomorrowStr, '13:00', '14:00', 5, 0);
-  // 签到时间窗口（BUG-LEDGER #10 修复）：开课前30分钟~结束后2小时。
-  // 动态造「已进入窗口」的场次（当前+10分钟开始），避免依赖固定执行时间
+  // 签到时间窗口（BUG-LEDGER #10 修复；2026-08-16 统一课后 30 分钟 DESIGN #D1）：开课前30分钟~结束后30分钟。
+  // 动态造「已开课 20 分钟」的场次（start=now-20m、end=now+40m），now 恒在窗口内 [start-30m, end+30m]，
+  // 不依赖固定执行时间（原「+10/+70」在 23:00 后跑测试 end 跨天→日期仍是当天，后端判"已结束"——BUG-LEDGER #15 同源坑）
   const chkNow = new Date();
-  const fmtHM = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  const chkSid = await mkSession(todayStr, fmtHM(new Date(chkNow.getTime() + 10 * 60000)), fmtHM(new Date(chkNow.getTime() + 70 * 60000)), 5, 0);
-  r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: chkSid, amountFen: 6800, orderType: 'book' });
-  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user1.openid, payMethod: 'wxpay' });
-  const chkBookingId = r.data.booking.id;
-  r = await req('GET', `/api/checkin/${chkBookingId}`);
-  check('CHK-01', '凭证信息', ok(r, 200) && r.data.info && r.data.info.course_name, `course=${r.data && r.data.info && r.data.info.course_name}`);
-  r = await req('POST', `/api/bookings/${chkBookingId}/checkin`, { openid: T.coach.openid });
-  check('CHK-02', '教练核销成功', ok(r, 200) && r.data.booking.checkin_at, `checkin=${r.data && r.data.booking && r.data.booking.checkin_at}`);
-  r = await req('POST', `/api/bookings/${chkBookingId}/checkin`, { openid: T.user1.openid });
-  check('CHK-03', '非教练核销拒绝', r.status === 400 && (r.data.message || '').includes('教练'), `msg=${r.data && r.data.message}`);
-  r = await req('POST', `/api/bookings/${chkBookingId}/checkin`, { openid: T.coach.openid });
-  check('CHK-04', '重复签到拒绝', r.status === 400 && (r.data.message || '').includes('已签到'), `msg=${r.data && r.data.message}`);
+  const chkEnd = new Date(chkNow.getTime() + 40 * 60000);
+  if (timeMod.parts(chkEnd).d !== timeMod.parts(chkNow).d) {
+    // 北京 23:20 后结束时间跨天，无法安全造当天窗口场次 → 跳过（与 CHK-07 同策略）
+    console.log('  [跳过] 23:20 后 CHK-01~04 窗口签到用例（跨天造数不安全）');
+  } else {
+    const chkSid = await mkSession(todayStr, beijingHM(new Date(chkNow.getTime() - 20 * 60000)), beijingHM(chkEnd), 5, 0);
+    r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: chkSid, amountFen: 6800, orderType: 'book' });
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user1.openid, payMethod: 'wxpay' });
+    const chkBookingId = r.data.booking.id;
+    r = await req('GET', `/api/checkin/${chkBookingId}`);
+    check('CHK-01', '凭证信息', ok(r, 200) && r.data.info && r.data.info.course_name, `course=${r.data && r.data.info && r.data.info.course_name}`);
+    r = await req('POST', `/api/bookings/${chkBookingId}/checkin`, { openid: T.coach.openid });
+    check('CHK-02', '教练核销成功', ok(r, 200) && r.data.booking.checkin_at, `checkin=${r.data && r.data.booking && r.data.booking.checkin_at}`);
+    r = await req('POST', `/api/bookings/${chkBookingId}/checkin`, { openid: T.user1.openid });
+    check('CHK-03', '非教练核销拒绝', r.status === 400 && (r.data.message || '').includes('教练'), `msg=${r.data && r.data.message}`);
+    r = await req('POST', `/api/bookings/${chkBookingId}/checkin`, { openid: T.coach.openid });
+    check('CHK-04', '重复签到拒绝', r.status === 400 && (r.data.message || '').includes('已签到'), `msg=${r.data && r.data.message}`);
+  }
   // 非当天场次（独立明天场次）签到
   r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: tmr2, amountFen: 6800, orderType: 'book' });
   const tmrOrder = r.data.order;
@@ -367,13 +413,75 @@ async function runSuite() {
   check('CHK-06', '场次名单', ok(r, 200) && r.data.students.length >= 1 && r.data.students[0].student_name, `count=${r.data && r.data.students && r.data.students.length}`);
   // CHK-07：提前签到拒绝（未来场次未到开课前30分钟窗口，回归 BUG-LEDGER #10；跨天时跳过）
   const plus120 = new Date(chkNow.getTime() + 120 * 60000);
-  if (plus120.getDate() === chkNow.getDate()) {
-    const chkSid2 = await mkSession(todayStr, fmtHM(plus120), fmtHM(new Date(plus120.getTime() + 3600000)), 5, 0);
+  if (timeMod.parts(plus120).d === timeMod.parts(chkNow).d) {
+    const chkSid2 = await mkSession(todayStr, beijingHM(plus120), beijingHM(new Date(plus120.getTime() + 3600000)), 5, 0);
     r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: chkSid2, amountFen: 6800, orderType: 'book' });
     r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user2.openid, payMethod: 'wxpay' });
     r = await req('POST', `/api/bookings/${r.data.booking.id}/checkin`, { openid: T.coach.openid });
     check('CHK-07', '提前签到拒绝(未到窗口)', r.status === 400 && (r.data.message || '').includes('未到签到时间'), `msg=${r.data && r.data.message}`);
   }
+
+  // ===== 6.5 教练工作台（DESIGN #D1）：我的学员 / 笔记 / 结算 / 设教练 =====
+  console.log('\n── 6.5 教练工作台 ──');
+  const now2 = new Date();
+  const curMonth = `${timeMod.parts().y}-${String(timeMod.parts().mo).padStart(2, '0')}`;
+
+  // 未绑定档案 → 404
+  r = await req('GET', '/api/coach/students?coach_openid=' + T.coach.openid);
+  check('COACH-01', '未绑定档案404', r.status === 404, `status=${r.status}`);
+  // 设教练：绑定测试教练 → coaches#1；再绑 user2 → coaches#2（隔离测试用）
+  r = await req('POST', '/api/admin/coach-assign', { openid: T.coach.openid, coach_id: 1 });
+  check('COACH-07', '设教练成功', ok(r, 200), `msg=${r.data && r.data.message}`);
+  r = await req('POST', '/api/admin/coach-assign', { openid: T.coach.openid, coach_id: 1 });
+  check('COACH-07b', '重复绑定幂等', ok(r, 200), `msg=${r.data && r.data.message}`);
+  r = await req('POST', '/api/admin/coach-assign', { openid: 'uid_test_nobody', coach_id: 1 });
+  check('COACH-08', '账号不存在拒绝', r.status === 400, `msg=${r.data && r.data.message}`);
+  r = await req('POST', '/api/admin/coach-assign', { openid: T.coach.openid, coach_id: 9999 });
+  check('COACH-08b', '档案不存在拒绝', r.status === 400, `msg=${r.data && r.data.message}`);
+  r = await req('POST', '/api/admin/coach-assign', { openid: T.user2.openid, coach_id: 2 });
+  check('COACH-08c', 'user2绑定档案2', ok(r, 200), `msg=${r.data && r.data.message}`);
+  r = await req('POST', '/api/admin/coach-assign', { openid: T.user1.openid, coach_id: 2 });
+  check('COACH-08d', '档案已占用拒绝', r.status === 400, `msg=${r.data && r.data.message}`);
+
+  // 造当天窗口场次 + 订课 + 支付 + 签到（自足链路，不依赖 CHK 分支是否跳过）
+  const coEnd = new Date(now2.getTime() + 40 * 60000);
+  if (timeMod.parts(coEnd).d === timeMod.parts(now2).d) {
+    const coSid = await mkSession(todayStr, beijingHM(new Date(now2.getTime() - 20 * 60000)), beijingHM(coEnd), 5, 0);
+    r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: coSid, amountFen: 6800, orderType: 'book' });
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user1.openid, payMethod: 'wxpay' });
+    r = await req('POST', `/api/bookings/${r.data.booking.id}/checkin`, { openid: T.coach.openid });
+    check('COACH-09', '窗口内签到成功', ok(r, 200) && r.data.booking.checkin_at, `checkin=${r.data && r.data.booking && r.data.booking.checkin_at}`);
+    // 我的学员：user1 已收录（含最近课程/日期/总课次）
+    r = await req('GET', '/api/coach/students?coach_openid=' + T.coach.openid);
+    const stu = (r.data.students || []).find(s => s.openid === T.user1.openid);
+    check('COACH-02', '我的学员聚合', ok(r, 200) && stu && stu.last_course && stu.last_date && typeof stu.has_note === 'number' && typeof stu.total_classes === 'number', `stu=${JSON.stringify(stu)}`);
+    // 笔记 upsert（写→覆盖→读）
+    r = await req('PUT', '/api/coach/notes', { coach_openid: T.coach.openid, student_openid: T.user1.openid, content: '膝盖旧伤，注意热身' });
+    check('COACH-03', '笔记写入', ok(r, 200) && r.data.note.content === '膝盖旧伤，注意热身', `note=${JSON.stringify(r.data && r.data.note)}`);
+    r = await req('PUT', '/api/coach/notes', { coach_openid: T.coach.openid, student_openid: T.user1.openid, content: '状态良好' });
+    check('COACH-03b', '笔记upsert覆盖', ok(r, 200) && r.data.note.content === '状态良好', `note=${JSON.stringify(r.data && r.data.note)}`);
+    r = await req('GET', '/api/coach/notes?coach_openid=' + T.coach.openid + '&student_openid=' + T.user1.openid);
+    check('COACH-03c', '笔记读取', ok(r, 200) && r.data.note.content === '状态良好', `note=${JSON.stringify(r.data && r.data.note)}`);
+    // 学员列表 has_note 联动
+    r = await req('GET', '/api/coach/students?coach_openid=' + T.coach.openid);
+    const stu2 = (r.data.students || []).find(s => s.openid === T.user1.openid);
+    check('COACH-03d', 'has_note标记', ok(r, 200) && stu2 && stu2.has_note === 1, `has_note=${stu2 && stu2.has_note}`);
+    // 笔记隔离：另一教练（user2）读不到 user1 的笔记
+    r = await req('GET', '/api/coach/notes?coach_openid=' + T.user2.openid + '&student_openid=' + T.user1.openid);
+    check('COACH-04', '笔记隔离', ok(r, 200) && r.data.note.content === '', `note=${JSON.stringify(r.data && r.data.note)}`);
+    // 结算：本月聚合 + 金额公式（课次×课时费 + 签到×奖励，配置单源）
+    r = await req('GET', `/api/coach/settlement?coach_id=1&month=${curMonth}`);
+    const st = r.data && r.data.settlement;
+    check('COACH-05', '结算聚合', ok(r, 200) && st && st.checkins >= 1 && st.total_fen === st.sessions * 10000 + st.checkins * 500, `s=${JSON.stringify(st)}`);
+    check('COACH-05b', '结算配置单源', ok(r, 200) && st && st.course_fee_fen === 10000 && st.reward_fen === 500, `fee=${st && st.course_fee_fen} reward=${st && st.reward_fen}`);
+  } else {
+    console.log('  [跳过] 23:20 后 COACH 签到链路用例（跨天造数不安全）');
+  }
+  // 结算参数校验
+  r = await req('GET', '/api/coach/settlement?coach_id=1&month=2026-13');
+  check('COACH-06', '非法月份拒绝', r.status === 400, `msg=${r.data && r.data.message}`);
+  r = await req('GET', '/api/coach/settlement?coach_id=1&month=abc');
+  check('COACH-06b', '非数字月份拒绝', r.status === 400, `msg=${r.data && r.data.message}`);
 
   // ===== 6. 营收统计 =====
   console.log('\n── 7. 营收统计 ──');
@@ -665,6 +773,8 @@ async function runSuite() {
     db.db.prepare("DELETE FROM waitlist WHERE user_openid LIKE 'uid_test_%'").run();
     db.db.prepare("DELETE FROM course_sessions WHERE source='test_suite'").run();
     db.db.prepare("DELETE FROM invitations WHERE inviter LIKE 'uid_test_%' OR invitee LIKE 'uid_test_%'").run();
+    db.db.prepare("DELETE FROM coach_notes WHERE coach_openid LIKE 'uid_test_%' OR student_openid LIKE 'uid_test_%'").run();
+    db.db.prepare("UPDATE coaches SET user_openid = NULL WHERE user_openid LIKE 'uid_test_%'").run();
     db.db.prepare("DELETE FROM balance_logs WHERE user_openid LIKE 'uid_test_%'").run();
     db.db.prepare("DELETE FROM member_recharges WHERE user_openid LIKE 'uid_test_%'").run();
     db.db.prepare("DELETE FROM coin_logs WHERE user_openid LIKE 'uid_test_%'").run();

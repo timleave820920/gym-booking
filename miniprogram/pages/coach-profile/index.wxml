@@ -72,7 +72,7 @@
       <view class="ci-info">
         <text class="ci-name">{{item.course_name}}</text>
         <text class="ci-sub">{{item.venue_name}}</text>
-        <text class="ci-seat">余位 <text class="ci-seat-num {{item.isFull ? 'ci-seat-zero' : ''}}">{{item.remaining}}</text>/{{item.capacity}}</text>
+        <text class="ci-seat">已约 <text class="ci-seat-num {{item.isFull ? 'ci-seat-zero' : ''}}">{{item.booked}}</text>/{{item.capacity}}</text>
       </view>
       <view class="ci-btn {{item.isFull ? 'full' : ''}}">{{item.isFull ? '满员' : '可约'}}</view>
     </view>
@@ -81,8 +81,4 @@
       <text class="course-empty-sub">换个日期看看吧</text>
     </view>
   </view>
-
-  <!-- 底部主 CTA（全页唯一墨黑主行动） -->
-  <view class="cp-cta-sub">点课程条可直接预约 · 满员可候补</view>
-  <view class="cp-cta" bindtap="scrollToCourses">约 TA 的课</view>
 </view>

@@ -10,6 +10,7 @@ const { rewardInviter } = require('./invite');
 const { sendMessage } = require('./messages');
 const { listPassPackages, getUserPass, getUserPassForDate, consumePass, refundPass, applyPassPurchase } = require('./passes');
 const MEMBER_CONFIG = require('../member-config.js');
+const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 const ENERGY_CONFIG = require('../energy-config.js');
 
 const ORDER_SELECT = `
@@ -547,8 +548,8 @@ function refundExpiredWaitlist() {
       JOIN course_sessions s ON s.id = w.session_id
       JOIN courses c ON c.id = s.course_id
       WHERE w.status = 'waiting'
-    ) WHERE deadline < datetime('now', 'localtime')
-  `).all();
+    ) WHERE deadline < ?
+  `).all(time.nowDateTimeStr());
   for (const row of expired) {
     db.exec('BEGIN');
     try {

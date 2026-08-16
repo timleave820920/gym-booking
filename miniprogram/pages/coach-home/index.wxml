@@ -1,0 +1,152 @@
+<view class="page">
+  <view class="page-pad pt-safe">
+    <!-- 问候 -->
+    <view class="flex-between head-row">
+      <view class="flex-col">
+        <text class="greet-title">{{greeting}}</text>
+        <text class="greet-sub">教练工作台 · 实时数据</text>
+      </view>
+      <text class="logout-btn" bindtap="goProfile">退出</text>
+    </view>
+
+    <!-- 三段式 Tab -->
+    <view class="seg-tabs">
+      <view class="seg-item {{tab === 0 ? 'seg-active' : ''}}" data-tab="0" bindtap="switchTab">我的课程</view>
+      <view class="seg-item {{tab === 1 ? 'seg-active' : ''}}" data-tab="1" bindtap="switchTab">我的学员</view>
+      <view class="seg-item {{tab === 2 ? 'seg-active' : ''}}" data-tab="2" bindtap="switchTab">结算</view>
+    </view>
+
+    <!-- ===== Tab1 我的课程 ===== -->
+    <block wx:if="{{tab === 0}}">
+      <!-- 周日期条（今天起 7 天） -->
+      <view class="week-bar">
+        <view class="week-item {{item.selected ? 'week-selected' : ''}}"
+              wx:for="{{weekDays}}" wx:key="full" data-full="{{item.full}}" bindtap="selectDate">
+          <text class="week-label">{{item.weekday}}</text>
+          <text class="week-date {{item.selected ? 'week-date-on' : ''}}">{{item.date}}</text>
+        </view>
+      </view>
+
+      <text class="offline-tip" wx:if="{{offline}}">后端未连接，无法加载课程</text>
+
+      <!-- 课程卡：左时间区间 + 右三行 -->
+      <view class="course-card" wx:for="{{sessions}}" wx:key="id">
+        <view class="flex-col time-box">
+          <text class="time-value">{{item.time}}</text>
+        </view>
+        <view class="flex-col flex-1 info-box" data-id="{{item.id}}" bindtap="goStudents">
+          <text class="course-name">{{item.name}}</text>
+          <text class="course-venue">{{item.venue}} · {{item.dateText}}</text>
+          <text class="course-seat">席位 {{item.enrolled}}/{{item.capacity}}</text>
+        </view>
+        <!-- 窗口内 → 绿色签到按钮；窗口外 → 状态灰字 -->
+        <view wx:if="{{item.checkinOpen}}" class="checkin-btn" data-id="{{item.id}}" catchtap="startCheckin">签到</view>
+        <text wx:else class="status-txt">{{item.statusText}}</text>
+      </view>
+
+      <!-- 空状态 -->
+      <view class="empty-state flex-col" wx:if="{{!loading && sessions.length === 0 && !offline}}">
+        <text class="empty-icon">▦</text>
+        <text class="empty-txt">当天没有排课</text>
+        <text class="empty-sub">点日期条切换查看未来 7 天</text>
+      </view>
+    </block>
+
+    <!-- ===== Tab2 我的学员 ===== -->
+    <block wx:if="{{tab === 1}}">
+      <view class="student-card" wx:for="{{students}}" wx:key="openid" data-idx="{{index}}" bindtap="openStudent">
+        <image class="student-avatar" src="{{item.avatar}}" mode="aspectFill" data-idx="{{index}}" binderror="avatarError"></image>
+        <view class="flex-col flex-1">
+          <view class="flex-row align-center">
+            <text class="student-name">{{item.nickname}}</text>
+            <text class="note-mark" wx:if="{{item.hasNote}}">📝 有笔记</text>
+          </view>
+          <text class="student-last" wx:if="{{item.last_course}}">{{item.last_course}} · {{item.last_date}}</text>
+          <text class="student-last" wx:else>暂无跟课记录</text>
+        </view>
+        <text class="student-total">共 {{item.totalText}}</text>
+      </view>
+      <view class="empty-state flex-col" wx:if="{{!studentsLoading && students.length === 0}}">
+        <text class="empty-icon">👥</text>
+        <text class="empty-txt">还没有学员</text>
+        <text class="empty-sub">学员签到后自动收录在这里</text>
+      </view>
+    </block>
+
+    <!-- ===== Tab3 结算 ===== -->
+    <block wx:if="{{tab === 2}}">
+      <view class="settle-head flex-row">
+        <text class="month-arrow" bindtap="prevMonth">◀</text>
+        <text class="month-text">{{monthText}}{{monthAtCurrent ? '（本月）' : ''}}</text>
+        <text class="month-arrow {{monthAtCurrent ? 'month-disabled' : ''}}" bindtap="nextMonth">▶</text>
+      </view>
+
+      <view class="settle-card flex-row" wx:if="{{settlement}}">
+        <view class="flex-col flex-1 metric-box">
+          <text class="metric-num">{{settlement.sessions}}</text>
+          <text class="metric-label">课次（已结束）</text>
+        </view>
+        <view class="flex-col flex-1 metric-box">
+          <text class="metric-num">{{settlement.checkins}}</text>
+          <text class="metric-label">签到人数</text>
+        </view>
+      </view>
+
+      <view class="money-card" wx:if="{{settlement}}">
+        <view class="money-row flex-between">
+          <text>课时费</text>
+          <text>¥{{settlement.courseFeeText}}</text>
+        </view>
+        <view class="money-row flex-between">
+          <text>签到奖励</text>
+          <text>¥{{settlement.rewardText}}</text>
+        </view>
+        <view class="money-row flex-between money-total">
+          <text>合计</text>
+          <text>¥{{settlement.totalText}}</text>
+        </view>
+      </view>
+      <view class="loading-tip" wx:if="{{settlementLoading}}">加载中...</view>
+    </block>
+
+    <view class="list-spacer"></view>
+  </view>
+
+  <!-- 手动输入签到码弹窗 -->
+  <view class="modal-mask" wx:if="{{manualShow}}" bindtap="closeManual">
+    <view class="modal-box" catchtap="noop">
+      <text class="modal-title">手动核销</text>
+      <input class="manual-input" type="number" maxlength="10"
+             placeholder="输入学员出示的纯数字签到码" value="{{manualCode}}" bindinput="onManualInput"/>
+      <view class="flex-row modal-btns">
+        <text class="modal-btn cancel" bindtap="closeManual">取消</text>
+        <text class="modal-btn confirm" bindtap="confirmManual">核销</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 学员详情弹层：跟课记录 + 笔记 -->
+  <view class="modal-mask" wx:if="{{detailShow}}" bindtap="closeStudent">
+    <view class="detail-box" catchtap="noop">
+      <view class="flex-between detail-head">
+        <text class="detail-name">{{detailStudent.nickname}}</text>
+        <text class="modal-btn cancel" bindtap="closeStudent">关闭</text>
+      </view>
+      <scroll-view scroll-y class="detail-scroll">
+        <view class="detail-section">
+          <text class="section-title">跟课记录（{{detailLessons.length}}）</text>
+          <view class="lesson-row" wx:for="{{detailLessons}}" wx:key="id">
+            <text class="lesson-name">{{item.course_name}}</text>
+            <text class="lesson-time">{{item.date}} {{item.start_time}}-{{item.end_time}}</text>
+          </view>
+          <text class="empty-sub" wx:if="{{detailLessons.length === 0}}">暂无签到记录</text>
+        </view>
+        <view class="detail-section">
+          <text class="section-title">学员笔记（仅自己可见）</text>
+          <textarea class="note-area" placeholder="记录学员反馈、身体状态，下次课前提醒..." value="{{noteText}}" bindinput="onNoteInput" maxlength="500"></textarea>
+          <view class="note-save {{noteSaving ? 'note-saving' : ''}}" bindtap="saveNote">{{noteSaving ? '保存中...' : '保存笔记'}}</view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>

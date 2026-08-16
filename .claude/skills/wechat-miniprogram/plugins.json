@@ -1,0 +1,13 @@
+{
+  "name": "wechat-miniprogram-skill",
+  "version": "1.0.0",
+  "description": "WeChat Mini Program (微信小程序) development skill for Claude Code",
+  "author": "asdyych",
+  "skills": [
+    {
+      "name": "wechat-miniprogram",
+      "path": ".",
+      "description": "WeChat Mini Program rapid development guide"
+    }
+  ]
+}

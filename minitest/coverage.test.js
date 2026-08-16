@@ -11,6 +11,8 @@ const http = require('node:http');
 
 // 同进程加载 server + db（同一 SQLite 文件，WAL 并发安全）
 const { server, db } = require('../server/index.js');
+// 日期/时间统一取北京时间（time.js 显式时区），CI（UTC）与本地口径一致（BUG-LEDGER #28）
+const timeMod = require('../server/time.js');
 
 // ===== 测试数据（独立前缀，避免与端到端测试冲突） =====
 const U1 = { openid: 'uid_cov_u1', nickname: '覆盖测试A' };
@@ -28,6 +30,8 @@ function clean() {
     db.db.prepare(`DELETE FROM ${t} WHERE user_openid LIKE 'uid_cov_%'`).run();
   }
   db.db.prepare("DELETE FROM invitations WHERE inviter LIKE 'uid_cov_%' OR invitee LIKE 'uid_cov_%'").run();
+  db.db.prepare("DELETE FROM coach_notes WHERE coach_openid LIKE 'uid_cov_%' OR student_openid LIKE 'uid_cov_%'").run();
+  db.db.prepare("UPDATE coaches SET user_openid = NULL WHERE user_openid LIKE 'uid_cov_%'").run();
   db.db.prepare("DELETE FROM course_sessions WHERE source='cov_suite'").run();
   if (covCourseId) {
     db.db.prepare('DELETE FROM schedule_templates WHERE course_id = ?').run(covCourseId);
@@ -83,18 +87,17 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     // ---- 02 课程与场次 ----
     r = await req('GET', '/api/courses');
     assert.ok(r.data.courses.length > 0, '课程列表');
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayStr = timeMod.todayStr();
     r = await req('GET', '/api/sessions?date=' + todayStr);
     assert.ok(Array.isArray(r.data.sessions), '场次列表');
     // 造一个独立测试场次（容量 2：用于订课/满员/候补/签到全链路）
-    // 时间=当前+30分钟（签到窗口是开课前30分~课后2h，BUG-LEDGER #10 后固定 19:00 会被窗口拒绝）
+    // 时间=当前+30分钟（签到窗口是开课前30分~课后30分，BUG-LEDGER #10/#28 统一后固定时刻会被窗口拒绝）
     const course = db.db.prepare('SELECT id FROM courses LIMIT 1').get();
     const ckStart = new Date(Date.now() + 30 * 60000);
     const ckEnd = new Date(ckStart.getTime() + 60 * 60000);
     const pad2 = n => String(n).padStart(2, '0');
-    const ckStartStr = `${pad2(ckStart.getHours())}:${pad2(ckStart.getMinutes())}`;
-    const ckEndStr = `${pad2(ckEnd.getHours())}:${pad2(ckEnd.getMinutes())}`;
+    const ckStartStr = `${pad2(timeMod.parts(ckStart).h)}:${pad2(timeMod.parts(ckStart).mi)}`;
+    const ckEndStr = `${pad2(timeMod.parts(ckEnd).h)}:${pad2(timeMod.parts(ckEnd).mi)}`;
     const ins = db.db.prepare(
       "INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source) VALUES (?,1,1,?,?,?,2,0,'published','cov_suite')"
     ).run(course.id, todayStr, ckStartStr, ckEndStr);
@@ -195,6 +198,7 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     r = await req('GET', '/api/invite/details?openid=' + U1.openid);
     assert.ok(Array.isArray(r.data.details), '邀请明细');
     r = await req('GET', '/api/admin/invite-board');
+    assert.ok(r.data.board, '邀请看板');
     // 次卡包探针
     r = await req('GET', '/api/passes/packages');
     assert.strictEqual(r.status, 200, 'passes/packages 200');
@@ -206,7 +210,6 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     r = await req('GET', '/api/sessions/1?openid=' + U1.openid);
     assert.ok(Array.isArray(r.data.session.images), '详情 images 数组');
     assert.ok(Array.isArray(r.data.session.bookedUsers), '详情 bookedUsers 数组');
-    assert.ok(r.data.board, '邀请看板');
 
     // ---- 11 能量币：兑换失败/成功/记录/配置 ----
     r = await req('GET', '/api/coin/shop');
@@ -233,7 +236,9 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     r = await req('PUT', `/api/courses/${covCourseId}`, { name: '覆盖测试课程改', tags: '测试' });
     assert.equal(r.data.code, 200, '更新课程');
     // 时段用 14:00-15:00（避开 seed 场次 10:00/11:00/15:00/16:00/20:00/21:00，排课冲突检测 BUG-LEDGER #7 相关功能会跳过重叠时段）
-    r = await req('PUT', `/api/courses/${covCourseId}/rules`, { rules: [{ weekday: today.getDay() || 7, start_time: '14:00', end_time: '15:00', venue_id: 1, coach_id: 1, capacity: 5 }] });
+    const [cy, cm, cd] = todayStr.split('-').map(Number);
+    const wd = new Date(Date.UTC(cy, cm - 1, cd)).getUTCDay(); // 无时区依赖的星期
+    r = await req('PUT', `/api/courses/${covCourseId}/rules`, { rules: [{ weekday: wd === 0 ? 7 : wd, start_time: '14:00', end_time: '15:00', venue_id: 1, coach_id: 1, capacity: 5 }] });
     assert.equal(r.data.code, 200, '保存排课规则');
     r = await req('POST', `/api/courses/${covCourseId}/publish`, { start_date: todayStr, end_date: todayStr });
     assert.equal(r.data.code, 200, '发布场次');
@@ -256,6 +261,23 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     assert.ok(Array.isArray(r.data.coaches), '下拉元数据');
     r = await req('GET', '/api/member/config');
     assert.ok(r.data.config, '会员配置');
+
+    // ---- 13.5 教练工作台（DESIGN #D1）：学员/笔记/结算/设教练探针 ----
+    r = await req('POST', '/api/admin/coach-assign', { openid: COACH.openid, coach_id: 1 });
+    assert.equal(r.data.code, 200, '设教练');
+    r = await req('GET', '/api/coach/students?coach_openid=' + COACH.openid);
+    assert.ok(r.data.students, '我的学员');
+    r = await req('PUT', '/api/coach/notes', { coach_openid: COACH.openid, student_openid: U1.openid, content: '探针笔记' });
+    assert.equal(r.data.note.content, '探针笔记', '笔记写入');
+    r = await req('GET', '/api/coach/notes?coach_openid=' + COACH.openid + '&student_openid=' + U1.openid);
+    assert.equal(r.data.note.content, '探针笔记', '笔记读取');
+    r = await req('GET', '/api/coach/student-lessons?coach_openid=' + COACH.openid + '&student_openid=' + U1.openid);
+    assert.ok(Array.isArray(r.data.lessons), '跟课记录');
+    const covMonth = `${timeMod.parts().y}-${String(timeMod.parts().mo).padStart(2, '0')}`;
+    r = await req('GET', `/api/coach/settlement?coach_id=1&month=${covMonth}`);
+    assert.ok(r.data.settlement && r.data.settlement.total_fen >= 0, '月度结算');
+    r = await req('GET', '/api/coach/settlement?coach_id=1&month=2026-13');
+    assert.equal(r.status, 400, '非法月份拒绝');
 
     // ---- 14 候补复杂路径：排位 / 退订转正 / 退出退款 / 过期退款 ----
     const s4 = db.db.prepare(

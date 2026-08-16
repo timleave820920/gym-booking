@@ -109,9 +109,87 @@
 }
 .td-status { width: 30%; }
 .td-num { width: 15%; font-size: 28rpx; color: #1A1A23; }
-.td-op { width: 10%; text-align: right; font-size: 28rpx; font-weight: 600; color: #5B57EB; }
+.td-op { width: 26%; text-align: right; font-size: 28rpx; font-weight: 600; color: #5B57EB; justify-content: flex-end; gap: 12rpx; }
+.td-btn {
+  font-size: 24rpx; font-weight: 600;
+  padding: 8rpx 18rpx;
+  border-radius: 16rpx;
+  background: #F0EDE0;
+  color: #1A1A23;
+}
+.td-btn-assign {
+  background: #5B57EB;
+  color: #FFFFFF;
+}
+.td-btn-disabled {
+  background: #E8E6E0;
+  color: #B0AFA8;
+}
 
 .bottom-space { height: 80rpx; }
+
+/* 设教练弹层 */
+.assign-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 26, 35, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99;
+}
+.assign-box {
+  width: 620rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 40rpx;
+  display: flex;
+  flex-direction: column;
+}
+.assign-title {
+  font-size: 34rpx; font-weight: 800; color: #1A1A23;
+}
+.assign-sub {
+  font-size: 24rpx; color: #6B6B76;
+  margin-top: 12rpx;
+  line-height: 1.6;
+}
+.assign-pick {
+  margin-top: 28rpx;
+  background: #F6F3E8;
+  border-radius: 20rpx;
+  padding: 22rpx 24rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 28rpx; color: #1A1A23;
+}
+.assign-arrow {
+  font-size: 24rpx; color: #6B6B76;
+}
+.assign-btns {
+  margin-top: 32rpx;
+  gap: 24rpx;
+}
+.assign-btn {
+  flex: 1;
+  text-align: center;
+  font-size: 28rpx;
+  padding: 18rpx 0;
+  border-radius: 24rpx;
+}
+.assign-btn.cancel {
+  background: #F0EDE0;
+  color: #6B6B76;
+}
+.assign-btn.confirm {
+  background: #5B57EB;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+.assign-btn-disabled {
+  background: #B0AFA8;
+}
 
 /* 退出按钮 */
 .admin-exit {

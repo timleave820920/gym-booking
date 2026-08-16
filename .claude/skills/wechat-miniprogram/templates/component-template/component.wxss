@@ -1,0 +1,16 @@
+:host {
+  display: block;
+}
+
+.component {
+  padding: 20rpx;
+}
+
+.item {
+  padding: 16rpx;
+  border-bottom: 1rpx solid #eee;
+}
+
+.item:last-child {
+  border-bottom: none;
+}

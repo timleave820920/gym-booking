@@ -104,14 +104,67 @@ Page({
     this.setData({ 'user.avatar': '/images/2_556.png' });
   },
 
-  // 点击头像 → 调 wx.chooseAvatar API（2026-08-15 弃用 open-type button 覆盖层：
-  // button 默认点击区域会溢出误触昵称/保存按钮；API 方式点头像图片即触发，无覆盖层）
+  // 点击头像 → 先询问来源（BUG-LEDGER #17：直接调 wx.chooseAvatar 在部分基础库/真机上静默失败
+  // 且失败回调为空→"点了没反应"；改为 ActionSheet 先问「微信头像 or 本地相册」：
+  // 微信头像走官方 chooseAvatar，相册走 wx.chooseMedia（兼容性更广），两路失败均给反馈）
   onTapAvatar() {
+    wx.showActionSheet({
+      itemList: ['使用微信头像', '从本地相册选择'],
+      success: (res) => {
+        if (res.tapIndex === 0) {
+          this.chooseWechatAvatar();
+        } else if (res.tapIndex === 1) {
+          this.chooseLocalImage();
+        }
+      },
+      fail: () => { /* 用户取消 ActionSheet，忽略 */ }
+    });
+  },
+
+  // 使用微信头像：官方头像选择器（微信头像/拍照/相册）
+  chooseWechatAvatar() {
+    if (!wx.chooseAvatar) {
+      wx.showToast({ title: '微信版本过低，无法使用微信头像', icon: 'none' });
+      return;
+    }
+    // BUG-LEDGER #18：开发者工具是模拟环境，无真实微信头像数据，「使用微信头像」只能返回
+    // 默认灰色模拟头像——若被上传入库会污染真实头像数据 → 工具内直接引导真机预览测试
+    try {
+      if (wx.getSystemInfoSync().platform === 'devtools') {
+        wx.showToast({ title: '开发者工具拿不到真实微信头像，请用真机预览测试', icon: 'none' });
+        return;
+      }
+    } catch (e) { /* 平台检测失败则放行 */ }
     wx.chooseAvatar({
       success: (res) => {
         this.handleAvatarChosen({ detail: { avatarUrl: res.avatarUrl } });
       },
-      fail: () => { /* 用户取消选择，忽略 */ }
+      fail: (err) => {
+        // 用户主动取消不提示；接口失败（隐私协议未声明「选中的头像或昵称」/基础库过低）给反馈，避免"点了没反应"
+        if (err && err.errMsg && err.errMsg.indexOf('cancel') >= 0) return;
+        console.error('[avatar] chooseAvatar 失败', JSON.stringify(err));
+        wx.showToast({ title: '无法打开微信头像选择', icon: 'none' });
+      }
+    });
+  },
+
+  // 从本地相册选择图片作为头像
+  chooseLocalImage() {
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album'],
+      sizeType: ['compressed'],
+      success: (res) => {
+        const file = res.tempFiles && res.tempFiles[0];
+        if (file && file.tempFilePath) {
+          this.handleAvatarChosen({ detail: { avatarUrl: file.tempFilePath } });
+        }
+      },
+      fail: (err) => {
+        if (err && err.errMsg && err.errMsg.indexOf('cancel') >= 0) return;
+        wx.showToast({ title: '无法打开相册', icon: 'none' });
+      }
     });
   },
 

@@ -1,0 +1,356 @@
+.page {
+  min-height: 100vh;
+  background: #F9F4DF;
+  padding-bottom: 220rpx;
+}
+.pt-safe {
+  padding-top: calc(88rpx + env(safe-area-inset-top));
+}
+.head-row { align-items: center; }
+.greet-title {
+  font-size: 40rpx; font-weight: 800; color: #1A1A23;
+}
+.greet-sub {
+  font-size: 26rpx; color: #6B6B76;
+  margin-top: 4rpx;
+}
+.logout-btn {
+  font-size: 26rpx; color: #6B6B76;
+  padding: 8rpx 24rpx;
+  border: 2rpx solid #D9D5C6;
+  border-radius: 32rpx;
+}
+
+/* 三段式 Tab */
+.seg-tabs {
+  margin-top: 32rpx;
+  display: flex;
+  background: #EFEAD6;
+  border-radius: 32rpx;
+  padding: 8rpx;
+}
+.seg-item {
+  flex: 1;
+  text-align: center;
+  font-size: 28rpx;
+  color: #6B6B76;
+  padding: 16rpx 0;
+  border-radius: 26rpx;
+}
+.seg-active {
+  background: #1A1A23;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+/* ===== Tab1 课程 ===== */
+.week-bar {
+  margin-top: 28rpx;
+  display: flex;
+  gap: 8rpx;
+}
+.week-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12rpx 0;
+  border-radius: 20rpx;
+  background: #FFFFFF;
+}
+.week-selected {
+  background: #1A1A23;
+}
+.week-label {
+  font-size: 22rpx; color: #6B6B76;
+}
+.week-date {
+  font-size: 30rpx; font-weight: 700; color: #1A1A23;
+  margin-top: 4rpx;
+}
+.week-date-on {
+  color: #FFFFFF;
+}
+.week-selected .week-label {
+  color: #B0AFA8;
+}
+
+.offline-tip {
+  display: block;
+  text-align: center;
+  font-size: 22rpx;
+  color: #B0AFA8;
+  padding: 16rpx 0 0;
+}
+
+.course-card {
+  margin-top: 24rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 28rpx 24rpx;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.time-box {
+  width: 180rpx;
+  flex-shrink: 0;
+}
+.time-value {
+  font-size: 32rpx; font-weight: 800; color: #1A1A23;
+}
+.info-box { justify-content: center; }
+.course-name {
+  font-size: 32rpx; font-weight: 700; color: #1A1A23;
+}
+.course-venue {
+  font-size: 26rpx; color: #6B6B76;
+  margin-top: 6rpx;
+}
+.course-seat {
+  font-size: 24rpx; color: #8C8C94;
+  margin-top: 4rpx;
+}
+.checkin-btn {
+  flex-shrink: 0;
+  background: #27AE60;
+  color: #FFFFFF;
+  font-size: 28rpx; font-weight: 700;
+  padding: 14rpx 32rpx;
+  border-radius: 32rpx;
+}
+.status-txt {
+  flex-shrink: 0;
+  font-size: 26rpx; color: #B0AFA8;
+}
+
+/* ===== Tab2 学员 ===== */
+.student-card {
+  margin-top: 24rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 24rpx;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.05);
+}
+.student-avatar {
+  width: 88rpx; height: 88rpx;
+  border-radius: 50%;
+  margin-right: 24rpx;
+  flex-shrink: 0;
+  background: #EFEAD6;
+}
+.student-name {
+  font-size: 30rpx; font-weight: 700; color: #1A1A23;
+}
+.note-mark {
+  font-size: 22rpx; color: #8C6D1F;
+  background: #FBF0D5;
+  padding: 4rpx 14rpx;
+  border-radius: 16rpx;
+  margin-left: 12rpx;
+}
+.student-last {
+  font-size: 24rpx; color: #6B6B76;
+  margin-top: 8rpx;
+}
+.student-total {
+  flex-shrink: 0;
+  font-size: 22rpx; color: #8C8C94;
+}
+
+/* ===== Tab3 结算 ===== */
+.settle-head {
+  margin-top: 32rpx;
+  align-items: center;
+  justify-content: center;
+  gap: 32rpx;
+}
+.month-arrow {
+  font-size: 32rpx; color: #1A1A23;
+  padding: 8rpx 20rpx;
+}
+.month-disabled {
+  color: #D9D5C6;
+}
+.month-text {
+  font-size: 32rpx; font-weight: 800; color: #1A1A23;
+}
+.settle-card {
+  margin-top: 24rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 32rpx 0;
+}
+.metric-box {
+  align-items: center;
+}
+.metric-num {
+  font-size: 52rpx; font-weight: 800; color: #1A1A23;
+}
+.metric-label {
+  font-size: 24rpx; color: #6B6B76;
+  margin-top: 8rpx;
+}
+.money-card {
+  margin-top: 24rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 32rpx;
+}
+.money-row {
+  font-size: 28rpx; color: #4A4A52;
+  padding: 16rpx 0;
+}
+.money-total {
+  font-size: 34rpx; font-weight: 800; color: #1A1A23;
+  border-top: 2rpx solid #EFEAD6;
+  margin-top: 8rpx;
+  padding-top: 24rpx;
+}
+
+/* 通用 */
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.flex-row { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-1 { flex: 1; }
+.align-center { align-items: center; }
+.list-spacer { height: 60rpx; }
+
+/* 空态 */
+.empty-state {
+  align-items: center;
+  padding: 80rpx 0;
+}
+.empty-icon {
+  font-size: 64rpx;
+  color: #D9D5C6;
+}
+.empty-txt {
+  font-size: 28rpx; color: #8C8C94;
+  margin-top: 16rpx;
+}
+.empty-sub {
+  font-size: 24rpx; color: #B0AFA8;
+  margin-top: 8rpx;
+}
+.loading-tip {
+  text-align: center;
+  font-size: 26rpx;
+  color: #B0AFA8;
+  padding: 48rpx 0;
+}
+
+/* 弹层 */
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 26, 35, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99;
+}
+.modal-box {
+  width: 600rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 40rpx;
+  display: flex;
+  flex-direction: column;
+}
+.modal-title {
+  font-size: 32rpx; font-weight: 700; color: #1A1A23;
+  margin-bottom: 24rpx;
+}
+.manual-input {
+  background: #F6F3E8;
+  border-radius: 20rpx;
+  padding: 20rpx 24rpx;
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #1A1A23;
+}
+.modal-btns {
+  margin-top: 32rpx;
+  justify-content: space-between;
+  gap: 24rpx;
+}
+.modal-btn {
+  flex: 1;
+  text-align: center;
+  font-size: 28rpx;
+  padding: 18rpx 0;
+  border-radius: 24rpx;
+}
+.modal-btn.cancel {
+  background: #F0EDE0;
+  color: #6B6B76;
+}
+.modal-btn.confirm {
+  background: #27AE60;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+/* 学员详情弹层 */
+.detail-box {
+  width: 640rpx;
+  max-height: 75vh;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  display: flex;
+  flex-direction: column;
+}
+.detail-head {
+  margin-bottom: 16rpx;
+}
+.detail-name {
+  font-size: 34rpx; font-weight: 800; color: #1A1A23;
+}
+.detail-scroll {
+  max-height: 52vh;
+}
+.detail-section {
+  margin-top: 24rpx;
+}
+.section-title {
+  font-size: 26rpx; font-weight: 700; color: #6B6B76;
+}
+.lesson-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 0;
+  border-bottom: 2rpx solid #F6F3E8;
+}
+.lesson-name {
+  font-size: 28rpx; font-weight: 600; color: #1A1A23;
+}
+.lesson-time {
+  font-size: 24rpx; color: #8C8C94;
+}
+.note-area {
+  width: 100%;
+  box-sizing: border-box;
+  height: 200rpx;
+  background: #F6F3E8;
+  border-radius: 20rpx;
+  padding: 20rpx;
+  font-size: 26rpx;
+  margin-top: 16rpx;
+}
+.note-save {
+  margin-top: 20rpx;
+  background: #1A1A23;
+  color: #FFFFFF;
+  text-align: center;
+  font-size: 28rpx; font-weight: 700;
+  padding: 18rpx 0;
+  border-radius: 24rpx;
+}
+.note-saving {
+  background: #8C8C94;
+}

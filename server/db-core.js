@@ -347,6 +347,29 @@ db.exec(`
 `);
 try { db.exec('ALTER TABLE orders ADD COLUMN reward_triggered INTEGER DEFAULT 0'); } catch (e) {}
 
+// 教练分成配置表（单行配置单源，DESIGN #D1 任务2）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS coach_config (
+    id                 INTEGER PRIMARY KEY CHECK (id = 1),  -- 单行表
+    course_fee_fen     INTEGER NOT NULL DEFAULT 10000,      -- 课时单价（分，默认 ¥100）
+    checkin_reward_fen INTEGER NOT NULL DEFAULT 500,        -- 签到奖励单价（分，默认 ¥5）
+    updated_at         TEXT DEFAULT (datetime('now','localtime'))
+  );
+  INSERT OR IGNORE INTO coach_config (id) VALUES (1);
+`);
+
+// 教练学员笔记表（每教练每学员一条，仅教练本人可见，DESIGN #D1 任务4）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS coach_notes (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    coach_openid   TEXT NOT NULL,
+    student_openid TEXT NOT NULL,
+    content        TEXT DEFAULT '',
+    updated_at     TEXT DEFAULT (datetime('now','localtime')),
+    UNIQUE(coach_openid, student_openid)
+  );
+`);
+
 /**
  * 根据 openid 查找用户
  */

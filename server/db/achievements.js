@@ -49,12 +49,7 @@ const REWARD_COINS = (ENERGY_CONFIG.earnRules && ENERGY_CONFIG.earnRules.achieve
 const { db } = require('../db-core');
 const { findUserByOpenid } = require('./users');
 const { addCoins } = require('./coin');
-
-/** 日期工具（JS 实现，与 SQLite 格式一致） */
-function fmtDate(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-function pad2(n) { return String(n).padStart(2, '0'); }
+const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 
 /** 9 维判定上下文（与前端 student-achievements 口径一致） */
 function computeAchievementContext(openid) {
@@ -70,9 +65,9 @@ function computeAchievementContext(openid) {
   `).all(openid);
 
   // 已参加 = 已订（booked）且场次已结束（日期早于今天，或今天且结束时间已过）——与前端一致
-  const now = new Date();
-  const todayStr = fmtDate(now);
-  const nowTime = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
+  // 取时间走 time.js（显式北京时间，不依赖容器系统时区，BUG-LEDGER #28）
+  const todayStr = time.todayStr();
+  const nowTime = time.nowTimeStr();
   const attended = bookings.filter(b =>
     b.status === 'booked' &&
     (b.date < todayStr || (b.date === todayStr && b.end_time < nowTime))
@@ -81,12 +76,12 @@ function computeAchievementContext(openid) {
   // 连续天数：从今天（或昨天，若今天还没练）往前数连续有训练的天数
   const dates = attended.map(b => b.date);
   const set = new Set(dates);
-  const d = new Date();
-  if (!set.has(fmtDate(d))) d.setDate(d.getDate() - 1);
+  let cur = todayStr;
+  if (!set.has(cur)) cur = time.prevDateStr(cur);
   let streak = 0;
-  while (set.has(fmtDate(d))) {
+  while (set.has(cur)) {
     streak += 1;
-    d.setDate(d.getDate() - 1);
+    cur = time.prevDateStr(cur);
   }
 
   return {
@@ -96,7 +91,7 @@ function computeAchievementContext(openid) {
     streak,
     totalMinutes: attended.reduce((s, b) => s + (b.duration_min || 60), 0),
     courseKinds: new Set(attended.map(b => b.course_name)).size,
-    memberDays: user.created_at ? Math.max(0, Math.floor((Date.now() - new Date(String(user.created_at).replace(' ', 'T')).getTime()) / 864e5)) : 0,
+    memberDays: user.created_at ? Math.max(0, Math.floor((Date.now() - time.parseBeijing(user.created_at).getTime()) / 864e5)) : 0,
     coins: user.coin_balance || 0,
     rechargeFen: (db.prepare("SELECT COALESCE(SUM(amount_fen),0) s FROM member_recharges WHERE user_openid = ?").get(openid).s) || 0,
     inviteCount: (db.prepare('SELECT COUNT(*) c FROM invitations WHERE inviter = ?').get(openid).c) || 0

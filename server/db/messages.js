@@ -2,6 +2,7 @@
  * 消息域（messages）：站内信、开课提醒、批量通知
  */
 const { db } = require('../db-core');
+const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 
 function sendMessage(m) {
   if (!m || !m.user_openid || !m.title) return null;
@@ -52,12 +53,10 @@ function markAllMessagesRead(openid) {
 
 /** 未来 N 小时内开场的已发布场次（开课提醒用） */
 function listSessionsStartingSoon(hours) {
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  const hh = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  const startHH = hh(now);
-  const end = new Date(now.getTime() + hours * 3600e3);
-  const endHH = hh(end);
+  // 取时间走 time.js（显式北京时间，不依赖容器系统时区，BUG-LEDGER #28）
+  const today = time.todayStr();
+  const startHH = time.nowTimeStr().slice(0, 5);
+  const endHH = time.nowTimeStr(new Date(Date.now() + hours * 3600e3)).slice(0, 5);
   return db.prepare(`
     SELECT s.id, s.date, s.start_time, s.end_time, s.course_id, c.name AS course_name, v.name AS venue_name
     FROM course_sessions s

@@ -35,3 +35,6 @@ server/logs/
 # 环境变量（含 AppSecret，严禁入库）
 server/.env
 .env
+
+# Claude Code 个人本地配置（机器路径+会话授权，不入库）
+.claude/settings.local.json

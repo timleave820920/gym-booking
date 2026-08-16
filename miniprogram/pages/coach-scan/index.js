@@ -1,5 +1,6 @@
 const app = getApp();
 const api = require('../../utils/api.js');
+const { parseCode } = require('../../utils/checkin-code.js');
 
 Page({
   data: {
@@ -21,7 +22,7 @@ Page({
       onlyFromCamera: true,
       scanType: ['qrCode'],
       success: (res) => {
-        // 解析凭证码：GYM-{bookingId} 或纯 bookingId
+        // 解析凭证码：纯数字 {bookingId}（DESIGN #D1，兼容历史 GYM- 前缀）
         const code = (res.result || '').trim();
         const bookingId = this.parseCode(code);
         if (!bookingId) {
@@ -36,10 +37,9 @@ Page({
     });
   },
 
-  // 解析凭证码（GYM-0001 → 1；纯数字也可）
+  // 解析凭证码（纯数字 0001 → 1；兼容历史 GYM-0001，DESIGN #D1）
   parseCode(code) {
-    const m = code.match(/GYM-(\d+)/i) || code.match(/^(\d+)$/);
-    return m ? Number(m[1]) : 0;
+    return parseCode(code);
   },
 
   // 调用核销接口
@@ -65,9 +65,9 @@ Page({
   manualCheckin() {
     wx.showModal({
       title: '手动核销',
-      content: '输入学员出示的签到码（如 GYM-0001）',
+      content: '输入学员出示的签到码（纯数字，如 0001）',
       editable: true,
-      placeholderText: 'GYM-0001',
+      placeholderText: '0001',
       success: (res) => {
         if (res.confirm && res.content) {
           const bookingId = this.parseCode(res.content.trim());

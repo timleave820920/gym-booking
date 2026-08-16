@@ -7,6 +7,7 @@
  *  - 退订对称退次；退时卡已过期 → 次数作废清理（D2/D3）
  */
 const { db } = require('../db-core');
+const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 
 // ===== 档位种子（可配置：数据库里增改，前端动态读取）=====
 (function seedPackages() {
@@ -25,18 +26,19 @@ function listPassPackages() {
 
 /** 当前有效次卡（active 且未过期且剩余>0；无则 null） */
 function getUserPass(openid) {
+  // 当前时刻显式传北京字符串（time.js），不依赖 SQLite 系统时区（BUG-LEDGER #28）
   return db.prepare(`
     SELECT * FROM user_passes
-    WHERE user_openid = ? AND status = 'active' AND remaining > 0 AND expires_at > datetime('now','localtime')
+    WHERE user_openid = ? AND status = 'active' AND remaining > 0 AND expires_at > ?
     ORDER BY expires_at LIMIT 1
-  `).get(openid) || null;
+  `).get(openid, time.nowDateTimeStr()) || null;
 }
 
 /** 按上课日期判断次卡可用：卡必须覆盖上课日（date(expires_at) >= 课程日期）
  *  —— 卡今天过期 → 不能预订明天及以后场次；无 date 时退化为当前时刻判断（兼容） */
 function getUserPassForDate(openid, date) {
-  const params = [openid];
-  let cond = "AND expires_at > datetime('now','localtime')";
+  const params = [openid, time.nowDateTimeStr()];
+  let cond = "AND expires_at > ?";
   if (date) {
     cond += " AND date(expires_at) >= date(?)";
     params.push(date);
@@ -52,10 +54,11 @@ function getUserPassForDate(openid, date) {
 function getUserPassInfo(openid) {
   const pass = db.prepare("SELECT * FROM user_passes WHERE user_openid = ? ORDER BY id DESC LIMIT 1").get(openid);
   if (!pass) return { hasPass: false };
-  const now = new Date();
-  const exp = new Date(String(pass.expires_at).replace(' ', 'T'));
-  const daysLeft = Math.max(0, Math.ceil((exp - now) / 864e5));
-  const expired = pass.status !== 'active' || exp <= now;
+  // 过期判定：expires_at 是北京时间字符串 → parseBeijing 统一换算绝对时刻，与系统时区无关（BUG-LEDGER #28）
+  const nowTs = Date.now();
+  const exp = time.parseBeijing(pass.expires_at).getTime();
+  const daysLeft = Math.max(0, Math.ceil((exp - nowTs) / 864e5));
+  const expired = pass.status !== 'active' || exp <= nowTs;
   return {
     hasPass: true,
     id: pass.id,
@@ -67,11 +70,11 @@ function getUserPassInfo(openid) {
   };
 }
 
-/** 内部：到期 23:59:59 格式化 */
+/** 内部：到期 23:59:59 格式化（北京时间当天 23:59:59，显式时区 BUG-LEDGER #28） */
 function expiryAt(d) {
-  d.setHours(23, 59, 59, 0);
-  const p = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  const p = time.parts(d);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${p.y}-${pad(p.mo)}-${pad(p.d)} 23:59:59`;
 }
 
 /**
@@ -82,11 +85,11 @@ function expiryAt(d) {
 function applyPassPurchase({ openid, orderId, packageId }) {
   const pkg = db.prepare('SELECT * FROM class_packages WHERE id = ? AND active = 1').get(packageId);
   if (!pkg) return { ok: false, error: '无效的次卡套餐' };
-  const cur = db.prepare("SELECT * FROM user_passes WHERE user_openid = ? AND status = 'active' AND expires_at > datetime('now','localtime') ORDER BY id DESC LIMIT 1").get(openid);
+  const cur = db.prepare("SELECT * FROM user_passes WHERE user_openid = ? AND status = 'active' AND expires_at > ? ORDER BY id DESC LIMIT 1").get(openid, time.nowDateTimeStr());
   let pass;
   if (cur) {
     // 有有效卡 → 累加次数 + 顺延作废日期（剩 N 天买 M 天 → 作废期 = 原作废期 + M 天）
-    const base = new Date(String(cur.expires_at).replace(' ', 'T'));
+    const base = time.parseBeijing(cur.expires_at);
     const newExp = expiryAt(new Date(base.getTime() + pkg.valid_days * 864e5));
     db.prepare('UPDATE user_passes SET remaining = remaining + ?, total_count = total_count + ?, expires_at = ?, order_id = ? WHERE id = ?')
       .run(pkg.total_count, pkg.total_count, newExp, orderId, cur.id);
@@ -121,7 +124,7 @@ function refundPass(passId) {
   if (!passId) return 'none';
   const pass = db.prepare('SELECT * FROM user_passes WHERE id = ?').get(passId);
   if (!pass) return 'none';
-  const nowStr = new Date().toLocaleString('sv-SE', { hour12: false }).replace('T', ' ');
+  const nowStr = time.nowDateTimeStr();
   if (pass.status !== 'active' || String(pass.expires_at) <= nowStr) {
     // 卡已过期 → 作废清理
     db.prepare("UPDATE user_passes SET status = 'expired' WHERE id = ?").run(passId);
@@ -133,7 +136,7 @@ function refundPass(passId) {
 
 /** 过期任务：把已过期的卡标记 expired（返回过期卡数；用于消息通知） */
 function expireOverduePasses() {
-  const rows = db.prepare("SELECT id FROM user_passes WHERE status = 'active' AND expires_at <= datetime('now','localtime')").all();
+  const rows = db.prepare("SELECT id FROM user_passes WHERE status = 'active' AND expires_at <= ?").all(time.nowDateTimeStr());
   for (const r of rows) db.prepare("UPDATE user_passes SET status = 'expired' WHERE id = ?").run(r.id);
   return rows.length;
 }

@@ -936,6 +936,12 @@ function handleSessionDetail(req, res, id) {
 }
 
 function toPublicUser(user) {
+  let coach_id = null;
+  if (user.role === 'coach') {
+    // 教练账号 → 返回绑定的教练档案 id（DESIGN #D1 设教练后可能不是 1，前端工作台按 coach_id 加载）
+    const c = db.findCoachByOpenid(user.openid);
+    coach_id = c ? c.id : null;
+  }
   return {
     id: user.id,
     openid: user.openid,
@@ -949,7 +955,8 @@ function toPublicUser(user) {
     streak: user.streak,
     created_at: user.created_at,
     last_login_at: user.last_login_at,
-    login_count: user.login_count
+    login_count: user.login_count,
+    coach_id
   };
 }
 
@@ -1107,6 +1114,57 @@ const API_ROUTES = [
       if (!from || !to) return sendJson(r, 400, { code: 400, message: '缺少 from/to 日期参数' });
       const sessions = db.listSessionsByRange(from, to, 0, id);
       sendJson(r, 200, { code: 200, sessions });
+    } },
+  // ===== 教练工作台（DESIGN #D1）=====
+  // 我的学员（已签到聚合）
+  { m: 'GET',    p: '/api/coach/students',       f: (q, r, u) => {
+      const openid = u.searchParams.get('coach_openid') || '';
+      if (!openid) return sendJson(r, 400, { code: 400, message: '缺少 coach_openid 参数' });
+      const students = db.listCoachStudents(openid);
+      if (!students) return sendJson(r, 404, { code: 404, message: '教练档案不存在，请先设置教练档案' });
+      sendJson(r, 200, { code: 200, students });
+    } },
+  // 学员跟课记录（教练查某学员全部签到课程）
+  { m: 'GET',    p: '/api/coach/student-lessons', f: (q, r, u) => {
+      const coachOpenid = u.searchParams.get('coach_openid') || '';
+      const studentOpenid = u.searchParams.get('student_openid') || '';
+      if (!coachOpenid || !studentOpenid) return sendJson(r, 400, { code: 400, message: '缺少 coach_openid 或 student_openid 参数' });
+      const lessons = db.listStudentLessons(coachOpenid, studentOpenid);
+      if (!lessons) return sendJson(r, 404, { code: 404, message: '教练档案不存在，请先设置教练档案' });
+      sendJson(r, 200, { code: 200, lessons });
+    } },
+  // 学员笔记（仅本人）
+  { m: 'GET',    p: '/api/coach/notes',          f: (q, r, u) => {
+      const coachOpenid = u.searchParams.get('coach_openid') || '';
+      const studentOpenid = u.searchParams.get('student_openid') || '';
+      if (!coachOpenid || !studentOpenid) return sendJson(r, 400, { code: 400, message: '缺少 coach_openid 或 student_openid 参数' });
+      sendJson(r, 200, { code: 200, note: db.getCoachNote(coachOpenid, studentOpenid) });
+    } },
+  { m: 'PUT',    p: '/api/coach/notes',          f: async (q, r, u) => {
+      const body = await readBody(q);
+      const { coach_openid: coachOpenid = '', student_openid: studentOpenid = '', content = '' } = body || {};
+      if (!coachOpenid || !studentOpenid) return sendJson(r, 400, { code: 400, message: '缺少 coach_openid 或 student_openid' });
+      if (typeof content !== 'string' || content.length > 500) return sendJson(r, 400, { code: 400, message: '笔记内容需为文本且不超过 500 字' });
+      sendJson(r, 200, { code: 200, note: db.upsertCoachNote(coachOpenid, studentOpenid, content) });
+    } },
+  // 月度结算（只读聚合）
+  { m: 'GET',    p: '/api/coach/settlement',     f: (q, r, u) => {
+      const coachId = Number(u.searchParams.get('coach_id') || 0);
+      const month = u.searchParams.get('month') || '';
+      if (!coachId || !month) return sendJson(r, 400, { code: 400, message: '缺少 coach_id 或 month 参数（YYYY-MM）' });
+      const s = db.getCoachSettlement(coachId, month);
+      if (!s) return sendJson(r, 400, { code: 400, message: 'month 格式应为 YYYY-MM' });
+      sendJson(r, 200, { code: 200, settlement: s });
+    } },
+  // 管理后台设教练
+  { m: 'POST',   p: '/api/admin/coach-assign',   f: async (q, r, u) => {
+      const body = await readBody(q);
+      const { openid = '', coach_id: coachId = 0 } = body || {};
+      if (!openid || !coachId) return sendJson(r, 400, { code: 400, message: '缺少 openid 或 coach_id' });
+      const res = db.assignCoach(openid, coachId);
+      if (!res.ok) return sendJson(r, 400, { code: 400, message: res.error });
+      logOp('admin', 'coach_assign', { openid, coachId }, 'ok');
+      sendJson(r, 200, { code: 200, ok: true });
     } },
   { m: 'GET',    p: /^\/api\/sessions\/\d+$/, f: (q, r, u) => handleSessionDetail(q, r, u.pathname.split('/')[3]) }
 ];

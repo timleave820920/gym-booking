@@ -148,7 +148,7 @@ Page({
       if (res.exists) {
         const role = ui.role || 'student';
         if (role === 'coach') {
-          wx.reLaunch({ url: '/pages/coach-schedule/index' });
+          wx.reLaunch({ url: '/pages/coach-home/index' });
         } else {
           wx.reLaunch({ url: '/pages/student-courses/index' });
         }
@@ -431,8 +431,8 @@ Page({
             phone: user.phone || '',
             openid: user.openid || openid,
             role: user.role || 'student',
-            // 教练账号（如「喻馥雅」）→ 绑定教练档案 id=1（教练端课表按 coach_id 加载）
-            coach_id: (user.role === 'coach') ? 1 : undefined,
+            // 教练账号 → 绑定教练档案 id（后端返回，DESIGN #D1 设教练后按真实档案加载）
+            coach_id: (user.role === 'coach') ? (user.coach_id || 1) : undefined,
             totalClasses: user.total_classes || 32,
             totalHours: user.total_hours || '28.5h',
             totalCalories: user.total_calories || '12,480',
@@ -468,20 +468,25 @@ Page({
             icon: 'none'
           });
           setTimeout(() => {
-            // 登录完成 → 按角色分流：教练进教练端课表，学员进预约页
+            // 登录完成 → 按角色分流：教练进教练工作台，学员进预约页（DESIGN #D1）
             if (userInfo.role === 'coach') {
-              wx.redirectTo({ url: '/pages/coach-schedule/index' });
+              wx.redirectTo({ url: '/pages/coach-home/index' });
             } else {
               wx.switchTab({ url: '/pages/student-courses/index' });
             }
           }, 600);
         }).catch((err) => {
           this.setData({ loggingIn: false });
+          // 2026-08-16: 云托管 Git 关联部署自动重建期间（数分钟窗口）callContainer 会短暂失败，
+          // 弹窗提供「重试」一键重发登录请求（BUG-LEDGER #24），用户无需退出重进
           wx.showModal({
             title: '登录失败',
             content: err.message || '无法连接服务器',
-            showCancel: false,
-            confirmText: '知道了'
+            confirmText: '重试',
+            cancelText: '取消',
+            success: (r) => {
+              if (r.confirm) this.doLogin(userProfile, testNick);
+            }
           });
         });
       },

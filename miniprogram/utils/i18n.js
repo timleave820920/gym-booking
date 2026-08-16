@@ -165,7 +165,7 @@ const DICT = {
   manualCheckIn: { zh: '手动签到', en: 'Manual Check-in' },
   scanCheckIn: { zh: '扫码签到', en: 'Scan to Check In' },
   scanHint: { zh: '出示二维码给前台扫码签到', en: 'Show QR code to front desk to check in' },
-  checkInBefore30: { zh: '开课前 30 分钟可签到，迟到 15 分钟自动取消', en: 'Check-in opens 30 min before class; auto-cancel 15 min late' },
+  checkInBefore30: { zh: '开课前 30 分钟起可签到，课程结束后 30 分钟内可补签', en: 'Check-in opens 30 min before class and closes 30 min after class ends' },
   checkedCount: { zh: '已签到 {{checked}}/{{total}}', en: 'Checked {{checked}}/{{total}}' },
   refreshCode: { zh: '刷新签到码', en: 'Refresh Code' },
   codeValid10min: { zh: '签到码 10 分钟内有效', en: 'Code valid for 10 minutes' },

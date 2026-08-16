@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>参赛荣誉页 · 综合训练馆订课系统</title>
+<style>
+  :root {
+    --cream: #F9F4DF; --lime: #B9FF66; --purple: #5B57EB;
+    --dark: #1A1A23; --gray: #6B6B76; --light: #B0AFA8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+    background: #EFEAD5; color: var(--dark); padding: 40px 20px 60px;
+    display: flex; flex-direction: column; align-items: center; gap: 24px;
+  }
+  .page-title { font-size: 22px; font-weight: 800; letter-spacing: 1px; }
+  .page-sub { font-size: 13px; color: var(--gray); max-width: 560px; text-align: center; line-height: 1.8; }
+  .note {
+    font-size: 12px; color: var(--gray); line-height: 1.7; max-width: 440px;
+    padding: 12px 14px; background: #FFFDF4; border: 1px solid #E3DEC9; border-radius: 10px;
+  }
+  .note b { color: var(--dark); }
+
+  /* ========== 手机框架 ========== */
+  .phone-frame {
+    width: 375px; background: #FFFFFF; border-radius: 28px; padding: 10px;
+    box-shadow: 0 16px 48px rgba(26,26,35,0.22); border: 2px solid #1A1A23;
+  }
+  .phone-screen { width: 375px; background: var(--cream); border-radius: 20px; overflow: hidden; }
+  /* 导航栏 */
+  .nav {
+    height: 44px; display: flex; align-items: center; justify-content: center;
+    background: var(--cream); position: relative; border-bottom: 1px solid rgba(26,26,35,0.05);
+  }
+  .nav-title { font-size: 16px; font-weight: 700; }
+  .nav-back {
+    position: absolute; left: 14px; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--white); border: 1.5px solid var(--dark);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: var(--dark); text-decoration: none;
+  }
+
+  /* ========== 参赛荣誉页（rpx→px：/2 换算） ========== */
+  .honor-page { padding: 12px 12px 30px; }
+  /* 荣誉主卡 */
+  .honor-hero { background: var(--dark); border-radius: 12px; padding: 16px; }
+  .hh-title { display: block; font-size: 19px; font-weight: 800; color: #FFF; }
+  .hh-sub { display: block; margin-top: 4px; font-size: 11px; color: rgba(255,255,255,0.7); }
+  .medals { margin-top: 14px; display: flex; gap: 8px; }
+  .medal {
+    flex: 1; background: rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 0;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .medal-v { font-size: 16px; font-weight: 800; color: var(--lime); }
+  .medal-l { font-size: 10px; color: rgba(255,255,255,0.6); }
+  /* 高光时刻 */
+  .sec-title { margin: 20px 0 10px; font-size: 15px; font-weight: 700; }
+  .honor-item {
+    display: flex; align-items: center; gap: 10px;
+    background: #FFFFFF; border-radius: 12px; padding: 12px; margin-bottom: 8px;
+  }
+  .honor-medal {
+    width: 44px; height: 44px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .honor-medal-txt { font-size: 17px; font-weight: 800; color: #FFF; }
+  .honor-title { display: block; font-size: 13px; font-weight: 700; color: var(--dark); }
+  .honor-desc { display: block; margin-top: 4px; font-size: 11px; color: var(--light); }
+  /* 查看更多 */
+  .more-btn {
+    margin-top: 10px; background: var(--dark); border-radius: 22px; padding: 13px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .more-txt { font-size: 14px; font-weight: 700; color: var(--lime); }
+</style>
+</head>
+<body>
+  <div class="page-title">参赛荣誉页 · 高保真预览</div>
+  <div class="page-sub">依据 <code>miniprogram/pages/honors/</code>（index.wxml / index.wxss / index.js）1:1 还原</div>
+
+  <div class="phone-frame">
+    <div class="phone-screen">
+      <div class="nav">
+        <a class="nav-back" href="#">‹</a>
+        <span class="nav-title">参赛荣誉</span>
+      </div>
+      <div class="honor-page">
+        <!-- 荣誉主卡 -->
+        <div class="honor-hero">
+          <span class="hh-title">32 项赛事荣誉</span>
+          <span class="hh-sub">3 年参赛积累 · 教练学员共同征战</span>
+          <div class="medals">
+            <div class="medal"><span class="medal-v">8</span><span class="medal-l">金牌</span></div>
+            <div class="medal"><span class="medal-v">11</span><span class="medal-l">银牌</span></div>
+            <div class="medal"><span class="medal-v">13</span><span class="medal-l">铜牌</span></div>
+          </div>
+        </div>
+
+        <!-- 高光时刻 -->
+        <div class="sec-title">高光时刻</div>
+        <div class="honor-list">
+          <div class="honor-item">
+            <div class="honor-medal" style="background:#F2C43B;">
+              <span class="honor-medal-txt">金</span>
+            </div>
+            <div class="honor-info">
+              <span class="honor-title">2026 城市体能挑战赛 · 团体冠军</span>
+              <span class="honor-desc">教练阿凯带队 · 12 名学员完赛</span>
+            </div>
+          </div>
+          <div class="honor-item">
+            <div class="honor-medal" style="background:#C9CDD3;">
+              <span class="honor-medal-txt">银</span>
+            </div>
+            <div class="honor-info">
+              <span class="honor-title">2025 全国 CrossFit 公开赛 · 亚军</span>
+              <span class="honor-desc">学员陈晓萌晋级全国 50 强</span>
+            </div>
+          </div>
+          <div class="honor-item">
+            <div class="honor-medal" style="background:#D9A066;">
+              <span class="honor-medal-txt">铜</span>
+            </div>
+            <div class="honor-info">
+              <span class="honor-title">2024 城市马拉松接力赛 · 季军</span>
+              <span class="honor-desc">学员团队 4 小时 12 分完赛</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 查看更多 -->
+        <div class="more-btn"><span class="more-txt">查看全部荣誉 →</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>页面结构</b>：① 深色主卡（32 项荣誉统计，青柠色数字）② 「高光时刻」白卡列表
+    （金银铜圆形奖章 + 标题 + 描述）③ 「查看全部荣誉 →」深色胶囊按钮。<br>
+    <b>数据来源</b>：<code>index.js</code> 中 HONORS 常量（3 条），奖章颜色内联在数据里。<br>
+    <b>品牌色</b>：奶油底 #F9F4DF / 暖黑 #1A1A23 / 青柠 #B9FF66，与 DESIGN-SYSTEM 一致。
+  </div>
+</body>
+</html>

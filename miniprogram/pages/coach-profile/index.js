@@ -1,5 +1,6 @@
 const app = getApp();
 const api = require('../../utils/api.js');
+const courseStatus = require('../../utils/course-status.js');
 
 // 2026-08-15: 教练介绍页（V1 设计稿落地）
 // 结构：生活照(placeholder) → 教练档案卡 → 技能认证｜比赛成绩(左右并行) → TA 的课程(周日期条+当日课程)
@@ -75,10 +76,12 @@ Page({
     const date = this.data.selectedDate;
     const daySessions = this.data.sessions
       .filter(s => s.date === date)
+      // 只显示未开始的课程；已过去（含进行中）的不展示（2026-08-15 用户要求）
+      .filter(s => courseStatus.getSessionStatus(s.date, s.start_time, s.end_time) === 'upcoming')
       .map(s => ({
         ...s,
         isFull: (s.remaining || 0) <= 0,
-        canBook: (s.remaining || 0) > 0 && s.status !== 'ongoing' && s.status !== 'ended'
+        booked: s.booked_count || 0
       }));
     this.setData({ daySessions });
   },
@@ -96,11 +99,6 @@ Page({
   goDetail(e) {
     const id = e.currentTarget.dataset.id;
     wx.navigateTo({ url: '/pages/student-course-detail/index?session_id=' + id });
-  },
-
-  // 底部主 CTA「约 TA 的课」：滚动到课程区
-  scrollToCourses() {
-    wx.pageScrollTo({ selector: '#course-section', duration: 300 });
   },
 
   goBack() {

@@ -5,7 +5,14 @@ Page({
     students: [],
     loading: true,
     totalCount: 0,
-    dbConnected: false
+    dbConnected: false,
+    // 设教练弹层
+    assignShow: false,
+    assignUser: null,        // 待设为教练的学员
+    coachOptions: [],        // 教练档案 [{ id, name, skills }]
+    coachNames: [],
+    assignCoachIdx: 0,
+    assigning: false
   },
 
   onLoad() {
@@ -22,6 +29,7 @@ Page({
     api.getUsers().then((res) => {
       const students = res.users.map(u => ({
         id: u.id,
+        openid: u.openid,
         name: u.nickname || '微信用户',
         avatar: u.avatar || '/images/2_556.png',
         phone: u.phone || '未绑定手机号',
@@ -89,11 +97,58 @@ Page({
     wx.showToast({ title: '编辑学员', icon: 'none' });
   },
 
+  // ===== 设教练（DESIGN #D1）=====
+  // 打开弹层：加载教练档案列表（/api/meta）
+  openAssign(e) {
+    const idx = e.currentTarget.dataset.idx;
+    const user = this.data.students[idx];
+    if (!user || user.role === 'coach' || user.role === 'admin') return;
+    this.setData({ assignShow: true, assignUser: user, assignCoachIdx: 0, assigning: false });
+    if (this.data.coachOptions.length === 0) {
+      api.getMeta().then((res) => {
+        const coachOptions = (res.coaches || []).map(c => ({ id: c.id, name: c.name, skills: c.skills || '' }));
+        this.setData({
+          coachOptions,
+          coachNames: coachOptions.map(c => c.skills ? `${c.name}（${c.skills}）` : c.name)
+        });
+      }).catch(() => {
+        wx.showToast({ title: '教练档案加载失败', icon: 'none' });
+      });
+    }
+  },
+  closeAssign() {
+    this.setData({ assignShow: false });
+  },
+  onAssignPick(e) {
+    this.setData({ assignCoachIdx: Number(e.detail.value || 0) });
+  },
+  confirmAssign() {
+    if (this.data.assigning) return;
+    const user = this.data.assignUser;
+    const coach = this.data.coachOptions[this.data.assignCoachIdx];
+    if (!user || !coach) {
+      wx.showToast({ title: '请先选择教练档案', icon: 'none' });
+      return;
+    }
+    this.setData({ assigning: true });
+    api.coachAssign(user.openid, coach.id).then(() => {
+      wx.showToast({ title: `已将 ${user.name} 设为教练`, icon: 'success' });
+      this.setData({ assignShow: false, assigning: false });
+      this.loadStudents();
+    }).catch((err) => {
+      this.setData({ assigning: false });
+      wx.showToast({ title: (err && err.message) || '设置失败', icon: 'none' });
+    });
+  },
+
   // 后台导航跳转
   navTo(e) {
     const url = e.currentTarget.dataset.url;
     wx.redirectTo({ url });
   },
+
+  // 弹层内部点击不冒泡
+  noop() {},
 
   // 退出登录，返回登录页
   exitToStudent() {

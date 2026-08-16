@@ -25,6 +25,7 @@
     "pages/student-profile/index",
     "pages/agreement/index",
     "pages/coach-schedule/index",
+    "pages/coach-home/index",
     "pages/coach-students/index",
     "pages/coach-scan/index",
     "pages/admin-dashboard/index",
@@ -36,7 +37,6 @@
     "pages/admin-create-course/index",
     "pages/admin-db/index"
   ],
-  "requiredPrivateInfos": ["chooseAvatar", "nickName"],
   "window": {
     "navigationBarBackgroundColor": "#F9F4DF",
     "navigationBarTitleText": "综合训练馆",

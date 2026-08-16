@@ -1,0 +1,15 @@
+<view class="component">
+  <slot name="header" />
+  <view class="content">
+    <view
+      wx:for="{{ items }}"
+      wx:key="id"
+      class="item"
+      data-id="{{ item.id }}"
+      bindtap="onTap"
+    >
+      {{ item.name }}
+    </view>
+  </view>
+  <slot name="footer" />
+</view>

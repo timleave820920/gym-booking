@@ -15,6 +15,110 @@
 
 ---
 
+## #28 云托管容器时区 UTC——签到窗口整体差 8 小时，10:30 签不了 11:00 的课（P0 生产功能错位）
+- **发现**：2026-08-16 用户真机反馈（BUGS-INBOX #10）：「现在10:30，应该可以签到11:00的课，但显示不行，说时间未到」
+- **现象**：真机（云托管生产）在开课前 30 分钟窗口内签到被拒，提示「未到签到时间」；本地 API 测试 146/146 全绿——**本地（Windows 北京时间）发现不了，只有 UTC 环境（云托管/CI）才红**
+- **根因**：Dockerfile 基于 `node:22-alpine`，未设置时区 → 容器系统时区 **UTC**；业务代码裸 `new Date().getHours()/getMinutes()/getFullYear()/toLocaleString('sv-SE')` 隐式依赖系统时区 → 北京时间 10:30 = UTC 02:30，后端判定「未到签到时间」。受影响的取时间点：签到窗口（bookings.js）、成就/锻炼统计（achievements.js）、开课提醒（messages.js）、次卡过期/作废/顺延（passes.js）、候补过期自动退款（orders.js）、邀请近 13 天窗口（invite.js）；SQLite `datetime('now','localtime')` 写入与比较同样依赖系统时区
+- **修复**（双层）：
+  1. **部署层**：Dockerfile 安装 `tzdata` + 固定 `TZ=Asia/Shanghai`（alpine musl 需 tzdata 包，否则 TZ 不生效）——保证 SQLite `localtime` 写入值为北京时间
+  2. **代码层**：新建 `server/time.js`（Intl 显式 `Asia/Shanghai`，与系统时区无关）：`todayStr()/nowTimeStr()/nowDateTimeStr()/nowMin()/parseBeijing()/prevDateStr()`；6 个域模块的判定/比较全部改走 time.js；SQL 时间比较由 `datetime('now','localtime')` 改为显式传参 `nowDateTimeStr()`
+  3. **测试层**：run-tests.js 新增 TIME-01~04 时区防回归断言（纪元 UTC0 点=北京 8 点等，任意系统时区下确定性成立）；测试脚本自身构造场次/断言月份也改为北京时间口径（原本地时区写法在 UTC 下会红）
+  4. 顺带修 DESIGN #D1 任务 1 漏网：`student-my-courses` 课后窗口 `+120`→`+30`（前后端窗口不一致，B3 契约）；agreement 页协议文案「结束后 2 小时」→「30 分钟」；i18n `checkInBefore30` 过期文案（「迟到 15 分钟自动取消」为不存在规则）
+- **回归测试**：① 本地正常时区 150/150 全绿（新增 TIME-01~04）② **`TZ=UTC` 模拟容器时区 150/150 全绿**（证明业务代码在 UTC 容器下判定正确；修复前 UTC 下 CHK-02/04/07 红）③ 覆盖率探针 pass 1 / fail 0（UTC 环境跑）
+- **防护层**：L3 真机发现；修复后四层兜底——Dockerfile TZ（部署层）、time.js 强制入口（CONVENTIONS 规矩 #9 + review 检查）、TZ=UTC 全量测试命令（本地可复现容器时区）、TIME-01~04 确定性断言（CI/任何时区下都会红）
+
+## #27 coverage 探针「邀请看板」断言挂在错误响应上——测试假红（P2 测试缺陷）
+- **发现**：2026-08-16，开发 DESIGN #D1 任务 11 跑覆盖率探针时发现（非用户反馈）
+- **现象**：`node --test --experimental-test-coverage minitest/coverage.test.js` 报 `AssertionError: 邀请看板`，`actual: undefined`；master HEAD 上同样失败（已 stash 验证非新代码引入）
+- **根因**：`coverage.test.js` 中 `GET /api/admin/invite-board` 之后被插入的「次卡包探针 / 课程详情字段」请求覆盖了 `r`，`assert.ok(r.data.board, '邀请看板')` 最终挂在 `/api/sessions/1` 响应上（无 board 字段）→ 断言错位假红
+- **修复**：把 `assert.ok(r.data.board, '邀请看板')` 移到 `/api/admin/invite-board` 请求后立即断言（响应未被覆盖处），删除错位的旧断言
+- **回归测试**：覆盖率探针重跑通过（pass 1 / fail 0）；新增 COACH 探针（设教练/学员/笔记/跟课记录/结算/非法月份）随行入库
+- **防护层**：L2（CI/本地探针）发现；修复后由断言紧跟请求的写法兜底——探针中每条响应断言必须紧跟对应请求，禁止隔行复用 `r`
+
+## #26 预约页日期条从周一而非今天开始——过去日期可见且本周跨越到下周时选不中今天（P1 展示缺陷）
+- **发现**：2026-08-15，用户要求「预约页面和教练详情页面：以今天为日期开始，过去日期不显示，共显示含今天在内的未来 7 天」（2026-08-16 补登 BUGS-INBOX #7）
+- **现象**：学员端预约页日期条显示「周一~周日」整周——今天之前的日期可点（历史日期），且周日跨入下周时今天不在条上（默认选中回退周一）；教练详情页已是「今天起 7 天」正确实现，仅预约页不符
+- **根因**：`pages/student-courses/index.js` 的 `buildWeek()` 写死按自然周生成（`monday = today - day + 1`，i=0..6 周一~周日），与教练详情页 `buildWeekDays()`（today+i）不一致；配套 `selectDate`/`onShow` 用「日期数字」匹配（`Number(dataset.date)`），与新格式不兼容
+- **修复**：`buildWeek()` 改为 `today + i`（i=0..6）——今天起 7 天含今天，默认选中第一天；日期匹配统一改用 `full`（YYYY-MM-DD）字符串（selectDate/onShow 同步）；星期标签按 `getDay()` 索引（0=周日）生成「周X」，第一天显示「今天」；顺带修正离线 mock 兜底的星期映射（原「日期数-9→周几」只对 9-15 号有效，改为真实 getDay）
+- **回归测试**：node --check 语法通过 + 干净库全量 128/128（纯前端改动，后端契约无变化）；页面逻辑自查：默认选中今天、过去日期不再出现
+- **防护层**：L0（用户反馈）发现；修复后由「today+i 恒含今天」设计兜底；教练详情页为同类参照实现，后续新增日期条页面以此为准
+
+## #25 登录变成"新的号"——云托管容器不持久化致用户数据反复丢失（P0 生产数据安全）
+- **发现**：2026-08-16，用户反馈「现在登录就会成为新的号。这是严重的bug」（前一日 P0 待办 WX_SECRET 配置的关联问题）
+- **现象**：真机登录提示「注册成功」而非「欢迎回来」，历史订课/会员数据反复消失；云托管库 /api/users 显示 demo_user 为今晨新建空账号（本地库 6 用户、云托管仅 2 且均为新号）
+- **根因**：云托管容器文件系统**不持久化**——闲置缩容/推送重建/扩容均创建全新容器，SQLite（server/data/gym.db）数据全部丢失，seed.js 只重建基础数据（A1 策略"重启丢数据可接受"的代价兑现）；另容器内无 server/.env（gitignore 排除）→ WX_SECRET 为空 → code2session 失败 → 微信身份回退公共 demo_user
+- **修复**：①Dockerfile 建 `/data` 目录（CFS 挂载点）②新建「云托管持久化与身份配置.md」操作手册：控制台挂载 CFS 到 `/data` + 环境变量 `DB_PATH=/data/gym.db`、`WX_APPID`、`WX_SECRET` ③CLAUDE.md 生产形态段补充持久化必读（代码侧 DB_PATH 环境变量支持早已具备，server/db-core.js:12-14，测试每轮在用）
+- **回归测试**：node --check（index/db-core）+ 干净库 128/128；持久化生效验证 = 用户控制台配置后：登录→退出→再登录应「欢迎回来」，推送重建后数据仍在
+- **防护层**：L0（用户反馈）发现；修复后由 CFS 挂载兜底（数据跨容器重建保留）+ 文档防呆；WX_SECRET 配置后身份各自独立（code2session 成功路径）
+
+## #24 真机登录弹「登录失败」——云托管 Git 部署自动重建窗口期 callContainer 短暂不可用（瞬态，已自愈）
+- **发现**：2026-08-16 上午，用户真机测试登录显示「登录失败」
+- **现象**：真机（云托管模式 callContainer）登录弹「登录失败」；本地后端 3000 正常、云托管公网域名直连登录接口 201/200 正常（3 次探测稳定）、project.config.json AppID=正式号 wx0aee5332d4ef20fd 与 .env 一致、云托管环境 ID prod-d0g3mnc4m283b5b36 与服务 gym-server 在运行——排除代码/配置/服务故障
+- **根因**：云托管为 **Git 关联部署**：每次 push 触发自动重新构建+发布，重建窗口期（数分钟）callContainer 请求失败。2026-08-15 22:19 推送 80604e8 触发重建，用户次日（8/16）早测试恰撞上窗口期；部署完成后自动恢复（非代码 bug）
+- **修复**：`pages/login/index.js` doLogin 失败弹窗从「知道了」改为「重试/取消」双按钮——重试一键重发 wx.login + 登录请求（复用闭包 userProfile/testNick），部署窗口期用户可自助重试，无需退出重进
+- **回归测试**：node --check 语法通过 + 干净库全量 128/128（纯前端改动，后端契约无变化）；登录链路真机已确认恢复
+- **防护层**：L0（用户反馈）发现；修复后由「失败可重试」兜底。云托管部署窗口期的彻底规避：避免在高峰使用时段 push 触发重建；后续若频繁出现可考虑错峰部署
+
+## #23 签到测试跨天耦合——23:00 后跑测试 CHK-02/04 必挂（#15 同源坑的第二次变体）
+- **发现**：2026-08-15 22:52，pre-commit hook 安全网拦截提交（#17/#18 提交时 CHK-02/04 ❌，127 用例 2 红）
+- **现象**：22:50 之后任何时刻跑 run-tests.js，签到链路必挂：`CHK-02 教练核销成功 checkin=undefined`、`CHK-04 重复签到拒绝 msg=课程已结束超过 2 小时，无法签到`；23:20 后全量测试不再全绿
+- **根因**：CHK 造数「当前+10 分钟开始、+70 分钟结束」——23:00 后 +70 分钟跨天，`end_time` 变成次日 `00:02` 而 `date` 仍是当天 → 后端 `toMin('00:02')=2`，`nowMin(1372) > 2+120` → 判定「课程已结束超过 2 小时」拒绝签到。与 BUG-LEDGER #15（满员场次写死当晚时段）同源：**测试造数写死相对时间时没考虑跨天**
+- **修复**：造「已开课 20 分钟」的场次（start=now-20m、end=now+40m）——now 恒在签到窗口内 `[start-30m, end+2h]`，任何时刻跑都成立；end 跨天（23:20 后）时跳过 CHK-01~04（与 CHK-07 跨天跳过同策略，不红不算失败）
+- **回归测试**：修复后 127/127 全绿（22:52 现场验证，end=23:32 未跨天用例实际执行）；跨天分支逻辑上不产生失败用例
+- **防护层**：L1 hook（安全网拦截，恰好证明干净库模式的价值）；修复后由「now 恒在窗口内」的造数设计兜底，23:20 后跑测试也不会红
+
+## #22 教练详情页底部「约 TA 的课」按钮冗余——课程条直接可点，固定 CTA 多余（P2 交互精简）
+- **发现**：2026-08-15，用户要求「教练详情页面底部的"约 TA 的课"按钮删除」
+- **现象**：页面底部 fixed 墨黑大按钮「约 TA 的课」+ 配套提示文字「点课程条可直接预约 · 满员可候补」，与课程条本身可点击预约功能重复
+- **根因**：V1 设计稿落地时保留的滚动快捷 CTA；课程条 goDetail 已可直达预约，按钮功能冗余，还占底部 140rpx 留白
+- **修复**：`index.wxml` 删除 cp-cta / cp-cta-sub 两行；`index.wxss` 删除 .cp-cta/.cp-cta-sub 样式、.page padding-bottom 140rpx→60rpx；`index.js` 删除死方法 scrollToCourses
+- **回归测试**：前端 UI 改动，node --check 语法自检通过 + 全量干净库测试 127/127（无后端契约变化）；L3 真机确认按钮消失、页面不出现底部遮挡
+- **防护层**：L0（用户反馈）发现；修复后无残留（死方法已删，grep cp-cta 为空）
+
+## #21 教练详情页课程条右侧信息层次不足——改为三行（黑体大字课程名/中等场馆/席位）（P2 UI 调整）
+- **发现**：2026-08-15，用户要求「课程条右侧改为 3 行：第一行黑体大字课程名，第二行普通中等字体场馆，第三行席位」
+- **现象**：课程条右侧课程名 28rpx/700、场馆 22rpx、席位 22rpx，字号层次弱；三个 text 为 inline 元素，换行依赖空白折叠，行结构不稳定
+- **根因**：V1 简化课程条直接复用旧字号，未按设计层次（大字标题/中等正文）调整；text 未设 display:block
+- **修复**：`index.wxss` —— ci-name 升 32rpx/800（黑体大字）且 display:block；ci-sub 升 26rpx/400（普通中等）且 display:block；ci-seat 24rpx display:block，三行结构稳定
+- **回归测试**：node --check + 干净库 127/127；L3 真机看三行层次（黑体大字课程名 > 中等场馆 > 席位）
+- **防护层**：L0（用户反馈）发现；修复后由 display:block 保证行结构（不再依赖空白折叠）
+
+## #20 教练详情页席位显示「余位/总数」——应为「已预订/总数」（P2 信息展示）
+- **发现**：2026-08-15，用户反馈「教练详情页面，席位的展示信息应该是已经预订的席位/总席位」
+- **现象**：教练介绍页课程条席位区显示「余位 X/Y」（剩余数），用户期望展示已预约数（如「已约 3/5」）
+- **根因**：`pages/coach-profile/index.wxml` 席位区用了 `item.remaining`（余量），语义与需求不符；接口本就有 `booked_count` 字段（SESSION_SELECT 已返回），前端未取
+- **修复**：`filterDay` 的 map 里补 `booked: s.booked_count || 0`；wxml 改「已约 {{booked}}/{{capacity}}」，满员（remaining<=0）仍显示红色高亮
+- **回归测试**：CPR-02（教练场次接口含 booked_count/capacity/时间字段契约）
+- **防护层**：L0（用户反馈）发现；修复后由 CPR-02 字段契约兜底
+
+## #19 教练详情页显示已过去/进行中的课程——status 判断是死代码（P1 展示缺陷）
+- **发现**：2026-08-15，用户反馈「教练详情页面，对于时间已经过去，包括已经在进行中的课程，是不应该显示出来的」
+- **现象**：教练介绍页「TA 的课程」列表里，今天已结束的课程、正在进行中的课程仍然显示并可点进详情
+- **根因**：`pages/coach-profile/index.js` 的 `filterDay` 用 `s.status !== 'ongoing' && s.status !== 'ended'` 判断——但**数据库 `course_sessions.status` 只有 published/full/cancelled，永远不会是 ongoing/ended**，该判断永远为真，是死代码；项目已有统一时间状态工具 `utils/course-status.js`（getSessionStatus 按日期+起止时间判定 upcoming/ongoing/ended），其他页面（student-activity/student-courses）都在用，唯独教练详情页没接
+- **修复**：`coach-profile/index.js` require course-status，`filterDay` 先按 `getSessionStatus(...) === 'upcoming'` 过滤，已过去（含进行中）的课程不再渲染；顺带删除死字段 canBook
+- **回归测试**：CPR-03/04/05（course-status 三态判定：结束→ended、进行中→ongoing、未开始→upcoming）+ CPR-06（模拟 filterDay：进行中/已结束被过滤，仅剩未开始满员课）
+- **防护层**：L0（用户反馈）发现；修复后由统一状态工具兜底 + CPR-06 模拟过滤回归（再有人用 s.status 判断会因与 course-status 判定不一致而挂测试）
+
+## #18 「使用微信头像」拿不到当前微信头像——开发者工具模拟限制（P1 体验问题，非代码缺陷）
+- **发现**：2026-08-15，用户测试 #17 修复时反馈「使用微信头像应该能获取到当前微信头像，但没有获取到」
+- **现象**：点击「使用微信头像」后得不到自己真实的微信头像（开发者工具中得到的是默认灰色模拟头像）
+- **根因**：**开发者工具（platform='devtools'）是模拟环境，没有用户真实微信头像数据**，chooseAvatar 弹窗里的「使用微信头像」只能返回工具内置的默认灰色头像——这是平台限制，非代码问题。真机上行为：选「使用微信头像」返回 `thirdwx.qlogo.cn` 临时链接（已由后端 avatarDownload 下载转存，2026-08-15 已验证）；若该头像被上传入库会**污染真实头像数据**
+- **修复**：`chooseWechatAvatar()` 加 devtools 平台检测——工具内点「使用微信头像」直接 toast 提示「请用真机预览测试」并中止，防止灰色模拟头像入库；另补 `wx.chooseAvatar` 不存在（基础库 <2.21.2）时的明确提示；失败路径 console.error 留痕
+- **回归测试**：L3 真机手测（真机预览 → 使用微信头像 → 应返回真实微信头像）；开发者工具内验证提示文案（不再弹选择器）
+- **防护层**：L0（用户反馈）发现；修复后由 devtools 平台检测兜底（模拟头像不再可能入库）+ L3 真机验证
+
+## #17 个人中心点头像不弹选择——wx.chooseAvatar 静默失败 + 无「本地相册」入口（P1 交互缺陷）
+- **发现**：2026-08-15，用户反馈「点头像应询问用微信头像或从本地选取，目前似乎不工作」
+- **现象**：个人中心点击头像不弹头像选择器（或部分真机/基础库上点了没反应）；且没有「使用微信头像 / 本地相册」的二选一询问流程
+- **根因**：`onTapAvatar` 直接调 `wx.chooseAvatar`（要求基础库 ≥2.21.2 + 隐私接口声明 + 隐私协议授权，任一缺失即静默失败），且 `fail` 回调为空——错误被完全吞掉，用户零反馈；相册路径只能依赖官方选择器内部选项，无独立入口
+- **修复**（`pages/student-profile/index.js` + `app.json`）：
+  1. 点头像先弹 `wx.showActionSheet`（「使用微信头像 / 从本地相册选择」）——ActionSheet 非隐私接口，必然有反馈
+  2. 「微信头像」走官方 `wx.chooseAvatar`（返回网络 URL → 后端下载转存）；「本地相册」走 `wx.chooseMedia(sourceType:['album'], sizeType:['compressed'])`（兼容性更广）
+  3. 两路 `fail` 均给 toast 反馈（用户 cancel 除外），杜绝「点了没反应」
+  4. **隐私机制更正**：`chooseAvatar`/`nickName`/`chooseMedia` **不能**写进 `requiredPrivateInfos`——该字段只支持地理位置类接口（chooseAddress/chooseLocation/choosePoi/getFuzzyLocation/getLocation/onLocationChange/startLocationUpdate/startLocationUpdateBackground），写其他值开发者工具直接报错（版本 2.01.2510290 实测，本仓库 342f836 的错误做法已移除）；相册/头像的隐私声明走小程序管理后台「用户隐私保护指引」（添加「选中的头像或昵称」「选中的照片或视频信息」），基础库 ≥2.32.3 时未同意会先弹隐私弹窗
+- **回归测试**：前端纯 UI 链路，minitest（后端 HTTP 测试）无对应通道；`node --check` 语法自检通过 + L3 真机手测（点头像 → 弹二选一 → 两条路径各走一遍 → 头像即时更新）
+- **防护层**：L0 手测（用户反馈）发现；修复后由 fail 回调 toast 兜底（不再静默）+ L3 真机手测
+
 ## #16 git 仓库灾难性损坏——.git/objects/pack 丢失 + refs 被删（P0 资产风险，修复中）
 - **发现**：2026-08-14 22:05，提交被 hook 拦截排查时发现 `git` 报 not a git repository
 - **现象**：`.git/refs` 目录整个消失；`.git/objects/pack/*.pack` 丢失（只剩 .idx + multi-pack-index），objects 仅剩 2 个松散对象 → 本地 66e0e79 之后 7 个提交（af69022/8f2c643/fb451d8/4381ded/dd4fa4e/3131859/28b5e05）的对象全部丢失

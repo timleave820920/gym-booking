@@ -7,6 +7,7 @@ const { addCoins } = require('./coin');
 const { addBalance } = require('./members');
 const { INVITE_REWARDS } = require('./members');
 const ENERGY_CONFIG = require('../energy-config.js');
+const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 
 function listInvitationDetails(inviterOpenid) {
   return db.prepare(`
@@ -38,10 +39,10 @@ function inviteBoardStats() {
   const daily = db.prepare(`
     SELECT date(created_at) AS d, COUNT(*) AS c
     FROM invitations
-    WHERE created_at >= datetime('now', 'localtime', '-13 days')
+    WHERE created_at >= ?
     GROUP BY date(created_at)
     ORDER BY d
-  `).all();
+  `).all(time.nowDateTimeStr(new Date(Date.now() - 13 * 864e5))); // 近 13 天的北京时刻
   return {
     total,
     ordered,

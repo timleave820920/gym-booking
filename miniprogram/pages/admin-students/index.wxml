@@ -71,7 +71,12 @@
           <view class="tag {{'tag-' + item.status.type}}">{{item.status.text}}</view>
         </view>
         <view class="td td-num">{{item.loginCount}} 次</view>
-        <view class="td td-op" bindtap="edit">查看</view>
+        <view class="td td-op flex-row">
+          <view class="td-btn" bindtap="edit">查看</view>
+          <!-- 设教练（DESIGN #D1）：非教练/管理员学员显示 -->
+          <view class="td-btn td-btn-assign {{item.role === 'coach' || item.role === 'admin' ? 'td-btn-disabled' : ''}}"
+                data-idx="{{index}}" bindtap="openAssign">{{item.role === 'coach' ? '已是教练' : '设教练'}}</view>
+        </view>
       </view>
 
       <!-- 空状态 -->
@@ -83,5 +88,23 @@
     </view>
 
     <view class="bottom-space"></view>
+  </view>
+
+  <!-- 设教练弹层（DESIGN #D1） -->
+  <view class="assign-mask" wx:if="{{assignShow}}" bindtap="closeAssign">
+    <view class="assign-box" catchtap="noop">
+      <text class="assign-title">设为教练</text>
+      <text class="assign-sub">将「{{assignUser.name}}」设为教练，绑定教练档案后登录直达教练工作台</text>
+      <picker mode="selector" range="{{coachNames}}" value="{{assignCoachIdx}}" bindchange="onAssignPick">
+        <view class="assign-pick">
+          <text>{{coachNames[assignCoachIdx] || '选择教练档案'}}</text>
+          <text class="assign-arrow">▾</text>
+        </view>
+      </picker>
+      <view class="flex-row assign-btns">
+        <view class="assign-btn cancel" bindtap="closeAssign">取消</view>
+        <view class="assign-btn confirm {{assigning ? 'assign-btn-disabled' : ''}}" bindtap="confirmAssign">{{assigning ? '设置中...' : '确认设为教练'}}</view>
+      </view>
+    </view>
   </view>
 </view>

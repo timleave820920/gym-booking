@@ -10,6 +10,7 @@ const { promoteFromWaitlist } = require('./orders');
 const { sendMessage } = require('./messages');
 const { refundPass } = require('./passes');
 const ENERGY_CONFIG = require('../energy-config.js');
+const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 
 function createBooking({ user_openid, session_id, amount_fen = 0, pay_status = 'paid' }) {
   // 校验用户存在
@@ -152,24 +153,24 @@ function checkinBooking({ bookingId, coachOpenid }) {
   const session = db.prepare('SELECT * FROM course_sessions WHERE id = ?').get(booking.session_id);
   if (!session) return { ok: false, error: '场次不存在' };
 
-  // 时间校验：只允许当天签到（开课前 30 分钟至课程结束后 2 小时）
-  const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  // 时间校验：只允许当天签到（开课前 30 分钟至课程结束后 30 分钟）
+  // 取时间走 time.js（显式北京时间，不依赖容器系统时区，BUG-LEDGER #28）
+  const todayStr = time.todayStr();
   if (session.date !== todayStr) {
     return { ok: false, error: `仅支持当天签到（场次日期 ${session.date}）` };
   }
-  // 时间窗口：开课前 30 分钟 ～ 课程结束后 2 小时（防提前/过期签到，BUG-LEDGER #10）
+  // 时间窗口：开课前 30 分钟 ～ 课程结束后 30 分钟（防提前/过期签到，BUG-LEDGER #10；2026-08-16 统一为课后 30 分钟，DESIGN #D1）
   const toMin = (s) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
-  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const nowMin = time.nowMin();
   const startMin = toMin(session.start_time);
   const endMin = toMin(session.end_time);
   const EARLY_WINDOW = 30;   // 开课前可提前 30 分钟
-  const LATE_WINDOW = 120;   // 结束后可补签 2 小时
+  const LATE_WINDOW = 30;    // 结束后可补签 30 分钟
   if (nowMin < startMin - EARLY_WINDOW) {
     return { ok: false, error: `未到签到时间，开课前 ${EARLY_WINDOW} 分钟开始可签到（${session.start_time} 开课）` };
   }
   if (nowMin > endMin + LATE_WINDOW) {
-    return { ok: false, error: '课程已结束超过 2 小时，无法签到' };
+    return { ok: false, error: '课程已结束超过 30 分钟，无法签到' };
   }
 
   db.prepare("UPDATE bookings SET checkin_at = datetime('now','localtime') WHERE id = ?").run(bookingId);

@@ -1,0 +1,25 @@
+{
+  "enabledPlugins": {
+    "ui-design@designer-skills": true
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/capture-bug.js >/dev/null 2>&1 || true",
+            "timeout": 15,
+            "statusMessage": "检查是否 bug 上报…"
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/capture-design.js >/dev/null 2>&1 || true",
+            "timeout": 15,
+            "statusMessage": "检查是否 design 需求…"
+          }
+        ]
+      }
+    ]
+  }
+}

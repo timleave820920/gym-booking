@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HYROX 9 项目图标设计稿 V3 · 姿态线稿</title>
+<style>
+  :root {
+    --cream: #F9F4DF;
+    --ink: #1A1A23;
+    --lime: #B9FF66;
+    --gray: #6B6B76;
+    --line: #E4DEC5;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    padding: 40px 24px 80px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+
+  .head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+  .head h1 { font-size: 30px; font-weight: 900; letter-spacing: 1px; }
+  .head h1 .lime-dot { display: inline-block; width: 14px; height: 14px; background: var(--lime); border: 3px solid var(--ink); border-radius: 50%; margin-right: 10px; vertical-align: 2px; }
+  .ver-tag { background: var(--ink); color: var(--lime); font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 999px; letter-spacing: 1px; }
+  .sub { color: var(--gray); font-size: 13px; margin-bottom: 10px; }
+  .sub b { color: var(--ink); }
+
+  .diff {
+    background: #fff; border-radius: 18px; box-shadow: 0 2px 0 var(--line);
+    padding: 14px 18px; margin: 18px 0 8px;
+    font-size: 12.5px; color: var(--gray);
+  }
+  .diff b { color: var(--ink); }
+  .diff .row { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
+  .diff .arrow { color: #9FE63F; font-weight: 900; }
+
+  .section-title { display: flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 800; margin: 30px 0 14px; }
+  .section-title .bar { width: 6px; height: 20px; background: var(--lime); border: 2px solid var(--ink); border-radius: 3px; }
+  .section-title .en { font-size: 11px; color: var(--gray); font-weight: 600; letter-spacing: 1px; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (min-width: 720px) { .grid { grid-template-columns: repeat(4, 1fr); } }
+  .card {
+    background: #fff; border-radius: 24px; box-shadow: 0 2px 0 var(--line);
+    padding: 18px 12px 14px; position: relative;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .num {
+    position: absolute; top: 12px; left: 12px;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--lime); border: 2.5px solid var(--ink);
+    font-size: 12px; font-weight: 900; text-align: center; line-height: 20px;
+  }
+  .icon { width: 88px; height: 88px; margin: 12px 0 10px; }
+  .icon svg { width: 100%; height: 100%; display: block; }
+  .cname { font-size: 14px; font-weight: 800; }
+  .ename { font-size: 10px; color: var(--gray); letter-spacing: .5px; margin-top: 2px; }
+
+  .legend {
+    margin-top: 30px; background: #fff; border-radius: 24px;
+    padding: 18px 20px; box-shadow: 0 2px 0 var(--line);
+  }
+  .legend h3 { font-size: 14px; font-weight: 800; margin-bottom: 10px; }
+  .legend .row { display: flex; gap: 14px; align-items: center; font-size: 12px; color: var(--gray); margin-bottom: 6px; }
+  .sw { width: 20px; height: 20px; border-radius: 6px; flex-shrink: 0; }
+  .sw.color { background: var(--lime); border: 2.5px solid var(--ink); }
+  .sw.mono { background: var(--ink); border: 2.5px solid var(--ink); }
+  .legend code { background: var(--cream); padding: 2px 6px; border-radius: 6px; font-size: 11px; color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <h1><span class="lime-dot"></span>HYROX 9 项目图标 <span style="font-size:18px;color:var(--gray)">V3 · 姿态线稿</span></h1>
+    <span class="ver-tag">V3</span>
+  </div>
+  <p class="sub">设计语言：<b>简化人形姿态 + 关键器械</b> · 3.5px 圆头线条 · 去掉地面线与关节分段，保留动作辨识核心（前倾 / 后仰 / 坐姿 / 弓步 / 撑地 / 奔跑）。</p>
+
+  <div class="diff">
+    <div class="row"><b>V1</b> 细节人形 + 地面线（太复杂） <span class="arrow">→</span> <b>V2</b> 纯器械符号（没辨识度） <span class="arrow">→</span> <b>V3</b> 姿态骨架 + 器械（当前）</div>
+    <div class="row">取舍：<b>身体/四肢各一条线</b>（不再分关节），腿只画姿态线段；器械保留荧光块——辨识靠「人形姿态」，不靠装饰。</div>
+  </div>
+
+  <div class="section-title"><span class="bar"></span>彩色版<span class="en">COLOR</span></div>
+  <div class="grid">
+
+    <!-- 01 滑雪 -->
+    <div class="card">
+      <span class="num">01</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <line x1="18" y1="48" x2="40" y2="48" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="28" cy="11" r="4" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="28" y1="15" x2="24" y2="30" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M24 30 L22 45" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M24 30 L31 45" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <line x1="29" y1="19" x2="14" y2="44" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <line x1="32" y1="21" x2="24" y2="44" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="14" cy="44" r="2" fill="#B9FF66" stroke="#1A1A23" stroke-width="2"/>
+          <circle cx="24" cy="44" r="2" fill="#B9FF66" stroke="#1A1A23" stroke-width="2"/>
+        </svg>
+      </div>
+      <div class="cname">滑雪</div>
+      <div class="ename">SKI ERG</div>
+    </div>
+
+    <!-- 02 推雪橇 -->
+    <div class="card">
+      <span class="num">02</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <circle cx="18" cy="11" r="4" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="18" y1="15" x2="25" y2="32" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M25 32 L22 45" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M25 32 L32 40 L35 47" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 20 L30 23 L36 27" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="38" y="25" width="6.5" height="21" rx="2.5" fill="#B9FF66" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="33" y1="48" x2="50" y2="48" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="cname">推雪橇</div>
+      <div class="ename">SLED PUSH</div>
+    </div>
+
+    <!-- 03 拉雪橇 -->
+    <div class="card">
+      <span class="num">03</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <rect x="6" y="25" width="6.5" height="21" rx="2.5" fill="#B9FF66" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="2" y1="48" x2="19" y2="48" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="42" cy="11" r="4" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="42" y1="15" x2="37" y2="31" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M37 31 L33 44" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M37 31 L44 39 L47 47" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M40 19 L33 23 L27 26" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="27" y1="26" x2="13" y2="30" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="13" cy="30" r="2" fill="#B9FF66" stroke="#1A1A23" stroke-width="2"/>
+        </svg>
+      </div>
+      <div class="cname">拉雪橇</div>
+      <div class="ename">SLED PULL</div>
+    </div>
+
+    <!-- 04 滑船 -->
+    <div class="card">
+      <span class="num">04</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <line x1="14" y1="48" x2="48" y2="48" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="49" cy="43" r="4.5" fill="#B9FF66" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="36" y1="42" x2="36" y2="48" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="24" cy="13" r="4" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="24" y1="17" x2="22" y2="31" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M22 31 L32 36 L36 42" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M26 21 L34 20 L41 20" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="cname">滑船</div>
+      <div class="ename">ROW</div>
+    </div>
+
+    <!-- 05 农夫行走 -->
+    <div class="card">
+      <span class="num">05</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <circle cx="26" cy="9" r="4" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="26" y1="13" x2="25" y2="31" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M25 31 L21 42 L19 49" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M25 31 L31 41 L35 49" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M26 17 L19 23 L16 29" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M26 17 L32 23 L35 29" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12 29 v-3 M17 29 v-3" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <rect x="9" y="29" width="10" height="14" rx="2.5" fill="#B9FF66" stroke="#1A1A23" stroke-width="3.5"/>
+          <path d="M41 29 v-3 M46 29 v-3" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <rect x="38" y="29" width="10" height="14" rx="2.5" fill="#B9FF66" stroke="#1A1A23" stroke-width="3.5"/>
+        </svg>
+      </div>
+      <div class="cname">农夫行走</div>
+      <div class="ename">FARMER CARRY</div>
+    </div>
+
+    <!-- 06 沙袋弓箭步 -->
+    <div class="card">
+      <span class="num">06</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <rect x="15" y="6" width="20" height="9" rx="4" fill="#B9FF66" stroke="#1A1A23" stroke-width="3.5"/>
+          <circle cx="27" cy="17" r="3.5" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="26" y1="20" x2="26" y2="33" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M26 33 L37 37 L40 48" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M26 33 L17 37 L14 45" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M29 23 L33 17" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="cname">沙袋弓箭步</div>
+      <div class="ename">SANDBAG LUNGE</div>
+    </div>
+
+    <!-- 07 波比跳 -->
+    <div class="card">
+      <span class="num">07</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <circle cx="33" cy="10" r="4" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="33" y1="14" x2="25" y2="27" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M29 18 L21 33" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M35 21 L28 33" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <line x1="25" y1="27" x2="36" y2="31" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M36 31 L42 38 L40 49" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="cname">波比跳</div>
+      <div class="ename">BURPEE</div>
+    </div>
+
+    <!-- 08 墙球 -->
+    <div class="card">
+      <span class="num">08</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <line x1="50" y1="12" x2="50" y2="52" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="18" cy="12" r="4" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="18" y1="16" x2="21" y2="31" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M21 31 L13 35 L11 44" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 31 L29 36 L32 46" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 20 L29 14" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="33" cy="12" r="4.5" fill="#B9FF66" stroke="#1A1A23" stroke-width="3.5"/>
+          <path d="M37 11 Q44 10 47 18" stroke="#1A1A23" stroke-width="2.5" stroke-dasharray="3 3" stroke-linecap="round"/>
+          <circle cx="50" cy="22" r="2.5" fill="#B9FF66" stroke="none"/>
+        </svg>
+      </div>
+      <div class="cname">墙球</div>
+      <div class="ename">WALL BALL</div>
+    </div>
+
+    <!-- 09 跑步 -->
+    <div class="card">
+      <span class="num">09</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <circle cx="28" cy="8" r="4" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="28" y1="12" x2="25" y2="26" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M25 26 L35 23 L40 31" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M25 26 L16 28 L11 38" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M27 14 L36 15" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M27 16 L18 21" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="40" cy="31" r="2.2" fill="#B9FF66" stroke="#1A1A23" stroke-width="2"/>
+          <circle cx="11" cy="38" r="2.2" fill="#B9FF66" stroke="#1A1A23" stroke-width="2"/>
+        </svg>
+      </div>
+      <div class="cname">跑步</div>
+      <div class="ename">RUN</div>
+    </div>
+
+  </div>
+
+  <div class="section-title"><span class="bar"></span>黑白版<span class="en">MONO</span></div>
+  <div class="grid">
+
+    <!-- 01 mono -->
+    <div class="card">
+      <span class="num">01</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <line x1="18" y1="48" x2="40" y2="48" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="28" cy="11" r="4" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="28" y1="15" x2="24" y2="30" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M24 30 L22 45" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M24 30 L31 45" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <line x1="29" y1="19" x2="14" y2="44" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <line x1="32" y1="21" x2="24" y2="44" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="14" cy="44" r="2" fill="#1A1A23" stroke="#1A1A23" stroke-width="2"/>
+          <circle cx="24" cy="44" r="2" fill="#1A1A23" stroke="#1A1A23" stroke-width="2"/>
+        </svg>
+      </div>
+      <div class="cname">滑雪</div>
+      <div class="ename">MONO</div>
+    </div>
+
+    <!-- 02 mono -->
+    <div class="card">
+      <span class="num">02</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <circle cx="18" cy="11" r="4" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="18" y1="15" x2="25" y2="32" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M25 32 L22 45" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M25 32 L32 40 L35 47" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 20 L30 23 L36 27" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="38" y="25" width="6.5" height="21" rx="2.5" fill="#1A1A23" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="33" y1="48" x2="50" y2="48" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="cname">推雪橇</div>
+      <div class="ename">MONO</div>
+    </div>
+
+    <!-- 03 mono -->
+    <div class="card">
+      <span class="num">03</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <rect x="6" y="25" width="6.5" height="21" rx="2.5" fill="#1A1A23" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="2" y1="48" x2="19" y2="48" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="42" cy="11" r="4" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="42" y1="15" x2="37" y2="31" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M37 31 L33 44" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M37 31 L44 39 L47 47" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M40 19 L33 23 L27 26" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="27" y1="26" x2="13" y2="30" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="13" cy="30" r="2" fill="#1A1A23" stroke="#1A1A23" stroke-width="2"/>
+        </svg>
+      </div>
+      <div class="cname">拉雪橇</div>
+      <div class="ename">MONO</div>
+    </div>
+
+    <!-- 04 mono -->
+    <div class="card">
+      <span class="num">04</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <line x1="14" y1="48" x2="48" y2="48" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="49" cy="43" r="4.5" fill="#1A1A23" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="36" y1="42" x2="36" y2="48" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="24" cy="13" r="4" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="24" y1="17" x2="22" y2="31" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M22 31 L32 36 L36 42" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M26 21 L34 20 L41 20" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="cname">滑船</div>
+      <div class="ename">MONO</div>
+    </div>
+
+    <!-- 05 mono -->
+    <div class="card">
+      <span class="num">05</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <circle cx="26" cy="9" r="4" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="26" y1="13" x2="25" y2="31" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M25 31 L21 42 L19 49" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M25 31 L31 41 L35 49" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M26 17 L19 23 L16 29" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M26 17 L32 23 L35 29" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12 29 v-3 M17 29 v-3" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <rect x="9" y="29" width="10" height="14" rx="2.5" fill="#1A1A23" stroke="#1A1A23" stroke-width="3.5"/>
+          <path d="M41 29 v-3 M46 29 v-3" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <rect x="38" y="29" width="10" height="14" rx="2.5" fill="#1A1A23" stroke="#1A1A23" stroke-width="3.5"/>
+        </svg>
+      </div>
+      <div class="cname">农夫行走</div>
+      <div class="ename">MONO</div>
+    </div>
+
+    <!-- 06 mono -->
+    <div class="card">
+      <span class="num">06</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <rect x="15" y="6" width="20" height="9" rx="4" fill="#1A1A23" stroke="#1A1A23" stroke-width="3.5"/>
+          <circle cx="27" cy="17" r="3.5" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="26" y1="20" x2="26" y2="33" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M26 33 L37 37 L40 48" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M26 33 L17 37 L14 45" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M29 23 L33 17" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="cname">沙袋弓箭步</div>
+      <div class="ename">MONO</div>
+    </div>
+
+    <!-- 07 mono -->
+    <div class="card">
+      <span class="num">07</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <circle cx="33" cy="10" r="4" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="33" y1="14" x2="25" y2="27" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M29 18 L21 33" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M35 21 L28 33" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <line x1="25" y1="27" x2="36" y2="31" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M36 31 L42 38 L40 49" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="cname">波比跳</div>
+      <div class="ename">MONO</div>
+    </div>
+
+    <!-- 08 mono -->
+    <div class="card">
+      <span class="num">08</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <line x1="50" y1="12" x2="50" y2="52" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="18" cy="12" r="4" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="18" y1="16" x2="21" y2="31" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M21 31 L13 35 L11 44" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 31 L29 36 L32 46" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 20 L29 14" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="33" cy="12" r="4.5" fill="#1A1A23" stroke="#1A1A23" stroke-width="3.5"/>
+          <path d="M37 11 Q44 10 47 18" stroke="#1A1A23" stroke-width="2.5" stroke-dasharray="3 3" stroke-linecap="round"/>
+          <circle cx="50" cy="22" r="2.5" fill="#1A1A23" stroke="none"/>
+        </svg>
+      </div>
+      <div class="cname">墙球</div>
+      <div class="ename">MONO</div>
+    </div>
+
+    <!-- 09 mono -->
+    <div class="card">
+      <span class="num">09</span>
+      <div class="icon">
+        <svg viewBox="0 0 64 64" fill="none">
+          <circle cx="28" cy="8" r="4" stroke="#1A1A23" stroke-width="3.5"/>
+          <line x1="28" y1="12" x2="25" y2="26" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M25 26 L35 23 L40 31" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M25 26 L16 28 L11 38" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M27 14 L36 15" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M27 16 L18 21" stroke="#1A1A23" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="40" cy="31" r="2.2" fill="#1A1A23" stroke="#1A1A23" stroke-width="2"/>
+          <circle cx="11" cy="38" r="2.2" fill="#1A1A23" stroke="#1A1A23" stroke-width="2"/>
+        </svg>
+      </div>
+      <div class="cname">跑步</div>
+      <div class="ename">MONO</div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <h3>V3 规则</h3>
+    <div class="row"><span class="sw color"></span>彩色版：墨黑 3.5px 姿态线条 + 荧光绿器械块（雪橇板/水箱/提箱/沙袋/球/杖端/落脚点）</div>
+    <div class="row"><span class="sw mono"></span>黑白版：纯墨黑单色，深底反白可用</div>
+    <div class="row">命名：<code>hyrox-ski-color.svg</code> <code>hyrox-push-mono.svg</code> … 放置 <code>miniprogram/images/hyrox/</code></div>
+    <div class="row">辨识设计：滑雪=前倾双杖+雪板｜推=前倾推板｜拉=后仰拉绳｜滑船=坐姿拉桨+水箱｜农夫=直立双手提箱｜沙袋=扛袋弓步｜波比=俯身撑地屈腿｜墙球=蹲姿托球+墙｜跑步=高抬腿奔跑</div>
+  </div>
+
+</div>
+</body>
+</html>

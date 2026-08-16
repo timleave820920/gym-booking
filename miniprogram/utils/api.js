@@ -163,6 +163,11 @@ module.exports = {
     return localRequest('/api/avatar-download', 'POST', { url });
   },
 
+  // 下拉元数据（课程/教练/场地/分类等，管理后台用）
+  getMeta() {
+    return localRequest('/api/meta', 'GET');
+  },
+
   // 2026-08-15: 教练介绍页
   getCoachProfile(coachId) {
     return localRequest('/api/coaches/' + coachId, 'GET');
@@ -290,6 +295,32 @@ module.exports = {
   // 按场次查订课名单（教练端）
   getSessionStudents(sessionId) {
     return localRequest('/api/sessions/' + sessionId + '/students', 'GET');
+  },
+
+  // ===== 教练工作台（DESIGN #D1）=====
+  // 我的学员（已签到聚合）
+  getCoachStudents(coachOpenid) {
+    return localRequest('/api/coach/students?coach_openid=' + encodeURIComponent(coachOpenid), 'GET');
+  },
+  // 学员跟课记录
+  getCoachStudentLessons(coachOpenid, studentOpenid) {
+    return localRequest('/api/coach/student-lessons?coach_openid=' + encodeURIComponent(coachOpenid) + '&student_openid=' + encodeURIComponent(studentOpenid), 'GET');
+  },
+  // 学员笔记（读）
+  getCoachNote(coachOpenid, studentOpenid) {
+    return localRequest('/api/coach/notes?coach_openid=' + encodeURIComponent(coachOpenid) + '&student_openid=' + encodeURIComponent(studentOpenid), 'GET');
+  },
+  // 学员笔记（写，upsert）
+  saveCoachNote(coachOpenid, studentOpenid, content) {
+    return localRequest('/api/coach/notes', 'PUT', { coach_openid: coachOpenid, student_openid: studentOpenid, content });
+  },
+  // 月度结算
+  getCoachSettlement(coachId, month) {
+    return localRequest('/api/coach/settlement?coach_id=' + coachId + '&month=' + month, 'GET');
+  },
+  // 管理后台设教练
+  coachAssign(openid, coachId) {
+    return localRequest('/api/admin/coach-assign', 'POST', { openid, coach_id: coachId });
   },
 
   // ===== 消息中心（站内信）=====

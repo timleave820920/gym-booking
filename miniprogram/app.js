@@ -25,16 +25,16 @@ App({
     const i18n = require('./utils/i18n.js');
     this.globalData.lang = i18n.loadLang();
 
-    // 云开发模式：初始化 wx.cloud（USE_CLOUD=true 时生效）
+    // 云开发/云托管模式：初始化 wx.cloud（USE_CLOUD 或 USE_TCB 为 true 时生效）
     try {
       const api = require('./utils/api.js');
-      if (api.USE_CLOUD && wx.cloud) {
-        wx.cloud.init({ env: api.CLOUD_ENV, traceUser: true });
+      if ((api.USE_CLOUD || api.USE_TCB) && wx.cloud) {
+        wx.cloud.init({ env: api.USE_TCB ? api.TCB_ENV : api.CLOUD_ENV, traceUser: true });
         this.globalData.cloudInited = true;
-        console.log('[cloud] 云开发已初始化 env=' + api.CLOUD_ENV);
+        console.log('[cloud] wx.cloud 已初始化 env=' + (api.USE_TCB ? api.TCB_ENV : api.CLOUD_ENV) + ' mode=' + (api.USE_TCB ? 'tcb' : 'cloud'));
       }
     } catch (e) {
-      console.warn('[cloud] 云开发初始化跳过', e.message);
+      console.warn('[cloud] 云初始化跳过', e.message);
     }
 
     // 读取本地登录态

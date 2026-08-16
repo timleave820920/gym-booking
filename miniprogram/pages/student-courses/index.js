@@ -7,7 +7,8 @@ const sessionCache = require('../../utils/session-cache.js');
 
 const DEFAULT_COVER = '/images/2_193.png';       // 课程未设封面时的占位图
 const DEFAULT_COACH_AVATAR = '/images/2_1468.png'; // 教练未设头像时的占位图
-const WEEK_LABELS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+// 日期条：从今天起 7 天，今天是第一天（WEEK_LABELS 已废弃，改 WEEK_SHORT 按 getDay() 索引：0=周日）
+const WEEK_SHORT = ['日', '一', '二', '三', '四', '五', '六'];
 
 Page({
   data: {
@@ -40,7 +41,7 @@ Page({
     this.refreshUser();
     // 每次回到本页重新拉取数据（订课后余位/席位实时更新）
     if (this.data.selectedDate !== '' && this.data.selectedDate !== undefined && this.data.weekDays.length > 0) {
-      const current = this.data.weekDays.find(d => d.date === Number(this.data.selectedDate));
+      const current = this.data.weekDays.find(d => d.full === this.data.selectedDate);
       if (current) this.loadSessions(current.full);
     }
   },
@@ -67,29 +68,29 @@ Page({
     return t.greetingLate;
   },
 
-  // 生成本周（周一~周日）真实日期，默认选中今天
+  // 日期条：今天起 7 天（含今天），过去的日期不显示（BUG-LEDGER #26 / #7）
   buildWeek() {
-    const now = new Date();
-    const day = now.getDay() || 7; // 周日=7
-    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day + 1);
-    const todayFull = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const today = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
     const weekDays = [];
     for (let i = 0; i < 7; i++) {
-      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
-      const full = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      weekDays.push({ weekday: WEEK_LABELS[i], date: d.getDate(), full, selected: full === todayFull });
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+      const full = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      weekDays.push({
+        weekday: i === 0 ? '今天' : '周' + WEEK_SHORT[d.getDay()],
+        date: pad(d.getDate()),
+        full,
+        selected: i === 0
+      });
     }
-    // 默认选中今天（若不在本周则回退周一）
-    const initial = weekDays.find(d => d.selected) || weekDays[0];
-    this.setData({ weekDays, selectedDate: initial.date });
-    this.loadSessions(initial.full);
+    this.setData({ weekDays, selectedDate: weekDays[0].date });
+    this.loadSessions(weekDays[0].full);
   },
 
   selectDate(e) {
     const { full } = e.currentTarget.dataset;
-    const date = Number(e.currentTarget.dataset.date); // dataset 是字符串，转数字以匹配 weekDays
-    const weekDays = this.data.weekDays.map(d => ({ ...d, selected: d.date === date }));
-    this.setData({ weekDays, selectedDate: date });
+    const weekDays = this.data.weekDays.map(d => ({ ...d, selected: d.full === full }));
+    this.setData({ weekDays, selectedDate: full });
     this.loadSessions(full);
   },
 
@@ -127,8 +128,8 @@ Page({
       this.setData({ courseList: this.renderList(list, full, discount), loading: false, offline: false });
     }).catch(() => {
       if (this.data.courseList.length > 0) return; // 已有缓存/数据，保持展示
-      // 后端不可用 → 用 mock 演示数据（当日映射：日期数-9 → 周一..周日）
-      const dayIndex = Number(full.slice(8, 10)) - 9;
+      // 后端不可用 → 用 mock 演示数据（按真实星期映射 mock.days：1=周一..7=周日）
+      const dayIndex = new Date(full + 'T12:00:00').getDay() || 7;
       const list = mock.courses
         .filter(c => c.days.includes(dayIndex))
         .map(c => this.decorateSession({
