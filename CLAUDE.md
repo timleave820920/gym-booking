@@ -106,5 +106,6 @@ Dockerfile  微信云托管镜像（零 npm install；容器启动先 node seed.
 - **SQLite 多进程写锁**：测试直连 + 后端进程同写一库会 readonly/locked。测试尽量用干净库模式（DB_PATH 临时库）。
 - ~~测试号限制~~（已解除）：project.config.json 已换正式号 AppID `wx0aee5332d4ef20fd`（2026-08-15），可上传发布。
 - **cpolar 隧道域名重启会变**，需同步 FALLBACK_BASE_URL + 小程序合法域名（当前已切云托管，此坑仅本地测试时存在）。
-- **git 历史已本地重建**（本地根提交 f2a1d7f，远端 master=af69022）：恢复步骤 `git fetch` → `git reset --mixed af69022` → `git add -A && git commit`。**恢复前勿 force push**（TODO.md P0 条目）。
+- **本地 git 对象库损坏（当前状态）**：本地 `.git` 对象库已损坏（`git status`/`commit` 报 `Could not read cdc354875` 等），**本地 git 命令不可用属预期**。远端历史已接回（master=070f0ed，2026-08-16 push 成功）。当前提交流程：改动在工作区完成后，同步到干净 clone `/tmp/gym-remote`（`cd /tmp/gym-remote && rsync/git 工作区差异`）再 commit+push。根治：用 `/tmp/gym-remote/.git` 替换本地 `.git`（工作区文件保留）或重新 clone。**替换前勿删本地工作区文件。**
+- **云托管 push 后重建窗口（BUG-LEDGER #12/#24）**：push 到 master 触发云托管自动重建，重建期间（数分钟）接口 404/登录失败属预期，且**重建完成前访问的是旧镜像**——真机报"接口不存在/旧功能"时先确认重建完成再排查代码（#12「教练学员/结算接口不存在」根因即旧镜像，代码本地 150/150 全绿）。登录失败弹窗已加重试按钮自助重试。
 - 支付/订课/候补在 `BEGIN...COMMIT` 事务内，异常回滚；幂等防重（下单查 pending 订单、支付查 booked 记录、前端防连点锁）。
