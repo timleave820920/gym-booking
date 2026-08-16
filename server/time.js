@@ -74,4 +74,24 @@ function prevDateStr(s) {
   return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
 }
 
-module.exports = { TZ, parts, todayStr, nowTimeStr, nowDateTimeStr, nowMin, parseBeijing, prevDateStr };
+/**
+ * 'YYYY-MM-DD HH:MM(:SS)' 加/减分钟后 → 'YYYY-MM-DD HH:MM:SS'
+ * 北京时间语义，Date.UTC 运算无系统时区依赖（DESIGN #D2 S2：候补过期 deadline 业务层化）
+ */
+function addMinutesStr(dtStr, deltaMin) {
+  const [d, t = '00:00:00'] = String(dtStr).split(' ');
+  const [y, mo, dd] = d.split('-').map(Number);
+  const [h, mi, s = 0] = t.split(':').map(Number);
+  // 假想 UTC 直接运算（与 prevDateStr 同套路）：输入输出均为北京时间字符串，无系统时区依赖
+  const dt = new Date(Date.UTC(y, mo - 1, dd, h, mi, s));
+  dt.setUTCMinutes(dt.getUTCMinutes() + deltaMin);
+  return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())} ${pad(dt.getUTCHours())}:${pad(dt.getUTCMinutes())}:${pad(dt.getUTCSeconds())}`;
+}
+
+/** 北京时间今天所在月的上月 'YYYY-MM'（营收环比用） */
+function prevMonthStr() {
+  const p = parts();
+  return p.mo === 1 ? `${p.y - 1}-12` : `${p.y}-${pad(p.mo - 1)}`;
+}
+
+module.exports = { TZ, parts, todayStr, nowTimeStr, nowDateTimeStr, nowMin, parseBeijing, prevDateStr, addMinutesStr, prevMonthStr };

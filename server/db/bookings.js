@@ -173,7 +173,7 @@ function checkinBooking({ bookingId, coachOpenid }) {
     return { ok: false, error: '课程已结束超过 30 分钟，无法签到' };
   }
 
-  db.prepare("UPDATE bookings SET checkin_at = datetime('now','localtime') WHERE id = ?").run(bookingId);
+  db.prepare('UPDATE bookings SET checkin_at = ? WHERE id = ?').run(time.nowDateTimeStr(), bookingId);
   // 同步用户累计次数（total_classes +1）
   db.prepare('UPDATE users SET total_classes = total_classes + 1 WHERE openid = ?').run(booking.user_openid);
   // 能量币：签到 + 上课
@@ -209,8 +209,8 @@ function cancelBooking(openid, bookingId) {
     // 关联订单标记退款（仅已支付的订单），并记录订单号用于退钱
     refundOrder = db.prepare("SELECT id FROM orders WHERE booking_id = ? AND status = 'paid'").get(bookingId);
     if (refundOrder) {
-      db.prepare(`UPDATE orders SET status = 'refunded', refunded_at = datetime('now','localtime'), cancel_reason = '用户退订'
-                  WHERE id = ?`).run(refundOrder.id);
+      db.prepare(`UPDATE orders SET status = 'refunded', refunded_at = ?, cancel_reason = '用户退订'
+                  WHERE id = ?`).run(time.nowDateTimeStr(), refundOrder.id);
     }
     // 仅未签到订单恢复余位
     if (!booking.checkin_at) {
@@ -278,9 +278,9 @@ function countFinishedWorkouts(openid) {
     FROM bookings b
     JOIN course_sessions s ON s.id = b.session_id
     WHERE b.user_openid = ? AND b.status = 'booked'
-      AND (s.date < date('now','localtime')
-           OR (s.date = date('now','localtime') AND s.end_time < time('now','localtime')))
-  `).get(openid);
+      AND (s.date < ?
+           OR (s.date = ? AND s.end_time < ?))
+  `).get(openid, time.todayStr(), time.todayStr(), time.nowTimeStr());
   return row.c;
 }
 
@@ -293,9 +293,9 @@ function countUpcomingBookings(openid) {
     FROM bookings b
     JOIN course_sessions s ON s.id = b.session_id
     WHERE b.user_openid = ? AND b.status = 'booked'
-      AND (s.date > date('now','localtime')
-           OR (s.date = date('now','localtime') AND s.start_time >= time('now','localtime')))
-  `).get(openid);
+      AND (s.date > ?
+           OR (s.date = ? AND s.start_time >= ?))
+  `).get(openid, time.todayStr(), time.todayStr(), time.nowTimeStr());
   return row.c;
 }
 

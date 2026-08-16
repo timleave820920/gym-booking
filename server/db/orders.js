@@ -145,8 +145,8 @@ function payOrder({ openid, orderId, pay_method = 'balance' }) {
   db.exec('BEGIN');
   try {
     // 1. 订单标记已支付（pay_source 记录实付来源：pass / balance / wxpay）
-    db.prepare("UPDATE orders SET status = 'paid', pay_method = ?, pay_source = ?, paid_at = datetime('now','localtime') WHERE id = ?")
-      .run(effMethod, effMethod, orderId);
+    db.prepare("UPDATE orders SET status = 'paid', pay_method = ?, pay_source = ?, paid_at = ? WHERE id = ?")
+      .run(effMethod, effMethod, time.nowDateTimeStr(), orderId);
 
     if (order.order_type === 'pass') {
       // 次卡购买：单卡累加发卡（次数叠加 + 作废日期顺延）
@@ -314,8 +314,8 @@ function getRevenueStats() {
   const thisMonth = db.prepare(`
     SELECT COALESCE(SUM(amount_fen), 0) revenue, COUNT(*) cnt
     FROM orders WHERE status = 'paid'
-      AND strftime('%Y-%m', paid_at) = strftime('%Y-%m', 'now', 'localtime')
-  `).get();
+      AND substr(paid_at, 1, 7) = ?
+  `).get(time.todayStr().slice(0, 7));
   // 总营收 + 总订单数 + 退款总额
   const totals = db.prepare(`
     SELECT
@@ -330,7 +330,7 @@ function getRevenueStats() {
 
   // 近 8 个月月度营收
   const monthlyRows = db.prepare(`
-    SELECT strftime('%Y-%m', paid_at) ym, COALESCE(SUM(amount_fen), 0) revenue
+    SELECT substr(paid_at, 1, 7) ym, COALESCE(SUM(amount_fen), 0) revenue
     FROM orders WHERE status = 'paid' AND paid_at IS NOT NULL
     GROUP BY ym ORDER BY ym DESC LIMIT 8
   `).all();
@@ -361,8 +361,8 @@ function getRevenueStats() {
   const lastMonth = db.prepare(`
     SELECT COALESCE(SUM(amount_fen), 0) revenue
     FROM orders WHERE status = 'paid'
-      AND strftime('%Y-%m', paid_at) = strftime('%Y-%m', 'now', 'localtime', '-1 month')
-  `).get().revenue;
+      AND substr(paid_at, 1, 7) = ?
+  `).get(time.prevMonthStr()).revenue;
 
   const thisRev = fen(thisMonth.revenue);
   const lastRev = fen(lastMonth);
@@ -398,7 +398,7 @@ function promoteFromWaitlist(sessionId) {
   db.prepare('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?').run(sessionId);
         syncSessionStatus(sessionId);
   // 更新排位记录为已转正
-  db.prepare("UPDATE waitlist SET status = 'promoted', promoted_at = datetime('now','localtime') WHERE id = ?").run(waiting.id);
+  db.prepare("UPDATE waitlist SET status = 'promoted', promoted_at = ? WHERE id = ?").run(time.nowDateTimeStr(), waiting.id);
   // 订单联动：原排位订单关联到新 booking（订单保持 paid，即排位费转为订课费）
   db.prepare("UPDATE orders SET booking_id = ?, wait_id = ?, order_type = 'book' WHERE wait_id = ? AND status = 'paid'")
     .run(bookingId, waiting.id, waiting.id);
@@ -477,12 +477,12 @@ function cancelWaitlist(openid, waitId) {
   db.exec('BEGIN');
   let refundOrder = null;   // 声明在外层，事务后退钱使用
   try {
-    db.prepare("UPDATE waitlist SET status = 'cancelled', cancel_reason = '用户退出候补', refunded_at = datetime('now','localtime') WHERE id = ?").run(waitId);
+    db.prepare("UPDATE waitlist SET status = 'cancelled', cancel_reason = '用户退出候补', refunded_at = ? WHERE id = ?").run(time.nowDateTimeStr(), waitId);
     // 关联订单标记退款，并记录订单号用于退钱
     refundOrder = db.prepare("SELECT id FROM orders WHERE wait_id = ? AND status = 'paid'").get(waitId);
     if (refundOrder) {
-      db.prepare(`UPDATE orders SET status = 'refunded', refunded_at = datetime('now','localtime'), cancel_reason = '用户退出候补'
-                  WHERE id = ?`).run(refundOrder.id);
+      db.prepare(`UPDATE orders SET status = 'refunded', refunded_at = ?, cancel_reason = '用户退出候补'
+                  WHERE id = ?`).run(time.nowDateTimeStr(), refundOrder.id);
     }
     db.exec('COMMIT');
   } catch (e) {
@@ -535,27 +535,27 @@ function listWaitlistByUser(openid) {
  */
 function refundExpiredWaitlist() {
   // 截止时间 = 开课时间 - 所选偏移（start=开课时 / 1h / 2h）
+  // deadline 业务层计算（DESIGN #D2 S2）：去掉 SQL 内 datetime(±min)/|| 拼接（MySQL 不兼容），
+  // 候补列表量小，逐行过滤性能可接受；time.addMinutesStr 北京时间语义无时区依赖
+  const now = time.nowDateTimeStr();
   const expired = db.prepare(`
-    SELECT * FROM (
-      SELECT w.id, w.user_openid, w.amount_fen, w.pass_id, s.course_id, s.start_time, c.name AS course_name,
-             (SELECT o.id FROM orders o WHERE o.wait_id = w.id AND o.status = 'paid' LIMIT 1) AS order_id,
-             CASE w.expire_mode
-               WHEN '1h' THEN datetime(s.date || ' ' || s.start_time, '-60 minutes')
-               WHEN '2h' THEN datetime(s.date || ' ' || s.start_time, '-120 minutes')
-               ELSE datetime(s.date || ' ' || s.start_time)
-             END AS deadline
-      FROM waitlist w
-      JOIN course_sessions s ON s.id = w.session_id
-      JOIN courses c ON c.id = s.course_id
-      WHERE w.status = 'waiting'
-    ) WHERE deadline < ?
-  `).all(time.nowDateTimeStr());
+    SELECT w.id, w.user_openid, w.amount_fen, w.pass_id, s.date, s.start_time, s.course_id, c.name AS course_name,
+           (SELECT o.id FROM orders o WHERE o.wait_id = w.id AND o.status = 'paid' LIMIT 1) AS order_id,
+           w.expire_mode
+    FROM waitlist w
+    JOIN course_sessions s ON s.id = w.session_id
+    JOIN courses c ON c.id = s.course_id
+    WHERE w.status = 'waiting'
+  `).all().filter(r => {
+    const offsetMin = r.expire_mode === '1h' ? -60 : r.expire_mode === '2h' ? -120 : 0;
+    return time.addMinutesStr(`${r.date} ${r.start_time}`, offsetMin) < now;
+  });
   for (const row of expired) {
     db.exec('BEGIN');
     try {
-      db.prepare("UPDATE waitlist SET status = 'refunded', cancel_reason = '课程开始未排到，自动退款', refunded_at = datetime('now','localtime') WHERE id = ?").run(row.id);
-      db.prepare(`UPDATE orders SET status = 'refunded', refunded_at = datetime('now','localtime'), cancel_reason = '课程开始未排到，自动退款'
-                  WHERE wait_id = ? AND status = 'paid'`).run(row.id);
+      db.prepare("UPDATE waitlist SET status = 'refunded', cancel_reason = '课程开始未排到，自动退款', refunded_at = ? WHERE id = ?").run(time.nowDateTimeStr(), row.id);
+      db.prepare(`UPDATE orders SET status = 'refunded', refunded_at = ?, cancel_reason = '课程开始未排到，自动退款'
+                  WHERE wait_id = ? AND status = 'paid'`).run(time.nowDateTimeStr(), row.id);
       db.exec('COMMIT');
     } catch (e) {
       db.exec('ROLLBACK');

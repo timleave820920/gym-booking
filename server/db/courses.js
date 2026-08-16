@@ -2,6 +2,7 @@
  * 课程域（courses）：课程模板、场次排课、规则、教练/场地
  */
 const { db } = require('../db-core');
+const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 
 function listCoaches() {
   return db.prepare("SELECT id, name, skills, status FROM coaches WHERE status='active' OR 1=1 ORDER BY id").all();
@@ -88,9 +89,9 @@ function updateCourse(id, data) {
     lng: data.lng ?? cur.lng,
     status: data.status ?? cur.status
   };
-  const res = db.prepare(`UPDATE courses SET name=?, category=?, level=?, duration_min=?, price_fen=?, cover=?, description=?, tags=?, images=?, summary=?, address=?, lat=?, lng=?, status=?, updated_at=datetime('now','localtime')
+  const res = db.prepare(`UPDATE courses SET name=?, category=?, level=?, duration_min=?, price_fen=?, cover=?, description=?, tags=?, images=?, summary=?, address=?, lat=?, lng=?, status=?, updated_at=?
                           WHERE id = ?`)
-    .run(d.name, d.category, d.level, d.duration_min, d.price_fen, d.cover, d.description, d.tags, d.images, d.summary, d.address, d.lat, d.lng, d.status, id);
+    .run(d.name, d.category, d.level, d.duration_min, d.price_fen, d.cover, d.description, d.tags, d.images, d.summary, d.address, d.lat, d.lng, d.status, time.nowDateTimeStr(), id);
   if (res.changes === 0) return false;
   replaceRules(id, data.rules || []);
   return true;

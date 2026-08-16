@@ -3,6 +3,7 @@
  */
 const { db } = require('../db-core');
 const { findUserByOpenid } = require('./users');
+const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 const ENERGY_CONFIG = require('../energy-config.js');
 const SHOP_ITEMS = require('../shop-items.js');
 
@@ -10,8 +11,8 @@ function todayCoinsEarned(openid) {
   const row = db.prepare(`
     SELECT COALESCE(SUM(change), 0) s FROM coin_logs
     WHERE user_openid = ? AND change > 0
-      AND date(created_at) = date('now','localtime')
-  `).get(openid);
+      AND date(created_at) = ?
+  `).get(openid, time.todayStr());
   return row.s;
 }
 

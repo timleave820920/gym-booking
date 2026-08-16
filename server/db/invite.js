@@ -27,7 +27,7 @@ function inviteBoardStats() {
   const reward = db.prepare('SELECT COALESCE(SUM(reward_fen), 0) s FROM invitations').get().s;
   const inviters = db.prepare('SELECT COUNT(DISTINCT inviter) c FROM invitations').get().c;
   const top = db.prepare(`
-    SELECT i.inviter, u.nickname AS inviter_name, u.avatar AS inviter_avatar,
+    SELECT i.inviter, MAX(u.nickname) AS inviter_name, MAX(u.avatar) AS inviter_avatar,
            COUNT(*) AS invited,
            COALESCE(SUM(CASE WHEN i.status = 'ordered' THEN 1 ELSE 0 END), 0) AS ordered_cnt
     FROM invitations i

@@ -3,6 +3,7 @@
  */
 const { db } = require('../db-core');
 const { getCoachConfig } = require('../coach-config');
+const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 
 /** 解析教练档案：openid → coaches 行（未绑定档案返回 null） */
 function findCoachByOpenid(openid) {
@@ -67,14 +68,24 @@ function getCoachNote(coachOpenid, studentOpenid) {
     .get(coachOpenid, studentOpenid) || { content: '', updated_at: null };
 }
 
-/** 写学员笔记（upsert 幂等，仅本人） */
+/**
+ * 写学员笔记（upsert 幂等，仅本人）
+ * 双方言兼容写法（DESIGN #D2 S2）：先 UPDATE 影响 0 行再 INSERT——SQLite 的
+ * ON CONFLICT DO UPDATE 与 MySQL 的 ON DUPLICATE KEY UPDATE 不互通，改两语句等价；
+ * 单用户编辑笔记，并发竞态可忽略。
+ */
 function upsertCoachNote(coachOpenid, studentOpenid, content) {
-  db.prepare(`
-    INSERT INTO coach_notes (coach_openid, student_openid, content, updated_at)
-    VALUES (?, ?, ?, datetime('now','localtime'))
-    ON CONFLICT(coach_openid, student_openid)
-    DO UPDATE SET content = excluded.content, updated_at = excluded.updated_at
-  `).run(coachOpenid, studentOpenid, content);
+  const now = time.nowDateTimeStr();
+  const upd = db.prepare(`
+    UPDATE coach_notes SET content = ?, updated_at = ?
+    WHERE coach_openid = ? AND student_openid = ?
+  `).run(content, now, coachOpenid, studentOpenid);
+  if (upd.changes === 0) {
+    db.prepare(`
+      INSERT INTO coach_notes (coach_openid, student_openid, content, updated_at)
+      VALUES (?, ?, ?, ?)
+    `).run(coachOpenid, studentOpenid, content, now);
+  }
   return getCoachNote(coachOpenid, studentOpenid);
 }
 
@@ -95,9 +106,9 @@ function getCoachSettlement(coachId, month) {
   const sessions = db.prepare(`
     SELECT COUNT(*) c FROM course_sessions
     WHERE coach_id = ? AND date >= ? AND date < ?
-      AND (date < date('now','localtime')
-           OR (date = date('now','localtime') AND end_time < time('now','localtime')))
-  `).get(coachId, from, to).c;
+      AND (date < ?
+           OR (date = ? AND end_time < ?))
+  `).get(coachId, from, to, time.todayStr(), time.todayStr(), time.nowTimeStr()).c;
   const checkins = db.prepare(`
     SELECT COUNT(*) c FROM bookings b
     JOIN course_sessions s ON s.id = b.session_id

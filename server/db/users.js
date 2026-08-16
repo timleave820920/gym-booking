@@ -2,6 +2,7 @@
  * 用户域（users）：账号注册/登录、资料、后台用户管理
  */
 const { db } = require('../db-core');
+const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 
 function findUserByOpenid(openid) {
   return db.prepare('SELECT * FROM users WHERE openid = ?').get(openid) || null;
@@ -24,9 +25,9 @@ function createUser({ openid, nickname = '', avatar = '', phone = '', role = 'st
 function touchLogin(openid) {
   db.prepare(`
     UPDATE users
-    SET last_login_at = datetime('now','localtime'), login_count = login_count + 1
+    SET last_login_at = ?, login_count = login_count + 1
     WHERE openid = ?
-  `).run(openid);
+  `).run(time.nowDateTimeStr(), openid);
   return findUserByOpenid(openid);
 }
 
