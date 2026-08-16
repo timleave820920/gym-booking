@@ -38,7 +38,7 @@
 
 > 从这里挑一个开始。建议顺序：先 P0，再 P1。（完整优先级见「产品规划-2026-08-11.md」）
 
-- [~] **P0｜⚠️ git 仓库恢复（2026-08-16 远端已接回 070f0ed；剩余：替换本地损坏 .git）** — 本地重建根提交 f2a1d7f 后，远端历史通过干净 clone（/tmp/gym-remote）+ 内容同步方式接回：**master 远端 HEAD 已到 070f0ed**（86 文件全量同步，push 成功）。**本地 `.git` 对象库仍损坏**（git status/commit 报 `Could not read cdc354875` 等），目前提交全部经 /tmp/gym-remote 完成；建议用 `/tmp/gym-remote/.git` 替换本地 `.git`（工作区文件保留）或重新 clone。替换前本地 `git` 命令不可用属预期。
+- [x] **P0｜git 仓库恢复（2026-08-16 完成）** — 本地重建根提交 f2a1d7f 后，远端历史通过干净 clone（/tmp/gym-remote）+ 内容同步方式接回：**master 远端 HEAD 已到 070f0ed**（86 文件全量同步，push 成功）。**2026-08-16 本地 `.git` 已用 `/tmp/gym-remote/.git` 替换**（旧损坏 .git 备份至 /tmp/git-broken-backup-20260816，工作区文件保留），本地 git status/log/commit/push 全部恢复正常（master=97e3d20，与远端同步）。
 - [ ] **P0｜⚠️ 云托管数据持久化（CFS 挂载，BUG-LEDGER #25）** — 容器文件系统不持久化，闲置缩容/推送重建后 SQLite 数据全丢，用户每次登录变"新的号"（真机 #13「无教练权限」根因 = 重建后库重置、旧 openid 无教练角色）。**需用户在云托管控制台：挂载 CFS 到 `/data` + 环境变量 `DB_PATH=/data/gym.db` + `WX_APPID`/`WX_SECRET`**，步骤见「云托管持久化与身份配置.md」。未完成前勿做正式数据迁移。
 - [ ] **P0｜注册正式小程序（个体工商户主体）** — 当前 AppID 是微信开发者工具的测试号，导致：云开发被禁用、无法接入微信支付、getPhoneNumber 拿不到真实手机号。这是所有上云/收款功能的前置条件。个人主体可注册，但**个人主体不能用微信支付**，建议用个体工商户主体注册（详情见 memory 第十四轮记录）。**串行长周期，建议立即启动申请，不阻塞本地开发。**
 - [ ] **P0｜WX_SECRET 配置（测试号）** — 从测试号后台复制 AppSecret 填入 `server/.env`（已建好框架）→ 重启后端 → 朋友各自独立 openid（当前共用 demo_user）
