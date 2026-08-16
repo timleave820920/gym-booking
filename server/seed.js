@@ -6,6 +6,8 @@
 const { db, driver } = require('./db');
 
 (async () => {
+await driver.ready; // MySQL 模式等建表完成（DESIGN #D2 S5）；SQLite 模式立即返回
+
 async function count(table) {
   return (await driver.get(`SELECT COUNT(*) AS c FROM ${table}`)).c;
 }

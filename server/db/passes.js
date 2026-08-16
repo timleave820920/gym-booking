@@ -13,14 +13,15 @@ const time = require('../time.js'); // 所有「当前时间」取值唯一入�
 (async function seedPackages() {
   const rows = (await driver.get('SELECT COUNT(*) c FROM class_packages')).c;
   if (rows === 0) {
-    await driver.run('INSERT INTO class_packages (name, total_count, valid_days, price_fen, desc) VALUES (?,?,?,?,?)', ['12次包', 12, 60, 90000, '60 天内有效，逾期剩余次数作废；可与已有次卡叠加次数并顺延有效期']);
-    await driver.run('INSERT INTO class_packages (name, total_count, valid_days, price_fen, desc) VALUES (?,?,?,?,?)', ['24次包', 24, 120, 180000, '120 天内有效，逾期剩余次数作废；可与已有次卡叠加次数并顺延有效期']);
+    // `desc` 加反引号：MySQL 保留字（SQLite 无碍，双方言兼容写法）
+    await driver.run('INSERT INTO class_packages (name, total_count, valid_days, price_fen, `desc`) VALUES (?,?,?,?,?)', ['12次包', 12, 60, 90000, '60 天内有效，逾期剩余次数作废；可与已有次卡叠加次数并顺延有效期']);
+    await driver.run('INSERT INTO class_packages (name, total_count, valid_days, price_fen, `desc`) VALUES (?,?,?,?,?)', ['24次包', 24, 120, 180000, '120 天内有效，逾期剩余次数作废；可与已有次卡叠加次数并顺延有效期']);
   }
 })();
 
 /** 可售档位列表 */
 async function listPassPackages() {
-  return await driver.all("SELECT id, name, total_count, valid_days, price_fen, desc FROM class_packages WHERE active = 1 ORDER BY price_fen");
+  return await driver.all("SELECT id, name, total_count, valid_days, price_fen, `desc` FROM class_packages WHERE active = 1 ORDER BY price_fen");
 }
 
 /** 当前有效次卡（active 且未过期且剩余>0；无则 null） */

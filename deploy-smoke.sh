@@ -65,7 +65,20 @@ attempt() {
     fi
     [ "$code" = "400" ] && new_ok=$((new_ok + 1))
   done
-  [ "$new_ok" = "4" ]
+
+  # 登录落库证据（DESIGN #D2 S5 冒烟）：同一 openid 两次登录，
+  # 第一次 201 注册、第二次 200 isNewUser=false = 数据持久化生效
+  # （MySQL/CFS 任何持久化路径都通吃；重建后数据仍在 = BUG-LEDGER #25 验收）
+  SMOKE_UID="smoke_$(date +%s)"
+  c1=$(probe POST /api/auth/login "{\"openid\":\"$SMOKE_UID\"}")
+  c2=$(probe POST /api/auth/login "{\"openid\":\"$SMOKE_UID\"}")
+  if [ "$c1" = "201" ] && [ "$c2" = "200" ]; then
+    echo "  ✓ 登录落库：注册201→复登200（数据持久化正常）"
+    new_ok=$((new_ok + 1))
+  else
+    echo "  ✗ 登录落库异常：首次=$c1 复登=$c2（未持久化或接口异常）"
+  fi
+  [ "$new_ok" = "5" ]
 }
 
 i=1

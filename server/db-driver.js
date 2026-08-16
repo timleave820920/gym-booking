@@ -15,7 +15,11 @@
 
 // ===== SQLite 驱动（node:sqlite 同步底层包 async 接口）=====
 class SqliteDriver {
-  constructor(db) { this._db = db; }
+  constructor(db) {
+    this._db = db;
+    this.isMysql = false;
+    this.ready = Promise.resolve(); // SQLite 同步建表（db-core 加载时已建），无需门闩
+  }
 
   async get(sql, params) {
     return this._db.prepare(sql).get(...(params || []));
@@ -48,7 +52,10 @@ class SqliteDriver {
 // ===== MySQL 驱动（S5 落地生产路径；mysql2 惰性 require 保持本地零依赖）=====
 class MysqlDriver {
   // conn：mysql2 连接池 或 事务内单连接（接口一致）
-  constructor(conn) { this._conn = conn; }
+  constructor(conn) {
+    this._conn = conn;
+    this.isMysql = true;
+  }
 
   async get(sql, params) {
     const [rows] = await this._conn.execute(sql, params || []);
@@ -95,20 +102,35 @@ class MysqlDriver {
 function createMysqlPool() {
   const mysql2 = require('mysql2/promise'); // 惰性 require：本地零依赖下不执行到
   const [host, port] = (process.env.MYSQL_ADDRESS || '127.0.0.1:3306').split(':');
-  return mysql2.createPool({
+  const pool = mysql2.createPool({
     host,
     port: Number(port) || 3306,
     user: process.env.MYSQL_USERNAME || 'root',
     password: process.env.MYSQL_PASSWORD || '',
     database: process.env.MYSQL_DB || 'gym',
     connectionLimit: 5,
-    waitForConnections: true
+    waitForConnections: true,
+    timezone: '+08:00' // 让 MySQL 返回的 DATETIME/时间计算按北京时间（BUG-LEDGER #28 防回归）
   });
+  // 每连接初始化：会话时区 +08:00 —— DEFAULT (CURRENT_TIMESTAMP) 的默认时间列按北京落库
+  pool.on('connection', (conn) => {
+    conn.query("SET time_zone = '+08:00'").catch(() => {});
+  });
+  return pool;
 }
 
 function createDriver({ sqliteDb } = {}) {
   if (process.env.DB_DRIVER === 'mysql') {
-    return new MysqlDriver(createMysqlPool());
+    // 建表由驱动初始化时执行（MySQL 版 DDL 一次建齐，见 mysql-schema.js）；
+    // ready 门闩：index.js 启动 `await driver.ready` 后再 listen，保证请求前表已就绪
+    const drv = new MysqlDriver(createMysqlPool());
+    const { MYSQL_SCHEMA } = require('./mysql-schema');
+    drv.ready = (async () => {
+      await drv.exec(MYSQL_SCHEMA);
+      await drv.exec("INSERT IGNORE INTO coach_config (id) VALUES (1)");
+      console.log('[mysql] 建表完成（' + (MYSQL_SCHEMA.match(/CREATE TABLE/g) || []).length + ' 表）');
+    })();
+    return drv;
   }
   if (!sqliteDb) throw new Error('createDriver: SQLite 模式需传入 sqliteDb 实例');
   return new SqliteDriver(sqliteDb);

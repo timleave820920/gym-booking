@@ -1222,7 +1222,10 @@ const server = http.createServer(async (req, res) => {
 
 // ===== 启动 =====
 // 独立启动时监听端口；被 require（如测试/覆盖率）时不监听，导出供复用
+// driver.ready 门闩（DESIGN #D2 S5）：MySQL 模式建表异步完成，就绪后才 listen，
+// 保证首个请求前 20 张表已建好；SQLite 模式 ready 立即完成，行为不变
 if (require.main === module) {
+  driver.ready.then(() => {
   server.listen(PORT, HOST, () => {
   // 启动时探测局域网 IP 并写入前端配置（IP 自动适配）
   const net = writeNetConfig();
@@ -1275,6 +1278,7 @@ if (require.main === module) {
     }
   }, 5 * 60 * 1000);
   });
+  }).catch(e => { console.error('[启动] 数据库就绪失败:', e); process.exit(1); });
 } else {
   // 被测试/覆盖率脚本 require：导出服务与数据库供同进程调用
   module.exports = { server, PORT, db };

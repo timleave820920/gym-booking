@@ -20,6 +20,11 @@ const db = new DatabaseSync(DB_FILE, { timeout: 5000 });
 db.exec('PRAGMA journal_mode = WAL;');
 db.exec('PRAGMA foreign_keys = ON;');
 
+// MySQL 模式（DESIGN #D2 S5）：建表由 db-driver 初始化时按 mysql-schema.js 执行，
+// 下方 SQLite 建表/ALTER 兼容段整体跳过（MySQL 是全新库，无历史迁移需求）
+const IS_MYSQL = process.env.DB_DRIVER === 'mysql';
+
+if (!IS_MYSQL) {
 // 初始化用户表
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -217,18 +222,6 @@ db.exec(`
   );
 `);
 
-// 旧库迁移：为已存在的 courses 表补 tags 列（幂等）
-const courseCols = db.prepare("PRAGMA table_info(courses)").all().map(c => c.name);
-
-// 统一驱动抽象（DESIGN #D2 S1）：SQLite 模式复用上方 db 实例（同一连接，WAL 一致）；
-// MySQL 模式由 db-driver 自建连接池（S5 接入建表与初始化）。
-const { createDriver } = require('./db-driver');
-const driver = createDriver({ sqliteDb: db });
-if (!courseCols.includes('tags')) {
-  db.exec("ALTER TABLE courses ADD COLUMN tags TEXT DEFAULT ''");
-  console.log('[db] courses 表已迁移：新增 tags 列');
-}
-
 // 每周重复排课规则表
 db.exec(`
   CREATE TABLE IF NOT EXISTS schedule_templates (
@@ -374,10 +367,20 @@ db.exec(`
     UNIQUE(coach_openid, student_openid)
   );
 `);
+} // end if (!IS_MYSQL)
 
-/**
- * 根据 openid 查找用户
- */
+// 旧库迁移：为已存在的 courses 表补 tags 列（幂等；仅 SQLite 模式）
+// MySQL 模式新库结构完整（mysql-schema.js），无迁移需求
+const courseCols = IS_MYSQL ? [] : db.prepare("PRAGMA table_info(courses)").all().map(c => c.name);
+if (!IS_MYSQL && !courseCols.includes('tags')) {
+  db.exec("ALTER TABLE courses ADD COLUMN tags TEXT DEFAULT ''");
+  console.log('[db] courses 表已迁移：新增 tags 列');
+}
+
+// 统一驱动抽象（DESIGN #D2 S1/S5）：SQLite 模式复用上方 db 实例（同一连接，WAL 一致）；
+// MySQL 模式由 db-driver 自建连接池并异步建表（driver.ready 门闩，index.js listen 前 await）
+const { createDriver } = require('./db-driver');
+const driver = createDriver({ sqliteDb: db });
 
 // 供各域模块复用
 module.exports = { db, driver, courseCols };

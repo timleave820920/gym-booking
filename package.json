@@ -1,0 +1,19 @@
+{
+  "name": "gym-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "综合训练馆订课系统 - 后端（Node 原生 http + SQLite/MySQL 双驱动，DESIGN #D2）",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "seed": "node server/seed.js",
+    "test": "DB_PATH=/tmp/gym-test-clean.db node minitest/run-tests.js"
+  },
+  "dependencies": {
+    "mysql2": "^3.11.0"
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}

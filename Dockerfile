@@ -1,5 +1,5 @@
 # 综合训练馆订课系统 - 后端镜像（微信云托管）
-# 零第三方依赖：node:sqlite 内置，无需 npm install
+# 默认 SQLite（node:sqlite 内置）；DB_DRIVER=mysql 时用 mysql2（唯一第三方依赖，DESIGN #D2 S5）
 FROM node:22-alpine
 
 # 时区固定为北京时间（BUG-LEDGER #28）：alpine 默认 UTC，Node getHours() 判定
@@ -11,6 +11,11 @@ RUN apk add --no-cache tzdata \
 ENV TZ=Asia/Shanghai
 
 WORKDIR /app
+
+# 安装 mysql2（DESIGN #D2 S5：MySQL 生产路径唯一第三方依赖；本地/CI 测试不安装，
+# 代码内惰性 require 保持零依赖可跑）
+COPY package.json ./
+RUN npm install --omit=dev
 
 # 复制后端代码
 COPY server/ ./server/
