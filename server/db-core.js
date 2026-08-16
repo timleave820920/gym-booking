@@ -219,6 +219,11 @@ db.exec(`
 
 // 旧库迁移：为已存在的 courses 表补 tags 列（幂等）
 const courseCols = db.prepare("PRAGMA table_info(courses)").all().map(c => c.name);
+
+// 统一驱动抽象（DESIGN #D2 S1）：SQLite 模式复用上方 db 实例（同一连接，WAL 一致）；
+// MySQL 模式由 db-driver 自建连接池（S5 接入建表与初始化）。
+const { createDriver } = require('./db-driver');
+const driver = createDriver({ sqliteDb: db });
 if (!courseCols.includes('tags')) {
   db.exec("ALTER TABLE courses ADD COLUMN tags TEXT DEFAULT ''");
   console.log('[db] courses 表已迁移：新增 tags 列');
@@ -375,4 +380,4 @@ db.exec(`
  */
 
 // 供各域模块复用
-module.exports = { db, courseCols };
+module.exports = { db, driver, courseCols };
