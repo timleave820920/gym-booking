@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-综合训练馆订课系统：微信小程序（学员端/教练端/管理后台）+ Node.js 后端 + SQLite。全部原生 JS，零 npm 依赖。项目文档、commit message、会话语言均为中文。
+综合训练馆订课系统：微信小程序（学员端/教练端/管理后台）+ Node.js 后端 + SQLite（默认）/ MySQL（生产，DESIGN #D2）。全部原生 JS；仅生产镜像依赖 mysql2（本地/CI 测试零依赖，惰性 require）。项目文档、commit message、会话语言均为中文。
 
 **开发前必读**（按优先级）：`CONVENTIONS.md`（与 AI 协作的契约，强制规矩）、`TECH-STACK.md`（后端架构）、`ENVIRONMENTS.md`（4 环境规范）、`BUG-LEDGER.md`（缺陷台账）、`BUGS-INBOX.md`（bug 收件箱）、`DESIGNS-INBOX.md`（设计需求收件箱）、`DEV-BACKLOG.md`（开发任务清单）、`DATA-MODEL.md`、`DESIGN-SYSTEM.md`（改样式前必读）、`TODO.md`（状态机：`[ ]` 未开始 / `[~]` 进行中 / `[x]` 完成，P0/P1/P2 优先级）。
 
@@ -101,7 +101,7 @@ Dockerfile  微信云托管镜像（零 npm install；容器启动先 node seed.
 
 **生产形态（2026-08-15 起）**：微信云托管（Docker + `wx.cloud.callContainer`，`USE_TCB=true`）。容器内文件（头像/封面转存到 `/images/`）需通过 `api.toFullUrl()` 拼公网域名才能显示——本地模式返回相对路径，云托管模式拼 `TCB_BASE_URL`。
 
-**⚠️ 云托管持久化（必读，BUG-LEDGER #25）**：容器文件系统不持久化——闲置缩容/推送重建后 SQLite 数据全丢，用户每次登录变"新的号"。**生产数据库必须挂 CFS 到 `/data` + 环境变量 `DB_PATH=/data/gym.db` + 配置 `WX_APPID`/`WX_SECRET`**（容器无 server/.env，gitignore 排除）。操作步骤见「云托管持久化与身份配置.md」；未完成前勿做正式数据迁移。
+**⚠️ 云托管持久化（必读，BUG-LEDGER #25 / DESIGN #D2）**：容器文件系统不持久化——闲置缩容/推送重建后 SQLite 数据全丢，用户每次登录变"新的号"。**生产数据库方向（DESIGN #D2 已定）＝云托管 MySQL**：环境变量 `DB_DRIVER=mysql` + `MYSQL_ADDRESS/USERNAME/PASSWORD`（代码自动建表 + driver.ready 门闩），另须配置 `WX_APPID`/`WX_SECRET`（容器无 server/.env，gitignore 排除）。CFS 挂 `/data` 为过渡方案（SQLite 持久化），详见「云托管持久化与身份配置.md」。**切换 DB_DRIVER=mysql 前必须先跑数据迁移**（scripts/migrate-sqlite-to-mysql.js）否则用户数据丢失。
 
 ## 已知坑
 

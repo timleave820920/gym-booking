@@ -21,8 +21,8 @@
 - [ ] **P0｜S2. 时间函数与方言点收口** — SQL 内 `datetime()/date()/time()` 89 处改 time.js 传参（符合规矩 #9）；orders.js:543-545 候补过期 `datetime(s.date||' '||s.start_time, '-60/-120 min')` 改业务层计算传参；INSERT OR IGNORE×3 / ON CONFLICT×1 → INSERT IGNORE；strftime×3 业务层化；time.js 新增 addMinutes 工具
 - [x] **P0｜S3. db/*.js async 化** — 11 模块 prepare/get/run → `await driver.*`（tokenizer 级转换脚本 server/migrate-async.js，已删除）；事务走 driver.exec('BEGIN'/'COMMIT')；同步函数保持同步；db-core 导出 driver 供各模块导入
 - [x] **P0｜S4. index.js + seed + minitest async 化** — 全部 handle* + API_ROUTES async；db.xxx 聚合调用补 await（known 迭代收敛：转换引入的 await 会把更多函数变 async，4 轮收敛）；顶层种子包 IIFE；handleMemberPlans 改 Promise.all；136 用例全绿 + TZ=UTC 全量通过
-- [ ] **P0｜S5. MySQL 生产路径落地** — db-core 双方言建表（MySQL 版 18 表一次建齐无 ALTER 段，VARCHAR(19) 时间列）；Dockerfile `npm install mysql2` + 环境变量模板；用户控制台开通 MySQL + 配 DB_DRIVER/MYSQL_* 环境变量；部署 + deploy-smoke.sh 扩展（登录落库证据）+ 真机重建验证（#25 验收）
-- [ ] **P1｜S6. 数据迁移 + 文档收尾** — scripts/migrate-sqlite-to-mysql.js（清理假用户后全表迁）；生产迁移执行 + 行数对账；CLAUDE.md（零依赖→仅 mysql2）/ 持久化手册（CFS 弃、MySQL 方向）/ 评审文档待办更新
+- [~] **P0｜S5. MySQL 生产路径落地** — 代码侧完成（已提交 14303c2）：mysql-schema.js 20 表一次建齐（VARCHAR(19) 时间列/索引内联/desc 反引号）+ driver.ready 门闩 + 连接级 time_zone + Dockerfile 装 mysql2 + deploy-smoke.sh 登录落库证据。**待用户控制台操作**：开通 MySQL + 环境变量 DB_DRIVER/MYSQL_* → push 部署 → 冒烟 + 真机重建验证（#25 验收）
+- [~] **P1｜S6. 数据迁移 + 文档收尾** — 脚本 scripts/migrate-sqlite-to-mysql.js 已写（dry-run 验证通过；支持容器内执行与本地连外网地址）；**待生产迁移执行**（控制台 MySQL 就绪后）+ 行数对账；CLAUDE.md（零依赖→仅 mysql2）/ 持久化手册（CFS 弃、MySQL 方向）更新
 
 ### DESIGN #D1 教练端重构（设计文档: 教练端重构设计方案.md，2026-08-16 确认）
 
