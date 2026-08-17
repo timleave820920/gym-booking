@@ -20,6 +20,10 @@ RUN npm install --omit=dev
 # 复制后端代码
 COPY server/ ./server/
 
+# 管理后台网页（web/courses.html：课程设定/排表管理/邀请看板/营收统计，
+# BUGS-INBOX #8：此前漏打包导致云托管访问 / 404）
+COPY web/ ./web/
+
 # 创建前端目录（server/index.js 启动时会尝试写 net-config.json，
 # 容器里没有 miniprogram 目录，需要先建好避免 ENOENT 异常）
 RUN mkdir -p /app/miniprogram/utils
