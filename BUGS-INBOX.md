@@ -2,7 +2,7 @@
 
 > 输入「bug：xxx」自动登记（UserPromptSubmit 钩子捕获）；描述不清我会追问。
 > 状态：⬜ 待确认 ｜ ⏳ 修复中 ｜ ✅ 已修复（登记 BUG-LEDGER #N）
-- [ ] #14（2026-08-17）管理访问码保护遗漏 `/api/admin/coach-assign`——#8 修复（065968e）的 ADMIN_PATHS 未包含该路由（仅含 courses/sessions/admin-sessions/admin-invite-board），生产探测：带错 Admin-Token 访问该接口返回 400 参数校验而非 401 = 未受保护。web 管理网页「教练分配」接口可被任何人调用（可绕过访问码改教练分配）。修复方向：把 POST /api/admin/coach-assign 加入 ADMIN_PATHS。**连带发现：生产 ADMIN_TOKEN 环境变量未配置**（受保护路由带错 token 均 400 而非 401），需在云托管控制台配置
+- [x] #14（2026-08-17）管理访问码保护遗漏 `/api/admin/coach-assign`——#8 修复（065968e）的 ADMIN_PATHS 未包含该路由（仅含 courses/sessions/admin-sessions/admin-invite-board），生产探测：带错 Admin-Token 访问该接口返回 400 参数校验而非 401 = 未受保护。web 管理网页「教练分配」接口可被任何人调用（可绕过访问码改教练分配）。修复方向：把 POST /api/admin/coach-assign 加入 ADMIN_PATHS。**连带发现：生产 ADMIN_TOKEN 环境变量未配置**（受保护路由带错 token 均 400 而非 401），需在云托管控制台配置。✅ 已修复（BUG-LEDGER #14：ADMIN_PATHS 补齐 + ADMIN-06/07 回归；生产 ADMIN_TOKEN 已确认配置——035 部署后无 token 访问 admin 接口 401）
 - [ ] #13（2026-08-16）扫码签到后显示"无教练权限"
 - [ ] #12（2026-08-16）点击教练模式下"我的学员"，会显示接口不存在；点击"结算"也是一样的报错。→ 已排查：前后端路径完全匹配（api.js ↔ index.js 路由表），本地 150/150 含 COACH 用例全绿——**根因是云托管后端仍为旧镜像**（001e776 之前的代码无 /api/coach/* 新路由），与 #8 同根因（服务端未部署）；**已验证（2026-08-16 上午云端 API 探测）**：070f0ed 重建完成，settlement 200 / students 404 业务拦截 / notes 400 参数校验 / coach-assign 400 参数校验，新路由全部在线——旧镜像根因消除。**待真机最终确认**（#13 真机复核时一并验）
 

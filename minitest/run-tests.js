@@ -251,6 +251,10 @@ async function runSuite() {
   check('ADMIN-04', '学员端接口不受访问码影响', r.status === 200, `status=${r.status}`);
   r = await req('GET', '/api/users', null, { noToken: true });
   check('ADMIN-05', '共享接口 /api/users 不保护（小程序 admin 共用）', r.status === 200, `status=${r.status}`);
+  r = await req('POST', '/api/admin/coach-assign', { openid: 'x', coach_id: 1 }, { noToken: true });
+  check('ADMIN-06', '无 token 设教练 → 401（BUGS-INBOX #14：防止绕过访问码提权）', r.status === 401, `status=${r.status}`);
+  r = await req('POST', '/api/admin/coach-assign', { openid: 'x' });
+  check('ADMIN-07', '正确 token 设教练（进参数校验：缺 coach_id）', r.status === 400 && (r.data.message || '').includes('coach_id'), `status=${r.status} msg=${r.data && r.data.message}`);
 
   // ===== 1. 账号登录 =====
   console.log('\n── 2. 账号与登录 ──');

@@ -15,6 +15,17 @@
 
 ---
 
+## #14 管理访问码保护遗漏 coach-assign——任何人都能绕过访问码把任意用户设为教练提权（P1 安全）
+
+- **发现**：2026-08-17，#8 修复（065968e）后审计 ADMIN_PATHS 覆盖范围，生产探测：POST /api/admin/coach-assign 带错 Admin-Token 返回 400 参数校验而非 401 = 未受保护
+- **现象**：web 管理网页「教练分配」接口公网裸奔——任何能访问接口的人（无需访问码）可把任意 openid 设为教练 → 获得教练权限（查看学员、签到核销、结算）。#8 的 ADMIN_PATHS 仅覆盖 courses 写/sessions 写/admin 运营读，遗漏该路由
+- **根因**：065968e 加访问码保护时 ADMIN_PATHS 按「小程序端不调用、仅管理网页使用」原则人工列清单，漏列 coach-assign（当时未审计全量管理路由）
+- **修复**：ADMIN_PATHS 增加 `{ m: 'POST', p: /^\/api\/admin\/coach-assign$/ }`；回归测试 ADMIN-06/07（无 token 401 / 对 token 进参数校验）。**行为变更告知**：小程序 admin-students 页「设教练」共用此接口，保护后需 Admin-Token——管理操作统一走 web 管理网页（#8 架构方向）
+- **回归测试**：ADMIN-06（无 token → 401）+ ADMIN-07（对 token → 400 参数校验）；全量 167/167 绿
+- **防护层**：L3 生产探测发现（带错 token 返回 400 而非 401 = 未受保护的可判据）；修复后 ADMIN-06/07 + 访问码校验兜底。**教训：加「保护/鉴权」类改动时，必须全量审计管理类路由清单（grep 所有 /api/admin 前缀 + 管理语义路由），不能凭记忆列集合**
+
+---
+
 ## #34 seed.js 完成后进程挂起——MySQL 连接池句柄阻塞退出，`node seed.js && node index.js` 卡死在 seed，index.js 永不启动 → 探针 refused 部署回滚（P0 生产不可用）
 
 - **发现**：2026-08-17，MySQL 部署（gym-server-030/032）连续探针失败 `Liveness probe failed: dial tcp ...:3000: connection refused`；启动日志**始终止于 seed 数据汇总、无 index.js 任何输出**（无「后端服务已启动」也无报错）——排除 index.js 崩溃（崩溃会有错误堆栈），定位到 index.js **从未被执行**

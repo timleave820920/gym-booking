@@ -1190,6 +1190,10 @@ const ADMIN_PATHS = [
   { m: 'PUT',    p: /^\/api\/sessions\/\d+$/ },
   { m: 'DELETE', p: /^\/api\/sessions\/\d+$/ },
   { m: 'GET',    p: /^\/api\/admin\/(sessions|invite-board)$/ },
+  // 教练分配（BUGS-INBOX #14：065968e 遗漏——web 管理网页「教练分配」可被任何人调用，
+  // 绕过访问码把任意用户设成教练提权；小程序 admin-students 页共用此接口，真机如需
+  // 设教练请改走 web 管理网页（#8 架构方向：管理操作统一在 web，带 Admin-Token））
+  { m: 'POST',   p: /^\/api\/admin\/coach-assign$/ },
 ];
 function isAdminPath(method, pathname) {
   return ADMIN_PATHS.some(x => x.m === method && x.p.test(pathname));
