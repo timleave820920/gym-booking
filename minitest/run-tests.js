@@ -600,11 +600,14 @@ async function runSuite() {
   // 不依赖固定执行时间（原「+10/+70」在 23:00 后跑测试 end 跨天→日期仍是当天，后端判"已结束"——BUG-LEDGER #15 同源坑）
   const chkNow = new Date();
   const chkEnd = new Date(chkNow.getTime() + 40 * 60000);
-  if (timeMod.parts(chkEnd).d !== timeMod.parts(chkNow).d) {
-    // 北京 23:20 后结束时间跨天，无法安全造当天窗口场次 → 跳过（与 CHK-07 同策略）
-    console.log('  [跳过] 23:20 后 CHK-01~04 窗口签到用例（跨天造数不安全）');
+  const chkStart = new Date(chkNow.getTime() - 20 * 60000);
+  if (timeMod.parts(chkStart).d !== timeMod.parts(chkNow).d || timeMod.parts(chkEnd).d !== timeMod.parts(chkNow).d) {
+    // 深夜/凌晨 now-20m 或 +40m 跨天时无法安全造「当天窗口」场次 → 跳过（与 CHK-07 同策略）。
+    // 2026-08-18 补 start 端检查：原判断只查 end，凌晨 00:00-00:19 跑测试 now-20m 落前一天，
+    // 时分贴到今天日期 → 场次被造到「未来」，签到窗口判定全挂（CHK-02/04/09/10 连锁）
+    console.log('  [跳过] 深夜/凌晨 CHK-01~04、08~13 窗口签到用例（now±跨天造数不安全）');
   } else {
-    const chkSid = await mkSession(todayStr, beijingHM(new Date(chkNow.getTime() - 20 * 60000)), beijingHM(chkEnd), 5, 0);
+    const chkSid = await mkSession(todayStr, beijingHM(chkStart), beijingHM(chkEnd), 5, 0);
     r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: chkSid, amountFen: 6800, orderType: 'book' });
     r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user1.openid, payMethod: 'wxpay' });
     const chkBookingId = r.data.booking.id;
@@ -679,8 +682,9 @@ async function runSuite() {
 
   // 造当天窗口场次 + 订课 + 支付 + 签到（自足链路，不依赖 CHK 分支是否跳过）
   const coEnd = new Date(now2.getTime() + 40 * 60000);
-  if (timeMod.parts(coEnd).d === timeMod.parts(now2).d) {
-    const coSid = await mkSession(todayStr, beijingHM(new Date(now2.getTime() - 20 * 60000)), beijingHM(coEnd), 5, 0);
+  const coStart = new Date(now2.getTime() - 20 * 60000);
+  if (timeMod.parts(coStart).d === timeMod.parts(now2).d && timeMod.parts(coEnd).d === timeMod.parts(now2).d) {
+    const coSid = await mkSession(todayStr, beijingHM(coStart), beijingHM(coEnd), 5, 0);
     r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: coSid, amountFen: 6800, orderType: 'book' });
     r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user1.openid, payMethod: 'wxpay' });
     r = await req('POST', `/api/bookings/${r.data.booking.id}/checkin`, { openid: T.coach.openid });
@@ -709,7 +713,7 @@ async function runSuite() {
     check('COACH-05', '结算聚合', ok(r, 200) && st && st.checkins >= 1 && st.total_fen === st.sessions * 10000 + st.checkins * 500, `s=${JSON.stringify(st)}`);
     check('COACH-05b', '结算配置单源', ok(r, 200) && st && st.course_fee_fen === 10000 && st.reward_fen === 500, `fee=${st && st.course_fee_fen} reward=${st && st.reward_fen}`);
   } else {
-    console.log('  [跳过] 23:20 后 COACH 签到链路用例（跨天造数不安全）');
+    console.log('  [跳过] 深夜/凌晨 COACH 签到链路用例（now±跨天造数不安全）');
   }
   // 结算参数校验
   r = await req('GET', '/api/coach/settlement?coach_id=1&month=2026-13');
