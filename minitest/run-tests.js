@@ -482,6 +482,23 @@ async function runSuite() {
     check('CHK-03', '非教练核销拒绝', r.status === 400 && (r.data.message || '').includes('教练'), `msg=${r.data && r.data.message}`);
     r = await req('POST', `/api/bookings/${chkBookingId}/checkin`, { openid: T.coach.openid });
     check('CHK-04', '重复签到拒绝', r.status === 400 && (r.data.message || '').includes('已签到'), `msg=${r.data && r.data.message}`);
+    // 按码核销（BUGS-INBOX #11：随机 5 位纯数字签到码，POST /api/checkin/by-code 反查）
+    r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: chkSid, amountFen: 6800, orderType: 'book' });
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user2.openid, payMethod: 'wxpay' });
+    const chkByBookingId = r.data.booking.id;
+    r = await req('GET', `/api/checkin/${chkByBookingId}`);
+    const chkCode = r.data.info && r.data.info.checkin_code;
+    check('CHK-08', '凭证含5位签到码', ok(r, 200) && /^\d{5}$/.test(chkCode || ''), `code=${chkCode}`);
+    r = await req('POST', '/api/checkin/by-code', { code: chkCode, openid: T.coach.openid });
+    check('CHK-09', '按码核销成功', ok(r, 200) && r.data.booking && r.data.booking.id === chkByBookingId, `msg=${r.data && r.data.message}`);
+    r = await req('POST', '/api/checkin/by-code', { code: chkCode, openid: T.coach.openid });
+    check('CHK-10', '按码重复签到拒绝', r.status === 400 && (r.data.message || '').includes('已签到'), `msg=${r.data && r.data.message}`);
+    r = await req('POST', '/api/checkin/by-code', { code: '12', openid: T.coach.openid });
+    check('CHK-11', '非5位码拒绝', r.status === 400, `msg=${r.data && r.data.message}`);
+    r = await req('POST', '/api/checkin/by-code', { code: '99999', openid: T.coach.openid });
+    check('CHK-12', '不存在码拒绝', r.status === 400 && (r.data.message || '').includes('不存在'), `msg=${r.data && r.data.message}`);
+    r = await req('POST', '/api/checkin/by-code', { code: chkCode, openid: T.user1.openid });
+    check('CHK-13', '按码非教练拒绝', r.status === 400 && (r.data.message || '').includes('教练'), `msg=${r.data && r.data.message}`);
   }
   // 非当天场次（独立明天场次）签到
   r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: tmr2, amountFen: 6800, orderType: 'book' });
@@ -744,18 +761,20 @@ async function runSuite() {
   check('COIN-02', '商店奖品', ok(r, 200) && r.data.items.length >= 1, `count=${r.data && r.data.items && r.data.items.length}`);
   r = await req('GET', '/api/coin/config');
   check('COIN-03', '能量币配置', ok(r, 200) && r.data.config && r.data.config.earnRules, `rules=${r.data && r.data.config && JSON.stringify(r.data.config.earnRules)}`);
-  // 充值获得能量币：user2 充 500 → 5% = 250 币（验证比例）
+  // 充值获得能量币：user2 充 500 → 5% = 250 币（验证比例；差值断言，不受先前签到奖励余额影响——CHK 用例会签到得币）
+  r = await req('GET', `/api/coin/balance?openid=${T.user2.openid}`);
+  const coinBefore = r.data.balance;
   r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: 0, amountFen: 50000, orderType: 'recharge' });
   let coinOrder = r.data.order;
   await req('POST', `/api/orders/${coinOrder.id}/pay`, { openid: T.user2.openid });
   r = await req('GET', `/api/coin/balance?openid=${T.user2.openid}`);
-  check('COIN-04', '充值得币(5%比例)', r.data.balance === 250, `balance=${r.data && r.data.balance}`);
+  check('COIN-04', '充值得币(5%比例)', r.data.balance - coinBefore === 250, `+${r.data && r.data.balance - coinBefore}（应+250）`);
   // 再充 1500 → 应得 750；2026-08-14 取消每日上限 → 全额到账 250+750=1000（不再截断）
   r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: 0, amountFen: 150000, orderType: 'recharge' });
   coinOrder = r.data.order;
   await req('POST', `/api/orders/${coinOrder.id}/pay`, { openid: T.user2.openid });
   r = await req('GET', `/api/coin/balance?openid=${T.user2.openid}`);
-  check('COIN-04b', '充值得币(无限额全额到账)', r.data.balance === 1000, `balance=${r.data && r.data.balance}`);
+  check('COIN-04b', '充值得币(无限额全额到账)', r.data.balance - coinBefore === 1000, `+${r.data && r.data.balance - coinBefore}（应+1000）`);
   // 余额不足兑换拒绝
   r = await req('POST', '/api/coin/exchange', { openid: T.user2.openid, itemId: 'coach-1v1' });
   check('COIN-05', '余额不足兑换拒绝', r.status === 400 && (r.data.message || '').includes('不足'), `msg=${r.data && r.data.message}`);

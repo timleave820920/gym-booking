@@ -132,6 +132,14 @@ function createDriver({ sqliteDb } = {}) {
     drv.ready = (async () => {
       await drv.exec(MYSQL_SCHEMA);
       await drv.exec("INSERT IGNORE INTO coach_config (id) VALUES (1)");
+      // 幂等补列（BUGS-INBOX #11：checkin_code 随机 5 位签到码——老库表已存在，IF NOT EXISTS 不加列）
+      // 唯一性靠业务层生成查重（SQLite 不支持 ADD COLUMN 带 UNIQUE 约束，双方言统一不用列级 UNIQUE）
+      const col = await drv.get(
+        "SELECT COUNT(*) c FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'bookings' AND column_name = 'checkin_code'");
+      if (col && col.c === 0) {
+        await drv.run('ALTER TABLE bookings ADD COLUMN checkin_code VARCHAR(5)');
+        console.log('[mysql] 迁移: bookings 表补 checkin_code 列');
+      }
       console.log('[mysql] 建表完成（' + (MYSQL_SCHEMA.match(/CREATE TABLE/g) || []).length + ' 表）');
     })();
     return drv;

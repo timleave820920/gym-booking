@@ -45,14 +45,17 @@ clean();
 
 // ===== 同进程 HTTP 客户端 =====
 let port = 0;
-function req(method, path, body) {
+function req(method, path, body, extraHeaders) {
   return new Promise((resolve, reject) => {
     const u = new URL('http://127.0.0.1:' + port + path);
     const payload = body ? JSON.stringify(body) : null;
     const options = {
       hostname: u.hostname, port: u.port, path: u.pathname + u.search,
       method,
-      headers: payload ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } : {}
+      headers: {
+        ...(payload ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } : {}),
+        ...(extraHeaders || {})
+      }
     };
     const r = http.request(options, (res) => {
       let data = '';
@@ -148,6 +151,14 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     assert.ok(r.data.info, '凭证信息');
     r = await req('POST', `/api/bookings/${bookingId}/checkin`, { openid: COACH.openid });
     assert.equal(r.data.code, 200, '教练核销');
+    // 按码核销探针（BUGS-INBOX #11）：凭证含 5 位码；格式错/已签到的码拒绝
+    r = await req('GET', '/api/checkin/' + bookingId);
+    const ckCode = r.data.info && r.data.info.checkin_code;
+    assert.ok(/^\d{5}$/.test(ckCode || ''), '签到码 5 位纯数字');
+    r = await req('POST', '/api/checkin/by-code', { code: '12', openid: COACH.openid });
+    assert.equal(r.status, 400, '格式错误码拒绝');
+    r = await req('POST', '/api/checkin/by-code', { code: ckCode, openid: COACH.openid });
+    assert.equal(r.status, 400, '已签到码重复核销拒绝');
     r = await req('GET', `/api/sessions/${sid}/students`);
     assert.ok(Array.isArray(r.data.students), '场次名单');
 
@@ -197,8 +208,11 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     assert.ok(r.data.invited >= 1, '邀请统计');
     r = await req('GET', '/api/invite/details?openid=' + U1.openid);
     assert.ok(Array.isArray(r.data.details), '邀请明细');
-    r = await req('GET', '/api/admin/invite-board');
-    assert.ok(r.data.board, '邀请看板');
+    // 邀请看板属 ADMIN_PATHS（#14 保护）：配置 ADMIN_TOKEN 后须带 header（.env 已配生产值，探针自身成对开关）
+    process.env.ADMIN_TOKEN = 'cov-admin';
+    r = await req('GET', '/api/admin/invite-board', null, { 'Admin-Token': 'cov-admin' });
+    delete process.env.ADMIN_TOKEN;
+    assert.ok(r.data.board, '邀请看板（带访问码）');
     // 次卡包探针
     r = await req('GET', '/api/passes/packages');
     assert.strictEqual(r.status, 200, 'passes/packages 200');

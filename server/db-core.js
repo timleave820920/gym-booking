@@ -291,6 +291,7 @@ db.exec(`
     status        TEXT DEFAULT 'booked',
     pay_status    TEXT DEFAULT 'unpaid',
     checkin_at    TEXT,
+    checkin_code  TEXT,
     cancel_reason TEXT DEFAULT '',
     created_at    TEXT DEFAULT (datetime('now','localtime')),
     FOREIGN KEY (user_openid) REFERENCES users(openid),
@@ -298,6 +299,8 @@ db.exec(`
     UNIQUE (user_openid, session_id)
   );
 `);
+// 随机 5 位签到码（BUGS-INBOX #11）：老库表已存在，ALTER 补列（重复执行幂等）
+try { db.exec('ALTER TABLE bookings ADD COLUMN checkin_code TEXT'); } catch (e) {}
 
 // 候补排位表（满员课付费排位，有人退订自动转正）
 db.exec(`

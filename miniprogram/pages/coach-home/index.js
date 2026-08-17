@@ -2,7 +2,7 @@ const api = require('../../utils/api.js');
 const app = getApp();
 const i18n = require('../../utils/i18n.js');
 const courseStatus = require('../../utils/course-status.js');
-const { parseCode } = require('../../utils/checkin-code.js');
+const { isValidCode, normalizeCode } = require('../../utils/checkin-code.js');
 
 const DEFAULT_AVATAR = '/images/2_1468.png';   // 学员未设头像占位
 // 签到窗口（与后端一致 DESIGN #D1）：开课前 30 分钟 ～ 课后 30 分钟
@@ -171,18 +171,18 @@ Page({
     });
   },
 
-  // 相机扫码核销（纯数字凭证码，DESIGN #D1）
+  // 相机扫码核销（随机 5 位纯数字凭证码，BUGS-INBOX #11）
   scanCheckin() {
     wx.scanCode({
       onlyFromCamera: true,
       scanType: ['qrCode'],
       success: (res) => {
-        const bookingId = parseCode((res.result || '').trim());
-        if (!bookingId) {
+        const code = normalizeCode(res.result || '');
+        if (!isValidCode(code)) {
           wx.showToast({ title: '无法识别的签到码', icon: 'none' });
           return;
         }
-        this.doCheckin(bookingId);
+        this.doCheckin(code);
       },
       fail: () => {}
     });
@@ -193,27 +193,27 @@ Page({
     this.setData({ manualCode: e.detail.value });
   },
   confirmManual() {
-    const bookingId = parseCode(this.data.manualCode);
-    if (!bookingId) {
-      wx.showToast({ title: '签到码格式不正确（纯数字）', icon: 'none' });
+    const code = normalizeCode(this.data.manualCode);
+    if (!isValidCode(code)) {
+      wx.showToast({ title: '签到码格式不正确（应为 5 位数字）', icon: 'none' });
       return;
     }
     this.setData({ manualShow: false });
-    this.doCheckin(bookingId);
+    this.doCheckin(code);
   },
   closeManual() {
     this.setData({ manualShow: false });
   },
 
-  // 核销签到
-  doCheckin(bookingId) {
+  // 核销签到（按 5 位码，BUGS-INBOX #11）
+  doCheckin(code) {
     const openid = this.data.openid;
     if (!openid) {
       wx.showToast({ title: '未登录，无法核销', icon: 'none' });
       return;
     }
     wx.showLoading({ title: '核销中...' });
-    api.checkin(bookingId, openid).then((res) => {
+    api.checkinByCode(code, openid).then((res) => {
       wx.hideLoading();
       const b = res.booking;
       wx.showToast({

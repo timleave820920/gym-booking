@@ -1,17 +1,22 @@
 /**
- * 签到凭证码解析（DESIGN #D1：凭证码为纯数字，兼容历史 GYM- 前缀）
- * 教练端扫码/手动核销共用，与后端 getCheckinInfo 的 bookingId 对应
+ * 签到凭证码工具（BUGS-INBOX #11：随机 5 位纯数字签到码）
+ * 教练端扫码/手动核销共用。码 = 后端随机生成的 5 位纯数字（10000-99999），
+ * 与 bookingId 无推导关系——核销走 /api/checkin/by-code 按码反查。
+ * （历史 GYM-0001 / bookingId 补零格式已废弃）
  */
 
 /**
- * 解析签到码 → bookingId
- * @param {string} code 纯数字（如 0001）或历史 GYM-0001
- * @returns {number} bookingId，无法识别返回 0
+ * 校验签到码格式（5 位纯数字）
+ * @param {string} code
+ * @returns {boolean}
  */
-function parseCode(code) {
-  const text = String(code || '').trim();
-  const m = text.match(/^(\d{1,10})$/) || text.match(/GYM-(\d+)/i);
-  return m ? Number(m[1]) : 0;
+function isValidCode(code) {
+  return /^\d{5}$/.test(String(code || '').trim());
 }
 
-module.exports = { parseCode };
+/** 归一化：去空白后原样返回（不再解析为 bookingId） */
+function normalizeCode(code) {
+  return String(code || '').trim();
+}
+
+module.exports = { isValidCode, normalizeCode };

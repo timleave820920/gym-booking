@@ -224,6 +224,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   status        VARCHAR(16) DEFAULT 'booked',
   pay_status    VARCHAR(16) DEFAULT 'unpaid',
   checkin_at    VARCHAR(19),
+  checkin_code  VARCHAR(5),
   cancel_reason VARCHAR(255) DEFAULT '',
   pay_source    VARCHAR(16) DEFAULT 'wxpay',
   pass_id       INT DEFAULT 0,

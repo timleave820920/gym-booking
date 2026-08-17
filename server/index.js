@@ -375,6 +375,22 @@ async function handleCheckin(req, res) {
   return sendJson(res, 200, { code: 200, message: '签到成功', booking: result.booking });
 }
 
+// 教练按签到码核销（POST /api/checkin/by-code，BUGS-INBOX #11：随机 5 位码）
+async function handleCheckinByCode(req, res) {
+  const body = await readBody(req);
+  const { code, openid } = body || {};
+  if (!code || !openid) {
+    return sendJson(res, 400, { code: 400, message: '缺少签到码或openid' });
+  }
+  const result = await db.checkinByCode({ code, coachOpenid: openid });
+  if (!result.ok) {
+    await logOp(openid, 'checkin', { code }, 'fail');
+    return sendJson(res, 400, { code: 400, message: result.error });
+  }
+  await logOp(result.booking.user_openid, 'checkin', { code, course: result.booking.course_name }, 'ok', result.booking.booking_no);
+  return sendJson(res, 200, { code: 200, message: '签到成功', booking: result.booking });
+}
+
 // 按场次查订课名单（GET /api/sessions/:id/students，教练端）
 async function handleSessionStudents(req, res) {
   const pathParts = req.url.split('/');
@@ -984,6 +1000,7 @@ const API_ROUTES = [
   { m: 'GET',    p: '/api/bookings',            f: async(q, r) => await handleListBookings(q, r) },
   { m: 'DELETE', p: /^\/api\/bookings\//,    f: async(q, r) => await handleCancelBooking(q, r) },
   { m: 'POST',   p: /^\/api\/bookings\/\d+\/checkin$/, f: async (q, r) => await handleCheckin(q, r) },
+  { m: 'POST',   p: '/api/checkin/by-code',       f: async (q, r) => await handleCheckinByCode(q, r) }, // 按码核销（BUGS-INBOX #11）
   { m: 'GET',    p: /^\/api\/checkin\/\d+$/, f: async(q, r) => await handleCheckinInfo(q, r) },
   { m: 'GET',    p: /^\/api\/sessions\/\d+\/students$/, f: async(q, r) => await handleSessionStudents(q, r) },
   { m: 'POST',   p: '/api/waitlist',            f: async (q, r) => await handleJoinWaitlist(q, r) },

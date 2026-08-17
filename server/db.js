@@ -13,7 +13,7 @@ const { sendMessage, broadcastMessage, listMessages, unreadMessageCount, markMes
 const { listPassPackages, getUserPass, getUserPassForDate, getUserPassInfo, applyPassPurchase, consumePass, refundPass, expireOverduePasses } = require('./db/passes');
 const { syncAchievements, listUserAchievementKeys, REWARD_COINS } = require('./db/achievements');
 const { genOrderNo, createOrder, payOrder, listOrdersByUser, getOrderByNo, getRevenueStats, promoteFromWaitlist, joinWaitlist, cancelWaitlist, listWaitlistByUser, refundExpiredWaitlist } = require('./db/orders');
-const { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings } = require('./db/bookings');
+const { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, checkinByCode, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings } = require('./db/bookings');
 const { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach } = require('./db/coach');
 
 // 导出兼容（历史保留）
@@ -72,6 +72,7 @@ module.exports = {
   // 签到
   getCheckinInfo,
   checkinBooking,
+  checkinByCode,        // 按 5 位码核销（BUGS-INBOX #11）
   listBookingsBySession,
   // 候补排位
   joinWaitlist,

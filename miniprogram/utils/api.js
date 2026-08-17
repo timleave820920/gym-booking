@@ -287,9 +287,14 @@ module.exports = {
     return localRequest('/api/checkin/' + bookingId, 'GET');
   },
 
-  // 教练核销签到
+  // 教练核销签到（按订课 ID，兼容入口）
   checkin(bookingId, openid) {
     return localRequest('/api/bookings/' + bookingId + '/checkin', 'POST', { openid });
+  },
+
+  // 教练按签到码核销（随机 5 位纯数字，BUGS-INBOX #11）
+  checkinByCode(code, openid) {
+    return localRequest('/api/checkin/by-code', 'POST', { code, openid });
   },
 
   // 按场次查订课名单（教练端）

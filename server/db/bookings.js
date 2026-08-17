@@ -12,6 +12,18 @@ const { refundPass } = require('./passes');
 const ENERGY_CONFIG = require('../energy-config.js');
 const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 
+/** 随机 5 位纯数字签到码（BUGS-INBOX #11：bookingId 补零 → 随机码，防猜测/串号）
+ * 唯一性：生成后查重，撞号重试（表无 UNIQUE 约束，因 SQLite 不支持 ADD COLUMN 带 UNIQUE）
+ */
+async function genCheckinCode() {
+  for (let i = 0; i < 10; i++) {
+    const code = String(Math.floor(10000 + Math.random() * 90000)); // 10000-99999
+    const dup = await driver.get('SELECT id FROM bookings WHERE checkin_code = ?', [code]);
+    if (!dup) return code;
+  }
+  throw new Error('签到码生成失败：多次撞号');
+}
+
 async function createBooking({ user_openid, session_id, amount_fen = 0, pay_status = 'paid' }) {
   // 校验用户存在
   const user = await findUserByOpenid(user_openid);
@@ -28,16 +40,17 @@ async function createBooking({ user_openid, session_id, amount_fen = 0, pay_stat
   if (exists && exists.status === 'booked') return { ok: false, error: '您已预订该课程，请勿重复预订' };
 
   const bookingNo = 'BK' + Date.now() + Math.random().toString(36).slice(2, 8).toUpperCase();
+  const checkinCode = await genCheckinCode(); // 随机 5 位签到码（BUGS-INBOX #11）
 
   await driver.exec('BEGIN');
   try {
     if (exists) {
-      // 曾退订 → 重新激活原订单（保留历史 booking_no）
+      // 曾退订 → 重新激活原订单（保留历史 booking_no / checkin_code）
       await driver.run("UPDATE bookings SET status = 'booked', pay_status = ?, cancel_reason = '', checkin_at = NULL WHERE id = ?", [pay_status, exists.id]);
     } else {
       // 1. 创建订单（取 run() 返回的 lastInsertRowid——该 SQLite 取 id 函数 MySQL 无）
-      const r = await driver.run(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status)
-                  VALUES (?, ?, ?, ?, 'booked', ?)`, [bookingNo, user_openid, session_id, amount_fen, pay_status]);
+      const r = await driver.run(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status, checkin_code)
+                  VALUES (?, ?, ?, ?, 'booked', ?, ?)`, [bookingNo, user_openid, session_id, amount_fen, pay_status, checkinCode]);
       exists = { id: r.lastInsertRowid };
     }
     // 2. 扣减余位
@@ -97,11 +110,12 @@ async function listBookingsByUser(openid, status) {
 
 /**
  * 签到凭证信息：按订课 ID 查询（学员二维码页展示用）
- * @returns {object|null} 课程/时间/场地/签到状态
+ * 历史订课无 checkin_code → lazy 回填随机码（BUGS-INBOX #11）
+ * @returns {object|null} 课程/时间/场地/签到状态/签到码
  */
 async function getCheckinInfo(bookingId) {
-  return await driver.get(`
-    SELECT b.id, b.session_id, b.status, b.checkin_at, b.user_openid,
+  const info = await driver.get(`
+    SELECT b.id, b.session_id, b.status, b.checkin_at, b.checkin_code, b.user_openid,
            s.date, s.start_time, s.end_time,
            c.name AS course_name, c.level, c.duration_min,
            co.name AS coach_name, v.name AS venue_name
@@ -112,6 +126,25 @@ async function getCheckinInfo(bookingId) {
     JOIN venues v ON v.id = s.venue_id
     WHERE b.id = ?
   `, [bookingId]) || null;
+  if (info && !info.checkin_code) {
+    const code = await genCheckinCode();
+    await driver.run('UPDATE bookings SET checkin_code = ? WHERE id = ?', [code, bookingId]);
+    info.checkin_code = code;
+  }
+  return info;
+}
+
+/**
+ * 教练按签到码核销（BUGS-INBOX #11：随机 5 位码 → 反查订课）
+ * @param {object} p { code, coachOpenid }
+ * @returns {{ok:true, booking:object}|{ok:false, error:string}}
+ */
+async function checkinByCode({ code, coachOpenid }) {
+  const text = String(code || '').trim();
+  if (!/^\d{5}$/.test(text)) return { ok: false, error: '签到码格式不正确（应为 5 位数字）' };
+  const booking = await driver.get('SELECT id FROM bookings WHERE checkin_code = ?', [text]);
+  if (!booking) return { ok: false, error: '签到码不存在' };
+  return await checkinBooking({ bookingId: booking.id, coachOpenid });
 }
 
 /**
@@ -299,4 +332,4 @@ async function countUpcomingBookings(openid) {
 }
 
 // ===== 导出 =====
-module.exports = { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings };
+module.exports = { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, checkinByCode, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings };
