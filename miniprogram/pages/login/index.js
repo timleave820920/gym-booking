@@ -100,7 +100,8 @@ Page({
     wx.navigateTo({ url: '/pages/agreement/index?type=service' });
   },
 
-  // 测试账号表：昵称 → 角色（与后端 demo_ 账号一一对应；田立=demo_user 本人历史账号）
+  // 测试账号表：昵称 → 角色（昵称命中即用 djb2 哈希登录对应 demo_ 账号；2026-08-17 起
+  // 演示身份一律 demo_<哈希>，正式登录不产生任何演示账号）
   TEST_ACCOUNTS: { '田立': 'student', '喻馥雅': 'coach', '蚂蚁': 'student', '艳子': 'student' },
 
   onNickInput(e) {
@@ -217,8 +218,9 @@ Page({
       name: names[role],
       avatar: '/images/2_556.png',
       role: role,
-      // 演示阶段统一学员账号（与真微信登录一致，历史数据不丢）
-      openid: role === 'student' ? 'demo_user' : 'demo_' + role,
+      // 演示身份 openid 一律随机 demo_（2026-08-17 起，此入口为本地空态演示，
+      // 页面按 openid 查不到历史数据属预期）
+      openid: 'demo_' + role + '_' + Date.now(),
       totalClasses: 32,
       totalHours: '28.5h',
       totalCalories: '12,480',
@@ -399,15 +401,15 @@ Page({
   doLogin(userProfile, testNick) {
     wx.login({
       success: (res) => {
-        // 2026-08-15: 演示账号（昵称快捷登录，含田立）不传 code → 后端不换真实 openid（保留 demo 历史数据）；
-        // 微信一键/手机号登录传 code → 后端 code2Session 换真实 openid（朋友各自新号）
+        // 2026-08-15: 演示账号（昵称快捷登录）不传 code → 后端不换真实 openid（测试账号体系）；
+        // 微信一键/手机号登录传 code → 后端 code2Session 换真实 openid（各自独立新号）
         const code = testNick ? '' : (res.code || '');
 
-        // 演示阶段：
-        //  - 输入昵称匹配测试账号（田立/喻馥雅/蚂蚁/艳子）→ 用该账号登录（testNick 传入）
-        //  - 微信一键登录 / 手机号登录 → 前端兜底 openid（真实 openid 由后端 code 换号返回）
+        // 2026-08-17 用户指令：正式登录不再有任何 demo 兜底——openid 传空，后端只认
+        // code 换出的真实 openid（换号失败后端 400 报错，前端弹窗重试，绝不静默变演示账号）；
+        // 昵称快捷登录（田立/喻馥雅/蚂蚁/艳子）→ djb2 哈希 demo_ 账号（无演示特例）
         const nick = String((testNick || userProfile.name) || '').trim();
-        const openid = testNick === '田立' ? 'demo_user' : (testNick ? this.hashNick(testNick) : 'demo_user');
+        const openid = testNick ? this.hashNick(testNick) : '';
         wx.setStorageSync('openid', openid);
 
         // 请求后端注册/登录
@@ -441,7 +443,7 @@ Page({
           wx.setStorageSync('token', token);
           wx.setStorageSync('userInfo', userInfo);
           // 2026-08-15: 用后端返回的真实 openid 覆盖兜底值（code 换号成功后即微信真实 openid，
-          // 修复：原来只存 demo_user 兜底，页面读 storage 的 openid 全变成田立）
+          // 修复：原来只存演示兜底值，页面读 storage 的 openid 全变成演示账号）
           wx.setStorageSync('openid', userInfo.openid);
           app.globalData.userInfo = userInfo;
           app.globalData.role = userInfo.role;
@@ -454,8 +456,8 @@ Page({
           // 2026-08-15: 注册不再强制设置头像昵称——1 次点击完成注册直达首页；
           // 需完善资料的用户在个人中心顶部看到提示（点头像换微信头像/点昵称填微信昵称，可选）
           const name = String(userInfo.name || '').trim();
-          const isDemoUser = userInfo.openid === 'demo_user';
-          const needSetup = isNewUser || (!isDemoUser && (!name || name === '微信用户' || name === '田立'));
+          // 2026-08-17: 移除演示账号特判（演示账号同样需要完善资料，否则昵称为空不提示）
+          const needSetup = isNewUser || (!name || name === '微信用户' || name === '田立');
           if (needSetup) {
             wx.setStorageSync('pendingProfileSetup', 1);
           } else {

@@ -15,6 +15,20 @@
 
 ---
 
+## #45 登录链路演示账号兜底——微信一键登录在换号失败时静默变成演示身份（用户指令：代码中不再出现演示账号 id）
+
+- **发现**：2026-08-17，用户真机复测：删除小程序重扫预览码、微信一键登录，仍登录成演示账号（openid 演示号、昵称田立）；用户明确指令「保证代码中不会再出现 demo_user 的 id」
+- **现象**：正式登录（微信一键/手机号）在本该换真实 openid 的场景下拿到演示身份，身份错乱且无任何提示
+- **根因**（三层叠加）：
+  1. 后端 handleLogin：有 code 时 code2Session 失败（未配置 AppSecret / 网络超时 / 微信返回错误码）→ **静默回退客户端 openid**（前端兜底值恒为演示号）→ 换号失败必成演示账号
+  2. 前端 doLogin：正式登录 openid 兜底值写死 `'demo_user'`（田立特例）+ 其余也回退 `'demo_user'`——任何「code 缺失/失败」场景都落到演示账号
+  3. 登录页演示身份入口（quickLogin 学员）也写死 `'demo_user'`；seed-fake-users.js VIEWER 也引用之
+- **修复**：① 后端「有 code 只信 code」——换号失败返回 400（含微信错误码），**绝不回退客户端 openid**（前端弹窗重试）；② 前端正式登录 openid 兜底改空字符串（无 code 时后端 400 缺 openid，同样显式报错）；昵称快捷登录统一 djb2 哈希 demo_ 账号（无演示特例）；演示身份入口 openid 随机 demo_；③ 活跃代码 demo_user 清零（login/index.js 全部、seed-fake-users.js VIEWER 改 FAKE_VIEWER env 覆盖默认 demo_tianli、server/index.js 注释同步）——历史文档/台账保留原词（真实历史）
+- **回归测试**：AUTH-07（假 code 换号失败 → 400「微信登录校验失败」）+ AUTH-07b（客户端 openid 未被静默注册）+ FRONT-07 静态断言（登录页/造数脚本/后端登录处理三文件零 demo_user）；217/217 绿
+- **防护层**：L3 真机发现；修复后 AUTH-07/07b 真实断言 + FRONT-07 静态断言 + pre-commit hook 双兜底。**教训：「登录成功但身份是错的」是演示兜底身份类 bug 的典型形态——正式环境登录必须「有 code 只信 code」，任何换号失败都应是显式错误而非静默降级；前端兜底 openid 与后端回退逻辑叠加才酿成用户端无法察觉的身份错乱**
+
+---
+
 ## #44 生产清理脚本 clean-prod-users.js 确认环节必挂——confirm 引用 main 局部变量 delUsers
 
 - **发现**：2026-08-17，用户在云托管 WebShell 执行 `--execute` 时暴露（DRY_RUN 正常走完、EXECUTE 死在确认处）

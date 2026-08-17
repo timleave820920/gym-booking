@@ -163,6 +163,8 @@ async function handleLogin(req, res) {
   const { code, openid, nickname, avatar, phone, role } = body;
 
   // 1. 优先用 code 调微信接口换真实 openid（真实微信身份）
+  // 2026-08-17 用户指令：登录不再有演示账号兜底——有 code 只信 code，
+  // 换号失败直接报错（前端弹窗重试），绝不回退客户端 openid（否则微信一键登录会静默变成演示账号）
   let finalOpenid = null;
   let wechatVerified = false;
   if (code) {
@@ -171,14 +173,16 @@ async function handleLogin(req, res) {
       finalOpenid = session.openid;   // 真实微信 openid
       wechatVerified = true;
     } else {
-      // 换取失败（errcode）或未配置 secret（空对象）→ 回退客户端 openid
       if (session.errcode) {
         console.warn('[wechat] code2session 失败:', session.errcode, session.errmsg);
       }
-      finalOpenid = openid || null;
+      const reason = session.errcode
+        ? `微信登录校验失败（${session.errcode}）`
+        : '微信登录校验失败（AppSecret 未配置或登录码失效）';
+      return sendJson(res, 400, { code: 400, message: reason + '，请重试' });
     }
   } else {
-    finalOpenid = openid || null;     // 无 code（演示环境直接传 openid）
+    finalOpenid = openid || null;     // 无 code（本地/CI 测试环境直接传 openid）
   }
 
   if (!finalOpenid) {

@@ -6,7 +6,7 @@
  * 行为：
  *  1. 清理旧 fake_ 前缀用户及其订课记录（幂等）
  *  2. 随机创建 3-5 名假用户（昵称/头像随机）
- *  3. 假用户预订 demo_user(田立) 所有已订场次 → 详情页预约墙可见
+ *  3. 假用户预订 VIEWER（默认 demo_tianli）所有已订场次 → 详情页预约墙可见
  * 同堂次数：由后端对 fake_ 用户返回确定性伪随机 0-5（见 server/db/courses.js fakeCoCount）
  * 备注：bookings 有 UNIQUE(user,session)，用 INSERT OR IGNORE 防重
  */
@@ -18,7 +18,8 @@ const DB_FILE = process.env.DB_PATH || path.join(__dirname, 'data', 'gym.db');
 const db = new DatabaseSync(DB_FILE, { timeout: 8000 });
 db.exec('PRAGMA foreign_keys = ON;');
 
-const VIEWER = 'demo_user'; // 以谁的场次为准
+// 以谁的场次为准（2026-08-17：默认值改用演示哈希账号，可 FAKE_VIEWER 环境变量覆盖）
+const VIEWER = process.env.FAKE_VIEWER || 'demo_tianli';
 const NICK_POOL = ['王一诺', '李子墨', '赵思远', '钱朵朵', '孙一凡', '周嘉怡', '吴雨桐', '郑凯文', '陈语嫣', '黄子豪'];
 const IMG_DIR = path.join(__dirname, '..', 'miniprogram', 'images');
 const AVATARS = fs.readdirSync(IMG_DIR)

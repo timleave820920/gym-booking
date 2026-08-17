@@ -257,6 +257,14 @@ async function runSuite() {
   check('FRONT-06', '退出登录按钮下有 openid 小字（学员端+教练端）',
     /openid：\{\{openid\}\}/.test(pfWxml) && /openid: user\.openid \|\| wx\.getStorageSync\('openid'\) \|\| ''/.test(pfSrc) && /openid-hint/.test(chHomeWxml),
     '两处退出按钮下必须展示当前账号 openid，方便管理页核对绑定');
+  // 2026-08-17 用户指令：代码中不再出现 demo_user 兜底身份（登录链路曾静默回退 demo_user）
+  const loginSrc2 = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'login', 'index.js'), 'utf8');
+  const fakeSeedSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'seed-fake-users.js'), 'utf8');
+  const indexSrc2 = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8');
+  check('FRONT-07', '登录链路无 demo_user 兜底（登录页/造数脚本/后端登录处理）',
+    !/demo_user/.test(loginSrc2) && !/demo_user/.test(fakeSeedSrc)
+      && /微信登录校验失败/.test(indexSrc2) && !/demo_user/.test(indexSrc2),
+    '正式登录换号失败必须 400 报错重试；任何活跃代码不得再出现 demo_user 作为登录兜底身份');
 
   // ===== 1.65 上课页排序（BUG-LEDGER #36：纯函数模块真实断言）=====
   console.log('\n── 1.65 上课页排序（BUG-LEDGER #36）──');
@@ -398,6 +406,15 @@ async function runSuite() {
   check('AUTH-02', '重复登录幂等', r.status === 200, `status=${r.status} msg=${r.data && r.data.message}`);
   r = await req('POST', '/api/auth/login', {});
   check('AUTH-03', '缺 openid', r.status === 400 && (r.data.message || '').includes('openid'), `msg=${r.data && r.data.message}`);
+  // 有 code 只信 code（2026-08-17：换号失败必须 400 报错，绝不回退客户端 openid——否则微信登录静默变演示账号）
+  r = await req('POST', '/api/auth/login', { code: 'fake_code', openid: 'uid_test_nofallback', nickname: '不应被创建' });
+  check('AUTH-07', 'code 换号失败 → 400 且不注册客户端 openid',
+    r.status === 400 && (r.data.message || '').includes('微信登录校验失败'),
+    `status=${r.status} msg=${r.data && r.data.message}`);
+  r = await req('GET', '/api/users');
+  check('AUTH-07b', '客户端 openid 未被静默注册',
+    !(r.data.users || []).some(u => u.openid === 'uid_test_nofallback'),
+    `users=${(r.data.users || []).map(u => u.openid).join(',')}`);
   r = await req('POST', '/api/auth/profile', { openid: T.user1.openid, nickname: '田立新版', avatar: 'x' });
   check('AUTH-04', '更新资料', ok(r, 200), `msg=${r.data && r.data.message}`);
   r = await req('GET', '/api/users');
