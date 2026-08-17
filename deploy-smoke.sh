@@ -17,6 +17,11 @@
 #   ✓ 新路由不带参数返回 400（参数校验） = 路由存在 = 新镜像已上线
 #   ✗ 新路由返回 404「接口不存在」       = 旧镜像（等待重建完成）
 #   ✗ 连接失败                          = 重建窗口期 / 服务未部署
+#
+# 新镜像特征补充（BUGS-INBOX #8 / BUG-LEDGER #34 部署排障）：
+#   ✓ GET / → 200                      = web 管理网页已打包（cc3362c 前旧镜像 404）
+#   ✓ POST /api/courses 无 token → 401 = ADMIN_TOKEN 访问码校验生效（生产必配；
+#                                        本地未加载 .env 时为 400 参数校验，提示不判失败）
 # ============================================================
 
 # 默认 URL：从 api.js 提取（唯一人工配置源，见 CLAUDE.md 架构段）
@@ -78,7 +83,27 @@ attempt() {
   else
     echo "  ✗ 登录落库异常：首次=$c1 复登=$c2（未持久化或接口异常）"
   fi
-  [ "$new_ok" = "5" ]
+
+  # 管理网页在线（BUGS-INBOX #8：cc3362c 前旧镜像无 web 打包 → / 404）
+  wcode=$(probe GET /)
+  if [ "$wcode" = "200" ]; then
+    echo "  ✓ GET / → 200（管理网页在线）"
+    new_ok=$((new_ok + 1))
+  else
+    echo "  ✗ GET / → $wcode（旧镜像无 web 或异常）"
+  fi
+
+  # ADMIN_TOKEN 访问码校验（BUGS-INBOX #8：生产必配；无 token 须 401。
+  # 本地未加载 .env 时校验未启用 → 400 参数校验，提示不判失败）
+  acode=$(probe POST /api/courses)
+  if [ "$acode" = "401" ]; then
+    echo "  ✓ POST /api/courses 无 token → 401（访问码校验生效）"
+  elif [ "$acode" = "400" ]; then
+    echo "  ? POST /api/courses 无 token → 400（ADMIN_TOKEN 未配置/本地未加载 .env，不判失败）"
+  else
+    echo "  ? POST /api/courses 无 token → $acode（异常状态，待确认）"
+  fi
+  [ "$new_ok" = "6" ]
 }
 
 i=1
