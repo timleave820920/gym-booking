@@ -15,6 +15,17 @@
 
 ---
 
+## #44 生产清理脚本 clean-prod-users.js 确认环节必挂——confirm 引用 main 局部变量 delUsers
+
+- **发现**：2026-08-17，用户在云托管 WebShell 执行 `--execute` 时暴露（DRY_RUN 正常走完、EXECUTE 死在确认处）
+- **现象**：脚本完整打印用户清单/关联数据/教练档案检查后报 `脚本失败: delUsers is not defined`；删除事务未执行、数据零变更（用户在后台确认用户数未减少）
+- **根因**：`confirm()` 定义在 `main()` 外，模板字符串 `${delUsers.length}` 引用的是 `main()` 的局部 `const delUsers`——作用域外引用必抛 ReferenceError。DRY_RUN 分支不调 confirm 所以预览正常；EXECUTE 走到确认即挂。属**安全方向失败**（每次都在执行前中止，误删不可能发生），但功能完全不可用
+- **修复**：`await confirm(delUsers)` 传参 + `function confirm(delUsers)`；顺带修 `SELECT VERSION() v` 别名在 mysql2 下取不到（改 `AS v` + `connInfo[0].v`，原打印 `MySQL undefined`）
+- **回归测试**：OPS-01 静态断言（`function confirm(delUsers)` + `await confirm(delUsers)` 双查，防回退到引用局部变量）；node --check 语法通过
+- **防护层**：L3 真机（WebShell）发现；修复后 OPS-01 静态断言 + pre-commit hook 兜底。**教训：main 与工具函数分离时，作用域边界要想清楚——工具函数引用的数据一律参数化传入；「DRY_RUN 正常 ≠ EXECUTE 可用」——两分支都要走一遍**
+
+---
+
 ## #43 课程编辑「教练介绍」从未保存 + 教练档案编辑能力缺失（DESIGN #D2 配套）
 
 - **发现**：2026-08-17，实现教练档案编辑时审计发现（前端 courses.html 一直有「教练介绍」字段，服务端丢弃）

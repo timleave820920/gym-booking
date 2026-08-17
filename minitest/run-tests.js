@@ -292,6 +292,12 @@ async function runSuite() {
   const passesSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', 'passes.js'), 'utf8');
   check('PASSES-01', 'seedPackages 自守 driver.ready 门闩', /await driver\.ready;/.test(passesSrc), 'passes.js 顶层种子须 await driver.ready（MySQL 异步建表门闩）');
 
+  // OPS-01: 运维脚本 confirm 必须参数化（防 BUG-LEDGER #44 回退：引用 main 局部变量 delUsers → WebShell 必挂）
+  const opsSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'scripts', 'clean-prod-users.js'), 'utf8');
+  check('OPS-01', 'clean-prod-users.js 的 confirm 接收 delUsers 参数',
+    /function confirm\(delUsers\)/.test(opsSrc) && /await confirm\(delUsers\)/.test(opsSrc),
+    'confirm 在 main 外部定义，必须由 main 传参（模板字符串引用未定义变量会 ReferenceError 中止删除）');
+
   // ===== 1.7 管理访问码校验（BUGS-INBOX #8：web 管理网页 ADMIN_TOKEN 保护）=====
   console.log('\n── 1.7 管理访问码校验（BUGS-INBOX #8）──');
   r = await req('POST', '/api/courses', { name: 'x' }, { noToken: true });

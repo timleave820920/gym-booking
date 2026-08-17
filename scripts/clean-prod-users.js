@@ -39,8 +39,8 @@ async function main() {
     database: process.env.MYSQL_DB || 'gym',
     multipleStatements: true,
   });
-  const [connInfo] = await conn.query('SELECT VERSION() v');
-  console.log(`连接成功 MySQL ${connInfo.v} ｜ 模式: ${EXECUTE ? 'EXECUTE（将真删）' : 'DRY_RUN（只预览）'}`);
+  const [connInfo] = await conn.query('SELECT VERSION() AS v');
+  console.log(`连接成功 MySQL ${connInfo[0].v} ｜ 模式: ${EXECUTE ? 'EXECUTE（将真删）' : 'DRY_RUN（只预览）'}`);
 
   // ===== 1. 用户清单 =====
   const [users] = await conn.query('SELECT openid, nickname, role, created_at, login_count FROM users ORDER BY id');
@@ -97,7 +97,7 @@ async function main() {
   }
 
   // ===== 4. 执行删除（事务）=====
-  const ok = await confirm();
+  const ok = await confirm(delUsers);
   if (!ok) { console.log('已取消，未执行任何删除'); await conn.end(); return; }
 
   await conn.beginTransaction();
@@ -132,8 +132,8 @@ async function main() {
   await conn.end();
 }
 
-/** 交互确认（仅 TTY；非交互直接拒绝，防误删） */
-function confirm() {
+/** 交互确认（仅 TTY；非交互直接拒绝，防误删）。delUsers 由 main 传入（原实现引用 main 局部变量，WebShell 下必挂） */
+function confirm(delUsers) {
   if (!process.stdin.isTTY) {
     console.log('非交互环境未确认——拒绝执行。如确需执行请显式传入 CONFIRM=1');
     return Promise.resolve(process.env.CONFIRM === '1');
