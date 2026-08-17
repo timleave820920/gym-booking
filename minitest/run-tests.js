@@ -195,6 +195,17 @@ async function runSuite() {
   check('TIME-03', 'nowDateTimeStr↔parseBeijing 往返<5分钟', Math.abs(roundTrip - tsNow) < 5 * 60 * 1000, `delta=${Math.abs(roundTrip - tsNow) / 1000}s`);
   check('TIME-04', '签到窗口判定用北京分钟', timeMod.nowMin() === bjMin, `nowMin=${timeMod.nowMin()} bj=${bjMin}`);
 
+  // ===== 1.6 MySQL 驱动静态检查（防 #29 回退，BUG-LEDGER #29）=====
+  // 本地/CI 无 MySQL，MySQL 路径无法真连测试；做源码级断言兜底：
+  // connection 事件转发的是 callback 版连接，对其 query 结果 .catch() 会命中
+  // Query.prototype.catch = then（mysql2 防误用），打印警告 + throw → 建表永久挂起、容器 CrashLoop。
+  // 修复后必须保持 callback 风格：conn.query(sql, () => {})
+  const driverSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db-driver.js'), 'utf8');
+  console.log('\n── 1.6 MySQL 驱动静态检查（BUG-LEDGER #29 防回归）──');
+  check('MYSQL-01', 'mysql2 走 promise 入口', /require\('mysql2\/promise'\)/.test(driverSrc), 'db-driver.js 需 require("mysql2/promise")');
+  check('MYSQL-02', 'connection 事件 query 为 callback 风格', driverSrc.includes(`conn.query("SET time_zone = '+08:00'", () => {});`), 'connection 回调须 callback 风格');
+  check('MYSQL-03', '无 promise 风格 .catch 残留', !driverSrc.includes(`SET time_zone = '+08:00'").catch(`), '禁止 conn.query(...).catch(...) 写法');
+
   // ===== 1. 账号登录 =====
   console.log('\n── 2. 账号与登录 ──');
   r = await req('POST', '/api/auth/login', T.user1);

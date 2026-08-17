@@ -15,6 +15,14 @@
 
 ---
 
+## #29 连接池 connection 事件回调对 callback 版 query 用 .catch()——建表永久挂起、容器 CrashLoop（P0 生产不可用）
+- **发现**：2026-08-17，DESIGN #D2 S5 生产部署冒烟（push 后服务 health 000 持续 10+ 分钟，控制台日志定位）
+- **现象**：MySQL 库建成后容器反复重启，health 000；日志循环打印 `You have tried to call .then(), .catch()... require('mysql2/promise') instead of 'mysql2'` 警告（**无**「seed 失败」、**无**「[mysql] 建表完成」）；建库前（库不存在时）反而能正常抛 `ER_BAD_DB_ERROR` 并打印 seed 失败
+- **根因**：`server/db-driver.js` createMysqlPool 的 `pool.on('connection', conn => conn.query("SET time_zone = '+08:00'").catch(() => {}))`——mysql2 promise 池（PromisePool）的 `connection` 事件经 `inheritEvents` 从 corePool 原样转发，**事件参数是 callback 版连接**；callback 版 `conn.query()` 无回调返回 **Query 命令对象**，而 mysql2 定义了 `Query.prototype.catch = Query.prototype.then`（防误用设计）→ `.catch()` 打印警告并 **throw** → throw 发生在池内部事件回调里，打断建连流程 → `corePool.query` 的 done 永不回调 → `await drv.exec(MYSQL_SCHEMA)` **永久挂起** → seed 卡死不退出、不打印任何错误 → 容器被健康检查杀掉反复重启。库不存在时连接创建失败、不触发 `connection` 事件，所以该缺陷在建库前被 `ER_BAD_DB_ERROR` 掩盖
+- **修复**：connection 回调改 **callback 风格** `conn.query("SET time_zone = '+08:00'", () => {})`（callback 版连接用 callback 调，无返回对象可 .catch）。会话时区设置仍保留（DEFAULT CURRENT_TIMESTAMP 按北京落库，BUG-LEDGER #28 防回归）
+- **回归测试**：run-tests.js 新增 **MYSQL-01~03 源码级静态断言**（本地/CI 无 MySQL 无法真连，断言 db-driver.js：① `require('mysql2/promise')` ② connection 回调为 callback 风格 ③ 无 `.catch(` 残留写法）；全量 153/153 绿
+- **防护层**：L3 真机/生产冒烟发现（deploy-smoke.sh health 000 定位）；修复后由 MYSQL-01~03 静态断言兜底（有人改回 promise 风格写法立即红）+ 部署冒烟登录落库证据；**教训：mysql2 promise 池的 `connection` 事件参数是 callback 版连接，对其 query 结果做 promise 操作会命中 Query.catch=then 防误用陷阱；生产部署必须跑 deploy-smoke.sh 并核对日志关键字（建表完成/seed 失败）**
+
 ## #28 云托管容器时区 UTC——签到窗口整体差 8 小时，10:30 签不了 11:00 的课（P0 生产功能错位）
 - **发现**：2026-08-16 用户真机反馈（BUGS-INBOX #10）：「现在10:30，应该可以签到11:00的课，但显示不行，说时间未到」
 - **现象**：真机（云托管生产）在开课前 30 分钟窗口内签到被拒，提示「未到签到时间」；本地 API 测试 146/146 全绿——**本地（Windows 北京时间）发现不了，只有 UTC 环境（云托管/CI）才红**

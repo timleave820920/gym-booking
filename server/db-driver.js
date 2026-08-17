@@ -112,9 +112,12 @@ function createMysqlPool() {
     waitForConnections: true,
     timezone: '+08:00' // 让 MySQL 返回的 DATETIME/时间计算按北京时间（BUG-LEDGER #28 防回归）
   });
-  // 每连接初始化：会话时区 +08:00 —— DEFAULT (CURRENT_TIMESTAMP) 的默认时间列按北京落库
+  // 每连接初始化：会话时区 +08:00 —— DEFAULT (CURRENT_TIMESTAMP) 的默认时间列按北京落库。
+  // ⚠️ 必须用 callback 风格：connection 事件转发的是 callback 版连接（inheritEvents 原样转发 corePool
+  // 参数），无回调 query 返回 Query 命令对象——它同时有 then() 和 catch()（Query.prototype.catch = then），
+  // 对结果 .catch() 会触发 mysql2 防误用警告 + throw（BUG-LEDGER #29：建表永久挂起、容器 CrashLoop）。
   pool.on('connection', (conn) => {
-    conn.query("SET time_zone = '+08:00'").catch(() => {});
+    conn.query("SET time_zone = '+08:00'", () => {});
   });
   return pool;
 }
