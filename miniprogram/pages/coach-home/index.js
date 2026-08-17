@@ -4,12 +4,11 @@ const i18n = require('../../utils/i18n.js');
 const courseStatus = require('../../utils/course-status.js');
 const { isValidCode, normalizeCode } = require('../../utils/checkin-code.js');
 const { sortCoachSessions } = require('../../utils/session-sort.js'); // #42 课程三态排序
+const { getGreeting } = require('../../utils/greeting.js');
+const { buildWeekDays } = require('../../utils/week-bar.js');
+const { EARLY_WINDOW, LATE_WINDOW } = require('../../utils/checkin-config.js');
 
 const DEFAULT_AVATAR = '/images/2_1468.png';   // 学员未设头像占位
-// 签到窗口（与后端一致 DESIGN #D1）：开课前 30 分钟 ～ 课后 30 分钟
-const EARLY_WINDOW = 30;
-const LATE_WINDOW = 30;
-const WEEK_SHORT = ['日', '一', '二', '三', '四', '五', '六'];
 
 Page({
   data: {
@@ -54,7 +53,7 @@ Page({
     const now = new Date();
     const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     this.setData({
-      greeting: `${this.getGreetingWord()}，${name}教练`,
+      greeting: `${getGreeting()}，${name}教练`,
       month,
       monthText: this.monthText(now.getFullYear(), now.getMonth() + 1),
       monthAtCurrent: true
@@ -79,33 +78,10 @@ Page({
     if (tab === 2) this.loadSettlement(this.data.month);
   },
 
-  // 按时段问候（与学员端一致）
-  getGreetingWord() {
-    const t = i18n.t();
-    const hour = new Date().getHours();
-    if (hour >= 6 && hour < 12) return t.greetingMorning;
-    if (hour >= 12 && hour < 13) return t.greetingNoon;
-    if (hour >= 13 && hour < 18) return t.greetingAfternoon;
-    if (hour >= 18 && hour < 22) return t.greetingEvening;
-    return t.greetingLate;
-  },
-
   // ===== Tab1 我的课程 =====
-  // 日期条：今天起 7 天（含今天），与预约页 buildWeek 一致（BUG-LEDGER #26）
+  // 日期条：今天起 7 天（含今天），共享工具 week-bar.js（BUG-LEDGER #26）
   buildWeek() {
-    const today = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    const weekDays = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
-      const full = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-      weekDays.push({
-        weekday: i === 0 ? '今天' : '周' + WEEK_SHORT[d.getDay()],
-        date: pad(d.getDate()),
-        full,
-        selected: i === 0
-      });
-    }
+    const weekDays = buildWeekDays();
     this.setData({ weekDays, selectedDate: weekDays[0].full });
   },
 

@@ -265,7 +265,7 @@ async function cancelBooking(openid, bookingId) {
         await sendMessage({
           user_openid: openid, type: 'pass', title: '次卡已退回',
           content: '退订成功，已退回 1 次次卡次数',
-          biz_type: 'pass', biz_id: booking.pass_id || 0, jump_url: '/pages/member-card/index',
+          biz_type: 'pass', biz_id: booking.pass_id || 0, jump_url: '/pages/member-level/index',
           dedup_key: `pass_refund:${bookingId}`
         });
       }

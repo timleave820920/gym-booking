@@ -4,11 +4,11 @@ const app = getApp();
 const i18n = require('../../utils/i18n.js');
 const courseStatus = require('../../utils/course-status.js');
 const sessionCache = require('../../utils/session-cache.js');
+const { getGreeting } = require('../../utils/greeting.js');
+const { buildWeekDays } = require('../../utils/week-bar.js');
 
 const DEFAULT_COVER = '/images/2_193.png';       // 课程未设封面时的占位图
 const DEFAULT_COACH_AVATAR = '/images/2_1468.png'; // 教练未设头像时的占位图
-// 日期条：从今天起 7 天，今天是第一天（WEEK_LABELS 已废弃，改 WEEK_SHORT 按 getDay() 索引：0=周日）
-const WEEK_SHORT = ['日', '一', '二', '三', '四', '五', '六'];
 
 Page({
   data: {
@@ -46,44 +46,21 @@ Page({
     }
   },
 
-  // 读取微信昵称 + 按时段问候（{时段问候}，{昵称}），与活动页一致
+  // 读取微信昵称 + 按时段问候（共享工具 greeting.js）
   refreshUser() {
     const u = app.globalData.userInfo;
     let name = '微信用户';
     if (u && u.name && u.name !== '小陈同学') {
       name = u.name.slice(0, 8);
     }
-    const t = i18n.t();
-    const greeting = `${this.getGreetingWord(t)}，${name}`;
+    const greeting = `${getGreeting()}，${name}`;
     this.setData({ greeting });
   },
 
-  // 根据当前时间返回对应时段问候词（6-12早 / 12-13午 / 13-18下午 / 18-22晚 / 22-次日6夜深）
-  getGreetingWord(t) {
-    const hour = new Date().getHours();
-    if (hour >= 6 && hour < 12) return t.greetingMorning;
-    if (hour >= 12 && hour < 13) return t.greetingNoon;
-    if (hour >= 13 && hour < 18) return t.greetingAfternoon;
-    if (hour >= 18 && hour < 22) return t.greetingEvening;
-    return t.greetingLate;
-  },
-
-  // 日期条：今天起 7 天（含今天），过去的日期不显示（BUG-LEDGER #26 / #7）
+  // 日期条：今天起 7 天（含今天），共享工具 week-bar.js（BUG-LEDGER #26 / #7）
   buildWeek() {
-    const today = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    const weekDays = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
-      const full = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-      weekDays.push({
-        weekday: i === 0 ? '今天' : '周' + WEEK_SHORT[d.getDay()],
-        date: pad(d.getDate()),
-        full,
-        selected: i === 0
-      });
-    }
-    this.setData({ weekDays, selectedDate: weekDays[0].date });
+    const weekDays = buildWeekDays();
+    this.setData({ weekDays, selectedDate: weekDays[0].full });
     this.loadSessions(weekDays[0].full);
   },
 

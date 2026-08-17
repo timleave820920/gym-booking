@@ -112,14 +112,10 @@ Page({
     return now.getHours() * 60 + now.getMinutes() >= h * 60 + m;
   },
 
-  // 签到时间窗口（与后端规则一致，2026-08-16 统一为课后 30 分钟 DESIGN #D1）：当天 + 开课前30分钟 ~ 结束后30分钟
+  // 签到时间窗口（共享配置 checkin-config.js，与后端规则一致）
   inCheckinWindow(date, startTime, endTime) {
-    const now = new Date();
-    const todayFull = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    if (date !== todayFull) return false;
-    const toMin = (s) => { const [h, m] = (s || '00:00').split(':').map(Number); return h * 60 + m; };
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    return nowMin >= toMin(startTime) - 30 && nowMin <= toMin(endTime) + 30;
+    const { inCheckinWindow: check } = require('../../utils/checkin-config.js');
+    return check(date, startTime, endTime);
   },
 
   // 排位按钮提示（候补状态说明）

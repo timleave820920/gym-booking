@@ -1,6 +1,7 @@
 const app = getApp();
 const api = require('../../utils/api.js');
 const courseStatus = require('../../utils/course-status.js');
+const { buildWeekDays } = require('../../utils/week-bar.js');
 
 // 2026-08-15: 教练介绍页（V1 设计稿落地）
 // 结构：生活照(placeholder) → 教练档案卡 → 技能认证｜比赛成绩(左右并行) → TA 的课程(周日期条+当日课程)
@@ -26,22 +27,9 @@ Page({
     this.loadSessions();
   },
 
-  // 周日期条：今天起 7 天，默认选中今天（复用预约页日期选择样式）
+  // 周日期条：今天起 7 天，共享工具 week-bar.js
   buildWeekDays() {
-    const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
-    const today = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    const days = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
-      const full = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-      days.push({
-        full,
-        weekday: i === 0 ? '今天' : '周' + WEEK[d.getDay()],
-        date: pad(d.getDate()),
-        selected: i === 0
-      });
-    }
+    const days = buildWeekDays();
     this.setData({ weekDays: days, selectedDate: days[0].full });
   },
 

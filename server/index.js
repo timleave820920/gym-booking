@@ -1383,7 +1383,7 @@ if (require.main === module) {
           await db.sendMessage({
             user_openid: rw.user_openid, type: 'pass', title: '次卡已过期',
             content: `次卡已于 ${rw.expires_at} 过期，剩余 ${rw.remaining} 次已作废`,
-            biz_type: 'pass', biz_id: 0, jump_url: '/pages/member-card/index',
+            biz_type: 'pass', biz_id: 0, jump_url: '/pages/member-level/index',
             dedup_key: `pass_expired:${rw.user_openid}`
           });
         }

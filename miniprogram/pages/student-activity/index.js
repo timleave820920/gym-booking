@@ -4,6 +4,7 @@ const app = getApp();
 const i18n = require('../../utils/i18n.js');
 const courseStatus = require('../../utils/course-status.js');
 const sessionCache = require('../../utils/session-cache.js');
+const { getGreeting } = require('../../utils/greeting.js');
 
 const DEFAULT_COVER = '/images/2_193.png';       // 课程未设封面时的占位图
 const DEFAULT_COACH_AVATAR = '/images/2_1468.png'; // 教练未设头像时的占位图
@@ -16,7 +17,8 @@ Page({
     greeting: '',
     t: i18n.t(),
     offline: false,      // 后端不可用回退演示数据
-    loaded: false        // 首屏加载完成（控制空状态显示）
+    loaded: false,       // 首屏加载完成（控制空状态显示）
+    _discount: 1         // 会员折扣（异步加载，默认 1 无折扣）
   },
 
   onLoad() {
@@ -62,7 +64,7 @@ Page({
         id: c.id, name: c.name, description: c.desc || c.description || '', coach: c.coach, venue: c.venue,
         coachAvatar: DEFAULT_COACH_AVATAR, level: c.level,
         start: c.start, end: c.end, remaining: c.remaining, capacity: c.capacity || 20,
-        price: c.price, memberPrice: Math.floor(Number(c.price) * 0.9),
+        price: c.price, memberPrice: Math.floor(Number(c.price) * (this.data._discount || 1)),
         img: c.img,
         status: this.getStatus(c.start, c.end),
         waitlisted: false,
@@ -70,6 +72,12 @@ Page({
       }));
       this.setData({ hotCourses: this.decorate(list), offline: true, loaded: true });
     });
+    // 会员折扣（异步，不阻塞首屏）
+    if (openid) {
+      api.getMemberLevel(openid).then((r) => {
+        if (r.level && r.level.discount) this.applyDiscount(r.level.discount);
+      }).catch(() => {});
+    }
   },
 
   // 原始场次数据 → 活动卡片列表（状态/价格即时计算）
@@ -90,7 +98,7 @@ Page({
         remaining: s.remaining,
         capacity: s.capacity,
         price,
-        memberPrice: Math.floor(Number(price) * 0.9),  // 会员价 = 正价×90% 向下取整
+        memberPrice: Math.floor(Number(price) * (this.data._discount || 1)),  // 会员价 = 正价×等级折扣 向下取整
         img: s.cover || DEFAULT_COVER,
         status: this.getStatus(s.start_time, s.end_time),
         waitlisted: !!s.waitlisted_by_me,   // 已排位标记
@@ -139,7 +147,7 @@ Page({
     return courseStatus.getSessionStatus(today, startTime, endTime, now);
   },
 
-  // 读取微信昵称 + 按时段问候（{时段问候}，{昵称}）
+  // 读取微信昵称 + 按时段问候（共享工具 greeting.js）
   // 时段：6-12 早上好 / 12-13 中午好 / 13-18 下午好 / 18-22 晚上好 / 22-次日6 夜深了
   refreshUser() {
     const u = app.globalData.userInfo;
@@ -147,10 +155,7 @@ Page({
     if (u && u.name && u.name !== '小陈同学') {
       name = u.name.slice(0, 8);
     }
-    // 组装问候语（按时段 + i18n）
-    const t = i18n.t();
-    const greetingWord = this.getGreetingWord(t);
-    const greeting = `${greetingWord}，${name}`;
+    const greeting = `${getGreeting()}，${name}`;
     // 重新装饰课程卡片（顺带按当前时间刷新"已结束"标记）
     const hotCourses = this.decorate(this.data.hotCourses, true);
     this.setData({
@@ -160,14 +165,16 @@ Page({
     });
   },
 
-  // 根据当前时间返回对应时段问候词
-  getGreetingWord(t) {
-    const hour = new Date().getHours();
-    if (hour >= 6 && hour < 12) return t.greetingMorning;
-    if (hour >= 12 && hour < 13) return t.greetingNoon;
-    if (hour >= 13 && hour < 18) return t.greetingAfternoon;
-    if (hour >= 18 && hour < 22) return t.greetingEvening;
-    return t.greetingLate; // 22:00 - 次日 6:00
+  // 会员折扣到达后重新计算所有课程卡片会员价（与 student-courses 同一逻辑）
+  applyDiscount(discount) {
+    const d = Number(discount) || 1;
+    this.setData({
+      _discount: d,
+      hotCourses: this.data.hotCourses.map(c => ({
+        ...c,
+        memberPrice: Math.floor(Number(c.price) * d)
+      }))
+    });
   },
 
   goCourses() {

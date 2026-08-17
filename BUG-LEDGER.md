@@ -15,6 +15,17 @@
 
 ---
 
+## #47 CREATE TABLE courses 缺 images/summary/address/lat/lng 列——ALTER TABLE 在建表之前执行，新库静默失败，学员课列表/教练课表全 500
+
+- **发现**：2026-08-18，P1 工程加固验证阶段，冒烟测试 `/api/sessions` 和 `/api/coach/schedule` 均 500
+- **现象**：`SELECT ... c.images AS course_images ...` 报 `no such column: c.images`；学员端课程列表、教练端今日课表两个核心页面完全不可用
+- **根因**：`db-core.js` 第 50–54 行 `ALTER TABLE courses ADD COLUMN images/summary/address/lat/lng` 在第 210 行 `CREATE TABLE IF NOT EXISTS courses` **之前**执行——全新数据库上表还不存在，ALTER 被 try/catch 静默吞掉；建表 DDL 未包含这些列，查询必报缺列。旧库（列已被 ALTER 补上）不受影响，仅新库/内存库/CFS 重建后触发。同模式受影响的还有 bookings（缺 pay_source/pass_id）、waitlist（缺 expire_mode/pay_source/pass_id）、orders（缺 pay_source/expire_mode）
+- **修复**：将缺失列直接补入对应 CREATE TABLE 定义（courses +5 列、bookings +2 列、waitlist +3 列、orders +2 列）；原有 ALTER TABLE 保留作为旧库迁移（重复执行幂等，列已存在时 try/catch 静默跳过）
+- **回归测试**：`minitest/smoke.js` 冒烟测试覆盖 `/api/sessions` + `/api/coach/schedule`，新库启动后 8 端点全 200
+- **防护层**：L1 冒烟测试发现；修复后 smoke.js 兆底（新库启动→核心端点 200）。**教训：ALTER TABLE 迁移语句必须放在对应 CREATE TABLE 之后（CREATE 先行新库、ALTER 兆底旧库）；#43 已记录同类教训（方言建表要保证 CREATE TABLE 与迁移 ALTER 同步），本次是同一模式在更多列上的变体**
+
+---
+
 ## #46 云托管容器无法调通微信 API——出网网关自签名证书致 code2Session 必挂（登录换号深层根因）
 
 - **发现**：2026-08-17，#45 移除演示账号兜底后换号失败显形；行为探测 5/5 返回 errcode -2（网络错误）；WebShell 直测定位
@@ -254,6 +265,7 @@
 - **修复**：①Dockerfile 建 `/data` 目录（CFS 挂载点）②新建「云托管持久化与身份配置.md」操作手册：控制台挂载 CFS 到 `/data` + 环境变量 `DB_PATH=/data/gym.db`、`WX_APPID`、`WX_SECRET` ③CLAUDE.md 生产形态段补充持久化必读（代码侧 DB_PATH 环境变量支持早已具备，server/db-core.js:12-14，测试每轮在用）
 - **回归测试**：node --check（index/db-core）+ 干净库 128/128；持久化生效验证 = 用户控制台配置后：登录→退出→再登录应「欢迎回来」，推送重建后数据仍在
 - **防护层**：L0（用户反馈）发现；修复后由 CFS 挂载兜底（数据跨容器重建保留）+ 文档防呆；WX_SECRET 配置后身份各自独立（code2session 成功路径）
+- **✅ 已解决**：2026-08-18 用户确认 CFS 已挂载 + 环境变量已配置，容器重建后数据不再丢失
 
 ## #24 真机登录弹「登录失败」——云托管 Git 部署自动重建窗口期 callContainer 短暂不可用（瞬态，已自愈）
 - **发现**：2026-08-16 上午，用户真机测试登录显示「登录失败」

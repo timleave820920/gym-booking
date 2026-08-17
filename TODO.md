@@ -39,7 +39,7 @@
 > 从这里挑一个开始。建议顺序：先 P0，再 P1。（完整优先级见「产品规划-2026-08-11.md」）
 
 - [x] **P0｜git 仓库恢复（2026-08-16 完成）** — 本地重建根提交 f2a1d7f 后，远端历史通过干净 clone（/tmp/gym-remote）+ 内容同步方式接回：**master 远端 HEAD 已到 070f0ed**（86 文件全量同步，push 成功）。**2026-08-16 本地 `.git` 已用 `/tmp/gym-remote/.git` 替换**（旧损坏 .git 备份至 /tmp/git-broken-backup-20260816，工作区文件保留），本地 git status/log/commit/push 全部恢复正常（master=97e3d20，与远端同步）。
-- [ ] **P0｜⚠️ 云托管数据持久化（CFS 挂载，BUG-LEDGER #25）** — 容器文件系统不持久化，闲置缩容/推送重建后 SQLite 数据全丢，用户每次登录变"新的号"（真机 #13「无教练权限」根因 = 重建后库重置、旧 openid 无教练角色）。**需用户在云托管控制台：挂载 CFS 到 `/data` + 环境变量 `DB_PATH=/data/gym.db` + `WX_APPID`/`WX_SECRET`**，步骤见「云托管持久化与身份配置.md」。未完成前勿做正式数据迁移。
+- [x] **P0｜云托管数据持久化（CFS 挂载，BUG-LEDGER #25）——已完成（2026-08-18 用户确认）** — CFS 已挂载到 `/data` + 环境变量 `DB_PATH=/data/gym.db` + `WX_APPID`/`WX_SECRET` 已配置。容器重建后数据不再丢失。
 - [ ] **P0｜注册正式小程序（个体工商户主体）** — 当前 AppID 是微信开发者工具的测试号，导致：云开发被禁用、无法接入微信支付、getPhoneNumber 拿不到真实手机号。这是所有上云/收款功能的前置条件。个人主体可注册，但**个人主体不能用微信支付**，建议用个体工商户主体注册（详情见 memory 第十四轮记录）。**串行长周期，建议立即启动申请，不阻塞本地开发。**
 - [ ] **P0｜WX_SECRET 配置（测试号）** — 从测试号后台复制 AppSecret 填入 `server/.env`（已建好框架）→ 重启后端 → 朋友各自独立 openid（当前共用 demo_user）
 - [x] **P1｜教练介绍页 + 直接约教练的课（2026-08-15 完成）** — coach-profile 页 V1 落地：生活照/教练档案卡/技能认证+比赛成绩/周日期条+当日课程（复用预约页课程条）+ 点课程条直达详情预约。当日 4 项优化（BUG-LEDGER #19~#22）：已过去（含进行中）课程不显示（course-status 统一判定）、席位改「已约/总数」、课程条右侧三行（黑体大字课程名/中等场馆/席位）、删除底部「约 TA 的课」按钮。
@@ -48,11 +48,11 @@
 - [x] **P0｜签到真实化** — 学员端真实二维码 + 教练端 wx.scanCode 扫描/手动核销 + checkin_at 落库 + 权限校验（8/11 完成）
 - [ ] **P0｜微信支付接入** — `wx.requestPayment` 替代模拟支付（需正式小程序 + 商户号）；统一下单→支付→回调落库防掉单。
 - [x] **P1｜L2 推送验证（CI 自动化）** — push 后自动跑测试 + 覆盖率报告（GitHub Actions 已上线 8/13，run 31665718847 全绿，首跑抓 3 个真 bug）。完成时通知用户。
-- [x] **P1｜本地干净库测试支持** — run-tests.js 支持 `DB_PATH` 干净库模式（seed+独立端口+自动清理），pre-commit hook 已切干净库，schema 类 bug 本地 L1 即可抓（负向验证通过：NOT NULL 复现即红）；开发库零污染（8/13 完成）
+- [x] **P1｜本地干净库测试支持** — run-tests.js 支持 `DB_PATH` 干净库模式（seed+独立端口+自动清理），pre-commit hook 已切干净库，schema 类 bug 本地 L1 即可抓（负向验证通过：NOT NULL 复现即红）；开发库零污染（8/13 完成）。2026-08-18 加固：新增 `minitest/smoke.js` 冒烟测试（8 端点 3 秒跑完，Windows 跨平台）+ `npm run smoke` 一键执行
 - [x] **P1｜L3 发布闸门** — 上线前按 DEFINITION-OF-DONE.md 全量打勾 + 真机手测清单（支付/充值/候补/签到必测）；发布记录归档。完成时通知用户。
-- [x] **P1｜架构规模化·阶段2**（8/13 完成） — db.js(1817行) 按域拆分（core/users/members/orders/coin/invite/courses/messages/waitlist）+ index.js 路由表化；每步测试全绿后提交（8/13 开始，分批进行）。
+- [x] **P1｜架构规模化·阶段 2**（8/13 完成） — db.js(1817行) 按域拆分（core/users/members/orders/coin/invite/courses/messages/waitlist）+ index.js 路由表化；每步测试全绿后提交（8/13 开始，分批进行）。2026-08-18 P0 清理：db.js 移除 16 个未用 re-export（内部模块直接互引不走聚合层）
 - [x] **P1｜朋友真机测试链路（8/14 完成）** — 测试号 AppID + cpolar 公网隧道 + 前端秒开缓存 + 假用户数据；测试号 AppSecret 待填（见上 P0）
-- [x] **P1｜正式部署（微信云托管，2026-08-15 起）** — 已切云托管（Docker + `wx.cloud.callContainer`，`USE_TCB=true`，公网域名恒定，不再依赖 cpolar 临时隧道）；push 自动触发重建部署。**剩余关键项：⚠️ 数据持久化（#25 CFS 挂载）见下方 P0 条目，未完成前每次重建数据重置**
+- [x] **P1｜正式部署（微信云托管，2026-08-15 起）** — 已切云托管（Docker + `wx.cloud.callContainer`，`USE_TCB=true`，公网域名恒定，不再依赖 cpolar 临时隧道）；push 自动触发重建部署。**数据持久化（#25 CFS 挂载）已完成（2026-08-18）**。2026-08-18 P0 清理：api.js 移除 USE_CLOUD 云函数双分支（-90 行），统一走 callContainer
 
 ---
 
@@ -83,8 +83,8 @@
 - [x] 自定义胶囊 TabBar，品牌视觉还原设计稿（#F9F4DF / #B9FF66 / #5B57EB）
 - [x] SQLite 本地后端（server/index.js，端口 3000）：注册/登录/资料/用户列表/统计/删除/清空
 - [x] 后台学员管理页接入真实数据库（连接状态条 + 空态 + 状态推断）
-- [x] 双模式 API 封装（`USE_CLOUD` 开关：本地后端 / 云开发）
-- [x] 云函数 login / users 代码就绪（待正式 AppID 后部署）
+- [x] 双模式 API 封装（`USE_CLOUD` 开关：本地后端 / 云开发）——2026-08-18 P0 清理：USE_CLOUD 分支已移除（恒为 false，云函数代码从未执行），统一走云托管 callContainer（USE_TCB=true）
+- [x] 云函数 login / users 代码已归档（cloudfunctions/ 目录保留但不再部署，2026-08-18 P0 清理）
 - [x] 排课配置页（配置未来课程 + 发布 + 每周刷新设定）
 - [x] Git 仓库 github.com/timleave820920/gym-booking，master 分支，历次提交已推送
 - [x] 登录页演示身份入口优化（教练快捷进入 / 清空数据库按钮 + 二次确认 + 实时用户数统计 / 移除学员入口）
@@ -167,7 +167,7 @@
 - [ ] **P1｜数据迁移脚本** — 本地 SQLite ↔ 云数据库（users 已双写，其余表待建）
 - [ ] **P1｜云开发部署** — 正式 AppID 后：建集合 → 上传云函数 → `USE_CLOUD=true` + `CLOUD_ENV` → 验证真实 openid 入库（见 CLOUD_GUIDE.md）
 - [x] **P2｜成就数据真实化** — 成就页改为订课记录实时计算：累计次数/时长/卡路里（10千卡/分估算）/连续天数/本周记录/徽章解锁（8/11 完成）
-- [ ] **P2｜接口测试** — minitest/ 目录已有雏形，补 API 自动化测试
+- [ ] **P2｜接口测试** — minitest/ 目录已有 run-tests.js（200+ 用例）+ smoke.js（8 端点冒烟）+ coverage.test.js（覆盖率探针），补 API 自动化测试已大幅完善
 - [ ] **P2｜数据导出** — 学员/订单/营收导出 Excel/CSV
 
 ## 8️⃣ 部署与上线
@@ -190,4 +190,4 @@
 
 ---
 
-*最后整理：2026-08-16。随开发进度持续更新。*
+*最后整理：2026-08-18。随开发进度持续更新。*

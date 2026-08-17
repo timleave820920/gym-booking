@@ -2,22 +2,21 @@
  * 数据库层聚合入口
  * 连接/建表：db-core.js；按域拆分：db/users.js、db/coin.js、db/members.js、db/invite.js、db/courses.js、db/messages.js、db/orders.js、db/bookings.js
  * 说明：db 内跨域函数通过下方解构保持可见（bookings→orders 单向依赖）
+ * 2026-08-18 P0 清理：移除 17 个未用 re-export（内部模块直接互引，不走聚合层）
  */
 const { db, driver, courseCols } = require('./db-core');
 const { findUserByOpenid, createUser, touchLogin, updateProfile, countUsers, listUsers, deleteUserById, deleteUserByOpenid, clearUsers } = require('./db/users');
-const { todayCoinsEarned, addCoins, getCoinInfo, listCoinLogs, listShopItems, exchangeCoinItem, listMyExchanges, checkLevelUpReward, rewardInviterCoins } = require('./db/coin');
-const { getMemberLevel, addBalance, refundOrderMoney, hasRechargedPlan, calcRechargeBonus, applyRecharge, listRecharges, listUnreadBalanceLogs, markBalanceLogsRead, RECHARGE_PLANS } = require('./db/members');
-const { listInvitationDetails, inviteBoardStats, bindInvitation, rewardInviter, getInviteStats } = require('./db/invite');
-const { listCoaches, getCoachById, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById, listBookedUsersWithInfo, setCourseCoachBio } = require('./db/courses');
-const { sendMessage, broadcastMessage, listMessages, unreadMessageCount, markMessageRead, markAllMessagesRead, listSessionsStartingSoon, listBookedUsersBySession } = require('./db/messages');
-const { listPassPackages, getUserPass, getUserPassForDate, getUserPassInfo, applyPassPurchase, consumePass, refundPass, expireOverduePasses } = require('./db/passes');
-const { syncAchievements, listUserAchievementKeys, REWARD_COINS } = require('./db/achievements');
-const { genOrderNo, createOrder, payOrder, listOrdersByUser, getOrderByNo, getRevenueStats, promoteFromWaitlist, joinWaitlist, cancelWaitlist, listWaitlistByUser, refundExpiredWaitlist } = require('./db/orders');
+const { todayCoinsEarned, getCoinInfo, listCoinLogs, listShopItems, exchangeCoinItem, listMyExchanges } = require('./db/coin');
+const { getMemberLevel, refundOrderMoney, calcRechargeBonus, listRecharges, listUnreadBalanceLogs, markBalanceLogsRead, RECHARGE_PLANS } = require('./db/members');
+const { listInvitationDetails, inviteBoardStats, bindInvitation, getInviteStats } = require('./db/invite');
+const { listCoaches, getCoachById, listVenues, listCourses, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDateForUser, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, getSessionById, listBookedUsersWithInfo, setCourseCoachBio } = require('./db/courses');
+const { sendMessage, listMessages, unreadMessageCount, markMessageRead, markAllMessagesRead, listSessionsStartingSoon, listBookedUsersBySession } = require('./db/messages');
+const { listPassPackages, getUserPass, getUserPassForDate, getUserPassInfo, expireOverduePasses } = require('./db/passes');
+const { syncAchievements, REWARD_COINS } = require('./db/achievements');
+const { genOrderNo, createOrder, payOrder, listOrdersByUser, getRevenueStats, promoteFromWaitlist, joinWaitlist, cancelWaitlist, listWaitlistByUser, refundExpiredWaitlist } = require('./db/orders');
 const { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, checkinByCode, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings } = require('./db/bookings');
 const { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach, listCoachesWithBind, unassignCoach, setUserRole, updateCoachProfile } = require('./db/coach');
 
-// 导出兼容（历史保留）
-const ENERGY_CONFIG = require('./energy-config.js');
 
 module.exports = {
 
@@ -39,7 +38,6 @@ module.exports = {
   getCoachById,
   listVenues,
   listCourses,
-  getRules,
   setCourseCoachBio,
   replaceRules,
   createCourse,
@@ -47,7 +45,6 @@ module.exports = {
   deleteCourse,
   publishSessions,
   // 场次查询
-  listSessionsByDate,
   listSessionsByDateForUser,
   listSessionsByCoach,
   listSessionsByRange,
@@ -56,7 +53,6 @@ module.exports = {
   getSessionById,
   listBookedUsersWithInfo,
   sendMessage,
-  broadcastMessage,
   listMessages,
   unreadMessageCount,
   markMessageRead,
@@ -84,45 +80,32 @@ module.exports = {
   createOrder,
   payOrder,
   listOrdersByUser,
-  getOrderByNo,
   // 营收统计
   getRevenueStats,
   // 会员体系
   getMemberLevel,
-  addBalance,
   refundOrderMoney,
-  applyRecharge,
-  hasRechargedPlan,
   calcRechargeBonus,
   RECHARGE_PLANS,
   listRecharges,
   bindInvitation,
-  rewardInviter,
   getInviteStats,
   listUnreadBalanceLogs,
   markBalanceLogsRead,
   // 能量币
-  addCoins,
   getCoinInfo,
   listCoinLogs,
   listShopItems,
   exchangeCoinItem,
   listMyExchanges,
-  checkLevelUpReward,
-  rewardInviterCoins,
-  ENERGY_CONFIG,
   // 次卡包
   listPassPackages,
   getUserPass,
   getUserPassForDate,
   getUserPassInfo,
-  applyPassPurchase,
-  consumePass,
-  refundPass,
   expireOverduePasses,
   // 成就
   syncAchievements,
-  listUserAchievementKeys,
   REWARD_COINS,
   // 教练工作台（DESIGN #D1）
   findCoachByOpenid,

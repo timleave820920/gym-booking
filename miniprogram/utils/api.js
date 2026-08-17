@@ -1,46 +1,18 @@
 /**
- * API 请求封装（双模式）
+ * API 请求封装
  * 综合训练馆订课系统
  *
- * 模式切换（USE_CLOUD）：
- *   true  = 微信云开发（生产环境，登录拿真实 openid）
- *   false = 本地后端（开发调试，server/index.js）
- *
- * 使用云开发时：
- *   1. 微信开发者工具 → 云开发 → 开通环境
- *   2. 云数据库中创建集合：users
- *   3. 右键 cloudfunctions/login、cloudfunctions/users → 「上传并部署：云端安装依赖」
- *   4. 将 USE_CLOUD 设为 true
- *   5. app.js 中 wx.cloud.init({ env: '你的环境ID' })
- *
- * 当前状态：本地模式（等正式小程序注册 + 工商主体后切云开发）
+ * 2026-08-18 P0 清理：移除 USE_CLOUD 云函数双分支（USE_CLOUD 恒为 false，
+ * 云函数代码从未执行）。所有请求走 localRequest → 云托管 callContainer（USE_TCB=true）。
+ * cloudfunctions/ 目录已归档，不再部署。
  *
  * 本地后端地址说明：
  * - 模拟器可用 127.0.0.1；真机预览必须用电脑局域网 IP（同 WiFi）
  * - IP 自动适配：后端启动时探测本机 IP 并写入 net-config.json（gitignore），
  *   本文件运行时读取；未生成时回退到 127.0.0.1。手动启动后端同样生效。
  */
-const USE_CLOUD = false;
-
-const CLOUD_ENV = 'gym-prod-timleave001'; // 云环境 ID（注册正式小程序后启用）
-
-// 2026-08-14 21:35 重大修正：废弃 net-config.json 自动适配作为前端地址源。
-// 原因：net-config.json 是后端启动时自动写入的运行时产物，并行后端实例
-// （PORT/IP 各不相同）会互相覆盖——实测被 192.168.101.7:3536 覆盖后，
-// 前端优先读到错误地址，真机登录报"本地服务器没有启动"。
-// 现在地址唯一来源 = FALLBACK_BASE_URL（人工配置，见下）。
-
-// 本地后端地址（USE_CLOUD=false 时使用）—— 唯一配置源，改这里 + 重新编译即可
-// 局域网模式：http://<电脑局域网IP>:3000（换网络/IP 变了就改这里）
-// 公网穿透模式：cpolar/ngrok 等隧道 URL（隧道重启域名会变，也要同步改这里）
-// 2026-08-15 19:35: 微信云托管正式部署，URL=gym-server-297498-11-1469244356.sh.run.tcloudbase.com
-const FALLBACK_BASE_URL = 'https://gym-server-297498-11-1469244356.sh.run.tcloudbase.com';
-const LOCAL_BASE_URL = FALLBACK_BASE_URL;
-
-// ===== 云托管模式（2026-08-15 新增） =====
+// 云托管模式（2026-08-15 部署）—— 唯一请求通道
 // true  = 用 wx.cloud.callContainer 直连云托管（微信私有协议，无需配置 request 合法域名/无需备案）
-// false = 用 wx.request 直连 FALLBACK_BASE_URL（本地/cpolar/普通 HTTPS）
-// 官方规则：使用微信云托管作为后端可无需配置通讯域名（callContainer 走微信私有协议）
 const USE_TCB = true;
 const TCB_ENV = 'prod-d0g3mnc4m283b5b36'; // 云托管环境 ID（用户控制台显示）
 const TCB_SERVICE = 'gym-server';         // 云托管容器服务名（callContainer 必填）
@@ -56,86 +28,40 @@ function toFullUrl(p) {
   return p;                                       // 本地：包内相对路径直接显示
 }
 
-// ===== 本地后端请求（USE_TCB=true 时走云托管 callContainer，否则 wx.request） =====
+// ===== 云托管请求（callContainer 走微信私有协议） =====
 function localRequest(path, method = 'GET', data = {}) {
   return new Promise((resolve, reject) => {
-    // 云托管模式：微信私有协议直连，无需配置 request 合法域名
-    if (USE_TCB) {
-      wx.cloud.callContainer({
-        config: { env: TCB_ENV },
-        service: TCB_SERVICE,  // 容器服务名（必填，缺省会报 INVALID_PATH）
-        path,
-        method,
-        data,
-        success: (res) => {
-          const status = res.statusCode || 200;
-          if (status >= 200 && status < 300) {
-            resolve(res.data);
-          } else {
-            reject({ code: status, message: (res.data && res.data.message) || '请求失败' });
-          }
-        },
-        fail: (err) => {
-          console.error('[api][tcb] 请求失败', path, JSON.stringify(err));
-          reject({ code: -1, message: '无法连接云端服务，请稍后重试' });
-        }
-      });
-      return;
-    }
-    wx.request({
-      url: LOCAL_BASE_URL + path,
+    wx.cloud.callContainer({
+      config: { env: TCB_ENV },
+      service: TCB_SERVICE,
+      path,
       method,
       data,
-      timeout: 10000,
-      header: { 'Content-Type': 'application/json' },
       success: (res) => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
+        const status = res.statusCode || 200;
+        if (status >= 200 && status < 300) {
           resolve(res.data);
         } else {
-          reject({ code: res.statusCode, message: (res.data && res.data.message) || '请求失败' });
+          reject({ code: status, message: (res.data && res.data.message) || '请求失败' });
         }
       },
       fail: (err) => {
-        // 打印真实失败原因（真机调试排查用：域名校验/超时/网络栈）
-        console.error('[api] 请求失败', LOCAL_BASE_URL + path, JSON.stringify(err));
-        reject({ code: -1, message: '无法连接本地后端，请确认 server 已启动' });
+        console.error('[api][tcb] 请求失败', path, JSON.stringify(err));
+        reject({ code: -1, message: '无法连接云端服务，请稍后重试' });
       }
     });
   });
 }
 
-// ===== 云开发请求 =====
-function cloudCall(name, data = {}) {
-  return wx.cloud.callFunction({ name, data }).then(res => res.result);
-}
-
-// 确保云开发已初始化
-function ensureCloud() {
-  if (!wx.cloud) {
-    throw new Error('当前基础库不支持云开发，请升级');
-  }
-  const app = getApp();
-  if (!app.globalData.cloudInited) {
-    wx.cloud.init({ env: CLOUD_ENV, traceUser: true });
-    app.globalData.cloudInited = true;
-  }
-}
-
 module.exports = {
-  USE_CLOUD,
-  CLOUD_ENV,
-  LOCAL_BASE_URL,
   USE_TCB,
   TCB_ENV,
   TCB_SERVICE,
+  TCB_BASE_URL,
   toFullUrl,
 
   // 注册/登录（首次=注册，再次=登录）
   login(data) {
-    if (USE_CLOUD) {
-      ensureCloud();
-      return cloudCall('login', data);
-    }
     return localRequest('/api/auth/login', 'POST', data);
   },
 
@@ -146,10 +72,6 @@ module.exports = {
 
   // 更新用户资料
   updateProfile(data) {
-    if (USE_CLOUD) {
-      ensureCloud();
-      return cloudCall('login', { action: 'updateProfile', ...data });
-    }
     return localRequest('/api/auth/profile', 'POST', data);
   },
 
@@ -178,19 +100,11 @@ module.exports = {
 
   // 用户列表（后台用）
   getUsers() {
-    if (USE_CLOUD) {
-      ensureCloud();
-      return cloudCall('users', { action: 'list' });
-    }
     return localRequest('/api/users', 'GET');
   },
 
   // 用户统计（传 openid 返回真实锻炼数据）
   getUsersStats(openid) {
-    if (USE_CLOUD) {
-      ensureCloud();
-      return cloudCall('users', { action: 'stats' });
-    }
     let qs = '';
     if (openid) qs = '?openid=' + openid;
     return localRequest('/api/users/stats' + qs, 'GET');
@@ -208,7 +122,6 @@ module.exports = {
 
   // 按日期查场次（学员端课程列表；传 openid 可标记已预订）
   getSessionsByDate(date, openid) {
-    if (USE_CLOUD) return Promise.reject({ code: -1, message: '云函数暂未实现课程列表' });
     let qs = 'date=' + date;
     if (openid) qs += '&openid=' + openid;
     return localRequest('/api/sessions?' + qs, 'GET');
@@ -216,13 +129,11 @@ module.exports = {
 
   // 教练端今日课表（按日期 + 教练）
   getCoachSchedule(date, coachId) {
-    if (USE_CLOUD) return Promise.reject({ code: -1, message: '云函数暂未实现教练课表' });
     return localRequest('/api/coach/schedule?date=' + date + '&coach_id=' + coachId, 'GET');
   },
 
   // 场次详情（学员端课程详情；传 openid 可标记已预订）
   getSession(id, openid) {
-    if (USE_CLOUD) return Promise.reject({ code: -1, message: '云函数暂未实现场次详情' });
     let qs = '';
     if (openid) qs = '?openid=' + openid;
     return localRequest('/api/sessions/' + id + qs, 'GET');
@@ -230,7 +141,6 @@ module.exports = {
 
   // 订课（支付成功后调用）
   bookCourse(data) {
-    if (USE_CLOUD) return Promise.reject({ code: -1, message: '云函数暂未实现订课' });
     return localRequest('/api/bookings', 'POST', data);
   },
 

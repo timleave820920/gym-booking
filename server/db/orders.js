@@ -485,7 +485,7 @@ async function cancelWaitlist(openid, waitId) {
         await sendMessage({
           user_openid: openid, type: 'pass', title: '次卡已退回',
           content: '退出候补成功，已退回 1 次次卡次数',
-          biz_type: 'pass', biz_id: wait.pass_id || 0, jump_url: '/pages/member-card/index',
+          biz_type: 'pass', biz_id: wait.pass_id || 0, jump_url: '/pages/member-level/index',
           dedup_key: `pass_refund:${waitId}`
         });
       }
@@ -557,7 +557,7 @@ async function refundExpiredWaitlist() {
           await sendMessage({
             user_openid: row.user_openid, type: 'pass', title: '次卡已退回',
             content: '候补过期未转正，已退回 1 次次卡次数',
-            biz_type: 'pass', biz_id: row.pass_id || 0, jump_url: '/pages/member-card/index',
+            biz_type: 'pass', biz_id: row.pass_id || 0, jump_url: '/pages/member-level/index',
             dedup_key: `pass_refund_expire:${row.id}`
           });
         }

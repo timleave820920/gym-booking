@@ -1,6 +1,7 @@
 const app = getApp();
 const api = require('../../utils/api.js');
 const qrcode = require('../../utils/qrcode.js');
+const { inCheckinWindow, windowHint } = require('../../utils/checkin-config.js');
 
 Page({
   data: {
@@ -35,13 +36,12 @@ Page({
         return;
       }
       // 签到凭证码：随机 5 位纯数字（后端生成，BUGS-INBOX #11；二维码与文字同码）
-      // 签到时间窗口（与后端一致 BUG-LEDGER #10，2026-08-16 统一为课后 30 分钟 DESIGN #D1）：当天 + 开课前30分钟 ~ 结束后30分钟
+      // 签到时间窗口（共享配置 checkin-config.js，与后端 bookings.js 同一数值）
       const now = new Date();
       const todayFull = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const toMin = (s) => { const [h, m] = (s || '00:00').split(':').map(Number); return h * 60 + m; };
       const nowMin = now.getHours() * 60 + now.getMinutes();
-      const inWindow = info.date === todayFull
-        && nowMin >= toMin(info.start_time) - 30 && nowMin <= toMin(info.end_time) + 30;
+      const inWin = inCheckinWindow(info.date, info.start_time, info.end_time);
       this.setData({
         loading: false,
         course: {
@@ -50,11 +50,8 @@ Page({
           venue: info.venue_name
         },
         checked: !!info.checkin_at,
-        inWindow,
-        // 未到窗口时的提示（开课前30分钟起可签到；已结束超30分钟不可签）
-        windowHint: nowMin < toMin(info.start_time) - 30
-          ? `开课前 30 分钟开始可签到（${info.start_time} 开课）`
-          : (nowMin > toMin(info.end_time) + 30 ? '课程已结束超过 30 分钟，无法签到' : ''),
+        inWindow: inWin,
+        windowHint: inWin ? '' : windowHint(nowMin, info.start_time, info.end_time),
         checkinCode: info.checkin_code || ''
       }, () => {
         // 数据就绪、未签到且在时间窗口内才渲染二维码

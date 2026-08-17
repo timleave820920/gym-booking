@@ -217,6 +217,11 @@ db.exec(`
     cover        TEXT DEFAULT '',
     description  TEXT DEFAULT '',
     tags         TEXT DEFAULT '',          -- 卖点标签（逗号分隔，如 "高效燃脂,新手友好"）
+    images       TEXT DEFAULT '[]',        -- 轮播图（服务器端路径数组 JSON）
+    summary      TEXT DEFAULT '',          -- 简要标题
+    address      TEXT DEFAULT '',          -- 上课地址
+    lat          REAL DEFAULT 0,           -- 纬度
+    lng          REAL DEFAULT 0,           -- 经度
     status       TEXT DEFAULT 'published',
     created_at   TEXT DEFAULT (datetime('now','localtime')),
     updated_at   TEXT DEFAULT (datetime('now','localtime'))
@@ -291,6 +296,8 @@ db.exec(`
     amount_fen    INTEGER DEFAULT 0,
     status        TEXT DEFAULT 'booked',
     pay_status    TEXT DEFAULT 'unpaid',
+    pay_source    TEXT DEFAULT 'wxpay',     -- 支付来源（pass/wxpay/balance）
+    pass_id       INTEGER DEFAULT 0,        -- 次卡 ID（pay_source=pass 时溯源）
     checkin_at    TEXT,
     checkin_code  TEXT,
     cancel_reason TEXT DEFAULT '',
@@ -312,6 +319,9 @@ db.exec(`
     session_id    INTEGER NOT NULL,
     amount_fen    INTEGER DEFAULT 0,
     status        TEXT DEFAULT 'waiting',    -- waiting 排位中 / promoted 已转正 / refunded 已退款 / cancelled 主动退出
+    pay_source    TEXT DEFAULT 'wxpay',      -- 支付来源
+    pass_id       INTEGER DEFAULT 0,         -- 次卡 ID
+    expire_mode   TEXT DEFAULT 'start',      -- 候补自动取消节点
     created_at    TEXT DEFAULT (datetime('now','localtime')),
     promoted_at   TEXT,
     refunded_at   TEXT,
@@ -329,13 +339,15 @@ db.exec(`
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     order_no     TEXT UNIQUE NOT NULL,
     user_openid  TEXT NOT NULL,
-    session_id   INTEGER,                -- 充值订单无场次，允许 NULL（CI 干净环境验证发现；负向验证已确认干净库模式可本地拦截）
+    session_id   INTEGER,                -- 充值订单无场次，允许 NULL
     booking_id   INTEGER,                -- 关联订课记录（支付后生成）
     wait_id      INTEGER,                -- 关联候补记录（排位支付后生成）
     order_type   TEXT DEFAULT 'book',    -- book 订课 / waitlist 候补排位
     amount_fen   INTEGER DEFAULT 0,
     status       TEXT DEFAULT 'pending', -- pending 待支付 / paid 已支付 / cancelled 已取消 / refunded 已退款
     pay_method   TEXT DEFAULT 'balance', -- wxpay 微信支付 / balance 余额
+    pay_source   TEXT DEFAULT 'balance', -- 支付来源
+    expire_mode  TEXT DEFAULT 'start',   -- 过期自动取消节点
     paid_at      TEXT,
     refunded_at  TEXT,
     cancel_reason TEXT DEFAULT '',
