@@ -114,7 +114,7 @@ async function payOrder({ openid, orderId, pay_method = 'balance' }) {
   let pass = null;
   if (order.order_type === 'book' || order.order_type === 'waitlist') {
     if (order.session_id) {
-      const sRow = await driver.get('SELECT date FROM course_sessions WHERE id = ?', [order.session_id]);
+      const sRow = await driver.get('SELECT \`date\` FROM course_sessions WHERE id = ?', [order.session_id]);
       pass = sRow ? await getUserPassForDate(order.user_openid, sRow.date) : await getUserPass(order.user_openid);
     } else {
       pass = await getUserPass(order.user_openid);

@@ -15,6 +15,17 @@
 
 ---
 
+## #32 MySQL 保留字列名裸用——coin_logs.change / course_sessions.date 建表 ER_PARSE_ERROR，生产建表三连败（P0 生产不可用）
+
+- **发现**：2026-08-17，#31 修复重建后仍 CrashLoop（第二次失败日志 `near 'change INT NOT NULL'`，第三次失败日志 `near 'date'`），用户控制台日志
+- **现象**：`node seed.js && node index.js` 启动即挂——MysqlDriver.exec(MYSQL_SCHEMA) 建 coin_logs 表报 `ER_PARSE_ERROR ... near 'change INT NOT NULL'`；改完 change 后 course_sessions 的 `date` 列同样报错。此前本地/CI 全量 162 项全绿（SQLite 不保留这两个词，测试走 SQLite 方言，永远测不出）
+- **根因**：`change` 和 `date` 是 **MySQL 保留字**（SQLite 不是）。`server/mysql-schema.js` 从 SQLite DDL 机械转换时只处理了 `desc`，漏了 `change`（coin_logs）和 `date`（course_sessions，含 2 处索引定义）。业务 SQL 里还有 8 处裸 `date`/`change`（无表别名时一样报错）：coin.js×4（SUM/条件/INSERT/SELECT）、courses.js×2（hasTimeConflict WHERE、去重 key SELECT）、coach.js×3（结算月查询）、seed.js×1、orders.js×1。**限定名（s.date）合法无需引号，裸标识符必须反引号**（MySQL 8.0 文档规则）
+- **修复**：
+  1. 全部裸保留字加反引号：mysql-schema.js `\`change\`` / `\`date\`` ×4（含索引 `KEY idx_sessions_date ( \`date\`, status)`）；coin.js 4 处、courses.js 2 处、coach.js 3 处、seed.js 1 处、orders.js 1 处。**反引号是 SQLite/MySQL 双兼容标识符**（SQLite 文档明确支持），本地测试不破
+  2. courses.js 去重 key 从 SQL `date || '_' || ...` 改为 **JS 侧拼接**（`||` 是 SQLite 拼接符、MySQL 下是 OR 布尔运算，方言不可移植，静默错）
+- **回归测试**：run-tests.js 新增 **MYSQL-06** 静态断言——提取 MYSQL_SCHEMA 模板字符串正文，断言无裸 `date`/`change`（正则排除反引号包裹/点限定/函数调用/DATETIME 等词符后缀）；全量 162/162 绿（普通 + TZ=UTC 双模式）
+- **防护层**：L3 生产部署冒烟（用户控制台日志）发现；修复后由 MYSQL-06 兜底 schema 层；业务 SQL 层靠本次全量 grep（`\b(date|change)\b` 逐行目检）+ 部署冒烟。**教训：SQLite 宽松的保留字集（几乎全放开）让「本地全绿」对 MySQL 方言零防护——双方言项目的 SQL 变更必须过一遍 MySQL 保留字清单（可维护一份项目内保留字表 + 静态断言），静态断言只拦「已知错误写法」，生产 MySQL 路径首次建表必须盯启动日志**
+
 ## #31 MySQL 建表 DDL 用 SQLite 方言——VARCHAR(19) DEFAULT (CURRENT_TIMESTAMP) 非法，生产首次建表 CrashLoop（P0 生产不可用）
 - **发现**：2026-08-17，配置 DB_DRIVER=mysql 后的首次重建（push 04aca32 触发），容器启动日志 `seed 失败: ER_PARSE_ERROR ... near '(CURRENT_TIMESTAMP)'`，Back-off restarting
 - **现象**：`node seed.js && node index.js` 启动即挂——MysqlDriver.exec(MYSQL_SCHEMA) 建 users 表报 MySQL 语法错误（`VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP)`），容器反复重启（CrashLoop）；此前 10:50 部署包冒烟通过是因为当时生产还在 SQLite 路径，MySQL 建表从未真正执行过

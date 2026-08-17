@@ -76,7 +76,7 @@ if (await count('course_sessions') === 0) {
   let inserted = 0;
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     for (const s of SLOTS) {
-      await driver.run(`INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source)
+      await driver.run(`INSERT INTO course_sessions (course_id, coach_id, venue_id, \`date\`, start_time, end_time, capacity, booked_count, status, source)
                           VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'published', 'manual')`, [course[s.courseIdx].id, coachId, venueId, fmtDate(d), s.start, s.end, 20]);
       inserted++;
     }

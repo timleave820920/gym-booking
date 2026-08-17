@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS invitations (
 CREATE TABLE IF NOT EXISTS coin_logs (
   id             INT AUTO_INCREMENT PRIMARY KEY,
   user_openid    VARCHAR(64) NOT NULL,
-  change         INT NOT NULL,
+  \`change\`     INT NOT NULL,
   balance_after  INT DEFAULT 0,
   reason         VARCHAR(128) DEFAULT '',
   ref_id         VARCHAR(64) DEFAULT '',
@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS course_sessions (
   course_id    INT NOT NULL,
   coach_id     INT NOT NULL,
   venue_id     INT NOT NULL,
-  date         VARCHAR(10) NOT NULL,
+  \`date\`     VARCHAR(10) NOT NULL,
   start_time   VARCHAR(8) NOT NULL,
   end_time     VARCHAR(8) NOT NULL,
   capacity     INT DEFAULT 20,
@@ -192,8 +192,8 @@ CREATE TABLE IF NOT EXISTS course_sessions (
   status       VARCHAR(16) DEFAULT 'published',
   source       VARCHAR(16) DEFAULT 'manual',
   created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_sessions_date (date, status),
-  KEY idx_sessions_course (course_id, date),
+  KEY idx_sessions_date ( \`date\`, status),
+  KEY idx_sessions_course (course_id, \`date\`),
   CONSTRAINT fk_sess_course FOREIGN KEY (course_id) REFERENCES courses(id),
   CONSTRAINT fk_sess_coach  FOREIGN KEY (coach_id)  REFERENCES coaches(id),
   CONSTRAINT fk_sess_venue  FOREIGN KEY (venue_id)  REFERENCES venues(id)

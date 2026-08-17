@@ -104,9 +104,9 @@ async function getCoachSettlement(coachId, month) {
   const to = `${mm === 12 ? y + 1 : y}-${String(mm === 12 ? 1 : mm + 1).padStart(2, '0')}-01`;
   const sessions = (await driver.get(`
     SELECT COUNT(*) c FROM course_sessions
-    WHERE coach_id = ? AND date >= ? AND date < ?
-      AND (date < ?
-           OR (date = ? AND end_time < ?))
+    WHERE coach_id = ? AND \`date\` >= ? AND \`date\` < ?
+      AND (\`date\` < ?
+           OR (\`date\` = ? AND end_time < ?))
   `, [coachId, from, to, time.todayStr(), time.todayStr(), time.nowTimeStr()])).c;
   const checkins = (await driver.get(`
     SELECT COUNT(*) c FROM bookings b

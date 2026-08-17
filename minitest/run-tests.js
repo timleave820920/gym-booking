@@ -218,6 +218,10 @@ async function runSuite() {
   const schemaSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'mysql-schema.js'), 'utf8');
   check('MYSQL-04', 'mysql-schema 无 VARCHAR+CURRENT_TIMESTAMP 默认残留', !/VARCHAR\(\d+\)[^\n]*CURRENT_TIMESTAMP/.test(schemaSrc), '时间默认值列须 DATETIME 类型');
   check('MYSQL-05', '驱动 dateStrings: true（DATETIME 字符串返回契约）', /dateStrings:\s*true/.test(driverSrc), 'DATETIME 列须以字符串返回，应用层按 YYYY-MM-DD HH:MM:SS 解析');
+  // MYSQL-06：DDL 无裸保留字列名（BUG-LEDGER #32：coin_logs.change / course_sessions.date 是 MySQL
+  // 保留字，SQLite 不保留 → 本地全绿、生产建表 ER_PARSE_ERROR。反引号是 SQLite/MySQL 双兼容标识符）
+  const schemaBody = /const MYSQL_SCHEMA = `([\s\S]*?)`;/.exec(schemaSrc)?.[1] || '';
+  check('MYSQL-06', 'mysql-schema DDL 无裸保留字 date/change', !/(^|[^.\w`])(date|change)(?![\w`(])/m.test(schemaBody), '保留字列名须反引号包裹或点限定');
 
   // PASSES-01: passes.js 档位种子自守门闩（防 #30 回退：模块加载期查表早于 MySQL 建表）
   const passesSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', 'passes.js'), 'utf8');

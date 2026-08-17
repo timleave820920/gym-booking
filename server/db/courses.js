@@ -124,7 +124,7 @@ async function deleteCourse(id) {
  */
 async function hasTimeConflict(venueId, date, startTime, endTime, excludeId) {
   const row = await driver.get(`SELECT COUNT(*) c FROM course_sessions
-    WHERE venue_id = ? AND date = ? AND status != 'cancelled'
+    WHERE venue_id = ? AND \`date\` = ? AND status != 'cancelled'
       AND start_time < ? AND end_time > ?
       AND (? IS NULL OR id != ?)`, [venueId, date, endTime, startTime, excludeId || null, excludeId || 0]);
   return row.c > 0;
@@ -134,7 +134,8 @@ async function publishSessions(courseId, startDate, endDate) {
   const rules = await getRules(courseId);
   if (rules.length === 0) return { created: 0, skipped: 0, conflicts: [], reason: 'no_rules' };
 
-  const exists = new Set((await driver.all("SELECT date || '_' || start_time || '_' || venue_id k FROM course_sessions WHERE course_id = ?", [courseId])).map(r => r.k));
+  // 拼 key 去重：JS 侧拼接（`||` 是 SQLite 拼接符，MySQL 下是 OR，不能入 SQL）
+  const exists = new Set((await driver.all('SELECT \`date\`, start_time, venue_id FROM course_sessions WHERE course_id = ?', [courseId])).map(r => `${r.date}_${r.start_time}_${r.venue_id}`));
 
   let created = 0, skipped = 0;
   const conflicts = [];
@@ -154,7 +155,7 @@ async function publishSessions(courseId, startDate, endDate) {
         skipped++;
         continue;
       }
-      await driver.run(`INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source)
+      await driver.run(`INSERT INTO course_sessions (course_id, coach_id, venue_id, \`date\`, start_time, end_time, capacity, booked_count, status, source)
                           VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'published', 'manual')`, [courseId, r.coach_id, r.venue_id, iso, r.start_time, r.end_time, r.capacity]);
       exists.add(key);
       created++;

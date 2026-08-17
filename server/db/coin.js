@@ -9,8 +9,8 @@ const SHOP_ITEMS = require('../shop-items.js');
 
 async function todayCoinsEarned(openid) {
   const row = await driver.get(`
-    SELECT COALESCE(SUM(change), 0) s FROM coin_logs
-    WHERE user_openid = ? AND change > 0
+    SELECT COALESCE(SUM(\`change\`), 0) s FROM coin_logs
+    WHERE user_openid = ? AND \`change\` > 0
       AND date(created_at) = ?
   `, [openid, time.todayStr()]);
   return row.s;
@@ -34,7 +34,7 @@ async function addCoins(openid, change, reason, refId, bypassLimit) {
   }
   const after = (user.coin_balance || 0) + change;
   await driver.run('UPDATE users SET coin_balance = ? WHERE openid = ?', [after, openid]);
-  await driver.run(`INSERT INTO coin_logs (user_openid, change, balance_after, reason, ref_id)
+  await driver.run(`INSERT INTO coin_logs (user_openid, \`change\`, balance_after, reason, ref_id)
               VALUES (?, ?, ?, ?, ?)`, [openid, change, after, reason, refId || '']);
   return after;
 }
@@ -54,7 +54,7 @@ async function getCoinInfo(openid) {
 /** 能量币流水 */
 async function listCoinLogs(openid, limit = 50) {
   return await driver.all(`
-    SELECT id, change, balance_after, reason, ref_id, created_at
+    SELECT id, \`change\`, balance_after, reason, ref_id, created_at
     FROM coin_logs WHERE user_openid = ? ORDER BY created_at DESC, id DESC LIMIT ?
   `, [openid, limit]);
 }
@@ -98,7 +98,7 @@ async function exchangeCoinItem({ openid, itemId }) {
   try {
     const after = balance - item.cost;
     await driver.run('UPDATE users SET coin_balance = ? WHERE openid = ?', [after, openid]);
-    await driver.run(`INSERT INTO coin_logs (user_openid, change, balance_after, reason, ref_id)
+    await driver.run(`INSERT INTO coin_logs (user_openid, \`change\`, balance_after, reason, ref_id)
                 VALUES (?, ?, ?, '兑换奖品', ?)`, [openid, -item.cost, after, item.id]);
     // 虚拟奖品生成兑换码
     let code = null;
