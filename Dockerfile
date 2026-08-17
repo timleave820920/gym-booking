@@ -20,6 +20,9 @@ RUN npm install --omit=dev
 # 复制后端代码
 COPY server/ ./server/
 
+# 运维脚本（clean-prod-users.js 等，WebShell 里直接 node scripts/xxx 可用）
+COPY scripts/ ./scripts/
+
 # 管理后台网页（web/courses.html：课程设定/排表管理/邀请看板/营收统计，
 # BUGS-INBOX #8：此前漏打包导致云托管访问 / 404）
 COPY web/ ./web/
