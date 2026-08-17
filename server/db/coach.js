@@ -114,7 +114,7 @@ async function getCoachSettlement(coachId, month) {
     WHERE s.coach_id = ? AND s.date >= ? AND s.date < ?
       AND b.status = 'booked' AND b.checkin_at IS NOT NULL
   `, [coachId, from, to])).c;
-  const cfg = getCoachConfig();
+  const cfg = await getCoachConfig();
   return {
     month, sessions, checkins,
     course_fee_fen: cfg.course_fee_fen,
