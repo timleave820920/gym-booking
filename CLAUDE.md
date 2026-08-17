@@ -101,7 +101,7 @@ Dockerfile  微信云托管镜像（零 npm install；容器启动先 node seed.
 
 **生产形态（2026-08-15 起）**：微信云托管（Docker + `wx.cloud.callContainer`，`USE_TCB=true`）。容器内文件（头像/封面转存到 `/images/`）需通过 `api.toFullUrl()` 拼公网域名才能显示——本地模式返回相对路径，云托管模式拼 `TCB_BASE_URL`。
 
-**⚠️ 云托管持久化（必读，BUG-LEDGER #25 / DESIGN #D2）**：容器文件系统不持久化——闲置缩容/推送重建后 SQLite 数据全丢，用户每次登录变"新的号"。**生产数据库方向（DESIGN #D2 已定）＝云托管 MySQL**：环境变量 `DB_DRIVER=mysql` + `MYSQL_ADDRESS/USERNAME/PASSWORD`（代码自动建表 + driver.ready 门闩），另须配置 `WX_APPID`/`WX_SECRET`（容器无 server/.env，gitignore 排除）。CFS 挂 `/data` 为过渡方案（SQLite 持久化），详见「云托管持久化与身份配置.md」。**切换 DB_DRIVER=mysql 前必须先跑数据迁移**（scripts/migrate-sqlite-to-mysql.js）否则用户数据丢失。
+**⚠️ 云托管持久化（必读，BUG-LEDGER #25 / DESIGN #D2）**：容器文件系统不持久化——闲置缩容/推送重建后 SQLite 数据全丢，用户每次登录变"新的号"。**生产数据库方向（DESIGN #D2 已定）＝云托管 MySQL**：环境变量 `DB_DRIVER=mysql` + `MYSQL_ADDRESS/USERNAME/PASSWORD`（代码自动建表 + driver.ready 门闩），另须配置 `WX_APPID`/`WX_SECRET`（容器无 server/.env，gitignore 排除），以及 `ADMIN_TOKEN`（管理网页访问码，BUGS-INBOX #8：配置后 web 专属管理接口强制校验 Admin-Token header，未配置不校验——生产必须配置）。CFS 挂 `/data` 为过渡方案（SQLite 持久化），详见「云托管持久化与身份配置.md」。**切换 DB_DRIVER=mysql 前必须先跑数据迁移**（scripts/migrate-sqlite-to-mysql.js）否则用户数据丢失。
 
 ## 已知坑
 
