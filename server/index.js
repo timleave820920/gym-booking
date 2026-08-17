@@ -734,7 +734,7 @@ async function handleListCourses(req, res) {
 }
 
 async function handleCreateCourse(req, res, body) {
-  const { name, category, level, duration_min, price_fen, cover, description, status, rules } = body || {};
+  const { name, category, level, duration_min, price_fen, cover, description, status, rules, coach_bio } = body || {};
   if (!name || !category) {
     return sendJson(res, 400, { code: 400, message: '课程名称与分类必填' });
   }
@@ -745,6 +745,9 @@ async function handleCreateCourse(req, res, body) {
     price_fen: price_fen || 0,
     cover: cover || '', description: description || '', status: status || 'published', rules: rules || []
   });
+  // 「教练介绍」→ 写入该课程教练档案 bio（DESIGN #D2 修复：原字段后端未保存；
+  // 未排课前无教练可挂，静默跳过，排课后再次保存课程即生效）
+  if (coach_bio !== undefined) await db.setCourseCoachBio(course.id, coach_bio);
   return sendJson(res, 201, { code: 201, message: '课程已创建', course: { id: course.id } });
 }
 
@@ -754,6 +757,7 @@ async function handleUpdateCourse(req, res, id, body) {
   }
   const ok = await db.updateCourse(id, body);
   if (!ok) return sendJson(res, 404, { code: 404, message: '课程不存在' });
+  if (body.coach_bio !== undefined) await db.setCourseCoachBio(id, body.coach_bio);
   return sendJson(res, 200, { code: 200, message: '课程已保存' });
 }
 
@@ -1214,6 +1218,19 @@ const API_ROUTES = [
       await logOp('admin', 'user_role', { openid, role, coach_id: res.coach_id || null }, 'ok');
       sendJson(r, 200, { code: 200, ok: true, coach_id: res.coach_id || null });
     } },
+  // 编辑教练档案（DESIGN #D2：名字/头像/技能/简介，前端教练详情与课程详情展示）
+  { m: 'PUT',    p: /^\/api\/admin\/coaches\/\d+$/, f: async (q, r, u) => {
+      const id = Number(u.pathname.split('/')[4]);
+      const body = await readBody(q);
+      const { name, avatar, skills, bio } = body || {};
+      if (name === undefined && avatar === undefined && skills === undefined && bio === undefined) {
+        return sendJson(r, 400, { code: 400, message: '没有可更新的字段' });
+      }
+      const res = await db.updateCoachProfile(id, { name, avatar, skills, bio });
+      if (!res.ok) return sendJson(r, 400, { code: 400, message: res.error });
+      await logOp('admin', 'coach_update', { coachId: id, name: name || null }, 'ok');
+      sendJson(r, 200, { code: 200, ok: true });
+    } },
   { m: 'GET',    p: /^\/api\/sessions\/\d+$/, f: async(q, r, u) => await handleSessionDetail(q, r, u.pathname.split('/')[3]) }
 ];
 
@@ -1238,6 +1255,7 @@ const ADMIN_PATHS = [
   { m: 'DELETE', p: /^\/api\/sessions\/\d+$/ },
   { m: 'GET',    p: /^\/api\/admin\/(sessions|invite-board)$/ },
   { m: 'GET',    p: /^\/api\/admin\/coaches$/ },
+  { m: 'PUT',    p: /^\/api\/admin\/coaches\/\d+$/ },
   // 教练分配（BUGS-INBOX #14：065968e 遗漏——web 管理网页「教练分配」可被任何人调用，
   // 绕过访问码把任意用户设成教练提权；小程序 admin-students 页共用此接口，真机如需
   // 设教练请改走 web 管理网页（#8 架构方向：管理操作统一在 web，带 Admin-Token））

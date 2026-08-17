@@ -309,4 +309,15 @@ function fakeCoCount(sessionId, peer) {
   return h % 6;
 }
 
-module.exports = { listCoaches, getCoachById, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById, syncSessionStatus, listBookedUsersWithInfo };
+/** 课程编辑保存的「教练介绍」→ 写入该课程当前教练档案 bio（修复：原字段后端未保存）
+ * @returns {{ok:boolean, reason?:string}} reason='no_sessions'=课程还没排课，无教练可挂（静默跳过） */
+async function setCourseCoachBio(courseId, bio) {
+  const row = await driver.get(
+    "SELECT coach_id FROM course_sessions WHERE course_id = ? ORDER BY `date` DESC, start_time DESC LIMIT 1",
+    [courseId]);
+  if (!row) return { ok: false, reason: 'no_sessions' };
+  await driver.run('UPDATE coaches SET bio = ? WHERE id = ?', [String(bio).trim(), row.coach_id]);
+  return { ok: true };
+}
+
+module.exports = { listCoaches, getCoachById, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById, syncSessionStatus, listBookedUsersWithInfo, setCourseCoachBio };

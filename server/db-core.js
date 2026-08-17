@@ -189,6 +189,7 @@ db.exec(`
     avatar      TEXT DEFAULT '',
     skills      TEXT DEFAULT '',
     rating      REAL DEFAULT 5.0,
+    bio         TEXT DEFAULT '',
     status      TEXT DEFAULT 'active'
   );
 `);

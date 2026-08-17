@@ -255,7 +255,7 @@ td .cap-input { width: 64px; padding: 4px 6px; font-size: 12px; }
         <thead><tr>
           <th style="width:36px">教练</th>
           <th>昵称</th><th>当前角色</th><th>教练档案</th>
-          <th>注册时间</th><th>最后登录</th><th>登录次数</th><th>openid</th>
+          <th>注册时间</th><th>最后登录</th><th>登录次数</th><th>openid</th><th style="width:120px">操作</th>
         </tr></thead>
         <tbody id="coachUsersBody"></tbody>
       </table>
@@ -264,6 +264,22 @@ td .cap-input { width: 64px; padding: 4px 6px; font-size: 12px; }
         <span class="msg" id="coach-msg"></span>
       </div>
       <div class="empty-tip" id="coach-empty" style="display:none">暂无已注册用户（需先有用户在小程序登录）</div>
+    </div>
+
+    <!-- 教练档案编辑弹层（DESIGN #D2：名字/头像/技能/简介，前端教练详情与课程详情展示） -->
+    <div id="coach-editor" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); align-items:center; justify-content:center; z-index:20">
+      <div style="width:460px; max-width:92vw; background:#fff; border-radius:14px; padding:22px; box-shadow:0 10px 40px rgba(0,0,0,0.2)">
+        <h3 style="font-size:15px; margin-bottom:14px">编辑教练档案 #<span id="ce-id"></span></h3>
+        <div class="field" style="margin-bottom:10px"><label>教练姓名 *（前端教练详情页显示）</label><input type="text" id="ce-name" placeholder="如：喻馥雅"></div>
+        <div class="field" style="margin-bottom:10px"><label>头像 URL（小程序 /images/xxx.png 或外链图片地址）</label><input type="text" id="ce-avatar" placeholder="如：/images/2_1468.png"></div>
+        <div class="field" style="margin-bottom:10px"><label>技能标签（逗号分隔，排表下拉/列表展示）</label><input type="text" id="ce-skills" placeholder="如：Hybrid综合体能,引体向上,产后康复"></div>
+        <div class="field" style="margin-bottom:14px"><label>教练介绍（课程详情页教练说明显示）</label><textarea id="ce-bio" placeholder="如：Hyrox个人精英运动员，40+引体达人"></textarea></div>
+        <div style="display:flex; gap:12px; justify-content:flex-end">
+          <button class="btn" style="background:#F0EDDF;color:var(--gray)" onclick="closeCoachEditor()">取消</button>
+          <button class="btn btn-save" onclick="saveCoachProfile()">保存</button>
+        </div>
+      </div>
+    </div>
     </div>
   </main>
 </section>
@@ -659,6 +675,7 @@ function userRow(u) {
     ? '<span class="badge" style="background:#E5FFC9;color:#3D9970">教练</span>'
     : '<span class="badge" style="background:#F0EDDF;color:var(--gray)">学员</span>';
   var name = esc(u.nickname || '未设昵称');
+  var coachRec = coachAll.filter(function (c) { return c.user_openid === u.openid; })[0];
   return '<tr>' +
     '<td><input type="checkbox" class="u-coach" data-openid="' + u.openid + '"' + (isCoach ? ' checked' : '') + '></td>' +
     '<td>' + name + '</td>' +
@@ -668,6 +685,9 @@ function userRow(u) {
     '<td style="color:var(--gray)">' + esc(u.last_login_at || '-') + '</td>' +
     '<td style="color:var(--gray)">' + (u.login_count || 0) + '</td>' +
     '<td style="color:var(--gray);font-size:12px">' + esc(String(u.openid || '').slice(0, 20)) + '</td>' +
+    '<td>' + (isCoach && coachRec
+      ? '<button class="btn btn-add" style="padding:5px 14px;font-size:12px" onclick="openCoachEditor(' + coachRec.id + ')">编辑档案</button>'
+      : '') + '</td>' +
     '</tr>';
 }
 // 保存：对比勾选状态与服务端角色 → 逐个 user-role（新增勾选=设教练；取消勾选=取消教练）
@@ -698,6 +718,35 @@ function saveCoachRoles() {
     toast($('coach-msg'), '保存失败：' + e.message, true);
     loadCoaches();
   });
+}
+
+// 教练档案编辑（DESIGN #D2：名字/头像/技能/简介，保存后前端教练详情与课程详情即时生效）
+var editCoachId = 0;
+function openCoachEditor(coachId) {
+  var c = coachAll.filter(function (x) { return x.id === coachId; })[0];
+  if (!c) return;
+  editCoachId = coachId;
+  $('ce-id').textContent = coachId;
+  $('ce-name').value = c.name || '';
+  $('ce-avatar').value = c.avatar || '';
+  $('ce-skills').value = c.skills || '';
+  $('ce-bio').value = c.bio || '';
+  $('coach-editor').style.display = 'flex';
+}
+function closeCoachEditor() { $('coach-editor').style.display = 'none'; }
+function saveCoachProfile() {
+  var payload = {
+    name: $('ce-name').value.trim(),
+    avatar: $('ce-avatar').value.trim(),
+    skills: $('ce-skills').value.trim(),
+    bio: $('ce-bio').value.trim()
+  };
+  if (!payload.name) { alert('教练姓名不能为空'); return; }
+  api('/admin/coaches/' + editCoachId, 'PUT', payload).then(function () {
+    closeCoachEditor();
+    alert('档案已保存');
+    loadCoaches();
+  }).catch(function (e) { alert('保存失败：' + e.message); });
 }
 
 try { ensureAdminToken(); } catch (e) { alert(e.message); }

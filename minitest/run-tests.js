@@ -360,6 +360,29 @@ async function runSuite() {
   check('ADMIN-17', '不存在的账号拒绝', r.status === 400 && (r.data.message || '').includes('账号不存在'), `msg=${r.data && r.data.message}`);
   r = await req('POST', '/api/admin/user-role', { openid: T.user2.openid });
   check('ADMIN-18', '缺 role → 400', r.status === 400 && (r.data.message || '').includes('role'), `msg=${r.data && r.data.message}`);
+  // 教练档案编辑（DESIGN #D2：名字/头像/技能/简介，前端教练详情/课程详情展示）
+  r = await req('PUT', '/api/admin/coaches/1', { name: '喻馥雅', avatar: '/images/2_1468.png', skills: 'Hybrid综合体能,产后康复', bio: '管理页编辑测试简介' }, { noToken: true });
+  check('ADMIN-19', '无 token 编辑档案 → 401', r.status === 401, `status=${r.status}`);
+  r = await req('PUT', '/api/admin/coaches/1', { name: '喻馥雅', avatar: '/images/2_1468.png', skills: 'Hybrid综合体能,产后康复', bio: '管理页编辑测试简介' });
+  check('ADMIN-20', '编辑档案成功', r.status === 200 && r.data.ok === true, `status=${r.status} msg=${r.data && r.data.message}`);
+  r = await req('GET', '/api/admin/coaches');
+  const edited = (r.data.coaches || []).find(c => c.id === 1);
+  check('ADMIN-20b', '列表反映编辑（bio/skills/avatar 字段）',
+    !!(edited && edited.bio === '管理页编辑测试简介' && edited.skills === 'Hybrid综合体能,产后康复' && edited.avatar === '/images/2_1468.png'),
+    `bio=${edited && edited.bio}`);
+  r = await req('PUT', '/api/admin/coaches/999', { bio: 'x' });
+  check('ADMIN-21', '不存在的档案 → 400', r.status === 400 && (r.data.message || '').includes('不存在'), `msg=${r.data && r.data.message}`);
+  r = await req('PUT', '/api/admin/coaches/1', { name: '  ' });
+  check('ADMIN-22', '姓名为空拒绝', r.status === 400 && (r.data.message || '').includes('姓名'), `msg=${r.data && r.data.message}`);
+  // 课程「教练介绍」→ 档案 bio（修复：原字段后端未保存）
+  r = await req('GET', '/api/courses');
+  const seedCrs = (r.data.courses || [])[0];
+  r = await req('PUT', '/api/courses/' + seedCrs.id, { name: seedCrs.name, coach_bio: '课程保存写入的教练简介' });
+  check('ADMIN-23', '课程保存教练介绍成功', r.status === 200, `status=${r.status} msg=${r.data && r.data.message}`);
+  r = await req('GET', '/api/admin/coaches');
+  check('ADMIN-23b', '教练档案 bio 已由课程介绍写入',
+    (r.data.coaches.find(c => c.id === 1) || {}).bio === '课程保存写入的教练简介',
+    `bio=${r.data.coaches.find(c => c.id === 1) && r.data.coaches.find(c => c.id === 1).bio}`);
 
   // ===== 1. 账号登录 =====
   console.log('\n── 2. 账号与登录 ──');

@@ -8,13 +8,13 @@ const { findUserByOpenid, createUser, touchLogin, updateProfile, countUsers, lis
 const { todayCoinsEarned, addCoins, getCoinInfo, listCoinLogs, listShopItems, exchangeCoinItem, listMyExchanges, checkLevelUpReward, rewardInviterCoins } = require('./db/coin');
 const { getMemberLevel, addBalance, refundOrderMoney, hasRechargedPlan, calcRechargeBonus, applyRecharge, listRecharges, listUnreadBalanceLogs, markBalanceLogsRead, RECHARGE_PLANS } = require('./db/members');
 const { listInvitationDetails, inviteBoardStats, bindInvitation, rewardInviter, getInviteStats } = require('./db/invite');
-const { listCoaches, getCoachById, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById, listBookedUsersWithInfo } = require('./db/courses');
+const { listCoaches, getCoachById, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById, listBookedUsersWithInfo, setCourseCoachBio } = require('./db/courses');
 const { sendMessage, broadcastMessage, listMessages, unreadMessageCount, markMessageRead, markAllMessagesRead, listSessionsStartingSoon, listBookedUsersBySession } = require('./db/messages');
 const { listPassPackages, getUserPass, getUserPassForDate, getUserPassInfo, applyPassPurchase, consumePass, refundPass, expireOverduePasses } = require('./db/passes');
 const { syncAchievements, listUserAchievementKeys, REWARD_COINS } = require('./db/achievements');
 const { genOrderNo, createOrder, payOrder, listOrdersByUser, getOrderByNo, getRevenueStats, promoteFromWaitlist, joinWaitlist, cancelWaitlist, listWaitlistByUser, refundExpiredWaitlist } = require('./db/orders');
 const { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, checkinByCode, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings } = require('./db/bookings');
-const { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach, listCoachesWithBind, unassignCoach, setUserRole } = require('./db/coach');
+const { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach, listCoachesWithBind, unassignCoach, setUserRole, updateCoachProfile } = require('./db/coach');
 
 // 导出兼容（历史保留）
 const ENERGY_CONFIG = require('./energy-config.js');
@@ -40,6 +40,7 @@ module.exports = {
   listVenues,
   listCourses,
   getRules,
+  setCourseCoachBio,
   replaceRules,
   createCourse,
   updateCourse,
@@ -133,5 +134,6 @@ module.exports = {
   assignCoach,
   listCoachesWithBind,
   unassignCoach,
-  setUserRole
+  setUserRole,
+  updateCoachProfile
 };

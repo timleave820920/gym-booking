@@ -15,6 +15,17 @@
 
 ---
 
+## #43 课程编辑「教练介绍」从未保存 + 教练档案编辑能力缺失（DESIGN #D2 配套）
+
+- **发现**：2026-08-17，实现教练档案编辑时审计发现（前端 courses.html 一直有「教练介绍」字段，服务端丢弃）
+- **现象**：管理网页编辑课程填写的「教练介绍」（coach_bio）保存后不生效——handleCreateCourse/handleUpdateCourse 从未写入 coaches.bio；且被设为教练的用户无法编辑自己的档案（名字/头像/技能/简介），前端教练详情/课程详情展示的是种子占位
+- **根因**：① 服务端 updateCourse 只更新 courses 表，coach_bio 字段被静默丢弃；② 无教练档案编辑接口——档案只能靠 seed/直连库修改
+- **修复**：① db/courses.js 新增 setCourseCoachBio(courseId, bio)——取该课程最近场次的 coach_id 写入 coaches.bio（无场次课程静默跳过），handleCreateCourse/handleUpdateCourse 接入；② db/coach.js 新增 updateCoachProfile(id, {name,avatar,skills,bio})（只更新传入非空字段、name 禁空）+ PUT /api/admin/coaches/:id 路由（入 ADMIN_PATHS 访问码保护）+ listCoachesWithBind 补 avatar/rating/bio 输出；③ web 教练分配 tab 行内「编辑档案」弹层（名字/头像/技能/简介）；④ SQLite coaches 建表补 bio 列（mysql-schema 已有，方言不一致——db-core.js:55 ALTER 因建表顺序先于 coaches 建表而被 try-catch 吞掉，新库缺列）
+- **回归测试**：ADMIN-19（无 token 编辑档案 401）+ ADMIN-20/20b（编辑成功+列表反映）+ ADMIN-21（不存在档案 400）+ ADMIN-22（name 空拒绝）+ ADMIN-23/23b（课程 coach_bio → 教练档案 bio 落库）；213/213 绿 + TZ=UTC 绿 + coverage 探针（PUT coaches + 课程保存教练介绍）
+- **防护层**：L0 功能审计发现；修复后 ADMIN-19~23b 真实断言 + coverage 探针。**教训：前端表单字段≠后端落库字段，接口契约要双向核对；方言建表要保证 CREATE TABLE 与迁移 ALTER 同步（CREATE 先行新库、ALTER 兜底旧库）**
+
+---
+
 ## #42 教练工作台「我的课程」无排序——需进行中最前、未开始越近越前、已结束刚结束在前
 
 - **发现**：2026-08-17，用户明确排序规则要求
