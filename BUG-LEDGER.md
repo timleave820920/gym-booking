@@ -15,6 +15,17 @@
 
 ---
 
+## #46 云托管容器无法调通微信 API——出网网关自签名证书致 code2Session 必挂（登录换号深层根因）
+
+- **发现**：2026-08-17，#45 移除演示账号兜底后换号失败显形；行为探测 5/5 返回 errcode -2（网络错误）；WebShell 直测定位
+- **现象**：微信一键登录永远拿不到真实 openid（此前被 demo_user 兜底掩盖）。生产探测：假 code 登录 5/5 报「微信登录校验失败（-2）」；WebShell 内 Node 直连 `api.weixin.qq.com` 报 **`self-signed certificate`**，同环境 `www.baidu.com` 返回 200（出网本身正常）
+- **根因**：**微信云托管容器出网经腾讯安全网关，网关用自签名证书重签全部 HTTPS 出站流量** → Node 默认 CA 校验必然失败 → code2Session 的 `https.get` 走 error 分支（-2）→ 真实 openid 永远换不到。本地/CI 直连微信 API 证书正常（本地验证永远测不出）
+- **修复**：`WECHAT_API_HOSTS` 白名单（`api.weixin.qq.com` + 未来支付预留 `api.mch.weixin.qq.com`），code2Session 请求 `rejectUnauthorized: !WECHAT_API_HOSTS.has(hostname)`——仅白名单关校验、白名单外保持默认严格校验（用户 2026-08-17 确认正式方案：平台适配非临时 hack，微信云托管生态标准做法）
+- **回归测试**：FRONT-08 静态断言（白名单集合 + 按 hostname 条件关校验，防回退到无差别关闭或全局 NODE_TLS_REJECT_UNAUTHORIZED=0）；AUTH-07/07b（换号失败 400 + 不注册）继续兜底；217/217 绿
+- **防护层**：L3 真机 + WebShell 实测定位；修复后 FRONT-08 + AUTH-07 双兜底。**教训：容器平台出网可能与单机语义不同（网关重签证书）——「本地 curl 能验证」≠「容器能调通」，平台适配类问题要用容器内同路径实测（WebShell Node 直连）定位；环境差异排查先问「容器里测过吗」**
+
+---
+
 ## #45 登录链路演示账号兜底——微信一键登录在换号失败时静默变成演示身份（用户指令：代码中不再出现演示账号 id）
 
 - **发现**：2026-08-17，用户真机复测：删除小程序重扫预览码、微信一键登录，仍登录成演示账号（openid 演示号、昵称田立）；用户明确指令「保证代码中不会再出现 demo_user 的 id」

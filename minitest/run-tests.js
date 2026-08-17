@@ -265,6 +265,10 @@ async function runSuite() {
     !/demo_user/.test(loginSrc2) && !/demo_user/.test(fakeSeedSrc)
       && /微信登录校验失败/.test(indexSrc2) && !/demo_user/.test(indexSrc2),
     '正式登录换号失败必须 400 报错重试；任何活跃代码不得再出现 demo_user 作为登录兜底身份');
+  check('FRONT-08', '微信 API 白名单 TLS 适配（#46 防回退：仅白名单关校验）',
+    /WECHAT_API_HOSTS = new Set\(\[['"]api\.weixin\.qq\.com['"], ['"]api\.mch\.weixin\.qq\.com['"]\]\)/.test(indexSrc2)
+      && /rejectUnauthorized: !WECHAT_API_HOSTS\.has\(new URL\(url\)\.hostname\)/.test(indexSrc2),
+    '云托管网关自签证书：白名单关校验必须显式限定微信官方域名；白名单外保持默认严格校验');
 
   // ===== 1.65 上课页排序（BUG-LEDGER #36：纯函数模块真实断言）=====
   console.log('\n── 1.65 上课页排序（BUG-LEDGER #36）──');

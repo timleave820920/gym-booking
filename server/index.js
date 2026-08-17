@@ -89,6 +89,11 @@ function writeNetConfig() {
 const WX_APPID = process.env.WX_APPID || 'wx0aee5332d4ef20fd'; // 与 project.config.json 前端 AppID 一致（正式小程序 2026-08-15）
 const WX_SECRET = process.env.WX_SECRET || '';                  // AppSecret（开发环境可临时填入）
 
+// ===== 微信官方 API 白名单（BUG-LEDGER #46，2026-08-17）=====
+// 微信云托管出网经安全网关，网关用自签名证书重签 HTTPS——白名单内关证书校验（平台适配），
+// 白名单外保持默认严格校验。api.mch.weixin.qq.com 为未来微信支付预留。
+const WECHAT_API_HOSTS = new Set(['api.weixin.qq.com', 'api.mch.weixin.qq.com']);
+
 // ===== 工具函数 =====
 
 /**
@@ -103,7 +108,11 @@ function code2Session(code) {
       return resolve({});
     }
     const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${WX_APPID}&secret=${WX_SECRET}&js_code=${encodeURIComponent(code)}&grant_type=authorization_code`;
-    const req = https.get(url, (res) => {
+    // BUG-LEDGER #46（2026-08-17）：微信云托管出网经安全网关，网关用自签名证书重签 HTTPS——
+    // Node 默认校验 CA 报 self-signed certificate，code2Session 永远失败（-2），微信登录换号必挂
+    // （此前被演示账号兜底掩盖，BUG-LEDGER #45 去掉兜底后显形）。
+    // 正式形态：仅微信官方 API 白名单内关证书校验（平台适配，用户 2026-08-17 确认），白名单外保持默认严格校验
+    const req = https.get(url, { rejectUnauthorized: !WECHAT_API_HOSTS.has(new URL(url).hostname) }, (res) => {
       let data = '';
       res.on('data', chunk => { data += chunk; });
       res.on('end', () => {
