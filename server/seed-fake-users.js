@@ -1,5 +1,7 @@
 /**
  * 测试假用户填充脚本（可重复执行：先清旧假数据再重建）
+ * ⚠️ 仅本地/测试造数用（node:sqlite 同步 API 直连 DB_FILE）；生产 MySQL 模式勿执行——
+ *    MySQL 下 db 为本地 SQLite 连接，本脚本只会读写本地库（DESIGN #D2）
  * 用法：node server/seed-fake-users.js
  * 行为：
  *  1. 清理旧 fake_ 前缀用户及其订课记录（幂等）
