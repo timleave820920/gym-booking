@@ -1,4 +1,6 @@
 # 排除文件（部署包精简）
+# ⚠️ web/ 不能排除：Dockerfile COPY web/ ./web/（管理网页，BUGS-INBOX #8）。
+#    曾因排除 web/ 致云托管构建失败 → 回退旧镜像发布（08-17 部署事故根因）
 node_modules/
 server/data/*.bak*
 server/data/gym.db-shm
@@ -8,7 +10,6 @@ server/logs/
 .git/
 .workbuddy/
 miniprogram/
-web/
 cloudfunctions/
 minitest/
 *.md
