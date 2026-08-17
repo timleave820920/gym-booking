@@ -20,6 +20,10 @@
   border: 2rpx solid #D9D5C6;
   border-radius: 32rpx;
 }
+.head-actions {
+  align-items: flex-end;
+  gap: 12rpx;
+}
 
 /* 三段式 Tab */
 .seg-tabs {

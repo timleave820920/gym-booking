@@ -245,6 +245,12 @@ async function runSuite() {
   const ckSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-checkin', 'index.js'), 'utf8');
   check('FRONT-03', '签到码画码用 this.data.checkinCode（#38 防回退）', /this\.drawQr\(this\.data\.checkinCode\)/.test(ckSrc), '画码必须读页面 data，禁止裸引用作用域外变量');
   check('FRONT-04', '签到码页无 refreshCode 残留且画码有首帧重试（#38/#39 防回退）', !/refreshCode/.test(ckSrc) && /paintQr\(qr, qr\.getModuleCount\(\), 0\)/.test(ckSrc), '刷新按钮已删；首帧 canvas 拿不到尺寸须延迟重试而非直接放弃');
+  // 教练端切学员端按钮（DESIGN #D2：会话内切换，不动 role，下次登录仍按身份分流）
+  const chHomeSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'coach-home', 'index.js'), 'utf8');
+  const chHomeWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'coach-home', 'index.wxml'), 'utf8');
+  check('FRONT-05', '教练端有「切学员端」且 reLaunch 学员首页、不写 role（#D2 防回退）',
+    /goStudentView/.test(chHomeWxml) && /goStudentView\(\) \{\s*wx\.reLaunch\(\{ url: '\/pages\/student-courses\/index' \}\)/.test(chHomeSrc) && !/setStorageSync\('userInfo'/.test(chHomeSrc.slice(chHomeSrc.indexOf('goStudentView'))),
+    '按钮必须存在；切换只 reLaunch 不改身份，否则下次登录分流错乱');
 
   // ===== 1.65 上课页排序（BUG-LEDGER #36：纯函数模块真实断言）=====
   console.log('\n── 1.65 上课页排序（BUG-LEDGER #36）──');
@@ -300,10 +306,10 @@ async function runSuite() {
   r = await req('GET', '/api/admin/coaches', null, { noToken: true });
   check('ADMIN-08', '无 token 拉教练分配列表 → 401', r.status === 401, `status=${r.status}`);
   r = await req('GET', '/api/admin/coaches');
-  check('ADMIN-09', '分配列表：coaches 带绑定字段 + users 供选择',
+  check('ADMIN-09', '分配列表：coaches 带绑定字段 + users 数组',
     r.status === 200 && Array.isArray(r.data.coaches) && Array.isArray(r.data.users)
       && r.data.coaches.length >= 1 && 'user_openid' in r.data.coaches[0] && 'user_nickname' in r.data.coaches[0],
-    `status=${r.status} coaches=${Array.isArray(r.data.coaches) && r.data.coaches.length}`);
+    `status=${r.status} users=${Array.isArray(r.data.users) && r.data.users.length}`);
   await req('POST', '/api/auth/login', T.user1);   // 注册绑定对象（幂等，AUTH-01 会再注册）
   r = await req('POST', '/api/admin/coach-assign', { openid: T.user1.openid, coach_id: 1 });
   check('ADMIN-10', '绑定教练成功', r.status === 200 && r.data.ok === true, `status=${r.status} msg=${r.data && r.data.message}`);
@@ -318,6 +324,36 @@ async function runSuite() {
   check('ADMIN-12', '解绑后账号 role 回落 student（防残留提权）', r.status === 200 && r.data.user.role === 'student', `role=${r.data.user && r.data.user.role}`);
   r = await req('POST', '/api/admin/coach-unassign', { coach_id: 1 }, { noToken: true });
   check('ADMIN-13', '无 token 解绑 → 401', r.status === 401, `status=${r.status}`);
+  // 用户级设/取消教练（DESIGN #D2：勾选用户即设教练，登录按 role 分流）
+  r = await req('POST', '/api/admin/user-role', { openid: T.user2.openid, role: 'coach' }, { noToken: true });
+  check('ADMIN-14', '无 token user-role → 401', r.status === 401, `status=${r.status}`);
+  await req('POST', '/api/auth/login', T.user2);   // 注册 T.user2（幂等）
+  r = await req('POST', '/api/admin/user-role', { openid: T.user2.openid, role: 'coach' });
+  check('ADMIN-15', '设教练：自动建档 + role=coach（返回档案 id）',
+    r.status === 200 && r.data.ok === true && r.data.coach_id >= 1, `status=${r.status} coach_id=${r.data.coach_id} msg=${r.data.message}`);
+  r = await req('GET', '/api/admin/coaches');
+  check('ADMIN-15e', 'users 含基本信息（注册时间/最后登录/登录次数，DESIGN #D2 展示用）',
+    Array.isArray(r.data.users) && r.data.users.length >= 1
+      && 'created_at' in r.data.users[0] && 'last_login_at' in r.data.users[0] && 'login_count' in r.data.users[0],
+    `users=${Array.isArray(r.data.users) && r.data.users.length}`);
+  r = await req('POST', '/api/auth/login', T.user2);
+  check('ADMIN-15b', '登录返回 role=coach（该号默认走教练端）', r.status === 200 && r.data.user.role === 'coach', `role=${r.data.user && r.data.user.role}`);
+  r = await req('GET', '/api/admin/coaches');
+  const autoCoach = (r.data.coaches || []).find(c => c.user_openid === T.user2.openid);
+  check('ADMIN-15c', '自动建档档案存在且昵称取自用户', !!(autoCoach && autoCoach.name === T.user2.nickname), `name=${autoCoach && autoCoach.name}`);
+  const coachId2 = autoCoach ? autoCoach.id : 0;
+  r = await req('POST', '/api/admin/user-role', { openid: T.user2.openid, role: 'coach' });
+  check('ADMIN-15d', '重复设教练幂等（不重复建档，同档案）', r.status === 200 && r.data.coach_id === coachId2, `coach_id=${r.data.coach_id} expect=${coachId2}`);
+  r = await req('POST', '/api/admin/user-role', { openid: T.user2.openid, role: 'student' });
+  check('ADMIN-16', '取消教练：解绑档案 + role 回落', r.status === 200 && r.data.ok === true, `status=${r.status}`);
+  r = await req('POST', '/api/auth/login', T.user2);
+  check('ADMIN-16b', '登录返回 role=student（该号回学员端）', r.status === 200 && r.data.user.role === 'student', `role=${r.data.user && r.data.user.role}`);
+  r = await req('GET', '/api/admin/coaches');
+  check('ADMIN-16c', '档案已解绑（user_openid 清空）', !(r.data.coaches || []).find(c => c.user_openid === T.user2.openid), '残留绑定');
+  r = await req('POST', '/api/admin/user-role', { openid: 'uid_not_exists', role: 'coach' });
+  check('ADMIN-17', '不存在的账号拒绝', r.status === 400 && (r.data.message || '').includes('账号不存在'), `msg=${r.data && r.data.message}`);
+  r = await req('POST', '/api/admin/user-role', { openid: T.user2.openid });
+  check('ADMIN-18', '缺 role → 400', r.status === 400 && (r.data.message || '').includes('role'), `msg=${r.data && r.data.message}`);
 
   // ===== 1. 账号登录 =====
   console.log('\n── 2. 账号与登录 ──');

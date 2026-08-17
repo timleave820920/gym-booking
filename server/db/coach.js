@@ -184,4 +184,39 @@ async function unassignCoach(coachId) {
   return { ok: true };
 }
 
-module.exports = { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach, listCoachesWithBind, unassignCoach };
+/**
+ * 用户级设/取消教练（DESIGN #D2：管理网页按用户勾选，非按档案）
+ * role='coach'：无档案自动建档（昵称/头像取自 users），绑定 + role=coach，幂等
+ * role='student'：解绑该用户所有档案 + role=student（登录回落学员端）
+ * @returns {{ok:boolean, error?:string, coach_id?:number}}
+ */
+async function setUserRole(openid, role) {
+  const user = await driver.get('SELECT nickname, avatar FROM users WHERE openid = ?', [openid]);
+  if (!user) return { ok: false, error: '账号不存在，请先确认该微信已登录过' };
+  if (role !== 'coach' && role !== 'student') return { ok: false, error: 'role 应为 coach 或 student' };
+  await driver.exec('BEGIN');
+  try {
+    if (role === 'coach') {
+      let coach = await driver.get('SELECT id FROM coaches WHERE user_openid = ?', [openid]);
+      if (!coach) {
+        const name = (user.nickname || '').trim() || `教练${openid.slice(-4)}`;
+        const r = await driver.run(
+          "INSERT INTO coaches (user_openid, name, avatar, skills, status) VALUES (?, ?, ?, '', 'active')",
+          [openid, name, user.avatar || '']);
+        coach = { id: r.lastInsertRowid };
+      }
+      await driver.run("UPDATE users SET `role` = 'coach' WHERE openid = ?", [openid]);
+      await driver.exec('COMMIT');
+      return { ok: true, coach_id: coach.id };
+    }
+    await driver.run('UPDATE coaches SET user_openid = NULL WHERE user_openid = ?', [openid]);
+    await driver.run("UPDATE users SET `role` = 'student' WHERE openid = ?", [openid]);
+    await driver.exec('COMMIT');
+    return { ok: true };
+  } catch (e) {
+    await driver.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+module.exports = { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach, listCoachesWithBind, unassignCoach, setUserRole };

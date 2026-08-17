@@ -1187,9 +1187,12 @@ const API_ROUTES = [
       sendJson(r, 200, { code: 200, ok: true });
     } },
   { m: 'GET',    p: '/api/admin/coaches',        f: async (q, r, u) => {
-      // 教练档案列表（含绑定用户昵称）+ 全部用户（供绑定选择）——管理页一次拉全
+      // 教练档案列表（含绑定用户昵称）+ 全部用户（DESIGN #D2：用户管理语义，展示基本信息）——管理页一次拉全
       const [coaches, rawUsers] = await Promise.all([db.listCoachesWithBind(), db.listUsers()]);
-      const users = rawUsers.map(u => ({ openid: u.openid, nickname: u.nickname, role: u.role, last_login_at: u.last_login_at }));
+      const users = rawUsers.map(u => ({
+        openid: u.openid, nickname: u.nickname, avatar: u.avatar, role: u.role,
+        created_at: u.created_at, last_login_at: u.last_login_at, login_count: u.login_count
+      }));
       sendJson(r, 200, { code: 200, coaches, users });
     } },
   { m: 'POST',   p: '/api/admin/coach-unassign', f: async (q, r, u) => {
@@ -1200,6 +1203,16 @@ const API_ROUTES = [
       if (!res.ok) return sendJson(r, 400, { code: 400, message: res.error });
       await logOp('admin', 'coach_unassign', { coachId }, 'ok');
       sendJson(r, 200, { code: 200, ok: true });
+    } },
+  // 用户级设/取消教练（DESIGN #D2：管理网页按用户勾选，登录按 role 分流；无档案自动建档）
+  { m: 'POST',   p: '/api/admin/user-role',       f: async (q, r, u) => {
+      const body = await readBody(q);
+      const { openid = '', role = '' } = body || {};
+      if (!openid || !role) return sendJson(r, 400, { code: 400, message: '缺少 openid 或 role' });
+      const res = await db.setUserRole(openid, role);
+      if (!res.ok) return sendJson(r, 400, { code: 400, message: res.error });
+      await logOp('admin', 'user_role', { openid, role, coach_id: res.coach_id || null }, 'ok');
+      sendJson(r, 200, { code: 200, ok: true, coach_id: res.coach_id || null });
     } },
   { m: 'GET',    p: /^\/api\/sessions\/\d+$/, f: async(q, r, u) => await handleSessionDetail(q, r, u.pathname.split('/')[3]) }
 ];
@@ -1228,7 +1241,7 @@ const ADMIN_PATHS = [
   // 教练分配（BUGS-INBOX #14：065968e 遗漏——web 管理网页「教练分配」可被任何人调用，
   // 绕过访问码把任意用户设成教练提权；小程序 admin-students 页共用此接口，真机如需
   // 设教练请改走 web 管理网页（#8 架构方向：管理操作统一在 web，带 Admin-Token））
-  { m: 'POST',   p: /^\/api\/admin\/(coach-assign|coach-unassign)$/ },
+  { m: 'POST',   p: /^\/api\/admin\/(coach-assign|coach-unassign|user-role)$/ },
 ];
 function isAdminPath(method, pathname) {
   return ADMIN_PATHS.some(x => x.m === method && x.p.test(pathname));

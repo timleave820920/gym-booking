@@ -308,6 +308,14 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     assert.equal(r.data.code, 200, '解绑教练');
     r = await req('POST', '/api/admin/coach-assign', { openid: COACH.openid, coach_id: 1 }); // 恢复绑定（后续探针依赖）
     assert.equal(r.data.code, 200, '重新绑定教练');
+    // 用户级设/取消教练（DESIGN #D2）
+    const R = { openid: 'uid_cov_role', nickname: '覆盖测试教练' };
+    r = await req('POST', '/api/auth/login', R);
+    assert.equal(r.status, 201, '注册R');
+    r = await req('POST', '/api/admin/user-role', { openid: R.openid, role: 'coach' });
+    assert.ok(r.data.coach_id >= 1, 'user-role 自动建档');
+    r = await req('POST', '/api/admin/user-role', { openid: R.openid, role: 'student' });
+    assert.equal(r.data.code, 200, 'user-role 取消教练');
 
     // ---- 14 候补复杂路径：排位 / 退订转正 / 退出退款 / 过期退款 ----
     const s4 = db.db.prepare(

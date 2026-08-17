@@ -360,5 +360,10 @@ Page({
     wx.removeStorageSync('token');
     wx.removeStorageSync('userInfo');
     wx.reLaunch({ url: '/pages/login/index' });
+  },
+
+  // 切换到学员端（DESIGN #D2）：仅本次会话生效，不动身份 role——下次登录仍按后端 role 分流
+  goStudentView() {
+    wx.reLaunch({ url: '/pages/student-courses/index' });
   }
 });

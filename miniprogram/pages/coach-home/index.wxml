@@ -6,7 +6,10 @@
         <text class="greet-title">{{greeting}}</text>
         <text class="greet-sub">教练工作台 · 实时数据</text>
       </view>
-      <text class="logout-btn" bindtap="goProfile">退出</text>
+      <view class="flex-col head-actions">
+        <text class="logout-btn" bindtap="goStudentView">切学员端</text>
+        <text class="logout-btn" bindtap="goProfile">退出</text>
+      </view>
     </view>
 
     <!-- 三段式 Tab -->
