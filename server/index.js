@@ -1197,6 +1197,9 @@ function isAdminPath(method, pathname) {
 
 const server = http.createServer(async (req, res) => {
   try {
+    // 数据库就绪门闩：MySQL 模式建表异步完成，就绪前请求等待（SQLite 已 resolve，零开销）
+    // —— listen 已不阻塞 ready（云托管冷启动探针窗口极短），请求层兜底防打到空表
+    await driver.ready;
     // 请求日志（真机联调排查用；正式环境可移除或按需开启）
     if (process.env.REQUEST_LOG === '1') {
       console.log(`[req] ${req.method} ${req.url} from ${req.socket.remoteAddress}`);
@@ -1251,10 +1254,10 @@ const server = http.createServer(async (req, res) => {
 
 // ===== 启动 =====
 // 独立启动时监听端口；被 require（如测试/覆盖率）时不监听，导出供复用
-// driver.ready 门闩（DESIGN #D2 S5）：MySQL 模式建表异步完成，就绪后才 listen，
-// 保证首个请求前 20 张表已建好；SQLite 模式 ready 立即完成，行为不变
+// driver.ready 门闩（DESIGN #D2 S5）：MySQL 模式建表异步完成。listen 不阻塞 ready——
+// 云托管冷启动探针窗口极短，先 listen 让探针尽早通过；请求处理器开头 await driver.ready
+// 兜底（DB 就绪前请求自会等待），建表失败由 ready.catch 退出进程（防无表服务空转）
 if (require.main === module) {
-  driver.ready.then(() => {
   server.listen(PORT, HOST, () => {
   // 启动时探测局域网 IP 并写入前端配置（IP 自动适配）
   const net = writeNetConfig();
@@ -1307,6 +1310,8 @@ if (require.main === module) {
     }
   }, 5 * 60 * 1000);
   });
+  driver.ready.then(() => {
+    console.log('[启动] 数据库就绪（20 表建齐）');
   }).catch(e => { console.error('[启动] 数据库就绪失败:', e); process.exit(1); });
 } else {
   // 被测试/覆盖率脚本 require：导出服务与数据库供同进程调用
