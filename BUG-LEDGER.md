@@ -42,9 +42,9 @@
 - **发现**：2026-08-17，用户反馈（#13 疑似同根因）
 - **现象**：登录页选教练入口进入 → 教练工作台「我的学员」报「教练档案不存在」（GET /api/coach/students 404）
 - **根因**：生产 coaches 表喻馥雅(id=1)/马春艳(id=2) 的 user_openid 均为 NULL——从未通过 coach-assign 绑定；教练账号登录后 findCoachByOpenid 查不到档案
-- **修复**：#41 修复后从 /api/users 取教练账号 openid → 带 Admin-Token 调 POST /api/admin/coach-assign 绑定 coaches#1（喻馥雅）→ 用户重新登录验证
-- **回归测试**：COACH-07 系（本地已有绑定用例）+ 部署后生产探测（/api/coach/students 不再 404）
-- **防护层**：L3 真机发现；防护=部署后生产探测判据。**教训：coaches 档案与用户账号是两张表两套数据，部署/迁移不自动绑定；新环境上线后必须做教练绑定初始化**
+- **修复**：① 管理页自助化 = web 管理网页新增「教练分配」tab（GET /api/admin/coaches 列表带绑定状态 + POST /api/admin/coach-unassign 解绑回落 role=student，均入 ADMIN_PATHS 访问码保护；bind/unbind 页面操作），管理员不再依赖 API 手动绑；② 数据绑定 = 带 Admin-Token 调 POST /api/admin/coach-assign 把喻馥雅账号（demo_3dmuxq）绑到 coaches#1 → 用户重新登录验证
+- **回归测试**：ADMIN-08~13（列表 401/结构/绑定后反映/解绑成功/role 回落/解绑 401，193/193 绿）+ coverage 探针 13.6（列表+解绑+恢复绑定）+ 部署后生产探测（/api/coach/students 不再 404）
+- **防护层**：L3 真机发现；防护=管理页自助绑定 + 部署后生产探测判据。**教训：coaches 档案与用户账号是两张表两套数据，部署/迁移不自动绑定；新环境上线后必须做教练绑定初始化**
 
 ---
 

@@ -149,4 +149,39 @@ async function assignCoach(openid, coachId) {
   return { ok: true };
 }
 
-module.exports = { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach };
+/**
+ * 教练档案列表（web 管理「教练分配」页）：带绑定用户昵称，管理员可看清谁绑了谁
+ */
+async function listCoachesWithBind() {
+  return await driver.all(`
+    SELECT c.id, c.name, c.skills, c.status, c.user_openid,
+           (SELECT u.nickname FROM users u WHERE u.openid = c.user_openid) AS user_nickname
+    FROM coaches c ORDER BY c.id
+  `);
+}
+
+/**
+ * 解绑教练档案（web 管理「教练分配」页）：清 user_openid + 该账号 role 回落 student
+ * 幂等：未绑定直接 ok；不动教练历史数据（结算/学员记录挂 coaches.id，与账号无关）
+ */
+async function unassignCoach(coachId) {
+  const coach = await driver.get('SELECT user_openid FROM coaches WHERE id = ?', [coachId]);
+  if (!coach) return { ok: false, error: '教练档案不存在' };
+  if (!coach.user_openid) return { ok: true };
+  await driver.exec('BEGIN');
+  try {
+    await driver.run('UPDATE coaches SET user_openid = NULL WHERE id = ?', [coachId]);
+    // 防误伤：仅当该账号未绑定其他教练档案时才回落角色（一对多防护）
+    const others = await driver.get('SELECT id FROM coaches WHERE user_openid = ? AND id != ?', [coach.user_openid, coachId]);
+    if (!others) {
+      await driver.run("UPDATE users SET \`role\` = 'student' WHERE openid = ? AND \`role\` = 'coach'", [coach.user_openid]);
+    }
+    await driver.exec('COMMIT');
+  } catch (e) {
+    await driver.exec('ROLLBACK');
+    throw e;
+  }
+  return { ok: true };
+}
+
+module.exports = { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach, listCoachesWithBind, unassignCoach };

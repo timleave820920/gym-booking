@@ -296,6 +296,28 @@ async function runSuite() {
   check('ADMIN-06', '无 token 设教练 → 401（BUGS-INBOX #14：防止绕过访问码提权）', r.status === 401, `status=${r.status}`);
   r = await req('POST', '/api/admin/coach-assign', { openid: 'x' });
   check('ADMIN-07', '正确 token 设教练（进参数校验：缺 coach_id）', r.status === 400 && (r.data.message || '').includes('coach_id'), `status=${r.status} msg=${r.data && r.data.message}`);
+  // 教练分配管理页（BUGS-INBOX #40：web 管理「教练分配」tab，绑定/解绑自助操作）
+  r = await req('GET', '/api/admin/coaches', null, { noToken: true });
+  check('ADMIN-08', '无 token 拉教练分配列表 → 401', r.status === 401, `status=${r.status}`);
+  r = await req('GET', '/api/admin/coaches');
+  check('ADMIN-09', '分配列表：coaches 带绑定字段 + users 供选择',
+    r.status === 200 && Array.isArray(r.data.coaches) && Array.isArray(r.data.users)
+      && r.data.coaches.length >= 1 && 'user_openid' in r.data.coaches[0] && 'user_nickname' in r.data.coaches[0],
+    `status=${r.status} coaches=${Array.isArray(r.data.coaches) && r.data.coaches.length}`);
+  await req('POST', '/api/auth/login', T.user1);   // 注册绑定对象（幂等，AUTH-01 会再注册）
+  r = await req('POST', '/api/admin/coach-assign', { openid: T.user1.openid, coach_id: 1 });
+  check('ADMIN-10', '绑定教练成功', r.status === 200 && r.data.ok === true, `status=${r.status} msg=${r.data && r.data.message}`);
+  r = await req('GET', '/api/admin/coaches');
+  const boundCoach = (r.data.coaches || []).find(c => c.id === 1);
+  check('ADMIN-10b', '列表反映绑定（user_openid+昵称，管理页刷新可见）',
+    boundCoach && boundCoach.user_openid === T.user1.openid && boundCoach.user_nickname === T.user1.nickname,
+    `bound=${boundCoach && boundCoach.user_openid}`);
+  r = await req('POST', '/api/admin/coach-unassign', { coach_id: 1 });
+  check('ADMIN-11', '解绑教练成功', r.status === 200 && r.data.ok === true, `status=${r.status}`);
+  r = await req('POST', '/api/auth/login', T.user1);
+  check('ADMIN-12', '解绑后账号 role 回落 student（防残留提权）', r.status === 200 && r.data.user.role === 'student', `role=${r.data.user && r.data.user.role}`);
+  r = await req('POST', '/api/admin/coach-unassign', { coach_id: 1 }, { noToken: true });
+  check('ADMIN-13', '无 token 解绑 → 401', r.status === 401, `status=${r.status}`);
 
   // ===== 1. 账号登录 =====
   console.log('\n── 2. 账号与登录 ──');

@@ -14,7 +14,7 @@ const { listPassPackages, getUserPass, getUserPassForDate, getUserPassInfo, appl
 const { syncAchievements, listUserAchievementKeys, REWARD_COINS } = require('./db/achievements');
 const { genOrderNo, createOrder, payOrder, listOrdersByUser, getOrderByNo, getRevenueStats, promoteFromWaitlist, joinWaitlist, cancelWaitlist, listWaitlistByUser, refundExpiredWaitlist } = require('./db/orders');
 const { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, checkinByCode, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings } = require('./db/bookings');
-const { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach } = require('./db/coach');
+const { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach, listCoachesWithBind, unassignCoach } = require('./db/coach');
 
 // 导出兼容（历史保留）
 const ENERGY_CONFIG = require('./energy-config.js');
@@ -130,5 +130,7 @@ module.exports = {
   getCoachNote,
   upsertCoachNote,
   getCoachSettlement,
-  assignCoach
+  assignCoach,
+  listCoachesWithBind,
+  unassignCoach
 };

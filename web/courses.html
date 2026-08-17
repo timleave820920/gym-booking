@@ -100,6 +100,7 @@ td .cap-input { width: 64px; padding: 4px 6px; font-size: 12px; }
     <button class="tab active" id="tab-set" onclick="switchTab('set')">课程设定</button>
     <button class="tab" id="tab-sch" onclick="switchTab('sch')">排表管理</button>
     <button class="tab" id="tab-board" onclick="switchTab('board')">邀请看板</button>
+    <button class="tab" id="tab-coach" onclick="switchTab('coach')">教练分配</button>
   </nav>
 </header>
 
@@ -245,6 +246,17 @@ td .cap-input { width: 64px; padding: 4px 6px; font-size: 12px; }
   </main>
 </section>
 
+<!-- ============ 教练分配（BUGS-INBOX #40：coach-assign 绑定，管理页自助操作） ============ -->
+<section class="panel hidden" id="panel-coach">
+  <main style="flex:1; min-width:0">
+    <div class="block">
+      <h3>教练分配 <span style="font-size:12px;color:var(--gray);font-weight:400">（把已登录过的微信账号绑定为教练——账号须先在小程序登录过才会出现在下方下拉框）</span></h3>
+      <div id="coachList"></div>
+      <div class="empty-tip" id="coach-empty" style="display:none">暂无教练档案</div>
+    </div>
+  </main>
+</section>
+
 <script>
 var meta = { coaches: [], venues: [], categories: [], images: [], timeSlots: [], weekdays: [], capacities: [], statusLabels: {}, levels: [], durations: [], prices: [] };
 var courses = [];
@@ -294,11 +306,14 @@ function switchTab(name) {
   $('panel-set').classList.toggle('hidden', name !== 'set');
   $('panel-sch').classList.toggle('hidden', name !== 'sch');
   $('panel-board').classList.toggle('hidden', name !== 'board');
+  $('panel-coach').classList.toggle('hidden', name !== 'coach');
   $('tab-set').classList.toggle('active', name === 'set');
   $('tab-sch').classList.toggle('active', name === 'sch');
   $('tab-board').classList.toggle('active', name === 'board');
+  $('tab-coach').classList.toggle('active', name === 'coach');
   if (name === 'sch') loadSchedule();
   if (name === 'board') loadInviteBoard();
+  if (name === 'coach') loadCoaches();
 }
 
 // ===== 加载元数据 & 课程 =====
@@ -609,6 +624,61 @@ function loadInviteDetails() {
     }).join('');
     $('bd-details-empty').style.display = list.length ? 'none' : 'block';
   }).catch(function () {});
+}
+
+// ===== 教练分配（BUGS-INBOX #40） =====
+var coachUsers = [];
+var coachAll = [];
+function loadCoaches() {
+  api('/admin/coaches').then(function (j) {
+    coachUsers = j.users || [];
+    coachAll = j.coaches || [];
+    $('coach-empty').style.display = coachAll.length ? 'none' : 'block';
+    $('coachList').innerHTML = coachAll.map(coachCard).join('');
+  }).catch(function (e) { alert('教练列表加载失败：' + e.message); });
+}
+function coachCard(c) {
+  var bound = c.user_openid
+    ? '<span class="badge" style="background:#E5FFC9;color:#3D9970">已绑定 ' + esc(c.user_nickname || c.user_openid) + '</span>'
+    : '<span class="badge" style="background:#F0EDDF;color:var(--gray)">未绑定</span>';
+  // 可绑定账号 = 未绑定任何教练档案的用户（防一对多；已绑定档案的需先解绑才能换）
+  var boundOpenids = {};
+  coachAll.forEach(function (c2) { if (c2.user_openid) boundOpenids[c2.user_openid] = true; });
+  var bindable = coachUsers.filter(function (u) { return u.role !== 'admin' && !boundOpenids[u.openid]; });
+  var opts = bindable.map(function (u) {
+    return '<option value="' + u.openid + '">' + esc(u.nickname || u.openid) + '（' + (u.openid || '').slice(0, 12) + '）</option>';
+  }).join('');
+  return '<div class="block" style="display:flex; align-items:center; gap:16px; margin-bottom:10px; padding:14px 18px">' +
+    '<div style="flex:1; min-width:0">' +
+      '<div style="font-size:14px; font-weight:700">' + esc(c.name) + ' ' + bound + '</div>' +
+      '<div style="font-size:12px; color:var(--gray); margin-top:4px">' + esc(c.skills || '暂无简介') + ' · 档案 #' + c.id + '</div>' +
+    '</div>' +
+    '<div style="display:flex; gap:8px; align-items:center">' +
+      (c.user_openid
+        ? '<button class="btn" style="padding:7px 16px;background:#FCEBEB;color:var(--red)" onclick="unbindCoach(' + c.id + ')">解绑</button>'
+        : (bindable.length
+            ? '<select id="pick-' + c.id +'" style="width:260px"><option value="">选择账号…</option>' + opts + '</select>' +
+              '<button class="btn btn-add" style="padding:7px 16px" onclick="bindCoach(' + c.id + ')">绑定</button>'
+            : '<span style="font-size:12px;color:var(--gray)">无可绑定账号（需先在小程序登录）</span>')) +
+    '</div></div>';
+}
+function bindCoach(coachId) {
+  var pick = $('pick-' + coachId);
+  var openid = pick.value;
+  if (!openid) { alert('请先选择要绑定的账号'); return; }
+  var u = coachUsers.filter(function (x) { return x.openid === openid; })[0];
+  if (!confirm('确定把「' + (u.nickname || openid) + '」设为教练档案 #' + coachId + ' 的绑定账号？\n绑定后该账号登录即为教练身份。')) return;
+  api('/admin/coach-assign', 'POST', { openid: openid, coach_id: coachId }).then(function () {
+    alert('绑定成功');
+    loadCoaches();
+  }).catch(function (e) { alert('绑定失败：' + e.message); });
+}
+function unbindCoach(coachId) {
+  if (!confirm('确定解绑教练档案 #' + coachId + '？该账号将回落为学员身份。')) return;
+  api('/admin/coach-unassign', 'POST', { coach_id: coachId }).then(function () {
+    alert('已解绑');
+    loadCoaches();
+  }).catch(function (e) { alert('解绑失败：' + e.message); });
 }
 
 try { ensureAdminToken(); } catch (e) { alert(e.message); }

@@ -300,6 +300,15 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     r = await req('GET', '/api/coach/settlement?coach_id=1&month=2026-13');
     assert.equal(r.status, 400, '非法月份拒绝');
 
+    // ---- 13.6 教练分配管理页（BUGS-INBOX #40）：列表 / 解绑探针 ----
+    r = await req('GET', '/api/admin/coaches');
+    assert.ok(Array.isArray(r.data.coaches) && Array.isArray(r.data.users), '教练分配列表');
+    assert.equal(r.data.coaches.find(c => c.id === 1).user_openid, COACH.openid, '列表反映绑定');
+    r = await req('POST', '/api/admin/coach-unassign', { coach_id: 1 });
+    assert.equal(r.data.code, 200, '解绑教练');
+    r = await req('POST', '/api/admin/coach-assign', { openid: COACH.openid, coach_id: 1 }); // 恢复绑定（后续探针依赖）
+    assert.equal(r.data.code, 200, '重新绑定教练');
+
     // ---- 14 候补复杂路径：排位 / 退订转正 / 退出退款 / 过期退款 ----
     const s4 = db.db.prepare(
       "INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source) VALUES (?,1,1,?,'20:00','21:00',1,0,'published','cov_suite')"

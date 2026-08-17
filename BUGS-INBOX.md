@@ -4,10 +4,10 @@
 > 状态：⬜ 待确认 ｜ ⏳ 修复中 ｜ ✅ 已修复（登记 BUG-LEDGER #N）
 - [x] #42（2026-08-17）教练工作台，我的课程页面，课程排序方式：1）当前正在进行的课程；2）未来的课程，越近的越靠前；3）已经结束的课程，越近的越靠前 → ✅ 已修复（BUG-LEDGER #42：session-sort.js 新增 sortCoachSessions 三态排序——进行中→未开始升序→已结束降序；SORT-05~08 回归，186/186 绿）
 - [x] #41（2026-08-17，排查 #40 时探测发现）GET /api/users 返回空对象数组——index.js:245 `users.map(toPublicUser)` 中 toPublicUser 为 async 函数，map 未 await → Promise 数组序列化为 `[{},{}...]`（JSON.stringify 对 Promise 输出 {}）。本地 AUTH-05 只断言数组长度所以假绿。→ ✅ 已修复（BUG-LEDGER #41：await Promise.all + AUTH-05b 字段断言防假绿，186/186 绿）
-- [ ] #40（2026-08-17）通过前端登录页面的教练入口进入，报错"教练档案不存在"。→ ⏳ 修复中（BUG-LEDGER #40 已登记：coaches.user_openid 未绑定；#41 部署后查 openid → coach-assign 绑定喻馥雅）
+- [x] #40（2026-08-17）通过前端登录页面的教练入口进入，报错"教练档案不存在"。→ ✅ 已修复（BUG-LEDGER #40：① web 管理网页新增「教练分配」tab——GET /api/admin/coaches 列表（含绑定昵称）+ POST /api/admin/coach-unassign 解绑（role 回落 student），均访问码保护；② 生产绑定喻馥雅 demo_3dmuxq→coaches#1；ADMIN-08~13 回归 + coverage 探针 13.6，193/193 绿）
 - [x] #39（2026-08-17）签到二维码刷新有什么意义？现在点刷新后二维码未变化。是否考虑去掉刷新二维码的按钮？→ ✅ 已修复（BUG-LEDGER #39：删 WXML 按钮 + refreshCode 方法；FRONT-04 防回退）
 - [ ] #41（2026-08-17，排查 #40 时探测发现）GET /api/users 返回空对象数组——index.js:245 `users.map(toPublicUser)` 中 toPublicUser 为 async 函数，map 未 await → Promise 数组序列化为 `[{},{}...]`（JSON.stringify 对 Promise 输出 {}）。本地 AUTH-05 只断言数组长度所以假绿。修复方向：`await Promise.all(users.map(toPublicUser))`
-- [ ] #40（2026-08-17）通过前端登录页面的教练入口进入，报错"教练档案不存在"。→ 已排查：生产 coaches 表喻馥雅(id=1)/马春艳(id=2) 的 user_openid 均为 NULL（从未 coach-assign 绑定），教练账号登录后 GET /api/coach/students 404；与 #13 同根因。修复依赖 #41（修好后从 /api/users 取教练 openid → 带 Admin-Token 调 coach-assign 绑定）
+- [x] #40（2026-08-17）通过前端登录页面的教练入口进入，报错"教练档案不存在"。→ ✅ 已修复（BUG-LEDGER #40：见上条）
 - [x] #38（2026-08-17）在模拟器中学员端点击签到，第一次不会显示二维码，需要刷新。真机没有这个问题。→ ✅ 已修复（BUG-LEDGER #38：画码引用未定义变量 + canvas 首帧拿不到尺寸直接放弃；改 this.data.checkinCode + paintQr 延迟重试；FRONT-03/04 静态断言，181/181 绿）
 - [x] #37（2026-08-17）教练端核销签到码，显示"无法识别的签到码"。→ ✅ 已修复（BUG-LEDGER #37：根因=生产旧镜像未部署（by-code 404 探测确认），代码无需改；push 部署新镜像 + 两端重新编译后生效）
 - [x] #11（2026-08-17，用户确认设计后实施）学员端签到码改为随机 5 位纯数字（原为 bookingId 4 位补零，可被推断/撞号；用户反馈看到「字母+数字」为旧版本）→ ✅ 已修复：checkin_code 列（SQLite ALTER + MySQL 幂等补列）+ genCheckinCode 随机 10000-99999（撞号重试 10 次）+ createBooking 生成/getCheckinInfo 返回（老库 lazy 回填）+ 教练端改走 POST /api/checkin/by-code 按码反查核销（复用 checkinBooking 校验：教练角色/窗口/重复签到），前端教练扫码/手动输入、学员二维码同码展示；CHK-08~13 回归（含格式/不存在/重复/非教练拒绝），179/179 绿 + TZ=UTC 全绿 + coverage 探针；连带修复 COIN-04/04b 绝对余额断言改差值（防签到奖励污染）
