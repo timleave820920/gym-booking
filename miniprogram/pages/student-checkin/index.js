@@ -58,7 +58,7 @@ Page({
         checkinCode: info.checkin_code || ''
       }, () => {
         // 数据就绪、未签到且在时间窗口内才渲染二维码
-        if (!this.data.checked && this.data.inWindow) this.drawQr(checkinCode);
+        if (!this.data.checked && this.data.inWindow) this.drawQr(this.data.checkinCode);
       });
     }).catch(() => {
       this.setData({ loading: false, course: null });
@@ -70,10 +70,18 @@ Page({
     const qr = qrcode(0, 'M'); // typeNumber 0=自动，纠错 M 级
     qr.addData(code);
     qr.make();
-    const count = qr.getModuleCount();
+    this.paintQr(qr, qr.getModuleCount(), 0);
+  },
 
+  // 画码；首次进入页面 canvas 节点布局未就绪时拿不到尺寸（模拟器 #38）→ 延迟重试，最多 3 次
+  paintQr(qr, count, attempt) {
     wx.createSelectorQuery().in(this).select('#checkinQr').boundingClientRect((rect) => {
-      if (!rect || !rect.width) return;
+      if (!rect || !rect.width) {
+        if (attempt < 3) {
+          setTimeout(() => this.paintQr(qr, count, attempt + 1), 120);
+        }
+        return;
+      }
       const size = Math.min(rect.width, rect.height);
       const cell = size / count;
       const ctx = wx.createCanvasContext('checkinQr', this);
@@ -91,11 +99,5 @@ Page({
       }
       ctx.draw();
     }).exec();
-  },
-
-  refreshCode() {
-    // 重新渲染二维码（内容不变，重绘一版清晰的码）
-    this.drawQr(this.data.checkinCode);
-    wx.showToast({ title: '签到码已刷新', icon: 'none' });
   }
 });

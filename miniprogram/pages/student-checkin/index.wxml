@@ -46,8 +46,6 @@
           <text class="hint-txt">开课前 30 分钟可签到；签到后可在「我的」查看锻炼记录</text>
         </view>
       </view>
-
-      <view class="refresh-btn" wx:if="{{!checked && inWindow}}" bindtap="refreshCode">刷新签到码</view>
     </block>
   </view>
 </view>

@@ -2,6 +2,11 @@
 
 > 输入「bug：xxx」自动登记（UserPromptSubmit 钩子捕获）；描述不清我会追问。
 > 状态：⬜ 待确认 ｜ ⏳ 修复中 ｜ ✅ 已修复（登记 BUG-LEDGER #N）
+- [x] #39（2026-08-17）签到二维码刷新有什么意义？现在点刷新后二维码未变化。是否考虑去掉刷新二维码的按钮？→ ✅ 已修复（BUG-LEDGER #39：删 WXML 按钮 + refreshCode 方法；FRONT-04 防回退）
+- [ ] #41（2026-08-17，排查 #40 时探测发现）GET /api/users 返回空对象数组——index.js:245 `users.map(toPublicUser)` 中 toPublicUser 为 async 函数，map 未 await → Promise 数组序列化为 `[{},{}...]`（JSON.stringify 对 Promise 输出 {}）。本地 AUTH-05 只断言数组长度所以假绿。修复方向：`await Promise.all(users.map(toPublicUser))`
+- [ ] #40（2026-08-17）通过前端登录页面的教练入口进入，报错"教练档案不存在"。→ 已排查：生产 coaches 表喻馥雅(id=1)/马春艳(id=2) 的 user_openid 均为 NULL（从未 coach-assign 绑定），教练账号登录后 GET /api/coach/students 404；与 #13 同根因。修复依赖 #41（修好后从 /api/users 取教练 openid → 带 Admin-Token 调 coach-assign 绑定）
+- [x] #38（2026-08-17）在模拟器中学员端点击签到，第一次不会显示二维码，需要刷新。真机没有这个问题。→ ✅ 已修复（BUG-LEDGER #38：画码引用未定义变量 + canvas 首帧拿不到尺寸直接放弃；改 this.data.checkinCode + paintQr 延迟重试；FRONT-03/04 静态断言，181/181 绿）
+- [x] #37（2026-08-17）教练端核销签到码，显示"无法识别的签到码"。→ ✅ 已修复（BUG-LEDGER #37：根因=生产旧镜像未部署（by-code 404 探测确认），代码无需改；push 部署新镜像 + 两端重新编译后生效）
 - [x] #11（2026-08-17，用户确认设计后实施）学员端签到码改为随机 5 位纯数字（原为 bookingId 4 位补零，可被推断/撞号；用户反馈看到「字母+数字」为旧版本）→ ✅ 已修复：checkin_code 列（SQLite ALTER + MySQL 幂等补列）+ genCheckinCode 随机 10000-99999（撞号重试 10 次）+ createBooking 生成/getCheckinInfo 返回（老库 lazy 回填）+ 教练端改走 POST /api/checkin/by-code 按码反查核销（复用 checkinBooking 校验：教练角色/窗口/重复签到），前端教练扫码/手动输入、学员二维码同码展示；CHK-08~13 回归（含格式/不存在/重复/非教练拒绝），179/179 绿 + TZ=UTC 全绿 + coverage 探针；连带修复 COIN-04/04b 绝对余额断言改差值（防签到奖励污染）
 - [x] #36（2026-08-17）上课页面，所有未上的课，应该按照最近要开始的排在前面，越远离现在的课程越后面。对于已完成的课程，是同样的，刚刚结束的课程排前面，很久以前的课程排后面。→ ✅ 已修复（BUG-LEDGER #36：新增 session-sort.js 纯函数，待上课 date+time 升序/已完成 date+end 降序；SORT-01~04 回归，173/173 绿）
 - [x] #35（2026-08-17）新增排课订课后仍显示可预约——详情页/首页缺 onShow 刷新（服务端数据正确，纯前端展示问题）→ ✅ 已修复（BUG-LEDGER #35：详情页 onShow 重拉 loadSession + 首页 onShow 重拉 loadTodayCourses；FRONT-01/02 静态断言防回退）

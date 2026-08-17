@@ -240,6 +240,11 @@ async function runSuite() {
   check('FRONT-01', '课程详情页 onShow 刷新预约状态（#35 防回退）', /onShow\(\)[\s\S]{0,120}loadSession\(this\._sessionId\)/.test(detailSrc), '详情页必须 onShow 重新拉取场次（订完课返回按钮状态才更新）');
   const activitySrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-activity', 'index.js'), 'utf8');
   check('FRONT-02', '首页 onShow 刷新今日课程（#35 防回退）', /onShow\(\)[\s\S]*?this\.loadTodayCourses\(\)/.test(activitySrc), '首页必须 onShow 重新拉取今日课程（订完课返回卡片状态才更新）');
+  // FRONT-03/04：签到码页画码与按钮（BUGS-INBOX #38/#39：画码引用未定义变量致模拟器首帧无码；
+  // 刷新按钮仅重画同码无意义已删除）
+  const ckSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-checkin', 'index.js'), 'utf8');
+  check('FRONT-03', '签到码画码用 this.data.checkinCode（#38 防回退）', /this\.drawQr\(this\.data\.checkinCode\)/.test(ckSrc), '画码必须读页面 data，禁止裸引用作用域外变量');
+  check('FRONT-04', '签到码页无 refreshCode 残留且画码有首帧重试（#38/#39 防回退）', !/refreshCode/.test(ckSrc) && /paintQr\(qr, qr\.getModuleCount\(\), 0\)/.test(ckSrc), '刷新按钮已删；首帧 canvas 拿不到尺寸须延迟重试而非直接放弃');
 
   // ===== 1.65 上课页排序（BUG-LEDGER #36：纯函数模块真实断言）=====
   console.log('\n── 1.65 上课页排序（BUG-LEDGER #36）──');
