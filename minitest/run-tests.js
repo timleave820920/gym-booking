@@ -234,6 +234,12 @@ async function runSuite() {
   // seed 挂起会让 index 永不启动、探针 refused、部署回滚；listen 先行 + 进程内幂等种子才稳）
   const indexSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8');
   check('MYSQL-09', 'index.js 启动段进程内调用 seed.run()（listen 先行，种子不阻塞启动）', /require\('\.\/seed'\)\.run\(\)/.test(indexSrc), 'seed 必须由 index.js 在 driver.ready 后进程内幂等执行');
+  // FRONT-01/02：订课后页面状态刷新防回退（BUG-LEDGER #35：详情页/首页缺 onShow 刷新，
+  // 订完课从支付页返回仍显示「立即预订/预约」——服务端数据已正确，纯前端展示问题）
+  const detailSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.js'), 'utf8');
+  check('FRONT-01', '课程详情页 onShow 刷新预约状态（#35 防回退）', /onShow\(\)[\s\S]{0,120}loadSession\(this\._sessionId\)/.test(detailSrc), '详情页必须 onShow 重新拉取场次（订完课返回按钮状态才更新）');
+  const activitySrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-activity', 'index.js'), 'utf8');
+  check('FRONT-02', '首页 onShow 刷新今日课程（#35 防回退）', /onShow\(\)[\s\S]*?this\.loadTodayCourses\(\)/.test(activitySrc), '首页必须 onShow 重新拉取今日课程（订完课返回卡片状态才更新）');
 
   // PASSES-01: passes.js 档位种子自守门闩（防 #30 回退：模块加载期查表早于 MySQL 建表）
   const passesSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', 'passes.js'), 'utf8');

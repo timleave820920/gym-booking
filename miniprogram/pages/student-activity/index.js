@@ -32,6 +32,8 @@ Page({
   onShow() {
     // 每次显示都刷新用户昵称 + 重新标记课程状态（登录授权后立即生效）
     this.refreshUser();
+    // 订完课返回时刷新今日课程（预约状态/余位实时更新，BUG-LEDGER #35）
+    this.loadTodayCourses();
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 2 });
     }

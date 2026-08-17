@@ -15,6 +15,17 @@
 
 ---
 
+## #35 订课后页面仍显示可预约——课程详情页/首页缺 onShow 刷新（纯前端展示问题）
+
+- **发现**：2026-08-17，用户新增排课（10-22 点每小时一堂）后真机订课，订完返回仍显示「立即预订/预约」
+- **现象**：学员订课成功（后端 bookings 记录 + booked_count 均正确写入），但从支付页返回课程详情页/首页时，按钮仍显示可预约状态，看起来像没订上；列表页无此问题（onShow 已有刷新）
+- **根因**：student-course-detail（详情页）`loadSession` 仅在 `onLoad` 调用，**没有 onShow 刷新**——从支付页 `redirectTo` 返回后 `isBooked` 仍是进入页面时的旧值 false；student-activity（首页）`loadTodayCourses` 同理只在 onLoad 调用。列表页（student-courses）onShow 会重新拉取所以正确。**服务端数据层无问题，是页面生命周期刷新缺失**
+- **修复**：详情页 onShow 补 `this._sessionId` 存在时重新 `loadSession(this._sessionId)`（onLoad 记存 sessionId）；首页 onShow 补 `this.loadTodayCourses()`
+- **回归测试**：FRONT-01（详情页 onShow 含 loadSession(_sessionId)）+ FRONT-02（首页 onShow 含 loadTodayCourses()）静态断言；全量 169/169 绿
+- **防护层**：L3 真机发现；修复后 FRONT-01/02 静态断言兜底（前端页面生命周期刷新缺失易复发——新页面/新状态页加「返回时是否刷新」检查）。**教训：涉及「进入→操作→返回」的页面，操作结果必须在 onShow 重新拉取，不能依赖 onLoad 一次性数据**
+
+---
+
 ## #14 管理访问码保护遗漏 coach-assign——任何人都能绕过访问码把任意用户设为教练提权（P1 安全）
 
 - **发现**：2026-08-17，#8 修复（065968e）后审计 ADMIN_PATHS 覆盖范围，生产探测：POST /api/admin/coach-assign 带错 Admin-Token 返回 400 参数校验而非 401 = 未受保护

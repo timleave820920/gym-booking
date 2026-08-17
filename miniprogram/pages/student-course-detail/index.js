@@ -31,12 +31,18 @@ Page({
     const sessionId = Number(options.session_id || 0);
     if (sessionId) {
       // 真实场次（来自课程列表）
+      this._sessionId = sessionId;
       this.loadSession(sessionId);
     } else {
       // 兼容旧入口：按课程 id 从演示数据取
       const id = Number(options.id || 1);
       this.showMock(mock.courses.find(c => c.id === id) || mock.courses[0], false);
     }
+  },
+
+  // 订完课从支付页返回时刷新预约状态（BUG-LEDGER #35：缺 onShow 刷新导致订课后仍显示"立即预订"）
+  onShow() {
+    if (this._sessionId) this.loadSession(this._sessionId);
   },
 
   // 从后端拉取场次详情
