@@ -33,10 +33,10 @@ if [ -z "$BASE_URL" ]; then
 fi
 
 # 新路由特征清单：方法|路径|说明（不带参数应返回 400 参数校验）
+# coach-assign 已移出：BUG-LEDGER #14 修复后无 token 返回 401（保护生效），在下方 ADMIN 检查区验证
 ROUTES='GET|/api/coach/students
 GET|/api/coach/notes
-GET|/api/coach/settlement
-POST|/api/admin/coach-assign'
+GET|/api/coach/settlement'
 
 probe() { # $1=方法 $2=路径 $3=body → 输出 http_code
   if [ -n "$3" ]; then
@@ -103,7 +103,16 @@ attempt() {
   else
     echo "  ? POST /api/courses 无 token → $acode（异常状态，待确认）"
   fi
-  [ "$new_ok" = "6" ]
+  # coach-assign 保护（BUG-LEDGER #14：修复后无 token 须 401；旧镜像为 400 参数校验 = 未保护）
+  cacode=$(probe POST /api/admin/coach-assign)
+  if [ "$cacode" = "401" ]; then
+    echo "  ✓ POST /api/admin/coach-assign 无 token → 401（#14 保护生效）"
+  elif [ "$cacode" = "400" ]; then
+    echo "  ✗ POST /api/admin/coach-assign 无 token → 400（#14 未修复的旧镜像！）"
+  else
+    echo "  ? POST /api/admin/coach-assign 无 token → $cacode（异常状态，待确认）"
+  fi
+  [ "$new_ok" = "5" ]
 }
 
 i=1
