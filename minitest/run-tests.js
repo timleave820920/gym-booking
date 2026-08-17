@@ -241,6 +241,22 @@ async function runSuite() {
   const activitySrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-activity', 'index.js'), 'utf8');
   check('FRONT-02', '首页 onShow 刷新今日课程（#35 防回退）', /onShow\(\)[\s\S]*?this\.loadTodayCourses\(\)/.test(activitySrc), '首页必须 onShow 重新拉取今日课程（订完课返回卡片状态才更新）');
 
+  // ===== 1.65 上课页排序（BUG-LEDGER #36：纯函数模块真实断言）=====
+  console.log('\n── 1.65 上课页排序（BUG-LEDGER #36）──');
+  const { sortUpcoming, sortCompleted } = require(path.join(PROJECT_ROOT, 'miniprogram', 'utils', 'session-sort.js'));
+  const sample = [
+    { date: '2026-08-20', time: '10:00', end: '11:00', name: 'a' },
+    { date: '2026-08-18', time: '15:00', end: '16:00', name: 'b' },
+    { date: '2026-08-18', time: '09:00', end: '10:00', name: 'c' },
+    { date: '2026-08-19', time: '22:00', end: '23:00', name: 'd' }
+  ];
+  const up = sortUpcoming(sample);
+  check('SORT-01', '待上课按日期+开始时间升序（最近先来）', JSON.stringify(up.map(x => x.name)) === JSON.stringify(['c', 'b', 'd', 'a']), '待上课应: c(8/18 09:00) b(8/18 15:00) d(8/19 22:00) a(8/20 10:00)');
+  check('SORT-02', '待上课排序不修改原数组', sample[0].date === '2026-08-20', 'sortUpcoming 须 slice() 副本排序');
+  const done = sortCompleted(sample);
+  check('SORT-03', '已完成按日期+结束时间降序（刚结束在前）', JSON.stringify(done.map(x => x.name)) === JSON.stringify(['a', 'd', 'b', 'c']), '已完成应: a(8/20 11:00) d(8/19 23:00) b(8/18 16:00) c(8/18 10:00)');
+  check('SORT-04', '页面引用排序模块（#36 防回退）', /session-sort\.js/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-my-courses', 'index.js'), 'utf8')), 'student-my-courses 须引用 utils/session-sort.js');
+
   // PASSES-01: passes.js 档位种子自守门闩（防 #30 回退：模块加载期查表早于 MySQL 建表）
   const passesSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', 'passes.js'), 'utf8');
   check('PASSES-01', 'seedPackages 自守 driver.ready 门闩', /await driver\.ready;/.test(passesSrc), 'passes.js 顶层种子须 await driver.ready（MySQL 异步建表门闩）');

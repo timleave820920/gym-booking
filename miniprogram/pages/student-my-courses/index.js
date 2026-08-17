@@ -1,5 +1,6 @@
 const app = getApp();
 const api = require('../../utils/api.js');
+const { sortUpcoming, sortCompleted } = require('../../utils/session-sort.js'); // #36 排序纯函数
 
 Page({
   data: {
@@ -66,8 +67,8 @@ Page({
           }
         });
 
-        // 已完成：课程特别多时只显示最近 7 天，底部提示
-        const recent = doneAll.filter(d => d.date >= sevenAgoFull);
+        // 已完成：课程特别多时只显示最近 7 天，底部提示；排序：刚结束的在前（#36）
+        const recent = sortCompleted(doneAll.filter(d => d.date >= sevenAgoFull));
         this.setData({
           showDoneHint: recent.length < doneAll.length,
           completed: recent
@@ -93,7 +94,8 @@ Page({
             expireText: w.expire_mode === '1h' ? '课前1小时自动取消' : (w.expire_mode === '2h' ? '课前2小时自动取消' : '开课时自动取消'),
             checked: false
           }));
-        this.setData({ courses: upcoming.concat(waits), loading: false });
+        // 待上课（含候补）排序：最近要开始的排最前（#36）
+        this.setData({ courses: sortUpcoming(upcoming.concat(waits)), loading: false });
       })
       .catch(() => {
         this.setData({ courses: [], completed: [], loading: false, showDoneHint: false });

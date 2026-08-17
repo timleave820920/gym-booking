@@ -2,6 +2,7 @@
 
 > 输入「bug：xxx」自动登记（UserPromptSubmit 钩子捕获）；描述不清我会追问。
 > 状态：⬜ 待确认 ｜ ⏳ 修复中 ｜ ✅ 已修复（登记 BUG-LEDGER #N）
+- [x] #36（2026-08-17）上课页面，所有未上的课，应该按照最近要开始的排在前面，越远离现在的课程越后面。对于已完成的课程，是同样的，刚刚结束的课程排前面，很久以前的课程排后面。→ ✅ 已修复（BUG-LEDGER #36：新增 session-sort.js 纯函数，待上课 date+time 升序/已完成 date+end 降序；SORT-01~04 回归，173/173 绿）
 - [x] #35（2026-08-17）新增排课订课后仍显示可预约——详情页/首页缺 onShow 刷新（服务端数据正确，纯前端展示问题）→ ✅ 已修复（BUG-LEDGER #35：详情页 onShow 重拉 loadSession + 首页 onShow 重拉 loadTodayCourses；FRONT-01/02 静态断言防回退）
 - [x] #14（2026-08-17）管理访问码保护遗漏 `/api/admin/coach-assign`——#8 修复（065968e）的 ADMIN_PATHS 未包含该路由（仅含 courses/sessions/admin-sessions/admin-invite-board），生产探测：带错 Admin-Token 访问该接口返回 400 参数校验而非 401 = 未受保护。web 管理网页「教练分配」接口可被任何人调用（可绕过访问码改教练分配）。修复方向：把 POST /api/admin/coach-assign 加入 ADMIN_PATHS。**连带发现：生产 ADMIN_TOKEN 环境变量未配置**（受保护路由带错 token 均 400 而非 401），需在云托管控制台配置。✅ 已修复（BUG-LEDGER #14：ADMIN_PATHS 补齐 + ADMIN-06/07 回归；生产 ADMIN_TOKEN 已确认配置——035 部署后无 token 访问 admin 接口 401）
 - [ ] #13（2026-08-16）扫码签到后显示"无教练权限"
