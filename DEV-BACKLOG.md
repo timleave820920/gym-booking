@@ -17,12 +17,12 @@
 
 > 微信云托管无 CFS 挂载（已确认弃用），选 B：数据迁环境内置 MySQL（Serverless）。容器无状态化，重建零丢失。改造面：313 处 DB 调用 async 化 + 双方言建表 + 89 处时间函数。
 
-- [ ] **P0｜S1. db-driver.js 双驱动抽象层** — 新文件：SqliteDriver（node:sqlite 同步包 async 接口）/ MysqlDriver（mysql2 惰性 require 占位）+ createDriver 工厂（DB_DRIVER 切换）；db-core.js 挂 `driver` 导出（SQLite 模式复用现有 db 实例）；行为零变化，150 全绿
-- [ ] **P0｜S2. 时间函数与方言点收口** — SQL 内 `datetime()/date()/time()` 89 处改 time.js 传参（符合规矩 #9）；orders.js:543-545 候补过期 `datetime(s.date||' '||s.start_time, '-60/-120 min')` 改业务层计算传参；INSERT OR IGNORE×3 / ON CONFLICT×1 → INSERT IGNORE；strftime×3 业务层化；time.js 新增 addMinutes 工具
+- [x] **P0｜S1. db-driver.js 双驱动抽象层** — 新文件：SqliteDriver（node:sqlite 同步包 async 接口）/ MysqlDriver（mysql2 惰性 require 占位）+ createDriver 工厂（DB_DRIVER 切换）；db-core.js 挂 `driver` 导出（SQLite 模式复用现有 db 实例）；行为零变化，150 全绿（2026-08-16 完成）
+- [x] **P0｜S2. 时间函数与方言点收口** — SQL 内 `datetime()/date()/time()` 89 处改 time.js 传参（符合规矩 #9）；orders.js:543-545 候补过期 `datetime(s.date||' '||s.start_time, '-60/-120 min')` 改业务层计算传参；INSERT OR IGNORE×3 / ON CONFLICT×1 → INSERT IGNORE；strftime×3 业务层化；time.js 新增 addMinutes 工具（2026-08-16 完成）
 - [x] **P0｜S3. db/*.js async 化** — 11 模块 prepare/get/run → `await driver.*`（tokenizer 级转换脚本 server/migrate-async.js，已删除）；事务走 driver.exec('BEGIN'/'COMMIT')；同步函数保持同步；db-core 导出 driver 供各模块导入
 - [x] **P0｜S4. index.js + seed + minitest async 化** — 全部 handle* + API_ROUTES async；db.xxx 聚合调用补 await（known 迭代收敛：转换引入的 await 会把更多函数变 async，4 轮收敛）；顶层种子包 IIFE；handleMemberPlans 改 Promise.all；136 用例全绿 + TZ=UTC 全量通过
-- [~] **P0｜S5. MySQL 生产路径落地** — 代码侧完成（已提交 14303c2）：mysql-schema.js 20 表一次建齐（VARCHAR(19) 时间列/索引内联/desc 反引号）+ driver.ready 门闩 + 连接级 time_zone + Dockerfile 装 mysql2 + deploy-smoke.sh 登录落库证据。**待用户控制台操作**：开通 MySQL + 环境变量 DB_DRIVER/MYSQL_* → push 部署 → 冒烟 + 真机重建验证（#25 验收）
-- [~] **P1｜S6. 数据迁移 + 文档收尾** — 脚本 scripts/migrate-sqlite-to-mysql.js 已写（dry-run 验证通过；支持容器内执行与本地连外网地址）；**待生产迁移执行**（控制台 MySQL 就绪后）+ 行数对账；CLAUDE.md（零依赖→仅 mysql2）/ 持久化手册（CFS 弃、MySQL 方向）更新
+- [x] **P0｜S5. MySQL 生产路径落地** — 代码侧（14303c2）+ 生产上线全部完成（2026-08-17）：控制台已开 MySQL + 环境变量 DB_DRIVER=mysql/MYSQL_*/WX_*/ADMIN_TOKEN 全配；035 起部署成功，038 在线 100% 流量；真机登录订课跑通（MySQL 持久化 ✓）；deploy-smoke 8 项全绿。中间踩坑：#30 passes 门闩、#31 DDL 默认值、#32 保留字、#33 last_insert_rowid、#34 seed 挂起探针 refused（已加固：seed 移出启动阻塞位，index 先 listen 后进程内幂等种子）——详见 BUG-LEDGER
+- [x] **P1｜S6. 数据迁移 + 文档收尾** — 脚本 scripts/migrate-sqlite-to-mysql.js 已写（dry-run 通过）；**生产无需执行迁移**（容器盘不持久化，旧 SQLite 数据早已清空，MySQL 全新起跑，无存量数据），脚本留作未来导入用；文档收尾完成（2026-08-17）：CLAUDE.md 启动方式/持久化说明更新 + 开发总结-2026-08-17.md 战役复盘 + scripts/cloudrun.sh 运维封装（日志/状态/版本/删除/冒烟）+ scripts/pack-deploy-zip.ps1 部署包打包
 
 ### DESIGN #D1 教练端重构（设计文档: 教练端重构设计方案.md，2026-08-16 确认）
 

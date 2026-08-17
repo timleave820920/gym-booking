@@ -38,6 +38,14 @@ bash deploy-smoke.sh          # 默认探测云端（自动读 api.js FALLBACK_B
 bash deploy-smoke.sh 5        # 重建窗口期：每 10s 重试，最多 5 次
 bash deploy-smoke.sh http://127.0.0.1:3000   # 本地验证
 
+# 云托管运维（scripts/cloudrun.sh，需 tccli 已配置腾讯云 API 密钥，2026-08-17 打通）
+bash scripts/cloudrun.sh records            # 部署记录（BuildId=0 = 构建失败判据；拿 RunId）
+bash scripts/cloudrun.sh logs <RunId>       # 拉构建+部署日志（不再需要人肉复制控制台）
+bash scripts/cloudrun.sh versions           # 服务/在线版本状态
+bash scripts/cloudrun.sh delete <版本>...    # 删旧版本（保护不删服务）
+bash scripts/cloudrun.sh smoke              # 部署冒烟
+powershell -ExecutionPolicy Bypass -File scripts/pack-deploy-zip.ps1   # 打包部署 zip（上传代码包部署用）
+
 # 语法检查（重构/拆分后必做）
 node --check server/index.js
 ```
@@ -113,5 +121,7 @@ Dockerfile  微信云托管镜像（零 npm install；容器启动 node index.js
 - **cpolar 隧道域名重启会变**，需同步 FALLBACK_BASE_URL + 小程序合法域名（当前已切云托管，此坑仅本地测试时存在）。
 - ~~本地 git 对象库损坏~~（已修复，2026-08-16）：本地 `.git` 曾因对象库损坏不可用（`Could not read cdc354875`），期间提交经干净 clone `/tmp/gym-remote` 完成；**2026-08-16 已用 `/tmp/gym-remote/.git` 替换本地 `.git`**（工作区文件保留，旧损坏 .git 备份至 `/tmp/git-broken-backup-20260816`），本地 git status/log/commit/push 已恢复正常，**提交直接本地进行即可**。
 - **云托管 push 后重建窗口（BUG-LEDGER #12/#24）**：push 到 master 触发云托管自动重建，重建期间（数分钟）接口 404/登录失败属预期，且**重建完成前访问的是旧镜像**——真机报"接口不存在/旧功能"时先确认重建完成再排查代码（#12「教练学员/结算接口不存在」根因即旧镜像，代码本地 150/150 全绿）。登录失败弹窗已加重试按钮自助重试。
+- **构建失败 ≠ 部署失败（031/033/034 教训，2026-08-17）**：云托管「创建版本失败：任务失败」= **构建环节失败**（GitHub clone 网络问题，`cloudrun.sh records` 里 BuildId=0 即判据）→ 平台**回滚旧镜像**继续部署 → 启动日志/探针结果全是旧镜像 → "我修了为什么没变化"的真相不是代码没修，是构建没过。应对：构建失败用**上传代码包**部署（`pack-deploy-zip.ps1` 打 zip → 控制台新建版本 → 上传代码包，绕开 GitHub）；部署后必跑 deploy-smoke 用新镜像特征（新路由 400/管理页 200/访问码 401）判定镜像新旧，防 #12 重演。
+- **启动链路禁止链式 CMD（BUG-LEDGER #34 教训）**：`node seed.js && node index.js` 这类"前一步成功退出才启动后一步"的写法是部署炸弹——MySQL 连接池是活跃句柄，seed 进程永不退出，index 永不启动，探针 refused 部署回滚。当前 Dockerfile 已改 `CMD ["node","index.js"]`（index 先 listen → 建表 → 进程内幂等种子，MYSQL-09 断言防回退）。**新代码不得引入"前置进程必须退出"的启动链**。
 - **技术栈选型先验目标平台能力（DESIGN #D2 教训，2026-08-17 补记）**：本项目选型时以「本地零依赖、SQLite 开箱即用」定下 SQLite——但**云托管容器文件系统不持久化**，SQLite 依赖本地盘 → 上线即埋雷，数据随重建/缩容全丢（#25），最终在架构定型后被迫整仓 async 化（313 处）+ 双方言建表 + 数据迁移改 MySQL。**教训：存储选型必须先回答「目标部署平台提供什么存储」——生产数据库从选型起就定为平台托管型（云托管内置 MySQL），本地/CI 用 SQLite 仅作开发方言（双驱动抽象 `db-driver.js`，业务代码不感知）；文件同理（头像/封面不能落容器盘，走对象存储/下载转存 + `api.toFullUrl()` 拼公网域名）**。「本地好用」≠「生产可行」，容器平台的文件系统语义（不持久化、不跨实例共享）与单机完全不同。
 - 支付/订课/候补在 `BEGIN...COMMIT` 事务内，异常回滚；幂等防重（下单查 pending 订单、支付查 booked 记录、前端防连点锁）。
