@@ -24,6 +24,10 @@ COPY server/ ./server/
 # BUGS-INBOX #8：此前漏打包导致云托管访问 / 404）
 COPY web/ ./web/
 
+# 前端静态资源（index.js 服务 /images/ 从 miniprogram/images 读取——教练头像/课程封面。
+# 曾因 .dockerignore 排除整个 miniprogram/ 致容器内图片 404，注意保留此目录）
+COPY miniprogram/images/ ./miniprogram/images/
+
 # 创建前端目录（server/index.js 启动时会尝试写 net-config.json，
 # 容器里没有 miniprogram 目录，需要先建好避免 ENOENT 异常）
 RUN mkdir -p /app/miniprogram/utils
@@ -40,8 +44,9 @@ WORKDIR /app/server
 # 云托管端口（控制台配置为 3000）
 EXPOSE 3000
 
-# 启动：先跑 seed 初始化基础数据（幂等：课程/场次/配置），再启动后端
-# 数据库文件不入 git（.gitignore 排除 server/data/*.db），容器首次启动时
-# 由 seed.js 自动建库并填充种子数据；用户数据（bookings/orders等）为空
-# 如需带真实数据，用数据迁移方案（见上云迁移指南.md A2 阶段）
-CMD ["sh", "-c", "node seed.js && node index.js"]
+# 启动：直接 node index.js。listen 先行（探针窗口内即监听 3000），建表就绪后进程内
+# 幂等跑种子（server/seed.js run()）。旧架构 `seed.js && index.js` 曾因 seed 进程挂起
+# 导致 index 永不启动、探针 refused、部署回滚（BUG-LEDGER #34），已废弃。
+# 数据库文件不入 git（.gitignore 排除 server/data/*.db），容器首次启动时由种子自动
+# 建库并填充基础数据；用户数据（bookings/orders等）为空，如需带真实数据见上云迁移指南 A2
+CMD ["node", "index.js"]

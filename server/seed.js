@@ -5,7 +5,15 @@
  */
 const { db, driver } = require('./db');
 
-(async () => {
+/**
+ * 种子数据主逻辑。同时支持两种调用方式：
+ *  - CLI：node server/seed.js（本地/迁移用，成功路径显式 process.exit——MySQL 连接池是活跃句柄，
+ *    不退出进程挂起，BUG-LEDGER #34；SQLite 无句柄可自然退出，显式退出行为一致）
+ *  - 进程内：index.js 启动时 driver.ready 后 await run()——种子不阻塞 listen（先 listen 后建表，
+ *    探针窗口内即监听 3000），幂等（已有数据跳过），彻底消除「seed 挂起 → index 永不启动 → 探针 refused」
+ *    的脆弱启动链路（BUG-LEDGER #34 加固）
+ */
+async function run() {
 await driver.ready; // MySQL 模式等建表完成（DESIGN #D2 S5）；SQLite 模式立即返回
 
 async function count(table) {
@@ -94,4 +102,11 @@ for (const t of ['coaches', 'venues', 'courses', 'schedule_templates', 'course_s
 // 成功路径必须显式退出：MySQL 模式连接池是活跃句柄，事件循环不空 → 进程挂起 →
 // `node seed.js && node index.js` 永远不执行 index.js → 探针 refused 部署失败（BUG-LEDGER #34）
 // SQLite 模式无句柄本可自然退出，显式退出行为一致
-})().then(() => process.exit(0)).catch(e => { console.error('seed 失败:', e); process.exit(1); });
+}
+
+if (require.main === module) {
+  run().then(() => process.exit(0)).catch(e => { console.error('seed 失败:', e); process.exit(1); });
+} else {
+  // 被 index.js 进程内调用（启动时幂等种子，见上方 run() 注释）
+  module.exports = { run };
+}

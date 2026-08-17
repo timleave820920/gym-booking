@@ -23,6 +23,7 @@
 - **修复**：`server/seed.js` 成功路径改 `})().then(() => process.exit(0))`（失败路径原有 exit(1) 不变）；显式退出在 SQLite 下行为一致（正常退出码 0）
 - **回归测试**：MYSQL-08 静态断言（seed.js 源码须含 `process.exit(0)`，防回退——删掉即部署永久挂死）；全量 163/163 绿（普通 + TZ=UTC）
 - **防护层**：L3 生产部署日志发现（启动日志止于 seed = 强信号：`&&` 链后无输出先查前一进程是否挂起）；修复后 MYSQL-08 + 部署冒烟兜底。**教训：MySQL 引入异步句柄后，「脚本类进程自然退出」假设失效——凡启动链路（CMD `seed && index`）中的命令型脚本必须显式退出；排查部署探针失败时，启动日志「止于某处无后续」= 该进程未退出或未启动，不是探针配置问题**
+- **加固（2026-08-17 晚，架构级，消除整类启动链风险）**：不再依赖「seed 正常退出」这条细线——`server/seed.js` 重构为导出 `run()`（CLI 分支保留 process.exit），`server/index.js` 启动段在 `driver.ready` 后**进程内 await seed.run()**，Dockerfile CMD 改为 `node index.js`。启动顺序变为：**先 listen 3000（探针窗口内即监听）→ 建表就绪 → 进程内幂等种子**。seed 无论快慢、成败，都不再阻塞 index 启动——探针 refused 的启动链路根因整类消除。配套：MYSQL-09 静态断言（index.js 必须含 `require('./seed').run()`，防回退阻塞式 CMD）+ 本地验证（临时库起服务：横幅「后端服务已启动」先于种子输出）+ `scripts/pack-deploy-zip.ps1`（正斜杠 zip 打包，云托管「上传代码包」绕开 GitHub clone 构建环节——clone 慢/失败是「创建版本任务失败」高频原因，031/033/034 连续构建失败即此，部署时曾回滚旧镜像导致修复不可见）
 
 ## #33 业务 SQL 用 SQLite 专属 last_insert_rowid()——MySQL 无此函数，建表成功部署后订课/候补/兑换/发卡全 500（P0 生产不可用，本轮人工方言审计发现，未上线即修）
 

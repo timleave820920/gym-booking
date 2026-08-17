@@ -226,10 +226,14 @@ async function runSuite() {
   // 池模式下 LAST_INSERT_ID() 跨连接不可靠，传参是双方言唯一正确解）
   const lastIdFiles = ['bookings', 'coin', 'orders', 'passes'];
   check('MYSQL-07', '业务 SQL 无 last_insert_rowid()（须用 run() 返回值传参）', lastIdFiles.every(f => !fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', f + '.js'), 'utf8').includes('last_insert_rowid')), 'INSERT 后取 id 用 run() 的 lastInsertRowid 字段');
-  // MYSQL-08：seed.js 成功路径显式退出（BUG-LEDGER #34：MySQL 连接池是活跃句柄，seed 完成不退出 →
-  // CMD `node seed.js && node index.js` 卡死在 seed → 探针 refused 部署回滚；SQLite 无句柄本地测不出）
+  // MYSQL-08：seed.js CLI 分支成功路径显式退出（BUG-LEDGER #34：MySQL 连接池是活跃句柄，
+  // 独立跑 seed 不退出则进程挂起；CLI 分支必须 process.exit，容器内改为 index.js 进程内调用 run()）
   const seedSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'seed.js'), 'utf8');
-  check('MYSQL-08', 'seed.js 成功路径 process.exit(0)', /process\.exit\(0\)/.test(seedSrc), 'seed 完成须显式退出（MySQL 连接池句柄阻塞进程退出）');
+  check('MYSQL-08', 'seed.js CLI 分支成功路径 process.exit(0)', /process\.exit\(0\)/.test(seedSrc), '独立跑 seed 完成须显式退出（MySQL 连接池句柄阻塞进程退出）');
+  // MYSQL-09：seed 内联进 index.js 启动链路（#34 加固：禁止回退到阻塞式 `seed.js && index.js` CMD——
+  // seed 挂起会让 index 永不启动、探针 refused、部署回滚；listen 先行 + 进程内幂等种子才稳）
+  const indexSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8');
+  check('MYSQL-09', 'index.js 启动段进程内调用 seed.run()（listen 先行，种子不阻塞启动）', /require\('\.\/seed'\)\.run\(\)/.test(indexSrc), 'seed 必须由 index.js 在 driver.ready 后进程内幂等执行');
 
   // PASSES-01: passes.js 档位种子自守门闩（防 #30 回退：模块加载期查表早于 MySQL 建表）
   const passesSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', 'passes.js'), 'utf8');

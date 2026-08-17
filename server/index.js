@@ -1310,9 +1310,14 @@ if (require.main === module) {
     }
   }, 5 * 60 * 1000);
   });
-  driver.ready.then(() => {
-    console.log('[启动] 数据库就绪（20 表建齐）');
-  }).catch(e => { console.error('[启动] 数据库就绪失败:', e); process.exit(1); });
+  // 建表就绪后进程内跑种子（幂等，已有数据跳过）。种子不再阻塞启动：
+  // 旧架构 CMD `seed.js && index.js` 依赖 seed 进程显式退出（BUG-LEDGER #34），一旦挂起
+  // index 永不启动、探针 refused、部署回滚；现在 listen 先行（探针窗口内即监听 3000），
+  // seed 只是启动链路里的一个后续步骤，失败可查（CrashLoop）但不再拖死整个部署。
+  driver.ready
+    .then(() => { console.log('[启动] 数据库就绪（20 表建齐）'); return require('./seed').run(); })
+    .then(() => console.log('[启动] 种子数据检查完成（幂等，已有数据跳过）'))
+    .catch(e => { console.error('[启动] 数据库就绪/种子失败:', e); process.exit(1); });
 } else {
   // 被测试/覆盖率脚本 require：导出服务与数据库供同进程调用
   module.exports = { server, PORT, db };
