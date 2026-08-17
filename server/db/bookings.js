@@ -24,7 +24,7 @@ async function createBooking({ user_openid, session_id, amount_fen = 0, pay_stat
   if (session.remaining <= 0) return { ok: false, error: '该课程已满员' };
 
   // 检查是否已订（UNIQUE 约束兜底）
-  const exists = await driver.get('SELECT id, status FROM bookings WHERE user_openid = ? AND session_id = ?', [user_openid, session_id]);
+  let exists = await driver.get('SELECT id, status FROM bookings WHERE user_openid = ? AND session_id = ?', [user_openid, session_id]);
   if (exists && exists.status === 'booked') return { ok: false, error: '您已预订该课程，请勿重复预订' };
 
   const bookingNo = 'BK' + Date.now() + Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -35,9 +35,10 @@ async function createBooking({ user_openid, session_id, amount_fen = 0, pay_stat
       // 曾退订 → 重新激活原订单（保留历史 booking_no）
       await driver.run("UPDATE bookings SET status = 'booked', pay_status = ?, cancel_reason = '', checkin_at = NULL WHERE id = ?", [pay_status, exists.id]);
     } else {
-      // 1. 创建订单
-      await driver.run(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status)
+      // 1. 创建订单（取 run() 返回的 lastInsertRowid——该 SQLite 取 id 函数 MySQL 无）
+      const r = await driver.run(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status)
                   VALUES (?, ?, ?, ?, 'booked', ?)`, [bookingNo, user_openid, session_id, amount_fen, pay_status]);
+      exists = { id: r.lastInsertRowid };
     }
     // 2. 扣减余位
     await driver.run('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?', [session_id]);
@@ -59,8 +60,8 @@ async function createBooking({ user_openid, session_id, amount_fen = 0, pay_stat
     JOIN courses c ON c.id = s.course_id
     JOIN coaches co ON co.id = s.coach_id
     JOIN venues v ON v.id = s.venue_id
-    WHERE b.id = last_insert_rowid()
-  `);
+    WHERE b.id = ?
+  `, [exists.id]);
   // 站内信：订课成功
   await sendMessage({
     user_openid, type: 'booking', title: '订课成功',

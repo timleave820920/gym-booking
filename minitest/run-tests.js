@@ -222,6 +222,10 @@ async function runSuite() {
   // 保留字，SQLite 不保留 → 本地全绿、生产建表 ER_PARSE_ERROR。反引号是 SQLite/MySQL 双兼容标识符）
   const schemaBody = /const MYSQL_SCHEMA = `([\s\S]*?)`;/.exec(schemaSrc)?.[1] || '';
   check('MYSQL-06', 'mysql-schema DDL 无裸保留字 date/change', !/(^|[^.\w`])(date|change)(?![\w`(])/m.test(schemaBody), '保留字列名须反引号包裹或点限定');
+  // MYSQL-07：业务 SQL 不得用 SQLite 函数 last_insert_rowid()（MySQL 无此函数；INSERT 后用 run() 返回值传参，
+  // 池模式下 LAST_INSERT_ID() 跨连接不可靠，传参是双方言唯一正确解）
+  const lastIdFiles = ['bookings', 'coin', 'orders', 'passes'];
+  check('MYSQL-07', '业务 SQL 无 last_insert_rowid()（须用 run() 返回值传参）', lastIdFiles.every(f => !fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', f + '.js'), 'utf8').includes('last_insert_rowid')), 'INSERT 后取 id 用 run() 的 lastInsertRowid 字段');
 
   // PASSES-01: passes.js 档位种子自守门闩（防 #30 回退：模块加载期查表早于 MySQL 建表）
   const passesSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', 'passes.js'), 'utf8');

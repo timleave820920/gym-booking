@@ -15,6 +15,15 @@
 
 ---
 
+## #33 业务 SQL 用 SQLite 专属 last_insert_rowid()——MySQL 无此函数，建表成功部署后订课/候补/兑换/发卡全 500（P0 生产不可用，本轮人工方言审计发现，未上线即修）
+
+- **发现**：2026-08-17，#32 修复后部署前方言审计（grep SQLite 方言函数清单）发现——**本轮部署尚未成功，此炸弹若随部署上线，任何一笔订课/候补/兑换/次卡发放都会 500**
+- **现象**：8 处 `SELECT ... WHERE id = last_insert_rowid()`（bookings.js×1、coin.js×1、orders.js×5、passes.js×1）。MySQL 无此函数（对应 LAST_INSERT_ID() 是**连接级**变量，mysql2 连接池下 INSERT 与 SELECT 可能跨连接，不可靠）；SQLite 单连接进程内有效所以本地/CI 全绿测不出
+- **根因**：INSERT 后取新行 id 用了 SQL 内函数，是 SQLite 单连接假设的产物；驱动 run() 本就返回 `{ changes, lastInsertRowid }`（契约注释第 10 行），业务代码没用
+- **修复**：8 处统一改为 `const r = await driver.run(INSERT)` → `WHERE id = ?` 传 `r.lastInsertRowid`（双方言兼容，无跨连接问题）；顺带修复 bookings.js 的预存 bug——复用已退订 booking（UPDATE 分支）后查新 booking 用 `last_insert_rowid()` 会拿到陈旧 rowid，改为复用分支直接用 exists.id
+- **回归测试**：MYSQL-07 静态断言（bookings/coin/orders/passes 四文件不得含 last_insert_rowid 字样，防回退）；全量 163/163 绿（普通 + TZ=UTC）
+- **防护层**：本轮人工方言审计发现；修复后 MYSQL-07 + 全量回归兜底。**教训：SQLite 单连接假设（last_insert_rowid、BEGIN/COMMIT 手写事务）在 MySQL 连接池下语义不同——方言审计应把「SQLite 专属函数清单」（last_insert_rowid/strftime/datetime/||/julianday…）逐条 grep 业务 SQL**
+
 ## #32 MySQL 保留字列名裸用——coin_logs.change / course_sessions.date 建表 ER_PARSE_ERROR，生产建表三连败（P0 生产不可用）
 
 - **发现**：2026-08-17，#31 修复重建后仍 CrashLoop（第二次失败日志 `near 'change INT NOT NULL'`，第三次失败日志 `near 'date'`），用户控制台日志

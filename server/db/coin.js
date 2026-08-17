@@ -107,7 +107,7 @@ async function exchangeCoinItem({ openid, itemId }) {
     }
     const r = await driver.run(`INSERT INTO coin_exchanges (user_openid, item_id, item_name, cost, code, status)
                           VALUES (?, ?, ?, ?, ?, 'pending')`, [openid, item.id, item.name, item.cost, code]);
-    const exchange = await driver.get('SELECT * FROM coin_exchanges WHERE id = last_insert_rowid()');
+    const exchange = await driver.get('SELECT * FROM coin_exchanges WHERE id = ?', [r.lastInsertRowid]);
     await driver.exec('COMMIT');
     return { ok: true, exchange };
   } catch (e) {

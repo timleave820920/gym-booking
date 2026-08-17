@@ -100,9 +100,9 @@ async function applyPassPurchase({ openid, orderId, packageId }) {
   } else {
     // 无有效卡 → 从购买日重算
     const exp = expiryAt(new Date(Date.now() + pkg.valid_days * 864e5));
-    await driver.run(`INSERT INTO user_passes (user_openid, order_id, total_count, remaining, expires_at, status)
+    const r = await driver.run(`INSERT INTO user_passes (user_openid, order_id, total_count, remaining, expires_at, status)
                 VALUES (?, ?, ?, ?, ?, 'active')`, [openid, orderId, pkg.total_count, pkg.total_count, exp]);
-    pass = await driver.get('SELECT * FROM user_passes WHERE id = last_insert_rowid()');
+    pass = await driver.get('SELECT * FROM user_passes WHERE id = ?', [r.lastInsertRowid]);
   }
   return { ok: true, pass, added: pkg.total_count };
 }

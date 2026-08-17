@@ -43,9 +43,9 @@ async function createOrder({ user_openid, session_id, amount_fen = 0, order_type
     const pkg = (await listPassPackages()).find(p => p.price_fen === amount_fen);
     if (!pkg) return { ok: false, error: '无效的次卡套餐' };
     const orderNo = await genOrderNo();
-    await driver.run(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status)
+    const r = await driver.run(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status)
                 VALUES (?, ?, NULL, ?, ?, 'pending')`, [orderNo, user_openid, order_type, amount_fen]);
-    const order = await driver.get(`${ORDER_SELECT} WHERE o.id = last_insert_rowid()`);
+    const order = await driver.get(`${ORDER_SELECT} WHERE o.id = ?`, [r.lastInsertRowid]);
     return { ok: true, order };
   }
 
@@ -54,9 +54,9 @@ async function createOrder({ user_openid, session_id, amount_fen = 0, order_type
     const plan = RECHARGE_PLANS.find(p => p.amount === amount_fen);
     if (!plan) return { ok: false, error: '无效的充值套餐' };
     const orderNo = await genOrderNo();
-    await driver.run(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status)
+    const r = await driver.run(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status)
                 VALUES (?, ?, NULL, ?, ?, 'pending')`, [orderNo, user_openid, order_type, amount_fen]);
-    const order = await driver.get(`${ORDER_SELECT} WHERE o.id = last_insert_rowid()`);
+    const order = await driver.get(`${ORDER_SELECT} WHERE o.id = ?`, [r.lastInsertRowid]);
     return { ok: true, order };
   }
 
@@ -85,10 +85,10 @@ async function createOrder({ user_openid, session_id, amount_fen = 0, order_type
   // 候补订单记录自动取消节点（仅 waitlist 生效，其余忽略）
   const em = (order_type === 'waitlist' && ['start', '1h', '2h'].includes(expire_mode)) ? expire_mode : 'start';
   const orderNo = await genOrderNo();
-  await driver.run(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status, expire_mode)
+  const r = await driver.run(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status, expire_mode)
               VALUES (?, ?, ?, ?, ?, 'pending', ?)`, [orderNo, user_openid, session_id, order_type, amount_fen, em]);
 
-  const order = await driver.get(`${ORDER_SELECT} WHERE o.id = last_insert_rowid()`);
+  const order = await driver.get(`${ORDER_SELECT} WHERE o.id = ?`, [r.lastInsertRowid]);
   return { ok: true, order };
 }
 
@@ -233,9 +233,9 @@ async function payOrder({ openid, orderId, pay_method = 'balance' }) {
         await syncSessionStatus(order.session_id);
         booking = await driver.get(`SELECT id, booking_no, amount_fen FROM bookings WHERE id = ?`, [exists.id]);
       } else {
-        await driver.run(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status, pay_source, pass_id)
+        const r = await driver.run(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status, pay_source, pass_id)
                     VALUES (?, ?, ?, ?, 'booked', 'paid', ?, ?)`, [bookingNo, order.user_openid, order.session_id, payFen, effMethod, passId]);
-        booking = await driver.get('SELECT id, booking_no, amount_fen FROM bookings WHERE id = last_insert_rowid()');
+        booking = await driver.get('SELECT id, booking_no, amount_fen FROM bookings WHERE id = ?', [r.lastInsertRowid]);
         await driver.run('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?', [order.session_id]);
         await syncSessionStatus(order.session_id);
       }
@@ -438,7 +438,7 @@ async function joinWaitlist({ user_openid, session_id, amount_fen = 0, expire_mo
 
   const waitNo = 'WL' + Date.now() + Math.random().toString(36).slice(2, 6).toUpperCase();
   const em = ['start', '1h', '2h'].includes(expire_mode) ? expire_mode : 'start';
-  await driver.run(`INSERT INTO waitlist (wait_no, user_openid, session_id, amount_fen, status, expire_mode)
+  const r = await driver.run(`INSERT INTO waitlist (wait_no, user_openid, session_id, amount_fen, status, expire_mode)
               VALUES (?, ?, ?, ?, 'waiting', ?)`, [waitNo, user_openid, session_id, amount_fen, em]);
   const wait = await driver.get(`
     SELECT w.id, w.wait_no, w.session_id, w.amount_fen, w.status, w.expire_mode, w.created_at,
@@ -449,8 +449,8 @@ async function joinWaitlist({ user_openid, session_id, amount_fen = 0, expire_mo
     JOIN courses c ON c.id = s.course_id
     JOIN coaches co ON co.id = s.coach_id
     JOIN venues v ON v.id = s.venue_id
-    WHERE w.id = last_insert_rowid()
-  `);
+    WHERE w.id = ?
+  `, [r.lastInsertRowid]);
   return { ok: true, wait };
 }
 
