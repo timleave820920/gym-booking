@@ -214,6 +214,10 @@ async function runSuite() {
   check('MYSQL-02', 'connection 事件 query 为 callback 风格', driverSrc.includes(`conn.query("SET time_zone = '+08:00'", () => {});`), 'connection 回调须 callback 风格');
   check('MYSQL-03', '无 promise 风格 .catch 残留', !driverSrc.includes(`SET time_zone = '+08:00'").catch(`), '禁止 conn.query(...).catch(...) 写法');
 
+  // PASSES-01: passes.js 档位种子自守门闩（防 #30 回退：模块加载期查表早于 MySQL 建表）
+  const passesSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', 'passes.js'), 'utf8');
+  check('PASSES-01', 'seedPackages 自守 driver.ready 门闩', /await driver\.ready;/.test(passesSrc), 'passes.js 顶层种子须 await driver.ready（MySQL 异步建表门闩）');
+
   // ===== 1.7 管理访问码校验（BUGS-INBOX #8：web 管理网页 ADMIN_TOKEN 保护）=====
   console.log('\n── 1.7 管理访问码校验（BUGS-INBOX #8）──');
   r = await req('POST', '/api/courses', { name: 'x' }, { noToken: true });

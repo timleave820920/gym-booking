@@ -10,7 +10,11 @@ const { db, driver } = require('../db-core');
 const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 
 // ===== 档位种子（可配置：数据库里增改，前端动态读取）=====
+// ⚠️ 必须先 await driver.ready：本 IIFE 在模块加载时即执行（require('./db') 链路），
+// MySQL 模式建表是异步门闩（driver.ready），不等则查表报 ER_NO_SUCH_TABLE 崩溃
+// （2026-08-17 生产 CrashLoop 根因：seed.js 的 await 在 require 之后，拦不住模块加载期的查询）
 (async function seedPackages() {
+  await driver.ready; // 自守门闩：SQLite 模式立即返回，MySQL 模式等 20 表建完
   const rows = (await driver.get('SELECT COUNT(*) c FROM class_packages')).c;
   if (rows === 0) {
     // `desc` 加反引号：MySQL 保留字（SQLite 无碍，双方言兼容写法）
