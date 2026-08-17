@@ -81,6 +81,13 @@
   color: #E5484D;
   box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.04);
 }
+.openid-hint {
+  margin-top: 14rpx;
+  text-align: center;
+  font-size: 22rpx;
+  color: #B0AD9F;
+  word-break: break-all;
+}
 
 /* 会员卡预览（从活动页迁移） */
 .vip-preview {

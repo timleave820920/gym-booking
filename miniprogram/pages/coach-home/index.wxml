@@ -9,6 +9,7 @@
       <view class="flex-col head-actions">
         <text class="logout-btn" bindtap="goStudentView">切学员端</text>
         <text class="logout-btn" bindtap="goProfile">退出</text>
+        <text class="openid-hint">{{openid}}</text>
       </view>
     </view>
 

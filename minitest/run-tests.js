@@ -251,6 +251,12 @@ async function runSuite() {
   check('FRONT-05', '教练端有「切学员端」且 reLaunch 学员首页、不写 role（#D2 防回退）',
     /goStudentView/.test(chHomeWxml) && /goStudentView\(\) \{\s*wx\.reLaunch\(\{ url: '\/pages\/student-courses\/index' \}\)/.test(chHomeSrc) && !/setStorageSync\('userInfo'/.test(chHomeSrc.slice(chHomeSrc.indexOf('goStudentView'))),
     '按钮必须存在；切换只 reLaunch 不改身份，否则下次登录分流错乱');
+  // 退出按钮下显示当前 openid（管理页绑定教练核对用）
+  const pfWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-profile', 'index.wxml'), 'utf8');
+  const pfSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-profile', 'index.js'), 'utf8');
+  check('FRONT-06', '退出登录按钮下有 openid 小字（学员端+教练端）',
+    /openid：\{\{openid\}\}/.test(pfWxml) && /openid: user\.openid \|\| wx\.getStorageSync\('openid'\) \|\| ''/.test(pfSrc) && /openid-hint/.test(chHomeWxml),
+    '两处退出按钮下必须展示当前账号 openid，方便管理页核对绑定');
 
   // ===== 1.65 上课页排序（BUG-LEDGER #36：纯函数模块真实断言）=====
   console.log('\n── 1.65 上课页排序（BUG-LEDGER #36）──');

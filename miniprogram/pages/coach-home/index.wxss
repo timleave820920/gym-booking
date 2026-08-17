@@ -24,6 +24,13 @@
   align-items: flex-end;
   gap: 12rpx;
 }
+.openid-hint {
+  font-size: 20rpx;
+  color: #B0AD9F;
+  max-width: 320rpx;
+  text-align: right;
+  word-break: break-all;
+}
 
 /* 三段式 Tab */
 .seg-tabs {

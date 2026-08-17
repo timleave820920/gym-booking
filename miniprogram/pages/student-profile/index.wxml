@@ -96,6 +96,8 @@
     <view class="logout-btn" bindtap="logout">
       <text>退出登录</text>
     </view>
+    <!-- 当前账号 openid（管理页绑定教练时核对用） -->
+    <view class="openid-hint">openid：{{openid}}</view>
 
     <view class="list-spacer"></view>
   </view>

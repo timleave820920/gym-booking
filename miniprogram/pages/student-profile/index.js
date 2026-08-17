@@ -3,6 +3,7 @@ const api = require('../../utils/api.js');
 
 Page({
   data: {
+    openid: '',          // 当前账号 openid（退出按钮下小字展示，方便管理页核对绑定）
     user: { name: '微信用户', avatar: '/images/2_556.png' },  // 头像/昵称（会员区第一行）
     member: null,        // 会员卡数据（等级/余额/升级提示）
     coinBalance: 0,
@@ -26,6 +27,7 @@ Page({
     // 加载用户信息（头像/昵称）——会员区第一行展示（2026-08-14 用户要求"我的会员"改为头像+昵称）
     const user = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
     this.setData({
+      openid: user.openid || wx.getStorageSync('openid') || '',
       user: {
         name: user.name || user.nickname || '微信用户',
         avatar: api.toFullUrl(user.avatar) || '/images/2_556.png'
