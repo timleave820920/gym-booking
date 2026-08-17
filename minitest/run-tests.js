@@ -234,6 +234,12 @@ async function runSuite() {
   // seed 挂起会让 index 永不启动、探针 refused、部署回滚；listen 先行 + 进程内幂等种子才稳）
   const indexSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8');
   check('MYSQL-09', 'index.js 启动段进程内调用 seed.run()（listen 先行，种子不阻塞启动）', /require\('\.\/seed'\)\.run\(\)/.test(indexSrc), 'seed 必须由 index.js 在 driver.ready 后进程内幂等执行');
+  // MYSQL-10：MySQL 老库幂等补列清单覆盖关键新列（BUG-LEDGER #48：昨晚重构新增列只进了 mysql-schema
+  // 新库 DDL + SQLite ALTER，MySQL 侧补列仅 checkin_code——生产老表缺列，新代码上线订课/候补/
+  // 场次详情全 500。清单须与 mysql-schema.js 同源，防"SQLite 加了列 MySQL 忘记补"再演）
+  check('MYSQL-10', 'MySQL 补列清单覆盖 courses.images / bookings.pay_source / waitlist.expire_mode / orders.pay_source',
+    ["['images', \"VARCHAR(2000) DEFAULT '[]'\"]", "['pay_source', \"VARCHAR(16) DEFAULT 'wxpay'\"]", "['expire_mode', \"VARCHAR(16) DEFAULT 'start'\"]"].every(s => driverSrc.includes(s)),
+    'db-driver.js MYSQL_ENSURE_COLUMNS 须与 mysql-schema.js 同步维护（新增列三处同步）');
   // FRONT-01/02：订课后页面状态刷新防回退（BUG-LEDGER #35：详情页/首页缺 onShow 刷新，
   // 订完课从支付页返回仍显示「立即预订/预约」——服务端数据已正确，纯前端展示问题）
   const detailSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.js'), 'utf8');

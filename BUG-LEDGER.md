@@ -15,6 +15,17 @@
 
 ---
 
+## #48 MySQL 老库幂等补列仅 checkin_code 一处——昨晚新增 12 列只进新库 DDL + SQLite ALTER，生产老表缺列则订课/候补/场次详情全 500
+
+- **发现**：2026-08-18，合并喻馥雅账号后审计昨晚重构（ef865d7）时发现（部署前，未上线即修）
+- **现象**：重构新增 courses.images/summary/address/lat/lng、bookings.pay_source/pass_id、waitlist.pay_source/pass_id/expire_mode、orders.pay_source/expire_mode 共 12 列，且业务 SQL 全面引用（courses.js 场次详情 SELECT images/address/lat/lng、orders.js 订/候/退全链路 pay_source/pass_id/expire_mode）；但 **MySQL 老库补列逻辑只有 checkin_code 一处**（db-driver.js ready 门闩）——生产表已存在，`CREATE TABLE IF NOT EXISTS` 不会加列 → 新代码一上线，订课/候补/场次详情/课程编辑全 500
+- **根因**：新增列三处同步机制缺失——mysql-schema.js（新库 DDL）与 db-core.js（SQLite ALTER）都改了，MySQL 老库迁移清单（db-driver.js）没同步，只有 checkin_code 单列特例。与 #43/#47 同源：方言建表/迁移三份结构（新库 DDL / SQLite ALTER / MySQL 补列）必须同步维护
+- **修复**：db-driver.js 把单列 checkin_code 补丁泛化为表驱动 `MYSQL_ENSURE_COLUMNS` 清单（courses/users/bookings/waitlist/orders 5 表 12+3 列，含 checkin_code 并入），ready 门闩逐表查 information_schema.columns 缺则 ALTER；清单注释标明「新增列三处同步」约定
+- **回归测试**：MYSQL-10 静态断言（db-driver.js 须含 images/pay_source(wxpay)/expire_mode 清单项，防"SQLite 加了列 MySQL 忘记补"再演）；干净库 219/219 绿
+- **防护层**：L0 代码审计发现（部署前）；修复后 MYSQL-10 + 部署冒烟兜底。**教训：双方言迁移有三份结构（新库 DDL / SQLite ALTER / MySQL 老库补列）——新增列必须三处同步，只改其中两处必然在生产老库埋雷；补列逻辑应表驱动集中（一处清单 + 循环），禁止逐列特例**
+
+---
+
 ## #47 CREATE TABLE courses 缺 images/summary/address/lat/lng 列——ALTER TABLE 在建表之前执行，新库静默失败，学员课列表/教练课表全 500
 
 - **发现**：2026-08-18，P1 工程加固验证阶段，冒烟测试 `/api/sessions` 和 `/api/coach/schedule` 均 500

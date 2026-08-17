@@ -123,6 +123,42 @@ function createMysqlPool() {
   return pool;
 }
 
+// MySQL 老库幂等补列清单（CREATE TABLE IF NOT EXISTS 不会给已存在表加列）
+// ⚠️ 新增列三处同步：mysql-schema.js（新库 DDL）+ db-core.js（SQLite ALTER）+ 本清单（MySQL 老库补列）。
+// 类型/默认值须与 mysql-schema.js 一一对应（BUG-LEDGER #48：昨晚新增 12 列只进新库 DDL 与 SQLite 侧，
+// MySQL 补列仅 checkin_code 一处——生产老表缺列则订课/候补/场次详情全 500）。
+// 唯一性靠业务层生成查重（SQLite 不支持 ADD COLUMN 带 UNIQUE 约束，双方言统一不用列级 UNIQUE）
+const MYSQL_ENSURE_COLUMNS = {
+  courses: [
+    ['tags', "VARCHAR(255) DEFAULT ''"],
+    ['images', "VARCHAR(2000) DEFAULT '[]'"],   // 轮播图（服务器端路径数组 JSON）
+    ['summary', "VARCHAR(255) DEFAULT ''"],     // 简要标题
+    ['address', "VARCHAR(255) DEFAULT ''"],     // 上课地址
+    ['lat', 'DOUBLE DEFAULT 0'],                // 纬度
+    ['lng', 'DOUBLE DEFAULT 0'],                // 经度
+  ],
+  users: [
+    ['balance_fen', 'INT DEFAULT 0'],
+    ['coin_balance', 'INT DEFAULT 0'],
+    ['level_lv', 'INT DEFAULT 1'],
+  ],
+  bookings: [
+    ['checkin_code', 'VARCHAR(5)'],             // 随机 5 位签到码（BUGS-INBOX #11）
+    ['pay_source', "VARCHAR(16) DEFAULT 'wxpay'"],  // 支付来源（pass/wxpay/balance）
+    ['pass_id', 'INT DEFAULT 0'],               // 次卡 ID（pay_source=pass 时溯源）
+  ],
+  waitlist: [
+    ['expire_mode', "VARCHAR(16) DEFAULT 'start'"],  // 候补自动取消节点
+    ['pay_source', "VARCHAR(16) DEFAULT 'wxpay'"],
+    ['pass_id', 'INT DEFAULT 0'],
+  ],
+  orders: [
+    ['pay_source', "VARCHAR(16) DEFAULT 'balance'"],
+    ['expire_mode', "VARCHAR(16) DEFAULT 'start'"],
+    ['reward_triggered', 'INT DEFAULT 0'],
+  ],
+};
+
 function createDriver({ sqliteDb } = {}) {
   if (process.env.DB_DRIVER === 'mysql') {
     // 建表由驱动初始化时执行（MySQL 版 DDL 一次建齐，见 mysql-schema.js）；
@@ -132,13 +168,17 @@ function createDriver({ sqliteDb } = {}) {
     drv.ready = (async () => {
       await drv.exec(MYSQL_SCHEMA);
       await drv.exec("INSERT IGNORE INTO coach_config (id) VALUES (1)");
-      // 幂等补列（BUGS-INBOX #11：checkin_code 随机 5 位签到码——老库表已存在，IF NOT EXISTS 不加列）
-      // 唯一性靠业务层生成查重（SQLite 不支持 ADD COLUMN 带 UNIQUE 约束，双方言统一不用列级 UNIQUE）
-      const col = await drv.get(
-        "SELECT COUNT(*) c FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'bookings' AND column_name = 'checkin_code'");
-      if (col && col.c === 0) {
-        await drv.run('ALTER TABLE bookings ADD COLUMN checkin_code VARCHAR(5)');
-        console.log('[mysql] 迁移: bookings 表补 checkin_code 列');
+      // 幂等补列：逐表查 information_schema，缺列则 ALTER（表名/列名来自内部常量，非用户输入）
+      for (const [table, cols] of Object.entries(MYSQL_ENSURE_COLUMNS)) {
+        for (const [colName, colType] of cols) {
+          const row = await drv.get(
+            'SELECT COUNT(*) c FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?',
+            [table, colName]);
+          if (row && row.c === 0) {
+            await drv.run(`ALTER TABLE ${table} ADD COLUMN ${colName} ${colType}`);
+            console.log(`[mysql] 迁移: ${table} 表补 ${colName} 列`);
+          }
+        }
       }
       console.log('[mysql] 建表完成（' + (MYSQL_SCHEMA.match(/CREATE TABLE/g) || []).length + ' 表）');
     })();
