@@ -254,8 +254,22 @@ function $(id) { return document.getElementById(id); }
 function toast(el, text, isErr) { el.textContent = text; el.className = 'msg' + (isErr ? ' err' : ''); if (text) setTimeout(function () { el.textContent = ''; }, 4000); }
 function api(path, method, body) {
   var opt = { method: method || 'GET', headers: { 'Content-Type': 'application/json' } };
+  if (GYM_ADMIN_TOKEN) opt.headers['Admin-Token'] = GYM_ADMIN_TOKEN;
   if (body !== undefined) opt.body = JSON.stringify(body);
-  return fetch('/api' + path, opt).then(function (r) { return r.json().catch(function () { return {}; }); }).then(function (j) { if (j.code && j.code !== 200) throw new Error(j.message || '请求失败'); return j; });
+  return fetch('/api' + path, opt).then(function (r) { return r.json().catch(function () { return {}; }); }).then(function (j) {
+    if (j.code === 401) { clearAdminToken(); ensureAdminToken(); throw new Error(j.message || '访问码错误，请重试'); }
+    if (j.code && j.code !== 200) throw new Error(j.message || '请求失败');
+    return j;
+  });
+}
+// 管理访问码（BUGS-INBOX #8）：ADMIN_TOKEN 后端校验，本地 localStorage 记忆
+var GYM_ADMIN_TOKEN = localStorage.getItem('gym_admin_token') || '';
+function clearAdminToken() { GYM_ADMIN_TOKEN = ''; localStorage.removeItem('gym_admin_token'); }
+function ensureAdminToken() {
+  if (GYM_ADMIN_TOKEN) return;
+  var t = prompt('请输入管理访问码：');
+  if (!t) { clearAdminToken(); throw new Error('未输入访问码'); }
+  GYM_ADMIN_TOKEN = t; localStorage.setItem('gym_admin_token', t);
 }
 
 // ===== 工具 =====
@@ -597,7 +611,11 @@ function loadInviteDetails() {
   }).catch(function () {});
 }
 
-init().catch(function (e) { alert('加载失败：' + e.message); });
+try { ensureAdminToken(); } catch (e) { alert(e.message); }
+init().catch(function (e) {
+  if (/访问码/.test(e.message)) { alert(e.message + '，请刷新页面重新输入。'); return; }
+  alert('加载失败：' + e.message);
+});
 </script>
 </body>
 </html>

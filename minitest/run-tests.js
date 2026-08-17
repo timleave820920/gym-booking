@@ -14,21 +14,29 @@ const fs = require('node:fs');
 const path = require('node:path');
 const PROJECT_ROOT = path.join(__dirname, '..');
 const DB_PATH = process.env.DB_PATH || null;
+// 管理访问码（BUGS-INBOX #8）：进程配置 ADMIN_TOKEN 时 req 默认自动带头。
+// 干净库模式强制开启（默认 test-admin-token 注入后端，req 同步带头），
+// 保证现有管理写操作用例通过 + 新增 ADMIN 用例可测 401；普通模式不设则行为不变
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || (DB_PATH ? 'test-admin-token' : '');
 
 // ===== 轻量 HTTP 客户端 =====
-function req(method, path, body) {
+// opts: { noToken: true 不带默认 Admin-Token; headers: {...} 附加/覆盖 header }
+function req(method, path, body, opts) {
   return new Promise((resolve, reject) => {
     const url = BASE + path;
     const u = new URL(url);
     const isHttps = u.protocol === 'https:';
     const mod = isHttps ? require('node:https') : require('node:http');
     const payload = body ? JSON.stringify(body) : null;
+    const headers = payload ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } : {};
+    if (ADMIN_TOKEN && !(opts && opts.noToken)) headers['Admin-Token'] = ADMIN_TOKEN;
+    if (opts && opts.headers) Object.assign(headers, opts.headers);
     const options = {
       hostname: u.hostname,
       port: u.port || (isHttps ? 443 : 80),
       path: u.pathname + u.search,
       method,
-      headers: payload ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } : {}
+      headers
     };
     const r = mod.request(options, (res) => {
       let data = '';
@@ -109,7 +117,7 @@ async function main() {
     const port = 3100 + Math.floor(Math.random() * 500);
     child = spawn(process.execPath, ['server/index.js'], {
       cwd: PROJECT_ROOT,
-      env: { ...process.env, DB_PATH, PORT: String(port), WX_APPID: 'test_appid', WX_SECRET: 'test_secret' },
+      env: { ...process.env, DB_PATH, PORT: String(port), WX_APPID: 'test_appid', WX_SECRET: 'test_secret', ADMIN_TOKEN },
       stdio: 'ignore'
     });
     BASE = `http://127.0.0.1:${port}`;
@@ -205,6 +213,19 @@ async function runSuite() {
   check('MYSQL-01', 'mysql2 走 promise 入口', /require\('mysql2\/promise'\)/.test(driverSrc), 'db-driver.js 需 require("mysql2/promise")');
   check('MYSQL-02', 'connection 事件 query 为 callback 风格', driverSrc.includes(`conn.query("SET time_zone = '+08:00'", () => {});`), 'connection 回调须 callback 风格');
   check('MYSQL-03', '无 promise 风格 .catch 残留', !driverSrc.includes(`SET time_zone = '+08:00'").catch(`), '禁止 conn.query(...).catch(...) 写法');
+
+  // ===== 1.7 管理访问码校验（BUGS-INBOX #8：web 管理网页 ADMIN_TOKEN 保护）=====
+  console.log('\n── 1.7 管理访问码校验（BUGS-INBOX #8）──');
+  r = await req('POST', '/api/courses', { name: 'x' }, { noToken: true });
+  check('ADMIN-01', '无 token 写课程 → 401', r.status === 401 && r.data && r.data.code === 401, `status=${r.status}`);
+  r = await req('POST', '/api/courses', { name: 'x' }, { headers: { 'Admin-Token': 'wrong-token' } });
+  check('ADMIN-02', '错误 token → 401', r.status === 401, `status=${r.status}`);
+  r = await req('POST', '/api/courses', { name: 'x' });
+  check('ADMIN-03', '正确 token 通过校验（进参数校验）', r.status === 400 && (r.data.message || '').includes('课程名称'), `status=${r.status} msg=${r.data && r.data.message}`);
+  r = await req('GET', '/api/meta', null, { noToken: true });
+  check('ADMIN-04', '学员端接口不受访问码影响', r.status === 200, `status=${r.status}`);
+  r = await req('GET', '/api/users', null, { noToken: true });
+  check('ADMIN-05', '共享接口 /api/users 不保护（小程序 admin 共用）', r.status === 200, `status=${r.status}`);
 
   // ===== 1. 账号登录 =====
   console.log('\n── 2. 账号与登录 ──');

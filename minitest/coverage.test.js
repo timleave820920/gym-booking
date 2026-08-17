@@ -246,6 +246,13 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     assert.ok(pubSid, '发布产生场次');
     r = await req('GET', `/api/admin/sessions?from=${todayStr}&to=${todayStr}&course_id=${covCourseId}`);
     assert.ok(Array.isArray(r.data.sessions), '范围场次');
+    // 访问码保护探针（BUGS-INBOX #8）：env 配置后管理接口 401，随后清除恢复（探针成对）
+    process.env.ADMIN_TOKEN = 'cov-admin';
+    r = await req('GET', `/api/admin/sessions?from=${todayStr}&to=${todayStr}&course_id=${covCourseId}`);
+    assert.equal(r.status, 401, '配置 ADMIN_TOKEN 后 /api/admin/sessions 需 401');
+    delete process.env.ADMIN_TOKEN;
+    r = await req('GET', `/api/admin/sessions?from=${todayStr}&to=${todayStr}&course_id=${covCourseId}`);
+    assert.equal(r.data.code, 200, '清除 ADMIN_TOKEN 后放行');
     r = await req('PUT', `/api/sessions/${pubSid.id}`, { capacity: 15 });
     assert.equal(r.data.code, 200, '改容量');
     r = await req('DELETE', `/api/sessions/${pubSid.id}`);

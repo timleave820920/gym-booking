@@ -1177,6 +1177,24 @@ const API_ROUTES = [
   } catch (e) {}
 })();
 
+// ===== 管理访问码（web 管理网页 ADMIN_TOKEN 保护，BUGS-INBOX #8） =====
+// ADMIN_TOKEN 环境变量配置后，web 专属管理接口必须携带 Admin-Token header；
+// 未配置（本地开发）不校验，行为不变。运行时读 env（测试可动态开关，见 coverage 探针）。
+// 保护集合 = 小程序端不调用、仅管理网页使用的接口（课程写/场次写/运营读）：
+// 共享接口（GET /api/users、POST /api/upload、GET /api/revenue、DELETE /api/users/clear
+// 等被小程序 admin 页共用）不在此列，避免误伤小程序管理后台。
+const ADMIN_PATHS = [
+  { m: 'POST',   p: /^\/api\/courses(\/\d+)?(\/(publish|rules))?$/ },
+  { m: 'PUT',    p: /^\/api\/courses\/\d+(\/rules)?$/ },
+  { m: 'DELETE', p: /^\/api\/courses\/\d+$/ },
+  { m: 'PUT',    p: /^\/api\/sessions\/\d+$/ },
+  { m: 'DELETE', p: /^\/api\/sessions\/\d+$/ },
+  { m: 'GET',    p: /^\/api\/admin\/(sessions|invite-board)$/ },
+];
+function isAdminPath(method, pathname) {
+  return ADMIN_PATHS.some(x => x.m === method && x.p.test(pathname));
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     // 请求日志（真机联调排查用；正式环境可移除或按需开启）
@@ -1193,7 +1211,18 @@ const server = http.createServer(async (req, res) => {
     for (const route of API_ROUTES) {
       if (route.m !== req.method) continue;
       const hit = typeof route.p === 'string' ? pathname === route.p : route.p.test(pathname);
-      if (hit) { matched = true; await route.f(req, res, url); break; }
+      if (hit) {
+        // 管理访问码校验（ADMIN_TOKEN 配置时，管理网页接口强制校验）
+        const adminToken = process.env.ADMIN_TOKEN || '';
+        if (adminToken && isAdminPath(req.method, pathname)) {
+          const token = req.headers['admin-token'];
+          if (token !== adminToken) {
+            await logOp('web', 'admin_access_denied', { pathname, ip: req.socket.remoteAddress }, 'fail');
+            return sendJson(res, 401, { code: 401, message: '访问码错误' });
+          }
+        }
+        matched = true; await route.f(req, res, url); break;
+      }
     }
     if (matched) return;
 
