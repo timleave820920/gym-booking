@@ -9,7 +9,8 @@
  *    CURRENT_TIMESTAMP 落库时区由连接级 SET time_zone='+08:00' 保证北京时区，
  *    与容器 TZ=Asia/Shanghai 的 SQLite localtime 语义一致，防 BUG-LEDGER #28 重演）
  *  - 索引内联在 CREATE TABLE（KEY ...），无独立 CREATE INDEX（MySQL 不支持 IF NOT EXISTS）
- *  - `desc` 是 MySQL 保留字，列名带反引号（SQLite 无需）
+ *  - `desc`/`change`/`date`/`role` 是 MySQL 保留字，列名带反引号（SQLite 无需；反引号双方言兼容）——
+ *    新增列前先对照 MySQL 8.0 保留字清单（BUG-LEDGER #32：裸保留字 → 生产建表 ER_PARSE_ERROR）
  *  - coach_config 单行表用 INSERT IGNORE 种子
  */
 'use strict';
@@ -21,7 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
   nickname        VARCHAR(128) DEFAULT '',
   avatar          VARCHAR(500) DEFAULT '',
   phone           VARCHAR(32) DEFAULT '',
-  role            VARCHAR(16) DEFAULT 'student',
+  \`role\`        VARCHAR(16) DEFAULT 'student',
   total_classes   INT DEFAULT 0,
   total_hours     VARCHAR(16) DEFAULT '0h',
   total_calories  VARCHAR(16) DEFAULT '0',

@@ -13,7 +13,7 @@ async function findUserByOpenid(openid) {
  */
 async function createUser({ openid, nickname = '', avatar = '', phone = '', role = 'student' }) {
   const result = await driver.run(`
-    INSERT INTO users (openid, nickname, avatar, phone, role, login_count)
+    INSERT INTO users (openid, nickname, avatar, phone, \`role\`, login_count)
     VALUES (?, ?, ?, ?, ?, 1)
   `, [openid, nickname, avatar, phone, role]);
   return await findUserByOpenid(openid);

@@ -140,7 +140,7 @@ async function listBookingsBySession(sessionId) {
  */
 async function checkinBooking({ bookingId, coachOpenid }) {
   // 校验教练身份（coaches 表或 users.role='coach'）
-  const coach = await driver.get("SELECT * FROM users WHERE openid = ? AND role = 'coach'", [coachOpenid])
+  const coach = await driver.get("SELECT * FROM users WHERE openid = ? AND \`role\` = 'coach'", [coachOpenid])
     || await driver.get('SELECT * FROM coaches WHERE user_openid = ?', [coachOpenid]);
   if (!coach) return { ok: false, error: '无教练权限' };
 

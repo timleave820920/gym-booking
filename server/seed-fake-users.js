@@ -34,7 +34,7 @@ console.log(`[清理] 假用户 ${oldUsers.length} 人，bookings ${delB} 条`);
 // 2. 随机 3-5 名假用户
 const count = 3 + Math.floor(Math.random() * 3); // 3 | 4 | 5
 const nicks = [...NICK_POOL].sort(() => Math.random() - 0.5).slice(0, count);
-const insU = db.prepare('INSERT INTO users (openid, nickname, avatar, role) VALUES (?,?,?,?)');
+const insU = db.prepare('INSERT INTO users (openid, nickname, avatar, \`role\`) VALUES (?,?,?,?)');
 const fakes = [];
 for (let i = 0; i < count; i++) {
   const oid = `fake_${i + 1}`;

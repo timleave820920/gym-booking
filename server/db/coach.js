@@ -137,7 +137,7 @@ async function assignCoach(openid, coachId) {
   }
   await driver.exec('BEGIN');
   try {
-    await driver.run("UPDATE users SET role = 'coach' WHERE openid = ?", [openid]);
+    await driver.run("UPDATE users SET \`role\` = 'coach' WHERE openid = ?", [openid]);
     await driver.run('UPDATE coaches SET user_openid = ? WHERE id = ?', [openid, coachId]);
     // 同一账号解绑其他档案（防一对多）
     await driver.run('UPDATE coaches SET user_openid = NULL WHERE user_openid = ? AND id != ?', [openid, coachId]);
