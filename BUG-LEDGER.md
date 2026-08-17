@@ -15,6 +15,24 @@
 
 ---
 
+## #31 MySQL 建表 DDL 用 SQLite 方言——VARCHAR(19) DEFAULT (CURRENT_TIMESTAMP) 非法，生产首次建表 CrashLoop（P0 生产不可用）
+- **发现**：2026-08-17，配置 DB_DRIVER=mysql 后的首次重建（push 04aca32 触发），容器启动日志 `seed 失败: ER_PARSE_ERROR ... near '(CURRENT_TIMESTAMP)'`，Back-off restarting
+- **现象**：`node seed.js && node index.js` 启动即挂——MysqlDriver.exec(MYSQL_SCHEMA) 建 users 表报 MySQL 语法错误（`VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP)`），容器反复重启（CrashLoop）；此前 10:50 部署包冒烟通过是因为当时生产还在 SQLite 路径，MySQL 建表从未真正执行过
+- **根因**：`server/mysql-schema.js` 从 SQLite 版 DDL 机械转换，**19 处** `VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP)` 是 SQLite 表达式默认值写法；MySQL 只允许 TIMESTAMP/DATETIME 列带 CURRENT_TIMESTAMP 默认值，VARCHAR 列报 ER_PARSE_ERROR。本地/CI 全量测试走 SQLite，MySQL 建表路径零覆盖（无本地 MySQL 可连），方言错误直到生产首次建表才暴露
+- **修复**：
+  1. `mysql-schema.js` 19 处时间默认值列改 `DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP`（MySQL 原生类型 + 时间默认值；无默认值的可空时间列 checkin_at/paid_at 等保持 VARCHAR(19)，应用层显式写值不受影响）；更新头部注释说明新约定
+  2. `db-driver.js` createMysqlPool 加 **`dateStrings: true`**——mysql2 默认把 DATETIME 读成 JS Date 对象，应用层按字符串契约解析（`time.parseBeijing(user.created_at)`、字符串比较），必须让 DATETIME 以 `'YYYY-MM-DD HH:MM:SS'` 字符串返回，行为与 SQLite 一致
+- **回归测试**：run-tests.js 新增 **MYSQL-04/05** 静态断言（无 MySQL 无法真连）：④ mysql-schema.js 无 `VARCHAR(\d+)...CURRENT_TIMESTAMP` 残留（单行匹配，防误报）⑤ db-driver.js 含 `dateStrings: true`；全量 161/161 绿（普通 + TZ=UTC 双模式）
+- **防护层**：L3 生产部署冒烟（用户控制台日志）发现；修复后由 MYSQL-04/05 静态断言兜底（有人写回 SQLite 方言立即红）+ 部署冒烟登录落库证据；**教训：双方言 DDL 的正确性只能靠真连验证，静态断言只能拦「已知错误写法」——生产 MySQL 路径的首次建表必须盯启动日志（建表完成/seed 失败），不能只看 health**
+
+## #30 passes.js 档位种子模块加载期查表早于 MySQL 异步建表——容器启动 CrashLoop（P0 生产不可用）
+- **发现**：2026-08-17，新镜像 022 部署上线即 CrashLoop（2026-08-17 上午）
+- **现象**：容器反复重启；seedPackages IIFE 查 class_packages 报 ER_NO_SUCH_TABLE（MySQL 模式），SQLite 模式无感（同步建表）
+- **根因**：`server/db/passes.js` 顶部 `seedPackages` IIFE 在**模块加载期**（require('./db') 链路）立即查表；MySQL 模式建表是异步门闩（driver.ready），seed.js 的 `await` 在 require 之后，拦不住模块加载期的查询 → 查表早于建表 → ER_NO_SUCH_TABLE → 崩溃循环
+- **修复**：函数内 `await driver.ready` 自守门闩（SQLite 立即返回行为不变）
+- **回归测试**：run-tests.js **PASSES-01** 静态断言（passes.js 须 await driver.ready）；干净库 159/159 全绿
+- **防护层**：L3 生产启动日志发现；修复后 PASSES-01 兜底；**教训：MySQL 异步建表 + 模块加载期副作用 = 竞态温床，顶层 IIFE 副作用须自守 ready 门闩**
+
 ## #29 连接池 connection 事件回调对 callback 版 query 用 .catch()——建表永久挂起、容器 CrashLoop（P0 生产不可用）
 - **发现**：2026-08-17，DESIGN #D2 S5 生产部署冒烟（push 后服务 health 000 持续 10+ 分钟，控制台日志定位）
 - **现象**：MySQL 库建成后容器反复重启，health 000；日志循环打印 `You have tried to call .then(), .catch()... require('mysql2/promise') instead of 'mysql2'` 警告（**无**「seed 失败」、**无**「[mysql] 建表完成」）；建库前（库不存在时）反而能正常抛 `ER_BAD_DB_ERROR` 并打印 seed 失败

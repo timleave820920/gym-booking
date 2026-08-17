@@ -2,8 +2,11 @@
  * MySQL 版建表 DDL（DESIGN #D2 S5）
  * 与 server/db-core.js 的 SQLite 版一一对应，约定：
  *  - 20 张表一次建齐，无 ALTER 兼容段（新库直接全量结构）
- *  - 时间列统一 VARCHAR(19)（'YYYY-MM-DD HH:MM:SS'，与 time.js 显式取值/前端展示一致；
- *    DEFAULT 用表达式 CURRENT_TIMESTAMP，由连接级 SET time_zone='+08:00' 保证北京时区，
+ *  - 时间列：带 CURRENT_TIMESTAMP 默认值的列用 DATETIME（MySQL 只允许 TIMESTAMP/DATETIME 列
+ *    用时间默认值，VARCHAR+DEFAULT (CURRENT_TIMESTAMP) 是 SQLite 方言写法会建表报错，BUG-LEDGER #31）；
+ *    无默认值的可空时间列（checkin_at/paid_at 等）仍 VARCHAR(19)。驱动 dateStrings: true 让
+ *    DATETIME 以 'YYYY-MM-DD HH:MM:SS' 字符串返回，应用层契约与 SQLite 一致（time.js 解析）。
+ *    CURRENT_TIMESTAMP 落库时区由连接级 SET time_zone='+08:00' 保证北京时区，
  *    与容器 TZ=Asia/Shanghai 的 SQLite localtime 语义一致，防 BUG-LEDGER #28 重演）
  *  - 索引内联在 CREATE TABLE（KEY ...），无独立 CREATE INDEX（MySQL 不支持 IF NOT EXISTS）
  *  - `desc` 是 MySQL 保留字，列名带反引号（SQLite 无需）
@@ -23,8 +26,8 @@ CREATE TABLE IF NOT EXISTS users (
   total_hours     VARCHAR(16) DEFAULT '0h',
   total_calories  VARCHAR(16) DEFAULT '0',
   streak          INT DEFAULT 0,
-  created_at      VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
-  last_login_at   VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_login_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   login_count     INT DEFAULT 0,
   balance_fen     INT DEFAULT 0,
   coin_balance    INT DEFAULT 0,
@@ -39,7 +42,7 @@ CREATE TABLE IF NOT EXISTS class_packages (
   price_fen   INT NOT NULL,
   \`desc\`      VARCHAR(500) DEFAULT '',
   active      INT DEFAULT 1,
-  created_at  VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS user_passes (
@@ -50,7 +53,7 @@ CREATE TABLE IF NOT EXISTS user_passes (
   remaining   INT NOT NULL,
   expires_at  VARCHAR(19) NOT NULL,
   status      VARCHAR(16) DEFAULT 'active',
-  created_at  VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_user_passes_user (user_openid, status),
   CONSTRAINT fk_passes_user FOREIGN KEY (user_openid) REFERENCES users(openid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -60,7 +63,7 @@ CREATE TABLE IF NOT EXISTS user_achievements (
   user_openid VARCHAR(64) NOT NULL,
   ach_key     VARCHAR(64) NOT NULL,
   coin_reward INT DEFAULT 50,
-  unlocked_at VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  unlocked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (user_openid, ach_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -72,7 +75,7 @@ CREATE TABLE IF NOT EXISTS member_recharges (
   amount_fen  INT DEFAULT 0,
   bonus_fen   INT DEFAULT 0,
   status      VARCHAR(16) DEFAULT 'paid',
-  created_at  VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_recharges_user FOREIGN KEY (user_openid) REFERENCES users(openid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -84,7 +87,7 @@ CREATE TABLE IF NOT EXISTS balance_logs (
   reason        VARCHAR(128) DEFAULT '',
   ref_id        VARCHAR(64) DEFAULT '',
   read_flag     INT DEFAULT 0,
-  created_at    VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_balance_logs_unread (user_openid, read_flag),
   CONSTRAINT fk_balance_user FOREIGN KEY (user_openid) REFERENCES users(openid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -95,7 +98,7 @@ CREATE TABLE IF NOT EXISTS invitations (
   invitee     VARCHAR(64) NOT NULL,
   status      VARCHAR(16) DEFAULT 'registered',
   reward_fen  INT DEFAULT 0,
-  created_at  VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (invitee)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -106,7 +109,7 @@ CREATE TABLE IF NOT EXISTS coin_logs (
   balance_after  INT DEFAULT 0,
   reason         VARCHAR(128) DEFAULT '',
   ref_id         VARCHAR(64) DEFAULT '',
-  created_at     VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_coin_logs_user (user_openid, created_at),
   CONSTRAINT fk_coin_user FOREIGN KEY (user_openid) REFERENCES users(openid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -119,7 +122,7 @@ CREATE TABLE IF NOT EXISTS coin_exchanges (
   cost        INT NOT NULL,
   code        VARCHAR(64),
   status      VARCHAR(16) DEFAULT 'pending',
-  created_at  VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_exchanges_user FOREIGN KEY (user_openid) REFERENCES users(openid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -158,8 +161,8 @@ CREATE TABLE IF NOT EXISTS courses (
   address       VARCHAR(255) DEFAULT '',
   lat           DOUBLE DEFAULT 0,
   lng           DOUBLE DEFAULT 0,
-  created_at    VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
-  updated_at    VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS schedule_templates (
@@ -188,7 +191,7 @@ CREATE TABLE IF NOT EXISTS course_sessions (
   booked_count INT DEFAULT 0,
   status       VARCHAR(16) DEFAULT 'published',
   source       VARCHAR(16) DEFAULT 'manual',
-  created_at   VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_sessions_date (date, status),
   KEY idx_sessions_course (course_id, date),
   CONSTRAINT fk_sess_course FOREIGN KEY (course_id) REFERENCES courses(id),
@@ -207,7 +210,7 @@ CREATE TABLE IF NOT EXISTS messages (
   jump_url    VARCHAR(500) DEFAULT '',
   dedup_key   VARCHAR(128) DEFAULT '',
   is_read     INT DEFAULT 0,
-  created_at  VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_messages_user (user_openid, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -223,7 +226,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   cancel_reason VARCHAR(255) DEFAULT '',
   pay_source    VARCHAR(16) DEFAULT 'wxpay',
   pass_id       INT DEFAULT 0,
-  created_at    VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (user_openid, session_id),
   CONSTRAINT fk_book_user FOREIGN KEY (user_openid) REFERENCES users(openid),
   CONSTRAINT fk_book_sess FOREIGN KEY (session_id)  REFERENCES course_sessions(id)
@@ -239,7 +242,7 @@ CREATE TABLE IF NOT EXISTS waitlist (
   expire_mode   VARCHAR(16) DEFAULT 'start',
   pay_source    VARCHAR(16) DEFAULT 'wxpay',
   pass_id       INT DEFAULT 0,
-  created_at    VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   promoted_at   VARCHAR(19),
   refunded_at   VARCHAR(19),
   cancel_reason VARCHAR(255) DEFAULT '',
@@ -266,7 +269,7 @@ CREATE TABLE IF NOT EXISTS orders (
   refunded_at      VARCHAR(19),
   cancel_reason    VARCHAR(255) DEFAULT '',
   reward_triggered INT DEFAULT 0,
-  created_at       VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_orders_user (user_openid, status),
   KEY idx_orders_status (status, created_at),
   CONSTRAINT fk_order_user FOREIGN KEY (user_openid) REFERENCES users(openid),
@@ -277,7 +280,7 @@ CREATE TABLE IF NOT EXISTS coach_config (
   id                 INT PRIMARY KEY,
   course_fee_fen     INT NOT NULL DEFAULT 10000,
   checkin_reward_fen INT NOT NULL DEFAULT 500,
-  updated_at         VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  updated_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT chk_single CHECK (id = 1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -286,7 +289,7 @@ CREATE TABLE IF NOT EXISTS coach_notes (
   coach_openid   VARCHAR(64) NOT NULL,
   student_openid VARCHAR(64) NOT NULL,
   content        VARCHAR(2000) DEFAULT '',
-  updated_at     VARCHAR(19) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (coach_openid, student_openid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `;

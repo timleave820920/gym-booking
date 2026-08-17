@@ -213,6 +213,11 @@ async function runSuite() {
   check('MYSQL-01', 'mysql2 走 promise 入口', /require\('mysql2\/promise'\)/.test(driverSrc), 'db-driver.js 需 require("mysql2/promise")');
   check('MYSQL-02', 'connection 事件 query 为 callback 风格', driverSrc.includes(`conn.query("SET time_zone = '+08:00'", () => {});`), 'connection 回调须 callback 风格');
   check('MYSQL-03', '无 promise 风格 .catch 残留', !driverSrc.includes(`SET time_zone = '+08:00'").catch(`), '禁止 conn.query(...).catch(...) 写法');
+  // MYSQL-04/05：MySQL 建表 DDL 方言防回归（BUG-LEDGER #31：VARCHAR(19) DEFAULT (CURRENT_TIMESTAMP)
+  // 是 SQLite 写法，MySQL 只允许 TIMESTAMP/DATETIME 列用时间默认值 → 生产首次建表 CrashLoop）
+  const schemaSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'mysql-schema.js'), 'utf8');
+  check('MYSQL-04', 'mysql-schema 无 VARCHAR+CURRENT_TIMESTAMP 默认残留', !/VARCHAR\(\d+\)[^\n]*CURRENT_TIMESTAMP/.test(schemaSrc), '时间默认值列须 DATETIME 类型');
+  check('MYSQL-05', '驱动 dateStrings: true（DATETIME 字符串返回契约）', /dateStrings:\s*true/.test(driverSrc), 'DATETIME 列须以字符串返回，应用层按 YYYY-MM-DD HH:MM:SS 解析');
 
   // PASSES-01: passes.js 档位种子自守门闩（防 #30 回退：模块加载期查表早于 MySQL 建表）
   const passesSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', 'passes.js'), 'utf8');

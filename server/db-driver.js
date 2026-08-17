@@ -110,7 +110,8 @@ function createMysqlPool() {
     database: process.env.MYSQL_DB || 'gym',
     connectionLimit: 5,
     waitForConnections: true,
-    timezone: '+08:00' // 让 MySQL 返回的 DATETIME/时间计算按北京时间（BUG-LEDGER #28 防回归）
+    timezone: '+08:00', // 让 MySQL 返回的 DATETIME/时间计算按北京时间（BUG-LEDGER #28 防回归）
+    dateStrings: true  // DATETIME 以 'YYYY-MM-DD HH:MM:SS' 字符串返回，与应用层字符串契约一致（BUG-LEDGER #31：建表已改 DATETIME 类型）
   });
   // 每连接初始化：会话时区 +08:00 —— DEFAULT (CURRENT_TIMESTAMP) 的默认时间列按北京落库。
   // ⚠️ 必须用 callback 风格：connection 事件转发的是 callback 版连接（inheritEvents 原样转发 corePool
