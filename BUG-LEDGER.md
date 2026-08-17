@@ -15,6 +15,15 @@
 
 ---
 
+## #34 seed.js 完成后进程挂起——MySQL 连接池句柄阻塞退出，`node seed.js && node index.js` 卡死在 seed，index.js 永不启动 → 探针 refused 部署回滚（P0 生产不可用）
+
+- **发现**：2026-08-17，MySQL 部署（gym-server-030/032）连续探针失败 `Liveness probe failed: dial tcp ...:3000: connection refused`；启动日志**始终止于 seed 数据汇总、无 index.js 任何输出**（无「后端服务已启动」也无报错）——排除 index.js 崩溃（崩溃会有错误堆栈），定位到 index.js **从未被执行**
+- **现象**：容器启动日志完整跑完 seed（`[mysql] 建表完成（20 表）` + 数据汇总）后戛然而止；`&&` 之后的 index.js 无任何日志；探针打 3000 永远 refused（index.js 没监听）→ 部署回滚。SQLite 时代从未出现（本地/CI 全绿）
+- **根因**：`seed.js` 成功路径**不显式退出进程**，靠事件循环空转自然退出——**SQLite 模式无异步句柄（DatabaseSync 同步 API）正常退出；MySQL 模式 createMysqlPool() 的连接池是活跃 TCP socket 句柄，事件循环不空 → seed 进程挂起 → `node seed.js && node index.js` 的 `&&` 永远等不到 seed 退出 → index.js 永不启动**。又一个「SQLite 假设」（同步 API 无句柄 → 进程自然退出；MySQL 异步句柄 → 必须显式退出）
+- **修复**：`server/seed.js` 成功路径改 `})().then(() => process.exit(0))`（失败路径原有 exit(1) 不变）；显式退出在 SQLite 下行为一致（正常退出码 0）
+- **回归测试**：MYSQL-08 静态断言（seed.js 源码须含 `process.exit(0)`，防回退——删掉即部署永久挂死）；全量 163/163 绿（普通 + TZ=UTC）
+- **防护层**：L3 生产部署日志发现（启动日志止于 seed = 强信号：`&&` 链后无输出先查前一进程是否挂起）；修复后 MYSQL-08 + 部署冒烟兜底。**教训：MySQL 引入异步句柄后，「脚本类进程自然退出」假设失效——凡启动链路（CMD `seed && index`）中的命令型脚本必须显式退出；排查部署探针失败时，启动日志「止于某处无后续」= 该进程未退出或未启动，不是探针配置问题**
+
 ## #33 业务 SQL 用 SQLite 专属 last_insert_rowid()——MySQL 无此函数，建表成功部署后订课/候补/兑换/发卡全 500（P0 生产不可用，本轮人工方言审计发现，未上线即修）
 
 - **发现**：2026-08-17，#32 修复后部署前方言审计（grep SQLite 方言函数清单）发现——**本轮部署尚未成功，此炸弹若随部署上线，任何一笔订课/候补/兑换/次卡发放都会 500**

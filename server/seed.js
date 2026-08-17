@@ -91,4 +91,7 @@ console.log('----- 数据汇总 -----');
 for (const t of ['coaches', 'venues', 'courses', 'schedule_templates', 'course_sessions', 'bookings']) {
   console.log(`${t}: ${await count(t)} 条`);
 }
-})().catch(e => { console.error('seed 失败:', e); process.exit(1); });
+// 成功路径必须显式退出：MySQL 模式连接池是活跃句柄，事件循环不空 → 进程挂起 →
+// `node seed.js && node index.js` 永远不执行 index.js → 探针 refused 部署失败（BUG-LEDGER #34）
+// SQLite 模式无句柄本可自然退出，显式退出行为一致
+})().then(() => process.exit(0)).catch(e => { console.error('seed 失败:', e); process.exit(1); });

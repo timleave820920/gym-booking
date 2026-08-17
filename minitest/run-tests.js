@@ -226,6 +226,10 @@ async function runSuite() {
   // 池模式下 LAST_INSERT_ID() 跨连接不可靠，传参是双方言唯一正确解）
   const lastIdFiles = ['bookings', 'coin', 'orders', 'passes'];
   check('MYSQL-07', '业务 SQL 无 last_insert_rowid()（须用 run() 返回值传参）', lastIdFiles.every(f => !fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', f + '.js'), 'utf8').includes('last_insert_rowid')), 'INSERT 后取 id 用 run() 的 lastInsertRowid 字段');
+  // MYSQL-08：seed.js 成功路径显式退出（BUG-LEDGER #34：MySQL 连接池是活跃句柄，seed 完成不退出 →
+  // CMD `node seed.js && node index.js` 卡死在 seed → 探针 refused 部署回滚；SQLite 无句柄本地测不出）
+  const seedSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'seed.js'), 'utf8');
+  check('MYSQL-08', 'seed.js 成功路径 process.exit(0)', /process\.exit\(0\)/.test(seedSrc), 'seed 完成须显式退出（MySQL 连接池句柄阻塞进程退出）');
 
   // PASSES-01: passes.js 档位种子自守门闩（防 #30 回退：模块加载期查表早于 MySQL 建表）
   const passesSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', 'passes.js'), 'utf8');
