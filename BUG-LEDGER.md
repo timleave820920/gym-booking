@@ -15,6 +15,39 @@
 
 ---
 
+## #42 教练工作台「我的课程」无排序——需进行中最前、未开始越近越前、已结束刚结束在前
+
+- **发现**：2026-08-17，用户明确排序规则要求
+- **现象**：教练工作台「我的课程」列表顺序 = 后端返回顺序，进行中的课不置顶，未开始/已结束混排
+- **根因**：coach-home `loadSessions` 只 filter+map 未排序；decorateSession 也未输出 status 字段（只有展示文案）
+- **修复**：session-sort.js 新增纯函数 `sortCoachSessions`（三态分组：ongoing=0 < upcoming=1 < ended=2；组内按 date+start_time——ended 降序（刚结束在前）、其余升序）；decorateSession 补 `status` 字段；loadSessions 接入
+- **回归测试**：SORT-05（进行中最前）+ SORT-06（未开始升序）+ SORT-07（已结束降序）+ SORT-08（coach-home 引用静态断言）；全量 186/186 绿 + TZ=UTC 全绿
+- **防护层**：L3 用户需求驱动；修复后 SORT-05~07 真实断言 + SORT-08 防回退。**教训：与 #36 同源——列表排序是展示契约，前端显式排序 + 纯函数模块可测**
+
+---
+
+## #41 GET /api/users 返回空对象数组——async map 未 await（Promise 数组序列化）
+
+- **发现**：2026-08-17，排查 #40（教练档案不存在）时探测生产 API 发现
+- **现象**：生产 GET /api/users 返回 `{"users":[{},{},{},{},{}]}`——5 个用户但字段全空；本地测试 AUTH-05 假绿（只断言 Array.isArray）
+- **根因**：index.js handleUsers `users.map(toPublicUser)`——toPublicUser 是 async 函数，map 返回 Promise 数组，未 await 就被 sendJson 序列化（JSON.stringify 对 Promise 输出 {}）
+- **修复**：`await Promise.all(users.map(toPublicUser))`
+- **回归测试**：AUTH-05b 新增字段断言（首个用户 openid/nickname 非空），杜绝"空对象数组"假绿；全量 186/186 绿
+- **防护层**：L3 生产探测发现；修复后 AUTH-05b 直接拦截同类回归。**教训：async 函数放进 map 必须 Promise.all；"数组长度断言"无法发现元素为空的回归**
+
+---
+
+## #40 教练入口登录报"教练档案不存在"——coaches.user_openid 从未绑定
+
+- **发现**：2026-08-17，用户反馈（#13 疑似同根因）
+- **现象**：登录页选教练入口进入 → 教练工作台「我的学员」报「教练档案不存在」（GET /api/coach/students 404）
+- **根因**：生产 coaches 表喻馥雅(id=1)/马春艳(id=2) 的 user_openid 均为 NULL——从未通过 coach-assign 绑定；教练账号登录后 findCoachByOpenid 查不到档案
+- **修复**：#41 修复后从 /api/users 取教练账号 openid → 带 Admin-Token 调 POST /api/admin/coach-assign 绑定 coaches#1（喻馥雅）→ 用户重新登录验证
+- **回归测试**：COACH-07 系（本地已有绑定用例）+ 部署后生产探测（/api/coach/students 不再 404）
+- **防护层**：L3 真机发现；防护=部署后生产探测判据。**教训：coaches 档案与用户账号是两张表两套数据，部署/迁移不自动绑定；新环境上线后必须做教练绑定初始化**
+
+---
+
 ## #39 签到码页「刷新签到码」按钮无实际作用（重画同码，误导用户）
 
 - **发现**：2026-08-17，用户反馈「点刷新后二维码未变化，是否考虑去掉按钮」

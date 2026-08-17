@@ -261,6 +261,20 @@ async function runSuite() {
   const done = sortCompleted(sample);
   check('SORT-03', '已完成按日期+结束时间降序（刚结束在前）', JSON.stringify(done.map(x => x.name)) === JSON.stringify(['a', 'd', 'b', 'c']), '已完成应: a(8/20 11:00) d(8/19 23:00) b(8/18 16:00) c(8/18 10:00)');
   check('SORT-04', '页面引用排序模块（#36 防回退）', /session-sort\.js/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-my-courses', 'index.js'), 'utf8')), 'student-my-courses 须引用 utils/session-sort.js');
+  // SORT-05~08：教练工作台三态排序（BUGS-INBOX #42：进行中 → 未开始越近越前 → 已结束刚结束在前）
+  const { sortCoachSessions } = require(path.join(PROJECT_ROOT, 'miniprogram', 'utils', 'session-sort.js'));
+  const coachMix = [
+    { date: '2026-08-17', start_time: '10:00', status: 'ended', name: 'e1' },
+    { date: '2026-08-17', start_time: '21:00', status: 'upcoming', name: 'u2' },
+    { date: '2026-08-17', start_time: '18:00', status: 'ongoing', name: 'g1' },
+    { date: '2026-08-17', start_time: '16:00', status: 'ended', name: 'e2' },
+    { date: '2026-08-17', start_time: '19:00', status: 'upcoming', name: 'u1' }
+  ];
+  const cs = sortCoachSessions(coachMix);
+  check('SORT-05', '教练三态排序：进行中最前', cs[0].name === 'g1', '进行中必须最前，got=' + (cs[0] && cs[0].name));
+  check('SORT-06', '未开始按开始时间升序（越近越前）', JSON.stringify(cs.slice(1, 3).map(x => x.name)) === JSON.stringify(['u1', 'u2']), '未开始应: u1(19:00) u2(21:00)');
+  check('SORT-07', '已结束按开始时间降序（刚结束在前）', JSON.stringify(cs.slice(3).map(x => x.name)) === JSON.stringify(['e2', 'e1']), '已结束应: e2(16:00) e1(10:00)——开始时间越晚越前');
+  check('SORT-08', '教练工作台引用三态排序（#42 防回退）', /sortCoachSessions/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'coach-home', 'index.js'), 'utf8')), 'coach-home 须调用 sortCoachSessions');
 
   // PASSES-01: passes.js 档位种子自守门闩（防 #30 回退：模块加载期查表早于 MySQL 建表）
   const passesSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', 'passes.js'), 'utf8');
@@ -295,6 +309,7 @@ async function runSuite() {
   check('AUTH-04', '更新资料', ok(r, 200), `msg=${r.data && r.data.message}`);
   r = await req('GET', '/api/users');
   check('AUTH-05', '用户列表', ok(r, 200) && Array.isArray(r.data.users), `count=${r.data && r.data.users && r.data.users.length}`);
+  check('AUTH-05b', '用户列表字段非空（#41：async map 必须 await，禁 Promise 数组假绿）', ok(r, 200) && r.data.users.length >= 1 && !!r.data.users[0].openid && !!r.data.users[0].nickname, `first=${r.data && r.data.users && r.data.users[0] && JSON.stringify({ o: !!r.data.users[0].openid, n: !!r.data.users[0].nickname })}`);
   r = await req('GET', '/api/users/stats');
   check('AUTH-06', '用户统计', ok(r, 200) && r.data.totalUsers >= 0, `total=${r.data && r.data.totalUsers}`);
   // 创建其余测试用户

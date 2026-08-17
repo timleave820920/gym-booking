@@ -3,6 +3,7 @@ const app = getApp();
 const i18n = require('../../utils/i18n.js');
 const courseStatus = require('../../utils/course-status.js');
 const { isValidCode, normalizeCode } = require('../../utils/checkin-code.js');
+const { sortCoachSessions } = require('../../utils/session-sort.js'); // #42 课程三态排序
 
 const DEFAULT_AVATAR = '/images/2_1468.png';   // 学员未设头像占位
 // 签到窗口（与后端一致 DESIGN #D1）：开课前 30 分钟 ～ 课后 30 分钟
@@ -114,7 +115,7 @@ Page({
     this.loadSessions();
   },
 
-  // 拉取选中日期该教练的场次（按周取数据本地过滤）
+  // 拉取选中日期该教练的场次（按周取数据本地过滤；#42 三态排序：进行中→未开始→已结束）
   loadSessions() {
     const coachId = this.data.coach.id;
     if (!coachId) return;
@@ -125,9 +126,9 @@ Page({
     const to = `${toD.getFullYear()}-${pad(toD.getMonth() + 1)}-${pad(toD.getDate())}`;
     this.setData({ loading: true, offline: false });
     api.getCoachSessions(coachId, from, to).then((res) => {
-      const list = (res.sessions || [])
+      const list = sortCoachSessions((res.sessions || [])
         .filter(s => s.date === this.data.selectedDate)
-        .map(s => this.decorateSession(s));
+        .map(s => this.decorateSession(s)));
       this.setData({ sessions: list, loading: false });
     }).catch(() => {
       this.setData({ loading: false, offline: true, sessions: [] });
@@ -154,6 +155,7 @@ Page({
       enrolled: s.booked_count || 0,
       capacity: s.capacity || 0,
       checkinOpen,
+      status: st,       // #42 排序键：ongoing/upcoming/ended
       statusText
     };
   },

@@ -2,6 +2,9 @@
 
 > 输入「bug：xxx」自动登记（UserPromptSubmit 钩子捕获）；描述不清我会追问。
 > 状态：⬜ 待确认 ｜ ⏳ 修复中 ｜ ✅ 已修复（登记 BUG-LEDGER #N）
+- [x] #42（2026-08-17）教练工作台，我的课程页面，课程排序方式：1）当前正在进行的课程；2）未来的课程，越近的越靠前；3）已经结束的课程，越近的越靠前 → ✅ 已修复（BUG-LEDGER #42：session-sort.js 新增 sortCoachSessions 三态排序——进行中→未开始升序→已结束降序；SORT-05~08 回归，186/186 绿）
+- [x] #41（2026-08-17，排查 #40 时探测发现）GET /api/users 返回空对象数组——index.js:245 `users.map(toPublicUser)` 中 toPublicUser 为 async 函数，map 未 await → Promise 数组序列化为 `[{},{}...]`（JSON.stringify 对 Promise 输出 {}）。本地 AUTH-05 只断言数组长度所以假绿。→ ✅ 已修复（BUG-LEDGER #41：await Promise.all + AUTH-05b 字段断言防假绿，186/186 绿）
+- [ ] #40（2026-08-17）通过前端登录页面的教练入口进入，报错"教练档案不存在"。→ ⏳ 修复中（BUG-LEDGER #40 已登记：coaches.user_openid 未绑定；#41 部署后查 openid → coach-assign 绑定喻馥雅）
 - [x] #39（2026-08-17）签到二维码刷新有什么意义？现在点刷新后二维码未变化。是否考虑去掉刷新二维码的按钮？→ ✅ 已修复（BUG-LEDGER #39：删 WXML 按钮 + refreshCode 方法；FRONT-04 防回退）
 - [ ] #41（2026-08-17，排查 #40 时探测发现）GET /api/users 返回空对象数组——index.js:245 `users.map(toPublicUser)` 中 toPublicUser 为 async 函数，map 未 await → Promise 数组序列化为 `[{},{}...]`（JSON.stringify 对 Promise 输出 {}）。本地 AUTH-05 只断言数组长度所以假绿。修复方向：`await Promise.all(users.map(toPublicUser))`
 - [ ] #40（2026-08-17）通过前端登录页面的教练入口进入，报错"教练档案不存在"。→ 已排查：生产 coaches 表喻馥雅(id=1)/马春艳(id=2) 的 user_openid 均为 NULL（从未 coach-assign 绑定），教练账号登录后 GET /api/coach/students 404；与 #13 同根因。修复依赖 #41（修好后从 /api/users 取教练 openid → 带 Admin-Token 调 coach-assign 绑定）

@@ -242,7 +242,9 @@ async function handleProfile(req, res) {
 
 async function handleUsers(req, res) {
   const users = await db.listUsers();
-  return sendJson(res, 200, { code: 200, users: users.map(toPublicUser) });
+  // BUGS-INBOX #41：toPublicUser 为 async，map 不 await 会得到 Promise 数组（序列化后全空对象）
+  const publics = await Promise.all(users.map(toPublicUser));
+  return sendJson(res, 200, { code: 200, users: publics });
 }
 
 async function handleStats(req, res) {
