@@ -70,7 +70,7 @@ cloudfunctions/  预留微信云开发（login/users），当前未启用（USE_
 
 minitest/   自研测试（无 jest/mocha）：run-tests.js 原生断言 + HTTP + 直连 SQL 验证；coverage.test.js 探针
 web/        设计稿 HTML 原型（不参与小程序构建）
-Dockerfile  微信云托管镜像（零 npm install；容器启动先 node seed.js 再 node index.js）
+Dockerfile  微信云托管镜像（零 npm install；容器启动 node index.js——先 listen 后建表再进程内幂等种子，seed 不阻塞启动，BUG-LEDGER #34 加固）
 ```
 
 **数据流**：小程序 `wx.cloud.callContainer`（云托管模式，`USE_TCB=true`，走微信私有协议无需配置合法域名）或 `wx.request`（本地/cpolar）→ `server/index.js` 路由 → `db/` 领域模块 → SQLite `server/data/gym.db`（WAL + 外键 + timeout=5000）。
