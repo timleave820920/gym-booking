@@ -131,6 +131,50 @@ function code2Session(code) {
   });
 }
 
+/**
+ * 手机号授权 code → 真实手机号（getPhoneNumber 组件，2026-08-18 B1 合规）
+ * 文档: https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-info/getPhoneNumber.html
+ * 前置：小程序需企业认证（个人主体调用返回 errcode 48001）——当前个人号阶段未认证，
+ * 调用失败返回 null，前端明确提示「企业认证后开放」，绝不回落假号（TODO 2026-08-18：假号 138****2210 已移除）。
+ * @returns {Promise<string|null>} 纯手机号（11 位），失败返回 null
+ */
+function getPhoneByCode(code) {
+  return new Promise((resolve) => {
+    if (!code || !WX_SECRET) return resolve(null);
+    // 1. 换 access_token（2 小时有效；登录场景调用量小，5000 次/天配额足够，暂不缓存）
+    const tokenUrl = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${WX_APPID}&secret=${WX_SECRET}`;
+    const req = https.get(tokenUrl, { rejectUnauthorized: !WECHAT_API_HOSTS.has(new URL(tokenUrl).hostname) }, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        let token = null;
+        try { token = JSON.parse(data).access_token; } catch (e) { /* 解析失败按无 token 处理 */ }
+        if (!token) return resolve(null);
+        // 2. 用 access_token 换手机号
+        const phoneUrl = `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${token}`;
+        const preq = https.request(phoneUrl, {
+          method: 'POST',
+          rejectUnauthorized: !WECHAT_API_HOSTS.has(new URL(phoneUrl).hostname)
+        }, (pres) => {
+          let pdata = '';
+          pres.on('data', chunk => { pdata += chunk; });
+          pres.on('end', () => {
+            try {
+              const j = JSON.parse(pdata);
+              resolve(j.errcode === 0 && j.phone_info ? j.phone_info.purePhoneNumber : null);
+            } catch (e) { resolve(null); }
+          });
+        });
+        preq.on('error', () => resolve(null));
+        preq.setTimeout(8000, () => { preq.destroy(); resolve(null); });
+        preq.end(JSON.stringify({ code }));
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(8000, () => { req.destroy(); resolve(null); });
+  });
+}
+
 function sendJson(res, status, data) {
   const body = JSON.stringify(data);
   res.writeHead(status, {
@@ -233,6 +277,23 @@ async function handleLogin(req, res) {
     wechatVerified,
     user: await toPublicUser(user)
   });
+}
+
+/**
+ * 手机号授权换号（POST /api/auth/phone-login，B1 合规 2026-08-18）
+ * getPhoneNumber 组件的 code 只能换一次且 5 分钟有效；前端拿到真实手机号后
+ * 再走 /api/auth/login（phone 字段落库）。未企业认证/调用失败 → 400 明确报错，
+ * 前端引导微信一键登录——不写假号（历史假号 138****2210 已停止写入）。
+ */
+async function handlePhoneLogin(req, res) {
+  const body = await readBody(req);
+  const { code } = body;
+  if (!code) return sendJson(res, 400, { code: 400, message: '缺少手机号授权 code' });
+  const phone = await getPhoneByCode(code);
+  if (!phone) {
+    return sendJson(res, 400, { code: 400, message: '手机号获取失败（需企业认证小程序，当前暂未开放），请使用微信一键登录' });
+  }
+  sendJson(res, 200, { code: 200, message: '手机号获取成功', phone });
 }
 
 async function handleProfile(req, res) {
@@ -1003,6 +1064,7 @@ async function toPublicUser(user) {
 // m: method ｜ p: 字符串精确路径 或 正则 ｜ f: handler(req, res, url)
 const API_ROUTES = [
   { m: 'POST',   p: '/api/auth/login',          f: async(q, r) => await handleLogin(q, r) },
+  { m: 'POST',   p: '/api/auth/phone-login',    f: async(q, r) => await handlePhoneLogin(q, r) },
   // 2026-08-15: 登录态检查（已注册用户启动小程序免登录直达首页）
   { m: 'GET',    p: '/api/auth/check',          f: async(q, r, u) => {
       const openid = u.searchParams.get('openid');

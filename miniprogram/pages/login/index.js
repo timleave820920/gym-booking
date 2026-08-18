@@ -328,6 +328,8 @@ Page({
   },
 
   // ===== 手机号快捷登录 =====
+  // 2026-08-18 B1 合规：code 发后端换真实手机号（企业认证后生效）；未认证/失败
+  // 明确提示并引导微信一键登录——不再写假号（历史：本地模拟写 138****2210 已移除）
   async phoneLogin(e) {
     if (!this.checkAgree()) return;
     const ok = await this.requirePrivacy();   // 异步检测：未同意则弹窗并中断
@@ -339,35 +341,21 @@ Page({
 
     const detail = e.detail || {};
     if (detail.errMsg && detail.errMsg.indexOf('ok') > -1 && detail.code) {
-      // 真实环境：code 发给后端换手机号
       this.setData({ loggingIn: true });
-      setTimeout(() => {
+      api.phoneLogin(detail.code).then((r) => {
+        // 拿到真实手机号 → 走统一登录（phone 落库）
         this.finishLogin({
           avatar: '/images/2_556.png',
           name: '微信用户',
-          phone: '138****2210'
+          phone: r.phone
         });
-      }, 600);
-    } else {
-      // 未认证/拒绝 → 演示模式模拟问询
-      wx.showModal({
-        title: '手机号快捷登录',
-        content: '是否允许使用微信绑定的手机号登录本小程序？',
-        confirmText: '允许',
-        cancelText: '拒绝',
-        success: (res) => {
-          if (res.confirm) {
-            this.setData({ loggingIn: true });
-            setTimeout(() => {
-              this.finishLogin({
-                avatar: '/images/2_556.png',
-                name: '微信用户',
-                phone: '138****2210'
-              });
-            }, 600);
-          }
-        }
+      }).catch((err) => {
+        this.setData({ loggingIn: false });
+        wx.showToast({ title: (err && err.message) || '手机号登录暂未开放', icon: 'none' });
       });
+    } else {
+      // 拒绝授权 → 引导微信一键登录
+      wx.showToast({ title: '请使用微信一键登录', icon: 'none' });
     }
   },
 

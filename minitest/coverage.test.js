@@ -86,6 +86,9 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     assert.equal(r.status, 201, '注册教练');
     r = await req('GET', '/api/users/stats?openid=' + U1.openid);
     assert.equal(r.data.code, 200, '用户统计');
+    // 手机号换号（B1 合规 2026-08-18：未企业认证 → 400，不写假号）
+    r = await req('POST', '/api/auth/phone-login', { code: 'fake' });
+    assert.ok(r.status === 400, '手机号换号未认证 → 400');
 
     // ---- 02 课程与场次 ----
     r = await req('GET', '/api/courses');

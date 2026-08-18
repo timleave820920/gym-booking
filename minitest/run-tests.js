@@ -440,6 +440,13 @@ async function runSuite() {
   check('AUTH-07b', '客户端 openid 未被静默注册',
     !(r.data.users || []).some(u => u.openid === 'uid_test_nofallback'),
     `users=${(r.data.users || []).map(u => u.openid).join(',')}`);
+  // 手机号登录（B1 合规 2026-08-18：未企业认证/调用失败 → 400 明确报错，绝不写假号）
+  r = await req('POST', '/api/auth/phone-login', {});
+  check('AUTH-08', '手机号换号缺 code → 400', r.status === 400 && (r.data.message || '').includes('code'), `msg=${r.data && r.data.message}`);
+  r = await req('POST', '/api/auth/phone-login', { code: 'fake_phone_code' });
+  check('AUTH-09', '手机号换号失败 → 400 明确报错（不回落假号）',
+    r.status === 400 && (r.data.message || '').includes('手机号'),
+    `status=${r.status} msg=${r.data && r.data.message}`);
   r = await req('POST', '/api/auth/profile', { openid: T.user1.openid, nickname: '田立新版', avatar: 'x' });
   check('AUTH-04', '更新资料', ok(r, 200), `msg=${r.data && r.data.message}`);
   r = await req('GET', '/api/users');

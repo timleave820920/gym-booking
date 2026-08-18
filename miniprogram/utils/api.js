@@ -65,6 +65,11 @@ module.exports = {
     return localRequest('/api/auth/login', 'POST', data);
   },
 
+  // 手机号授权 code → 真实手机号（2026-08-18 B1 合规；企业认证后生效，未认证返回 400 明确报错）
+  phoneLogin(code) {
+    return localRequest('/api/auth/phone-login', 'POST', { code });
+  },
+
   // 2026-08-15: 登录态检查（已注册用户启动直达首页，免登录页）
   checkLogin(openid) {
     return localRequest('/api/auth/check?openid=' + openid, 'GET');
