@@ -6,6 +6,7 @@ const courseStatus = require('../../utils/course-status.js');
 const sessionCache = require('../../utils/session-cache.js');
 const { getGreeting } = require('../../utils/greeting.js');
 const { buildWeekDays } = require('../../utils/week-bar.js');
+const track = require('../../utils/track.js');   // 浏览埋点（DESIGN #D5）
 
 const DEFAULT_COVER = '/images/2_193.png';       // 课程未设封面时的占位图
 const DEFAULT_COACH_AVATAR = '/images/2_1468.png'; // 教练未设头像时的占位图
@@ -39,6 +40,8 @@ Page({
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 0 });
     }
+    // 浏览埋点：首页曝光（DESIGN #D5）
+    track.pageView('home');
     // 每次显示刷新问候语（登录授权后立即生效）
     this.refreshUser();
     // 每次回到本页重新拉取数据（订课后余位/席位实时更新）
@@ -78,6 +81,8 @@ Page({
     const keyword = (e.detail.value || '').trim();
     this.setData({ searchKeyword: keyword });
     this.refreshSearch();
+    // 浏览埋点：搜索关键词（防抖 1s，DESIGN #D5）
+    track.search(keyword);
   },
 
   onSearchClear() {
@@ -229,7 +234,9 @@ Page({
       return;
     }
     if (e.currentTarget.dataset.disabled) return; // 进行中/已结束（未预订）不可点击；已预订可进详情
-    wx.navigateTo({ url: `/pages/student-course-detail/index?session_id=${id}` });
+    // source 透传埋点来源（DESIGN #D5）：搜索中进入=search，否则=home
+    const source = this.data.searchKeyword ? 'search' : 'home';
+    wx.navigateTo({ url: `/pages/student-course-detail/index?session_id=${id}&source=${source}` });
   },
 
   // 课程条上点教练头像 → 教练介绍页（catchtap 已阻止冒泡，不影响进详情）

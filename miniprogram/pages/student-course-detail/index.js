@@ -3,6 +3,7 @@ const api = require('../../utils/api.js');
 const app = getApp();
 const i18n = require('../../utils/i18n.js');
 const courseStatus = require('../../utils/course-status.js');
+const track = require('../../utils/track.js');   // 浏览埋点（DESIGN #D5）
 
 const DEFAULT_COVER = '/images/2_193.png'; // 课程未设封面时的占位图
 const DEFAULT_ADDRESS = '成都市成华区好事健身馆';
@@ -28,6 +29,8 @@ Page({
 
   onLoad(options) {
     this.setData({ t: i18n.t() });
+    // 埋点来源透传（DESIGN #D5）：列表页 goDetail 带 source=home/search
+    this._source = options.source || 'home';
     const sessionId = Number(options.session_id || 0);
     if (sessionId) {
       // 真实场次（来自课程列表）
@@ -42,7 +45,20 @@ Page({
 
   // 订完课从支付页返回时刷新预约状态（BUG-LEDGER #35：缺 onShow 刷新导致订课后仍显示"立即预订"）
   onShow() {
+    this._viewStart = Date.now(); // 埋点：停留时长起点（DESIGN #D5）
     if (this._sessionId) this.loadSession(this._sessionId);
+  },
+
+  // 浏览埋点：离开详情页上报（含停留毫秒）；支付页跳转同样触发，语义为"本次浏览结束"
+  onHide() { this.reportCourseView(); },
+
+  onUnload() { this.reportCourseView(); },
+
+  reportCourseView() {
+    if (!this._sessionId || !this._viewStart) return;
+    const duration = Date.now() - this._viewStart;
+    this._viewStart = null; // 防 onHide+onUnload 双发
+    track.courseView(this._sessionId, duration, this._source);
   },
 
   // 从后端拉取场次详情

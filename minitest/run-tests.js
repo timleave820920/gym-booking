@@ -327,6 +327,15 @@ async function runSuite() {
     /function uaLoad/.test(webHtml) && /uaTimeline/.test(webHtml)
       && /ua-msgbox/.test(webHtml) && /uaSendMsg/.test(webHtml) && /uaExport/.test(webHtml),
     '用户分析：筛选清单 uaLoad、时间线钻取 uaTimeline、群组触达 uaSendMsg、CSV uaExport');
+  // DESIGN #D5 浏览埋点防回退：首页 page_view 曝光/搜索词、详情 course_view 停留时长（onHide/onUnload 上报）
+  const d5DetailJs = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.js'), 'utf8');
+  check('FRONT-20', '浏览埋点防回退（DESIGN #D5：首页曝光/搜索词/详情停留时长）',
+    /require\('\.\.\/\.\.\/utils\/track\.js'\)/.test(coursesSrc)
+      && /track\.pageView\('home'\)/.test(coursesSrc) && /track\.search\(/.test(coursesSrc)
+      && /searchKeyword \? 'search' : 'home'/.test(coursesSrc)
+      && /require\('\.\.\/\.\.\/utils\/track\.js'\)/.test(d5DetailJs)
+      && /track\.courseView\(/.test(d5DetailJs) && /reportCourseView/.test(d5DetailJs),
+    '首页 page_view 曝光+search 关键词、详情 course_view 停留时长（onHide/onUnload 上报）');
   // 2026-08-18 UI 统一批（BUG-LEDGER #51/#53/#54/#55）：后退按钮统一 back-wrap 箭头；
   // 分享必须用 button open-type="share"（view 不触发转发）；低版本基础库降级相册；等级页文案
   const detailWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.wxml'), 'utf8');

@@ -331,5 +331,11 @@ module.exports = {
   },
   getMyExchanges(openid) {
     return localRequest('/api/coin/exchanges?openid=' + openid, 'GET');
+  },
+
+  // ===== 浏览埋点（DESIGN #D5）=====
+  // 批量上报用户行为事件（track.js 攒批调用；白名单外事件服务端静默丢弃）
+  trackBatch(data) {
+    return localRequest('/api/track/batch', 'POST', data);
   }
 };
