@@ -30,6 +30,7 @@ const { driver } = require('./db');
 const { logOp } = require('./logger');
 const { isWxpayEnabled, getNotifyUrl } = require('./wxpay-config');
 const time = require('./time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
+const cos = require('./cos.js');   // 图片存储方言：本地写盘 / 生产 COS（COS 迁移 2026-08-18）
 
 // ===== 加载 .env（WX_APPID / WX_SECRET / PORT 等；不覆盖已存在的环境变量）=====
 // 2026-08-14 添加：真机朋友测试需要真实 openid，secret 放 server/.env（gitignore，不入库）
@@ -927,11 +928,14 @@ async function handleRevenue(req, res) {
 
 // 下拉选项元数据
 async function handleMeta(req, res) {
-  const imgDir = path.join(__dirname, '..', 'miniprogram', 'images');
+  // COS 模式（生产）容器盘无图库目录——封面由上传接口提供完整 URL 后直接用，目录列举仅本地开发用
   let images = [];
-  try {
-    images = fs.readdirSync(imgDir).filter(f => /\.(png|jpg|jpeg|webp)$/i.test(f)).map(f => `/images/${f}`);
-  } catch (e) { /* 目录不存在则空 */ }
+  if (!cos.isCos()) {
+    const imgDir = path.join(__dirname, '..', 'miniprogram', 'images');
+    try {
+      images = fs.readdirSync(imgDir).filter(f => /\.(png|jpg|jpeg|webp)$/i.test(f)).map(f => `/images/${f}`);
+    } catch (e) { /* 目录不存在则空 */ }
+  }
   return sendJson(res, 200, {
     code: 200,
     coaches: await db.listCoaches(),
@@ -1021,7 +1025,7 @@ async function handlePublishCourse(req, res, id, body) {
 }
 
 // ===== 图片上传（课程封面等，存到 miniprogram/images/）=====
-function handleUpload(req, res, body) {
+async function handleUpload(req, res, body) {
   const { name, data, dir } = body || {};
   if (!name || !data) return sendJson(res, 400, { code: 400, message: '缺少文件名称或内容' });
   const ext = path.extname(name).toLowerCase();
@@ -1037,13 +1041,11 @@ function handleUpload(req, res, body) {
   }
   const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}${ext}`;
   // dir=uploads → server/uploads（服务器端资源，不随小程序包发布，用于详情页轮播图）
-  const imgDir = dir === 'uploads'
-    ? path.join(__dirname, 'uploads')
-    : path.join(__dirname, '..', 'miniprogram', 'images');
-  if (!fs.existsSync(imgDir)) fs.mkdirSync(imgDir, { recursive: true });
-  fs.writeFileSync(path.join(imgDir, fileName), buf);
-  const urlPrefix = dir === 'uploads' ? '/uploads/' : '/images/';
-  return sendJson(res, 200, { code: 200, path: urlPrefix + fileName, message: '上传成功' });
+  // 生产 COS 模式（COS 迁移 2026-08-18）：存对象存储并返回完整 COS URL（前端 toFullUrl 原样放行）
+  const relPath = (dir === 'uploads' ? 'uploads/' : 'images/') + fileName;
+  await cos.saveImage(relPath, buf);
+  const pathOrUrl = cos.toImageUrl('/' + relPath);
+  return sendJson(res, 200, { code: 200, path: pathOrUrl, message: '上传成功' });
 }
 
 // ===== 微信头像下载转存（2026-08-15）=====
@@ -1061,7 +1063,7 @@ function handleAvatarDownload(req, res, body) {
     }
     const chunks = [];
     res2.on('data', c => chunks.push(c));
-    res2.on('end', () => {
+    res2.on('end', async () => {
       try {
         const buf = Buffer.concat(chunks);
         if (buf.length === 0 || buf.length > 512 * 1024) {
@@ -1073,10 +1075,9 @@ function handleAvatarDownload(req, res, body) {
         }
         const ext = (ct.split('/')[1] || 'png').replace('jpeg', 'jpg');
         const fileName = `avatar_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
-        const imgDir = path.join(__dirname, '..', 'miniprogram', 'images');
-        if (!fs.existsSync(imgDir)) fs.mkdirSync(imgDir, { recursive: true });
-        fs.writeFileSync(path.join(imgDir, fileName), buf);
-        sendJson(res, 200, { code: 200, path: '/images/' + fileName, message: '头像转存成功' });
+        // 生产 COS 模式存对象存储（头像不随容器重建丢损）；本地写盘行为不变
+        await cos.saveImage('images/' + fileName, buf);
+        sendJson(res, 200, { code: 200, path: cos.toImageUrl('/images/' + fileName), message: '头像转存成功' });
       } catch (e) {
         sendJson(res, 500, { code: 500, message: '转存失败: ' + e.message });
       }
@@ -1260,9 +1261,9 @@ async function handleSessionDetail(req, res, id) {
     }
     result = { ...result, booked_by_me: !!booked, waitlisted_by_me: !!waited, my_wait_position: myWaitPos };
   }
-  // 轮播图 JSON → 数组；已预约用户（预约墙头像+昵称）
+  // 轮播图 JSON → 数组（COS 模式下存储路径转完整 COS URL）；已预约用户（预约墙头像+昵称）
   let images = [];
-  try { images = JSON.parse(result.course_images || '[]'); } catch (e) { images = []; }
+  try { images = cos.toImageUrls(JSON.parse(result.course_images || '[]')); } catch (e) { images = []; }
   const bookedUsers = await db.listBookedUsersWithInfo(result.id, openid);
   return sendJson(res, 200, { code: 200, session: { ...result, images, bookedUsers } });
 }

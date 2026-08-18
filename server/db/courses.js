@@ -3,6 +3,7 @@
  */
 const { db, driver } = require('../db-core');
 const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
+const cos = require('../cos.js');   // 图片存储方言：封面路径转完整 COS URL（COS 迁移 2026-08-18）
 
 // 退订截止：课前 N 小时内不可退订（B3 2026-08-18 用户拍板：课前 2 小时截止，防占位）
 const CANCEL_CUTOFF_HOURS = 2;
@@ -274,7 +275,8 @@ async function listSessionsByDateForUser(date, openid) {
   // 全部场次排队人数一次聚合（GROUP BY 一条 SQL，禁止 N+1 循环查询）
   const waitCounts = await driver.all("SELECT session_id, COUNT(*) c FROM waitlist WHERE status = 'waiting' GROUP BY session_id");
   const waitCountMap = new Map(waitCounts.map(r => [r.session_id, r.c]));
-  const withCounts = sessions.map(s => ({ ...s, waitlist_count: waitCountMap.get(s.id) || 0 }));
+  // 封面路径转完整 URL（COS 模式；本地原样，行为不变）
+  const withCounts = sessions.map(s => ({ ...s, cover: cos.toImageUrl(s.cover), waitlist_count: waitCountMap.get(s.id) || 0 }));
   if (!openid) return withCounts;
   // 查该用户已预订的场次 id 集合（仅 booked 状态）
   const bookedRows = await driver.all("SELECT session_id FROM bookings WHERE user_openid = ? AND status = 'booked'", [openid]);

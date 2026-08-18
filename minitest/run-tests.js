@@ -446,6 +446,10 @@ async function runSuite() {
   check('ADMIN-20b', '列表反映编辑（bio/skills/avatar 字段）',
     !!(edited && edited.bio === '管理页编辑测试简介' && edited.skills === 'Hybrid综合体能,产后康复' && edited.avatar === '/images/2_1468.png'),
     `bio=${edited && edited.bio}`);
+  // COS 方言（2026-08-18 迁移）：未配置 COS_* 环境变量 → 上传仍写磁盘返回相对路径（本地/CI 行为不变）
+  r = await req('POST', '/api/upload', { name: 'cos_test.jpg', data: 'data:image/jpeg;base64,' + Buffer.from('fakejpegdata').toString('base64') });
+  check('COS-01', '未配置 COS 上传走磁盘（相对路径）',
+    ok(r, 200) && /^\/images\//.test(r.data.path), `path=${r.data && r.data.path}`);
   r = await req('PUT', '/api/admin/coaches/999', { bio: 'x' });
   check('ADMIN-21', '不存在的档案 → 400', r.status === 400 && (r.data.message || '').includes('不存在'), `msg=${r.data && r.data.message}`);
   r = await req('PUT', '/api/admin/coaches/1', { name: '  ' });
