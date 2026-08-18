@@ -2,6 +2,7 @@
 
 > 输入「bug：xxx」自动登记（UserPromptSubmit 钩子捕获）；描述不清我会追问。
 > 状态：⬜ 待确认 ｜ ⏳ 修复中 ｜ ✅ 已修复（登记 BUG-LEDGER #N）
+- [x] #59（2026-08-18）用户完成完善画像，点了保存后，弹框恭喜玩家获得能量币。然后玩家画像就不再显示了。→ **用户澄清（2026-08-18）：非 bug，转功能需求——画像卡一次性表单**：用户填写保存后整卡不再出现（已填用户进页也不显示）；用户拍板保留轻量入口（「🎯 资料与生日 ›」菜单行，openProfileEditor 展开编辑，满足 PIPL 更正权）。✅ 已实施：WXML `wx:if="{{profile && (!profileSaved || profileEditing)}}"` + 入口行；JS data 声明 profileEditing + openProfileEditor + saveProfile 成功后收起；saveProfile 兜底 `res.profile || this.data.profile`；FRONT-21b 防回退断言。357/357 绿。
 - [x] #58（2026-08-18）后台的四个 tab 顺序：运营数据，课程设定，排课系统，教练分配（当前顺序与要求不符，待批准后修）→ ✅ 已修复（BUG-LEDGER #58：nav 顺序+active 移至运营数据+「排表管理」更名「排课系统」+init 默认 switchTab('board')；FRONT-24 回归，352/352 绿）
 - [x] #42（2026-08-17）教练工作台，我的课程页面，课程排序方式：1）当前正在进行的课程；2）未来的课程，越近的越靠前；3）已经结束的课程，越近的越靠前 → ✅ 已修复（BUG-LEDGER #42：session-sort.js 新增 sortCoachSessions 三态排序——进行中→未开始升序→已结束降序；SORT-05~08 回归，186/186 绿）
 - [x] #41（2026-08-17，排查 #40 时探测发现）GET /api/users 返回空对象数组——index.js:245 `users.map(toPublicUser)` 中 toPublicUser 为 async 函数，map 未 await → Promise 数组序列化为 `[{},{}...]`（JSON.stringify 对 Promise 输出 {}）。本地 AUTH-05 只断言数组长度所以假绿。→ ✅ 已修复（BUG-LEDGER #41：await Promise.all + AUTH-05b 字段断言防假绿，186/186 绿）

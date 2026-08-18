@@ -394,6 +394,13 @@ async function runSuite() {
       && /getMyProfile\(/.test(pfSrc) && /updateMyProfile\(/.test(pfSrc)
       && /完善画像奖励/.test(pfSrc),
     '画像卡须含性别三选/生日 picker/保存按钮；JS 加载 GET 画像并 PUT 保存（首次奖励提示）');
+  // 2026-08-18 一次性画像卡（#59 转需求，用户拍板）：保存后整卡隐藏（wx:if 含 !profileSaved || profileEditing），
+  // 仅留「资料设置」入口行（openProfileEditor）展开编辑——PIPL 更正权
+  check('FRONT-21b', '一次性画像卡防回退（保存后隐藏+轻量入口）',
+    /!profileSaved \|\| profileEditing/.test(pfWxml) && /profile-entry/.test(pfWxml)
+      && /profileSaved && !profileEditing/.test(pfWxml)
+      && /openProfileEditor/.test(pfSrc) && /profileEditing: false/.test(pfSrc),
+    '画像卡 wx:if 须含 !profileSaved||profileEditing（保存后隐藏）；入口行 profile-entry + openProfileEditor 展开');
   // 2026-08-18 UI 统一批（BUG-LEDGER #51/#53/#54/#55）：后退按钮统一 back-wrap 箭头；
   // 分享必须用 button open-type="share"（view 不触发转发）；低版本基础库降级相册；等级页文案
   const detailWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.wxml'), 'utf8');

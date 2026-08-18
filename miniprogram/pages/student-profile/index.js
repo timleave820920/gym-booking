@@ -8,6 +8,7 @@ Page({
     member: null,        // 会员卡数据（等级/余额/升级提示）
     coinBalance: 0,
     passInfo: { hasPass: false },   // 次数包信息（剩余次数/过期天数）
+    profileEditing: false,          // 一次性画像卡编辑开关（2026-08-18：保存后整卡隐藏，点「资料设置」展开）
     menus: [
       [
         { icon: 'check', name: '我的课程', url: '/pages/student-orders/index?type=course' },
@@ -78,9 +79,15 @@ Page({
         profile: p,
         genderSel: p.gender,
         birthdaySel: p.birthday || '',
-        profileSaved: !!(p.gender || p.birthday)
+        profileSaved: !!(p.gender || p.birthday),
+        profileEditing: false   // 已填用户进页不展开（一次性；入口行可再展开）
       });
     }).catch(() => {});
+  },
+
+  // 一次性画像卡入口：已填用户点「资料设置」重新展开编辑（PIPL 更正权，2026-08-18 用户拍板）
+  openProfileEditor() {
+    this.setData({ profileEditing: true });
   },
 
   onGenderTap(e) {
@@ -102,7 +109,8 @@ Page({
       return;
     }
     api.updateMyProfile({ openid, gender, birthday }).then((res) => {
-      this.setData({ profile: res.profile, profileSaved: true });
+      // 保存成功后整卡隐藏（一次性表单），入口行代之（2026-08-18 用户拍板）
+      this.setData({ profile: res.profile || this.data.profile, profileSaved: true, profileEditing: false });
       if (res.bonusCoins > 0) {
         wx.showToast({ title: `完善画像奖励 ${res.bonusCoins} 能量币`, icon: 'success' });
         this.loadBalance();  // 刷新能量币余额

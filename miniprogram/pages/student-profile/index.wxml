@@ -81,8 +81,10 @@
       </view>
     </view>
 
-    <!-- 社交画像卡（DESIGN #D5-3）：性别/生日自填 → 首次送 20 能量币 + 生日月首订 8 折 -->
-    <view class="profile-card" wx:if="{{profile}}">
+    <!-- 社交画像卡（DESIGN #D5-3）：性别/生日自填 → 首次送 20 能量币 + 生日月首订 8 折
+         一次性表单（2026-08-18 用户拍板）：保存成功后整卡隐藏；已填用户进页不显示，
+         通过下方「资料设置」轻量入口（openProfileEditor）重新展开编辑（PIPL 更正权） -->
+    <view class="profile-card" wx:if="{{profile && (!profileSaved || profileEditing)}}">
       <view class="profile-card-head">
         <text class="profile-card-title">🎯 完善画像</text>
         <text class="profile-card-sub" wx:if="{{!profileSaved}}">首次填写奖励 20 能量币</text>
@@ -104,6 +106,12 @@
       </view>
       <view class="profile-bday-tip" wx:if="{{profile.in_birthday_month}}">🎂 本月是您的生日月，首次订课享 8 折</view>
       <view class="profile-save" bindtap="saveProfile">保存画像</view>
+    </view>
+
+    <!-- 一次性画像卡：保存/已填后仅留轻量入口，点击重新展开编辑（2026-08-18 用户拍板） -->
+    <view class="menu-row flex-row profile-entry" wx:if="{{profileSaved && !profileEditing}}" bindtap="openProfileEditor">
+      <text>🎯 资料与生日</text>
+      <text class="profile-entry-arrow">›</text>
     </view>
 
     <!-- 菜单组 -->

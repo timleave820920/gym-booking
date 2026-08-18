@@ -130,6 +130,16 @@
 .menu-group .menu-row:last-child {
   border-bottom: none;
 }
+/* 一次性画像卡入口（2026-08-18：保存后整卡隐藏，仅留此轻量入口展开编辑） */
+.profile-entry {
+  justify-content: space-between;
+  color: var(--dark, #333);
+  font-size: 28rpx;
+}
+.profile-entry-arrow {
+  color: #C4BD9E;
+  font-size: 32rpx;
+}
 .menu-icon {
   width: 40rpx; height: 40rpx;
   margin-right: 24rpx;
