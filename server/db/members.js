@@ -115,10 +115,11 @@ async function applyRecharge({ user_openid, order_id, amount_fen, bonus_fen }) {
 
 /** 查询充值记录（分页：offset/limit，附带每条是否该档首充） */
 async function listRecharges(openid, offset = 0, limit = 10) {
+  // LIMIT/OFFSET 文本拼接：mysql2 execute 把 number 编码成 DOUBLE 绑定，MySQL LIMIT/OFFSET 需整数 → ER_WRONG_ARGUMENTS（BUG-LEDGER #60）
   const list = await driver.all(`
     SELECT id, recharge_no, amount_fen, bonus_fen, status, created_at
-    FROM member_recharges WHERE user_openid = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?
-  `, [openid, limit, offset]);
+    FROM member_recharges WHERE user_openid = ? ORDER BY created_at DESC, id DESC LIMIT ${Number(limit) || 10} OFFSET ${Number(offset) || 0}
+  `, [openid]);
   // 批量查各档最早一条（is_first = 该条是该档第一条）
   const firsts = new Set((await driver.all('SELECT MIN(id) m FROM member_recharges WHERE user_openid = ? GROUP BY amount_fen', [openid])).map(r => r.m));
   return list.map(r => ({ ...r, is_first: firsts.has(r.id) }));

@@ -293,7 +293,8 @@ async function regenerateReport(dateStr) {
 
 /** 最近 N 天报告列表（无 date 参数时用；只读已落库，不触发生成） */
 async function listReports(limit = 7) {
-  return driver.all('SELECT date, summary, generated_at FROM daily_reports ORDER BY date DESC LIMIT ?', [limit]);
+  // LIMIT 文本拼接：mysql2 execute 把 number 编码成 DOUBLE 绑定，MySQL LIMIT 需整数 → ER_WRONG_ARGUMENTS（BUG-LEDGER #60）
+  return driver.all(`SELECT date, summary, generated_at FROM daily_reports ORDER BY date DESC LIMIT ${Number(limit) || 7}`);
 }
 
 module.exports = { getDailyReport, regenerateReport, listReports, generateReport, streakOf, pctDelta };

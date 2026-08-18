@@ -53,10 +53,11 @@ async function getCoinInfo(openid) {
 
 /** 能量币流水 */
 async function listCoinLogs(openid, limit = 50) {
+  // LIMIT 文本拼接：mysql2 execute 把 number 编码成 DOUBLE 绑定，MySQL LIMIT 需整数 → ER_WRONG_ARGUMENTS（BUG-LEDGER #60）
   return await driver.all(`
     SELECT id, \`change\`, balance_after, reason, ref_id, created_at
-    FROM coin_logs WHERE user_openid = ? ORDER BY created_at DESC, id DESC LIMIT ?
-  `, [openid, limit]);
+    FROM coin_logs WHERE user_openid = ? ORDER BY created_at DESC, id DESC LIMIT ${Number(limit) || 50}
+  `, [openid]);
 }
 
 /** 商店奖品列表（含库存与已兑换数） */

@@ -32,7 +32,8 @@ async function broadcastMessage(m, openids) {
 async function listMessages(openid, page = 1) {
   const size = 20;
   const off = (Math.max(1, Number(page) || 1) - 1) * size;
-  return await driver.all('SELECT * FROM messages WHERE user_openid = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?', [openid, size, off]);
+  // LIMIT/OFFSET 文本拼接：mysql2 execute 把 number 编码成 DOUBLE 绑定，MySQL LIMIT/OFFSET 需整数 → ER_WRONG_ARGUMENTS（BUG-LEDGER #60）
+  return await driver.all(`SELECT * FROM messages WHERE user_openid = ? ORDER BY created_at DESC, id DESC LIMIT ${size} OFFSET ${off}`, [openid]);
 }
 
 /** 未读数 */

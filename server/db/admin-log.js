@@ -20,7 +20,9 @@ async function addAdminLog(action, detail = {}) {
 
 /** 最近 N 条管理操作日志（倒序） */
 async function listAdminLogs(limit = 50) {
-  return await driver.all('SELECT * FROM admin_logs ORDER BY id DESC LIMIT ?', [Number(limit) || 50]);
+  // LIMIT 文本拼接：mysql2 execute 把 number 一律编码成 DOUBLE 绑定，MySQL 的 LIMIT 需整数类型 → ER_WRONG_ARGUMENTS 500
+  // （BUG-LEDGER #60 连带；limit 来自 Number() 强转内部整数，无注入面）
+  return await driver.all(`SELECT * FROM admin_logs ORDER BY id DESC LIMIT ${Number(limit) || 50}`);
 }
 
 module.exports = { addAdminLog, listAdminLogs };

@@ -155,6 +155,9 @@ async function main() {
   let suiteFailed = 0;
   try {
     suiteFailed = await runSuite();
+  } catch (e) {
+    suiteFailed = 1; // 异常也视为失败：触发后端日志尾部打印后原样抛出
+    throw e;
   } finally {
     // ④ 清理：杀后端 + 删临时库（进程内 require 的 db 也指向临时库，一并释放）
     // 测试失败时打印后端日志尾部（排障利器：500 时 [server error] 可见，判断业务错 vs 连接池挂起）

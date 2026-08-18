@@ -36,10 +36,14 @@
 - **现象**：CI test-mysql job（MySQL 8 service，DB_DRIVER=mysql 跑全量）从出生起从未绿过：ADMIN-28b 500、WTL-06 退订转正失败、DASH-03 500、TypeError 级联崩溃、随后 10 分钟挂到 CI 超时。后端 stderr 被 run-tests `stdio:'ignore'` 丢弃，无法判断 500 是业务错还是连接池问题（2026-08-18 首次跑全量即发现）。
 - **根因**（双层）：
   1. **MysqlDriver.exec 事务拆散**：`exec('BEGIN'/'COMMIT'/'ROLLBACK')` 在 `pool.query()`（随机连接）上执行，事务内语句全走 `pool.execute()`（又是随机连接）——BEGIN 后的语句各自自动提交、COMMIT 落在无事务连接上（no-op），**开启事务的那条连接悬空在池里**，被后续请求随机复用（事务残留/锁等待），且事务内「读自己写」的语义完全失效。调用点：bookings.js checkinBooking/cancelBooking、coach.js assignCoach。订课主链路用 driver.tx()（正确单连接实现）所以订课测试绿——差异即证据。
-  2. **run-tests 主进程不退出**：main().catch 只设 process.exitCode，MySQL 模式 require 的 mysql2 连接池句柄阻塞进程结束 → 失败后挂到 CI 10 分钟超时。
+  2. **mysql2 execute 把 number 一律编码成 DOUBLE 绑定**（lib/packets/encode_parameter.js `toParameter` 实证）——MySQL 的 **LIMIT/OFFSET 必须整数类型**，DOUBLE 绑定直接 `ER_WRONG_ARGUMENTS` 500。5 处 `LIMIT ?`/`OFFSET ?`（操作日志/能量币流水/充值记录/消息列表/日报列表）全是雷，ADMIN-28b 是套件第一个撞雷点（时间线自洽：28b→28c→DASH-03 连环 500 后 TypeError 崩）。
+  3. **`read` 保留字裸别名**：dashboard.js `SUM(is_read) read` —— READ 是 MySQL reserved 关键字，裸别名语法报错（DASH-03 500）。
+  4. **run-tests 主进程不退出**：main().catch 只设 process.exitCode，MySQL 模式 require 的 mysql2 连接池句柄阻塞进程结束 → 失败后挂到 CI 10 分钟超时。
 - **修复**：
   1. **MysqlDriver 事务连接管理**：新增 `_txConn`——exec('BEGIN') 从池 getConnection + beginTransaction 绑定专用连接，期间 get/all/run/exec 经 `_target()` 复用该连接，COMMIT/ROLLBACK 提交/回滚后 release 归还；beginExclusive/getExclusive(FOR UPDATE) 走同一通道（#57b 并发防重用语义保持）；事务内重复 BEGIN 幂等，单连接包装（tx() 内）no-op。
-  2. **run-tests 落盘与退出**：后端 spawn stdio 改日志文件（启动失败/测试失败打印尾部，[server error] 可见）；main().catch 改 `process.exit(2)` 强制退出。
+  2. **LIMIT/OFFSET 改文本拼接**（5 处）：参数均来自 Number() 强转内部整数，无注入面；注释标明 mysql2 DOUBLE 编码坑防回退。
+  3. **`read` 别名改 `read_cnt`**（dashboard.js）。
+  4. **run-tests 落盘与退出**：后端 spawn stdio 改日志文件（启动失败/测试失败打印尾部，[server error] 可见）；main().catch 改 `process.exit(2)` 强制退出；异常路径也触发日志打印（catch 里 suiteFailed=1）。
 - **回归测试**：SQLite 352/352 + TZ=UTC 352/352 全绿（驱动行为对 SQLite 零变化）；CI test-mysql job 重新全量（此前必红，本次须绿）。
 - **防护层**：CI test-mysql 全量（MySQL 方言即生产方言，任何红都是真实缺陷）；run-tests 失败自动带后端日志尾部。兜底思路：**驱动层事务必须单连接承载**——BEGIN/COMMIT 与事务内语句同一连接是事务语义的前提，连接池随机分配只适用于无状态单语句；对事务 API 的测试必须在两种驱动下都真实跑过（本次 SQLite 全绿 + MySQL 全红 = 驱动方言测试缺口）。
 

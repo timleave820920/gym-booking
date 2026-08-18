@@ -162,7 +162,8 @@ async function getDashboard(dateStr) {
       COALESCE(SUM(CASE WHEN change < 0 THEN -change ELSE 0 END),0) spent
     FROM coin_logs WHERE date(created_at) = ?`, [day]);
   const exchanges = (await driver.get('SELECT COUNT(*) c FROM coin_exchanges WHERE date(created_at) = ?', [day])).c;
-  const msg = await driver.get(`SELECT COUNT(*) total, SUM(is_read) read FROM messages WHERE date(created_at) = ?`, [day]);
+  // 别名 read_cnt（read 是 MySQL reserved 关键字，裸别名语法报错；BUG-LEDGER #60）
+  const msg = await driver.get(`SELECT COUNT(*) total, SUM(is_read) read_cnt FROM messages WHERE date(created_at) = ?`, [day]);
   const members = await driver.all('SELECT level_lv, COUNT(*) c FROM users GROUP BY level_lv ORDER BY level_lv');
   const passes = await driver.get(`SELECT
       (SELECT COUNT(*) FROM user_passes WHERE date(created_at) = ?) bought,
@@ -204,7 +205,7 @@ async function getDashboard(dateStr) {
       system: {
         coins: { issued: coins.issued, spent: coins.spent, exchanges },
         msg_total: msg.total,
-        msg_read_rate: pct(msg.read, msg.total),
+        msg_read_rate: pct(msg.read_cnt, msg.total),
         members,
         passes: { bought: passes.bought, used: passes.used }
       }
