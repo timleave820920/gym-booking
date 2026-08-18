@@ -135,6 +135,10 @@ Page({
       return api.wxpayCreate({ orderId: res.order.id, openid });
     }).then((res) => {
       const p = res.payParams;
+      // 测试支付模式（后端 PAY_MOCK=1）：跳过 requestPayment，走 mock-notify 落库后轮询
+      if (res && (res.mock || (p && p.mock))) {
+        return api.wxpayMockNotify({ orderId: this._rechargingOrderId, openid }).then(() => true);
+      }
       if (!p || !p.package) throw { message: '微信支付参数异常，请重试' };
       return new Promise((resolve, reject) => {
         wx.requestPayment({

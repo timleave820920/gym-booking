@@ -280,6 +280,23 @@ Page({
   wxpayFlow(orderId, openid) {
     api.wxpayCreate({ orderId, openid }).then((res) => {
       const p = res.payParams;
+      // 测试支付模式（后端 PAY_MOCK=1 时 create 返回 mock 标记）：跳过 requestPayment，
+      // 走 mock-notify 落库（与真实回调同一钱闭环路径），再轮询订单至 paid
+      if (res && (res.mock || (p && p.mock))) {
+        api.wxpayMockNotify({ orderId, openid }).then(() => {
+          this.pollPaid(orderId, openid, 0);
+        }).catch((err) => {
+          this._paying = false;
+          wx.hideLoading();
+          wx.showModal({
+            title: '支付失败',
+            content: (err && err.message) || '支付确认失败，请重试',
+            showCancel: false,
+            confirmText: '知道了'
+          });
+        });
+        return;
+      }
       if (!p || !p.package) {
         this._paying = false;
         wx.hideLoading();

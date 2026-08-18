@@ -23,7 +23,9 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || (DB_PATH ? 'test-admin-token' : '
 // opts: { noToken: true 不带默认 Admin-Token; headers: {...} 附加/覆盖 header }
 function req(method, path, body, opts) {
   return new Promise((resolve, reject) => {
-    const url = BASE + path;
+    // opts.base 覆盖默认后端（WX-M 独立 mock 后端用，2026-08-18）
+    const base = (opts && opts.base) || BASE;
+    const url = base + path;
     const u = new URL(url);
     const isHttps = u.protocol === 'https:';
     const mod = isHttps ? require('node:https') : require('node:http');
@@ -129,7 +131,7 @@ async function main() {
     const port = 3100 + Math.floor(Math.random() * 500);
     child = spawn(process.execPath, ['server/index.js'], {
       cwd: PROJECT_ROOT,
-      env: { ...process.env, DB_PATH, PORT: String(port), WX_APPID: 'test_appid', WX_SECRET: 'test_secret', ADMIN_TOKEN },
+      env: { ...process.env, DB_PATH, PORT: String(port), WX_APPID: 'test_appid', WX_SECRET: 'test_secret', ADMIN_TOKEN, PAY_MOCK: '0' },
       stdio: ['ignore', logFd, logFd]
     });
     BASE = `http://127.0.0.1:${port}`;
@@ -668,13 +670,28 @@ async function runSuite() {
     const s = await db.driver.get("SELECT id FROM course_sessions WHERE source='test_suite' ORDER BY id DESC LIMIT 1");
     return s.id;
   };
-  ctx.sessionId = await mkSession(todayStr, '21:00', '22:00', 10, 0);
-  // 满员场次：避开"已开课"时段——refundExpiredWaitlist 会在 GET /api/waitlist 时把已开课场次的候补自动退款，
-  // 若测试在开课时间(22:00)之后运行会误杀候补队列（WTL-06/07 必挂）；21 点后跑测试改用明天日期
-  const fullDate = (timeMod.parts().h >= 21) ? tomorrowStr : todayStr;
-  ctx.fullSessionId = await mkSession(fullDate, '22:00', '23:00', 1, 1);   // 满员（未来时段避免过期退款干扰）
+  // 2026-08-18：场次时间动态化——固定 21:00/22:00 场次在 19:00 后跑测试会命中「退订截止=开课前 2 小时」
+  // （WTL-06/07、ORD-07、PASS-08 全挂）；改为 now+3h/+4h 未来场次，任何时间跑测试都合法。
+  // end_time 允许 >24:00 跨天表示（'24:00'/'24:30' 已有先例，time.parseBeijing 原生支持 h>24）
+  const mkFutureSession = async (hoursAhead, cap, booked) => {
+    const st = new Date(Date.now() + hoursAhead * 3600 * 1000);
+    const et = new Date(st.getTime() + 3600 * 1000);
+    const p = timeMod.parts(st), pe = timeMod.parts(et);
+    const date = `${p.y}-${String(p.mo).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
+    const start = beijingHM(st);
+    const end = pe.h < p.h ? `${String(pe.h + 24).padStart(2, '0')}:${String(pe.mi).padStart(2, '0')}` : beijingHM(et);
+    const id = await mkSession(date, start, end, cap, booked);
+    return { id, date };
+  };
+  const _s1 = await mkFutureSession(3, 10, 0);
+  ctx.sessionId = _s1.id;
+  // 满员场次 now+4h：避开「已开课」——refundExpiredWaitlist 会在 GET /api/waitlist 时把已开课场次的
+  // 候补自动退款，误杀候补队列（WTL-06/07 必挂）；动态未来时段天然免疫（旧「21 点后改用明天日期」逻辑并入）
+  const _sf = await mkFutureSession(4, 1, 1);
+  ctx.fullSessionId = _sf.id;
+  ctx.fullSessionDate = _sf.date;   // WTL-05e 按日期查列表需要与场次实际日期一致
   ctx.tomorrowSessionId = await mkSession(tomorrowStr, '09:00', '10:00', 5, 0);
-  console.log(`  [准备] 测试场次: 普通#${ctx.sessionId} 满员#${ctx.fullSessionId} 明日#${ctx.tomorrowSessionId}`);
+  console.log(`  [准备] 测试场次: 普通#${ctx.sessionId} 满员#${ctx.fullSessionId}(${ctx.fullSessionDate}) 明日#${ctx.tomorrowSessionId}`);
 
   // ===== 3. 订课链路（订单化）=====
   console.log('\n── 4. 订课链路 ──');
@@ -691,6 +708,8 @@ async function runSuite() {
   check('WX-02', '统一下单未配置 → 400', r.status === 400 && (r.data.message || '').includes('未开通'), `msg=${r.data && r.data.message}`);
   r = await req('POST', '/api/wxpay/notify', { resource: {} });
   check('WX-03', '回调未配置 → 400', r.status === 400, `status=${r.status}`);
+  // WX-M 系列（PAY_MOCK 测试支付模式）独立 mock 后端 harness 已移至「── 11. 清理测试数据 ──」之前
+  // （主后端测「无后门」、独立后端测 mock 全链路；2026-08-18）
   r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: ctx.sessionId, amountFen: 6800, orderType: 'book' });
   check('ORD-01', '下单(订课)', r.status === 201 && r.data.order.status === 'pending', `msg=${r.data && r.data.message}`);
   ctx.orderId = r.data.order.id;
@@ -769,7 +788,7 @@ async function runSuite() {
   r = await req('GET', `/api/sessions/${ctx.fullSessionId}?openid=${T.user2.openid}`);
   check('WTL-05d', '详情接口排队人数', ok(r, 200) && r.data.session.waitlist_count === 2 && r.data.session.my_wait_position === 1, `count=${r.data && r.data.session && r.data.session.waitlist_count} pos=${r.data && r.data.session && r.data.session.my_wait_position}`);
   // 列表接口：GROUP BY 一次聚合带出全部场次排队人数
-  const fullDate2 = (timeMod.parts().h >= 21) ? tomorrowStr : todayStr;
+  const fullDate2 = ctx.fullSessionDate;   // 动态化后满员场次可能在今天或明天，按实际日期查
   r = await req('GET', '/api/sessions?date=' + fullDate2 + '&openid=' + T.user2.openid);
   const listItem = (r.data.sessions || []).find(s => s.id === ctx.fullSessionId);
   check('WTL-05e', '列表接口排队人数', !!listItem && listItem.waitlist_count === 2, `count=${listItem && listItem.waitlist_count}`);
@@ -1540,7 +1559,7 @@ async function runSuite() {
   check('MEM-07b', '复充送10%', ok(r, 200) && r.data.recharge && r.data.recharge.total === 55000 && r.data.recharge.isFirst === false, `total=${r.data && r.data.recharge && r.data.recharge.total} first=${r.data && r.data.recharge && r.data.recharge.isFirst}`);
   // MEM-13：候补余额支付扣会员价（回归 BUG-LEDGER #9：候补扣款+享会员价，6800×0.98→66元=6600分）
   const balBeforeWtl = (await require('../server/db.js').getMemberLevel(T.user1.openid)).balanceFen;  // 2026-08-18：差值断言（B2 后余额非固定值）
-  const wtlSid = await mkSession(todayStr, '22:30', '23:30', 1, 1);  // 满员场次（booked=1）
+  const wtlSid = (await mkFutureSession(3, 1, 1)).id;  // 满员场次（booked=1）；now+3h——MEM-13b 退出候补受「课前 2 小时截止」约束，固定 22:30 在 20:30 后跑必挂
   r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: wtlSid, amountFen: 6800, orderType: 'waitlist' });
   const wtlOrderId = r.data.order.id;
   r = await req('POST', `/api/orders/${wtlOrderId}/pay`, { openid: T.user1.openid, payMethod: 'balance' });
@@ -1726,6 +1745,60 @@ async function runSuite() {
   await db.driver.run("DELETE FROM waitlist WHERE user_openid LIKE 'uid_test_pass%'");
   await db.driver.run("DELETE FROM balance_logs WHERE user_openid LIKE 'uid_test_pass%'");  // #49 次卡购买走 balance 扣款 → 留痕 balance_logs，先删再删 users（FK）
   await db.driver.run("DELETE FROM users WHERE openid LIKE 'uid_test_pass%'");
+
+  // WX-M 系列（2026-08-18 用户要求「测试支付必定成功」）：PAY_MOCK=1 测试支付模式。
+  // 主后端 env 是 spawn 子进程（不可动态改）→ ① 主后端（PAY_MOCK 显式关）测「无测试后门」；
+  // ② 独立 mock 后端（独立临时库 + PAY_MOCK=1）测 status/create/mock-notify 全链路 + 钱闭环。
+  // 放套件最后：独立 harness 启动慢（seed + 健康轮询），不阻塞前面的订课/退订用例
+  r = await req('POST', '/api/wxpay/mock-notify', { orderId: 1, openid: T.user1.openid });
+  check('WX-M01', '默认环境 mock-notify 400（无测试后门）', r.status === 400, `status=${r.status}`);
+  const mockDb = require('node:os').tmpdir() + `/gym-test-mock-${process.pid}.db`;
+  for (const ms of ['', '-wal', '-shm']) { try { fs.rmSync(mockDb + ms, { force: true }); } catch (e) {} }
+  const mockSeed = spawnSync(process.execPath, ['server/seed.js'], { cwd: PROJECT_ROOT, env: { ...process.env, DB_PATH: mockDb }, encoding: 'utf8', timeout: 60000 });
+  if (mockSeed.status !== 0) {
+    console.error('✖ mock 后端 seed 失败:\n' + (mockSeed.stderr || mockSeed.stdout || '').slice(0, 500));
+    process.exit(2);
+  }
+  const mockPort = 3700 + Math.floor(Math.random() * 200);
+  const mockLogPath = require('node:path').join(require('node:os').tmpdir(), `gym-backend-mock-${process.pid}.log`);
+  const mockFd = fs.openSync(mockLogPath, 'w');
+  const mockChild = spawn(process.execPath, ['server/index.js'], {
+    cwd: PROJECT_ROOT,
+    env: { ...process.env, DB_PATH: mockDb, PORT: String(mockPort), WX_APPID: 'test_appid', WX_SECRET: 'test_secret', ADMIN_TOKEN, PAY_MOCK: '1' },
+    stdio: ['ignore', mockFd, mockFd]
+  });
+  const mockBase = `http://127.0.0.1:${mockPort}`;
+  let mockUp = false;
+  for (let i = 0; i < 40; i++) {
+    try { const hr = await req('GET', '/api/health', null, { base: mockBase }); if (hr.status === 200) { mockUp = true; break; } } catch (e) {}
+    await new Promise(r2 => setTimeout(r2, 500));
+  }
+  if (!mockUp) {
+    console.error(`✖ mock 后端启动失败（端口 ${mockPort}）`);
+    try { console.error('--- mock 后端日志尾部 ---\n' + fs.readFileSync(mockLogPath, 'utf8').split('\n').slice(-20).join('\n')); } catch (e) {}
+    mockChild.kill();
+    process.exit(2);
+  }
+  // 独立 mock 用户：注册 → 充值下单 → create 返回 mock 标记 → mock-notify 落库
+  const wxmOid = 'uid_test_wxmock';
+  await req('POST', '/api/auth/login', { openid: wxmOid, nickname: '测试微信支付mock' }, { base: mockBase });
+  r = await req('GET', '/api/wxpay/status', null, { base: mockBase });
+  check('WX-M02', 'mock 后端：status enabled+mock', ok(r, 200) && r.data.enabled === true && r.data.mock === true, `enabled=${r.data && r.data.enabled} mock=${r.data && r.data.mock}`);
+  r = await req('POST', '/api/orders', { openid: wxmOid, sessionId: 0, amountFen: 50000, orderType: 'recharge' }, { base: mockBase });
+  const wxmOrder = r.data.order;
+  check('WX-M03', 'mock 后端：充值下单成功', r.status === 201 && wxmOrder && wxmOrder.status === 'pending', `msg=${r.data && r.data.message}`);
+  r = await req('POST', '/api/wxpay/create', { orderId: wxmOrder.id, openid: wxmOid }, { base: mockBase });
+  check('WX-M04', 'mock 后端：create 返回 mock 标记（不调微信）', ok(r, 200) && r.data.mock === true && r.data.payParams && r.data.payParams.mock === true, `mock=${r.data && r.data.mock}`);
+  r = await req('POST', '/api/wxpay/mock-notify', { orderId: wxmOrder.id, openid: wxmOid }, { base: mockBase });
+  check('WX-M05', 'mock 后端：mock-notify 落库成功', ok(r, 200), `msg=${r.data && r.data.message}`);
+  r = await req('GET', '/api/orders?openid=' + wxmOid, null, { base: mockBase });
+  const wxmPaid = (r.data.orders || []).find(o => o.id === wxmOrder.id);
+  check('WX-M06', 'mock 后端：订单 paid + pay_source=wxpay（钱闭环闸门通过）', wxmPaid && wxmPaid.status === 'paid' && wxmPaid.pay_source === 'wxpay', `status=${wxmPaid && wxmPaid.status} src=${wxmPaid && wxmPaid.pay_source}`);
+  r = await req('POST', '/api/wxpay/mock-notify', { orderId: wxmOrder.id, openid: wxmOid }, { base: mockBase });
+  check('WX-M07', 'mock 后端：重复回调幂等', ok(r, 200), `msg=${r.data && r.data.message}`);
+  r = await req('POST', '/api/wxpay/mock-notify', { orderId: wxmOrder.id, openid: T.user1.openid }, { base: mockBase });
+  check('WX-M08', 'mock 后端：非本用户订单 404', r.status === 404, `status=${r.status}`);
+  mockChild.kill();
 
   // ===== 清理测试数据 =====
   console.log('\n── 11. 清理测试数据 ──');

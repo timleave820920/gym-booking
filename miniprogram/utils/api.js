@@ -195,6 +195,11 @@ module.exports = {
     return localRequest('/api/wxpay/create', 'POST', data);
   },
 
+  // 测试支付模式（PAY_MOCK=1）：mock 回调落库，等价微信支付成功
+  wxpayMockNotify(data) {
+    return localRequest('/api/wxpay/mock-notify', 'POST', data);
+  },
+
   // 查询我的订单
   getMyOrders(openid, status) {
     let qs = 'openid=' + openid;

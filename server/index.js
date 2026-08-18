@@ -28,7 +28,7 @@ const fs = require('node:fs');
 const db = require('./db');
 const { driver } = require('./db');
 const { logOp } = require('./logger');
-const { isWxpayEnabled, getNotifyUrl } = require('./wxpay-config');
+const { isWxpayEnabled, isWxpayMock, getNotifyUrl } = require('./wxpay-config');
 const time = require('./time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 const cos = require('./cos.js');   // 图片存储方言：本地写盘 / 生产 COS（COS 迁移 2026-08-18）
 
@@ -300,12 +300,12 @@ async function handlePhoneLogin(req, res) {
 }
 
 // ===== 微信支付 v3（B2 预研 2026-08-18）=====
-// 个人号阶段无商户号：status.enabled=false + create/notify 400 明确报错，
-// 前端禁用微信支付选项——绝不模拟成功。商户号到位后配 env 即启用（wxpay-config.js）。
+// 未启用：status.enabled=false + create/notify 400 明确报错，前端禁用微信支付选项——
+// 生产绝不伪造支付成功。启用方式：商户号配置 或 PAY_MOCK=1 测试支付模式（wxpay-config.js）。
 
-/** 微信支付可用状态（前端据此禁用/启用微信支付选项） */
+/** 微信支付可用状态（前端据此禁用/启用微信支付选项；mock 标记区分测试模式） */
 function handleWxpayStatus(req, res) {
-  sendJson(res, 200, { code: 200, enabled: isWxpayEnabled() });
+  sendJson(res, 200, { code: 200, enabled: isWxpayEnabled(), mock: isWxpayMock() });
 }
 
 /**
@@ -344,6 +344,11 @@ async function handleWxpayCreate(req, res) {
   const order = await db.driver.get('SELECT * FROM orders WHERE id = ? AND user_openid = ?', [orderId, openid]);
   if (!order) return sendJson(res, 404, { code: 404, message: '订单不存在' });
   if (order.status !== 'pending') return sendJson(res, 400, { code: 400, message: '订单状态不允许发起支付' });
+  // 测试支付模式（PAY_MOCK=1）：不调微信 API，返回 mock 标记——前端跳过 requestPayment，
+  // 改走 /api/wxpay/mock-notify 落库（与真实回调同一钱闭环路径，2026-08-18）
+  if (isWxpayMock()) {
+    return sendJson(res, 200, { code: 200, mock: true, payParams: { mock: true } });
+  }
   const urlPath = '/v3/pay/transactions/jsapi';
   const bodyStr = JSON.stringify({
     appid: WX_APPID,
@@ -442,6 +447,29 @@ async function handleWxpayNotify(req, res) {
     logOp('wxpay_notify', 'fail', { error: e.message });
     return respond(false, '解密失败');
   }
+}
+
+/**
+ * 测试支付模式回调（POST /api/wxpay/mock-notify，仅 PAY_MOCK=1 时存在）
+ * 与真实 notify 走同一落库路径：payOrder(wxpayVerified=true) → pending 订单标 paid +
+ * 生成订课/候补/充值到账（幂等：已 paid 直接成功）。区别仅在「支付成功的证明来源」——
+ * 测试模式由后端自证，生产必须微信回调验签。非 mock 环境 → 400，无测试后门。
+ */
+async function handleWxpayMockNotify(req, res) {
+  if (!isWxpayMock()) {
+    return sendJson(res, 400, { code: 400, message: '测试支付模式未开启（PAY_MOCK=1）' });
+  }
+  const body = await readBody(req);
+  const { orderId, openid } = body;
+  if (!orderId || !openid) return sendJson(res, 400, { code: 400, message: '缺少 orderId 或 openid' });
+  const order = await db.driver.get('SELECT * FROM orders WHERE id = ? AND user_openid = ?', [orderId, openid]);
+  if (!order) return sendJson(res, 404, { code: 404, message: '订单不存在' });
+  if (order.status === 'paid') return sendJson(res, 200, { code: 200, message: '成功' });   // 幂等：重复回调
+  if (order.status !== 'pending') return sendJson(res, 400, { code: 400, message: '订单状态不允许支付' });
+  const result = await db.payOrder({ openid: order.user_openid, orderId: order.id, pay_method: 'wxpay', wxpayVerified: true });
+  if (!result.ok) return sendJson(res, 400, { code: 400, message: result.error || '支付失败' });
+  logOp('wxpay_mock_notify', 'ok', { orderId: order.id, amountFen: order.amount_fen });
+  return sendJson(res, 200, { code: 200, message: '成功' });
 }
 
 async function handleProfile(req, res) {
@@ -1414,6 +1442,7 @@ const API_ROUTES = [
   { m: 'GET',    p: '/api/wxpay/status',        f: async(q, r) => handleWxpayStatus(q, r) },
   { m: 'POST',   p: '/api/wxpay/create',        f: async(q, r) => await handleWxpayCreate(q, r) },
   { m: 'POST',   p: '/api/wxpay/notify',        f: async(q, r) => await handleWxpayNotify(q, r) },
+  { m: 'POST',   p: '/api/wxpay/mock-notify',   f: async(q, r) => await handleWxpayMockNotify(q, r) },
   // 2026-08-15: 登录态检查（已注册用户启动小程序免登录直达首页）
   { m: 'GET',    p: '/api/auth/check',          f: async(q, r, u) => {
       const openid = u.searchParams.get('openid');

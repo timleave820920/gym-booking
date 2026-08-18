@@ -417,6 +417,27 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     r = await req('GET', `/api/admin/reports?date=${s5Date}`, null, { 'Admin-Token': 'cov-token' });
     assert.equal(r.data.generated_at, repG1, '同日幂等（缓存命中不重新生成）');
     delete process.env.ADMIN_TOKEN;
+    // ---- 13.14 PAY_MOCK 测试支付模式探针（2026-08-18）：开关→下单→mock-notify→落库 paid ----
+    const wxmOid = 'uid_cov_wxmock';
+    r = await req('POST', '/api/auth/login', { openid: wxmOid, nickname: '微信mock探针' });
+    assert.equal(r.status, 201, 'mock探针注册');
+    process.env.PAY_MOCK = '1';
+    r = await req('GET', '/api/wxpay/status');
+    assert.equal(r.data.enabled, true, 'mock 模式 status enabled');
+    assert.equal(r.data.mock, true, 'mock 模式 status mock 标记');
+    r = await req('POST', '/api/orders', { openid: wxmOid, sessionId: 0, amountFen: 50000, orderType: 'recharge' });
+    assert.equal(r.status, 201, 'mock 充值下单');
+    const wxmOrderId = r.data.order.id;
+    r = await req('POST', '/api/wxpay/create', { orderId: wxmOrderId, openid: wxmOid });
+    assert.equal(r.data.mock, true, 'create 返回 mock 标记');
+    r = await req('POST', '/api/wxpay/mock-notify', { orderId: wxmOrderId, openid: wxmOid });
+    assert.equal(r.data.code, 200, 'mock-notify 落库成功');
+    const wxmRow = db.db.prepare('SELECT status, pay_source FROM orders WHERE id = ?').get(wxmOrderId);
+    assert.equal(wxmRow.status, 'paid', 'mock 支付订单 paid');
+    assert.equal(wxmRow.pay_source, 'wxpay', 'mock 支付来源 wxpay');
+    delete process.env.PAY_MOCK;
+    r = await req('POST', '/api/wxpay/mock-notify', { orderId: wxmOrderId, openid: wxmOid });
+    assert.equal(r.status, 400, '关闭后 mock-notify 拒绝（无测试后门）');
 
     // ---- 14 候补复杂路径：排位 / 退订转正 / 退出退款 / 过期退款 ----
     // s4 动态 now+3h（B3 2026-08-18：固定 20:00 场次在 18:00 后跑探针会被退订截止拒绝，退订转正用例失效）
