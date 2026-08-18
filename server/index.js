@@ -1207,8 +1207,8 @@ async function handleExport(req, res, type) {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const data = await db.queryUsersAnalysis(Object.fromEntries(url.searchParams));
     sendCsv(res, 'user-analysis.csv',
-      ['openid', '昵称', '手机号', '角色', '等级', '近度R(天)', '近30天订课F', '累计实付M(分)', 'R档', 'F档', 'M档', '沉睡档位', '余额(分)', '注册时间', '最后登录', '偏好标签'],
-      data.users.map(u => [u.openid, u.nickname, u.phone, u.role, u.level_lv, u.r === null ? '' : u.r, u.f, u.m, u.r_level, u.f_level, u.m_level, u.dormant, u.balance_fen, u.created_at, u.last_login_at, (u.labels || []).join(' | ')]));
+      ['openid', '昵称', '手机号', '角色', '等级', '近度R(天)', '近30天订课F', '累计实付M(分)', 'R档', 'F档', 'M档', '沉睡档位', '余额(分)', '性别', '生日', '注册时间', '最后登录', '偏好标签'],
+      data.users.map(u => [u.openid, u.nickname, u.phone, u.role, u.level_lv, u.r === null ? '' : u.r, u.f, u.m, u.r_level, u.f_level, u.m_level, u.dormant, u.balance_fen, u.gender, u.birthday, u.created_at, u.last_login_at, (u.labels || []).join(' | ')]));
     return;
   }
   if (type === 'revenue') {

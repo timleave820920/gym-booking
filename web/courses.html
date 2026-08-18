@@ -373,7 +373,7 @@ canvas#dashTrend { width: 100%; height: 240px; }
           <thead><tr>
             <th style="width:30px"><input type="checkbox" id="ua-all" onclick="uaToggleAll(this)"></th>
             <th>用户</th><th>R 近度</th><th>F 频次</th><th>M 金额</th><th>R/F/M 档</th>
-            <th>沉睡</th><th>偏好标签</th><th>余额</th><th>最后活跃</th><th>操作</th>
+            <th>沉睡</th><th>画像</th><th>偏好标签</th><th>余额</th><th>最后活跃</th><th>操作</th>
           </tr></thead>
           <tbody id="ua-body"></tbody>
         </table>
@@ -384,6 +384,45 @@ canvas#dashTrend { width: 100%; height: 240px; }
           <button class="btn btn-save" onclick="uaOpenMsg()" id="ua-msg-btn">给选中 N 人发站内信</button>
         </div>
         <div class="dash-empty" id="ua-empty" style="display:none">无匹配用户</div>
+      </div>
+    </details>
+
+    <!-- 浏览分析（DESIGN #D5：曝光→详情→订课→签到漏斗 / 意图人群 / 搜索词 / 热度对比） -->
+    <details class="fold" id="fold-events">
+      <summary>⑥ 浏览分析（漏斗 / 意图人群 / 搜索词 / 热度）</summary>
+      <div class="fold-inner">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px">
+          <input type="date" id="ev-day" value="" style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+          <button class="btn btn-save" onclick="evLoad()">查询</button>
+          <span id="ev-msg" class="msg"></span>
+        </div>
+        <div class="mini-metrics" style="margin-bottom:12px">
+          <div class="mm"><div class="mm-v" id="ev-f-expose">-</div><div class="mm-l">首页曝光</div></div>
+          <div class="mm"><div class="mm-v" id="ev-f-detail">-</div><div class="mm-l">详情浏览(人课)</div></div>
+          <div class="mm good"><div class="mm-v" id="ev-f-booked">-</div><div class="mm-l">当日订课</div></div>
+          <div class="mm hot"><div class="mm-v" id="ev-f-checkin">-</div><div class="mm-l">当日签到</div></div>
+        </div>
+        <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap">
+          <div class="block" style="flex:1.3; min-width:300px">
+            <h3>高意向人群（近 7 天浏览同课 ≥2 次未订）</h3>
+            <table>
+              <thead><tr><th>用户</th><th>课程</th><th>浏览次数</th><th>最后浏览</th></tr></thead>
+              <tbody id="ev-intent"></tbody>
+            </table>
+          </div>
+          <div class="block" style="flex:1; min-width:260px">
+            <h3>搜索词 TOP（近 7 天）</h3>
+            <table>
+              <thead><tr><th>关键词</th><th>次数</th><th>用户数</th></tr></thead>
+              <tbody id="ev-search"></tbody>
+            </table>
+            <h3 style="margin-top:14px">浏览热度 vs 订课（近 7 天 TOP 课）</h3>
+            <table>
+              <thead><tr><th>课程</th><th>浏览</th><th>已订</th></tr></thead>
+              <tbody id="ev-hot"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </details>
 
@@ -1005,12 +1044,15 @@ function renderUA(j) {
       : u.dormant === '14' ? '<span style="color:#D8A200">14 天预警</span>'
       : '<span style="color:#3D9970">活跃</span>';
     var tags = (u.labels || []).slice(0, 3).map(function (t) { return '<span style="display:inline-block;background:#F0EDDF;border-radius:8px;padding:1px 8px;font-size:11px;color:var(--dark);margin:1px 2px">' + esc(t) + '</span>'; }).join('');
+    // 画像列（DESIGN #D5-5）：性别 + 生日月（0=未知 1=男 2=女）
+    var g = u.gender === 1 ? '男' : u.gender === 2 ? '女' : '未知';
+    var profileCell = '<td style="font-size:12px">' + g + (u.birthday ? '<div style="font-size:11px;color:var(--gray)">' + u.birthday.slice(0, 7) + '</div>' : '') + '</td>';
     return '<tr>' +
       '<td><input type="checkbox" class="ua-cb" value="' + esc(u.openid) + '" onchange="uaSelChange(this)"></td>' +
       '<td>' + esc(u.nickname || u.openid) + '<div style="font-size:11px;color:var(--gray)">Lv.' + u.level_lv + ' · ' + esc(u.phone || '未留手机') + '</div></td>' +
       '<td>' + (u.r === null ? '--' : u.r + ' 天') + '</td><td>' + u.f + '</td><td>' + yuan(u.m) + '</td>' +
       '<td>' + u.r_level + ' / ' + u.f_level + ' / ' + u.m_level + '</td>' +
-      '<td>' + d + '</td>' +
+      '<td>' + d + '</td>' + profileCell +
       '<td title="' + esc((u.labels || []).join('，')) + '">' + (tags || '<span style="color:var(--gray);font-size:11px">--</span>') + '</td>' +
       '<td>' + yuan(u.balance_fen) + '</td>' +
       '<td>' + (u.last_active_at ? u.last_active_at.slice(0, 16) : '--') + '</td>' +
@@ -1051,6 +1093,28 @@ function uaTimeline(openid) {
   }).catch(function (e) { alert(e.message); });
 }
 function uaCloseTl() { $('ua-tl').style.display = 'none'; }
+// 浏览分析（DESIGN #D5）：漏斗（当日）+ 意图人群/搜索词/热度（近 7 天）
+function evLoad() {
+  var d = $('ev-day').value || today();
+  $('ev-day').value = d;
+  api('/admin/events-analysis?date=' + d).then(function (j) {
+    var f = j.funnel || {};
+    $('ev-f-expose').textContent = f.expose;
+    $('ev-f-detail').textContent = f.detail;
+    $('ev-f-booked').textContent = f.booked;
+    $('ev-f-checkin').textContent = f.checkin;
+    $('ev-intent').innerHTML = (j.intent || []).map(function (x) {
+      return '<tr><td>' + esc(x.openid) + '</td><td>' + esc(x.course_name || x.target_id) + '</td><td>' + x.view_count + '</td><td>' + (x.last_view || '').slice(0, 16) + '</td></tr>';
+    }).join('') || '<tr><td colspan="4" class="dash-empty">暂无高意向用户</td></tr>';
+    $('ev-search').innerHTML = (j.search && j.search.top || []).map(function (x) {
+      return '<tr><td>' + esc(x.keyword) + '</td><td>' + x.c + '</td><td>' + x.users + '</td></tr>';
+    }).join('') || '<tr><td colspan="3" class="dash-empty">暂无搜索</td></tr>';
+    $('ev-hot').innerHTML = (j.hot_by_view || []).map(function (x) {
+      return '<tr><td>' + esc(x.name || x.target_id) + '</td><td>' + x.views + '</td><td>' + x.booked + '</td></tr>';
+    }).join('') || '<tr><td colspan="3" class="dash-empty">暂无数据</td></tr>';
+    $('ev-msg').textContent = '数据日期：' + j.date + '（漏斗为当日，其余近 7 天）';
+  }).catch(function (e) { alert('浏览分析加载失败：' + e.message); });
+}
 // 群组触达（选中 → 站内信 promo，后端 dedup 防重）
 function uaOpenMsg() {
   var n = Object.keys(uaSel).length;

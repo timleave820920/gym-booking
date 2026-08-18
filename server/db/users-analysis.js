@@ -29,6 +29,7 @@ async function baseRows() {
   const since30 = time.nowDateTimeStr(new Date(Date.now() - 30 * dayMs));
   return driver.all(`
     SELECT u.openid, u.nickname, u.avatar, u.phone, u.role, u.level_lv, u.balance_fen,
+           u.gender, u.birthday,   -- 社交画像（DESIGN #D5-3，展示/CSV 画像列）
            u.created_at, u.last_login_at, u.login_count, u.total_classes, u.total_calories,
       (SELECT MAX(b.created_at) FROM bookings b WHERE b.user_openid = u.openid AND b.status = 'booked') AS last_book_at,
       (SELECT MAX(b.checkin_at) FROM bookings b WHERE b.user_openid = u.openid AND b.checkin_at IS NOT NULL) AS last_checkin_at,
@@ -52,6 +53,8 @@ function decorate(row) {
     role: row.role,
     level_lv: row.level_lv,
     balance_fen: row.balance_fen,
+    gender: row.gender || 0,      // 0 未知 1 男 2 女（DESIGN #D5-3）
+    birthday: row.birthday || '',
     created_at: row.created_at,
     last_login_at: row.last_login_at,
     login_count: row.login_count,

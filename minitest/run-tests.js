@@ -327,6 +327,15 @@ async function runSuite() {
     /function uaLoad/.test(webHtml) && /uaTimeline/.test(webHtml)
       && /ua-msgbox/.test(webHtml) && /uaSendMsg/.test(webHtml) && /uaExport/.test(webHtml),
     '用户分析：筛选清单 uaLoad、时间线钻取 uaTimeline、群组触达 uaSendMsg、CSV uaExport');
+  // DESIGN #D5-5 浏览分析折叠卡 + 画像列防回退：⑥ 折叠卡（漏斗/意图/搜索词/热度）+ 用户表画像列 + CSV 画像列
+  const uaSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', 'users-analysis.js'), 'utf8');
+  check('FRONT-22', 'web 浏览分析+画像列防回退（DESIGN #D5-5）',
+    /fold-events/.test(webHtml) && /function evLoad/.test(webHtml)
+      && /ev-intent/.test(webHtml) && /ev-search/.test(webHtml) && /ev-hot/.test(webHtml) && /ev-f-expose/.test(webHtml)
+      && /u\.gender/.test(webHtml) && /u\.birthday/.test(webHtml)
+      && /u\.gender, u\.birthday/.test(uaSrc)
+      && /'性别', '生日'/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8')),
+    '⑥ 浏览分析折叠卡（漏斗 mini-metrics + 意图人群 + 搜索词 + 热度）；用户分析表/CSV 含性别生日画像列');
   // DESIGN #D5 浏览埋点防回退：首页 page_view 曝光/搜索词、详情 course_view 停留时长（onHide/onUnload 上报）
   const d5DetailJs = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.js'), 'utf8');
   check('FRONT-20', '浏览埋点防回退（DESIGN #D5：首页曝光/搜索词/详情停留时长）',
@@ -946,6 +955,10 @@ async function runSuite() {
     && ['0', '14', '30'].includes(a0.dormant) && (a0.r === null || typeof a0.r === 'number') && typeof a0.f === 'number' && typeof a0.m === 'number'
     && A.stats && typeof A.stats.total_users === 'number' && typeof A.stats.avg_m_fen === 'number',
     `total=${A.total} n=${A.users && A.users.length} u0=${JSON.stringify(a0 && { r: a0.r, f: a0.f, m: a0.m, rl: a0.r_level, d: a0.dormant })}`);
+  // EVT-01（DESIGN #D5-5）：用户分析行含社交画像字段（gender 0=未知 1=男 2=女 / birthday YYYY-MM-DD，web 画像列/CSV 数据源）
+  check('EVT-01', '用户分析含画像字段（gender/birthday，DESIGN #D5-5）',
+    typeof a0.gender === 'number' && typeof a0.birthday === 'string',
+    `gender=${a0 && a0.gender} birthday=${a0 && a0.birthday}`);
   // 排序：默认 monetary 降序
   r = await req('GET', '/api/admin/users-analysis?order=monetary&page_size=50');
   const A2 = r.data || {};
