@@ -21,6 +21,12 @@ const fLevel = (f) => (f >= 10 ? 5 : f >= 5 ? 4 : f >= 2 ? 3 : f >= 1 ? 2 : 1);
 const mLevel = (m) => (m >= 50000 ? 5 : m >= 20000 ? 4 : m >= 5000 ? 3 : m >= 1000 ? 2 : 1);
 const dormantOf = (r) => (r !== null && r >= 30 ? '30' : r !== null && r >= 14 ? '14' : '0');
 
+/** 画像年龄（DESIGN #D5-5）：birthday 'YYYY-MM-DD' → 周岁近似（年份差，边界月偏差可接受）；无生日 null */
+function ageOf(birthday) {
+  if (!birthday || !/^\d{4}-\d{2}-\d{2}$/.test(birthday)) return null;
+  return Number(time.todayStr().slice(0, 4)) - Number(birthday.slice(0, 4));
+}
+
 /**
  * RMF 聚合查询（一次 SQL 扫全用户 + 3 相关子查询，无 N+1）
  * 返回原始行（不分页），筛选/排序/打分在内存做（用户量级 < 万，足够）
@@ -70,8 +76,10 @@ function decorate(row) {
 
 /**
  * 筛选 + 排序 + 分页
- * filters: { q, role, dormant, r_max, f_min, m_min, order, page, page_size }
+ * filters: { q, role, dormant, r_max, f_min, m_min, gender, age_range, birthday_month, labels, order, page, page_size }
  * order: monetary(默认)/recency/frequency/last_active
+ * 画像筛选（DESIGN #D5-5）：gender 0/1/2；age_range u18|18-30|31-45|46+（由 birthday 推年龄）；
+ *   birthday_month '01'-'12'（运营按生日月做触达，如「本月生日用户」）
  */
 async function queryUsersAnalysis(filters = {}) {
   const q = (filters.q || '').trim();
@@ -80,6 +88,9 @@ async function queryUsersAnalysis(filters = {}) {
   const rMax = filters.r_max !== undefined && filters.r_max !== '' ? Number(filters.r_max) : null;
   const fMin = filters.f_min !== undefined && filters.f_min !== '' ? Number(filters.f_min) : null;
   const mMin = filters.m_min !== undefined && filters.m_min !== '' ? Number(filters.m_min) : null;
+  const gender = filters.gender !== undefined && filters.gender !== '' ? String(filters.gender) : null; // '0' 未填 / '1' 男 / '2' 女
+  const ageRange = (filters.age_range || '').trim(); // '' | u18 | 18-30 | 31-45 | 46+
+  const bMonth = (filters.birthday_month || '').trim(); // '' | '01'-'12'
   const labelsKw = (filters.labels || '').split(',').map(s => s.trim()).filter(Boolean);
   const order = filters.order || 'monetary';
   const page = Math.max(1, Number(filters.page) || 1);
@@ -109,6 +120,22 @@ async function queryUsersAnalysis(filters = {}) {
   if (rMax !== null) rows = rows.filter(u => u.r !== null && u.r <= rMax);
   if (fMin !== null) rows = rows.filter(u => u.f >= fMin);
   if (mMin !== null) rows = rows.filter(u => u.m >= mMin);
+  // 社交画像筛选（DESIGN #D5-5）
+  if (gender !== null && ['0', '1', '2'].includes(gender)) {
+    rows = rows.filter(u => String(u.gender) === gender);
+  }
+  if (ageRange) {
+    const AGE_OK = {
+      u18: age => age !== null && age < 18,
+      '18-30': age => age !== null && age >= 18 && age <= 30,
+      '31-45': age => age !== null && age >= 31 && age <= 45,
+      '46+': age => age !== null && age >= 46
+    };
+    if (AGE_OK[ageRange]) rows = rows.filter(u => AGE_OK[ageRange](ageOf(u.birthday)));
+  }
+  if (bMonth && /^0[1-9]|1[0-2]$/.test(bMonth)) {
+    rows = rows.filter(u => u.birthday && u.birthday.slice(5, 7) === bMonth);
+  }
 
   const total = rows.length;
   // 排序

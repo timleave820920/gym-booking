@@ -1224,6 +1224,29 @@ async function runSuite() {
   check('PROF-09', '生日月标记 in_birthday_month=true', r.data.profile.in_birthday_month === true, `profile=${JSON.stringify(r.data && r.data.profile)}`);
   r = await req('PUT', '/api/me/profile', { openid: profOpenid, gender: 2 });
   check('PROF-10', '重复填写不再发币且性别可改', ok(r, 200) && r.data.bonusCoins === 0 && r.data.profile.gender === 2, `bonus=${r.data && r.data.bonusCoins} gender=${r.data && r.data.profile && r.data.profile.gender}`);
+  // EVT-02~04（DESIGN #D5-5）：用户分析画像筛选（gender / birthday_month / age_range）——profOpenid 现为 gender=2 + 生日=本月-15
+  r = await req('GET', '/api/admin/users-analysis?gender=2&page_size=100');
+  check('EVT-02', '性别筛选：gender=2 全命中且含画像测试用户',
+    r.status === 200 && (r.data.users || []).some(u => u.openid === profOpenid) && r.data.users.every(u => u.gender === 2),
+    `n=${r.data.users && r.data.users.length} hit=${(r.data.users || []).some(u => u.openid === profOpenid)}`);
+  const bm = String(timeMod.parts().mo).padStart(2, '0');
+  r = await req('GET', `/api/admin/users-analysis?birthday_month=${bm}&page_size=100`);
+  check('EVT-03', '生日月筛选：当月命中画像测试用户且全部匹配',
+    r.status === 200 && (r.data.users || []).some(u => u.openid === profOpenid)
+    && r.data.users.every(u => (u.birthday || '').slice(5, 7) === bm),
+    `n=${r.data.users && r.data.users.length}`);
+  {
+    const _dbx = require('../server/db.js');
+    const ageOpenid = 'uid_test_age';
+    await req('POST', '/api/auth/login', { openid: ageOpenid, nickname: '年龄筛选' });
+    await _dbx.driver.run('UPDATE users SET birthday = ? WHERE openid = ?', [`${timeMod.parts().y}-01-01`, ageOpenid]); // 今年出生 → 0 岁
+    r = await req('GET', '/api/admin/users-analysis?age_range=u18&page_size=100');
+    check('EVT-04', '年龄段筛选：u18 命中未成年画像用户',
+      r.status === 200 && (r.data.users || []).some(u => u.openid === ageOpenid),
+      `n=${r.data.users && r.data.users.length} hit=${(r.data.users || []).some(u => u.openid === ageOpenid)}`);
+    r = await req('GET', '/api/admin/users-analysis?gender=0&age_range=46%2B');
+    check('EVT-05', '组合筛选（未填性别×46+）不报错且空集合法', r.status === 200 && Array.isArray(r.data.users), `status=${r.status}`);
+  }
 
   // ===== 6.13 生日月首订 8 折（DESIGN #D5-4）：储值支付书订单生日月首单自动 8 折（与会员价取更优，向下取整到元）=====
   console.log('\n── 6.13 生日月首订 8 折 ──');

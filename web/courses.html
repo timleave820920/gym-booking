@@ -386,6 +386,22 @@ canvas#dashTrend { width: 100%; height: 240px; }
             <option value="储值用户">储值用户</option><option value="守约学员">守约学员</option>
             <option value="新用户">新用户</option><option value="摇摆用户">摇摆用户（退订多）</option>
           </select>
+          <!-- 社交画像筛选（DESIGN #D5-5）：性别 / 年龄段（由生日推）/ 生日月 -->
+          <select id="ua-gender" style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+            <option value="">全部性别</option><option value="1">男</option>
+            <option value="2">女</option><option value="0">未填</option>
+          </select>
+          <select id="ua-age" style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+            <option value="">全部年龄段</option><option value="u18">18 岁以下</option>
+            <option value="18-30">18-30 岁</option><option value="31-45">31-45 岁</option><option value="46+">46 岁及以上</option>
+          </select>
+          <select id="ua-bmonth" style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+            <option value="">全部生日月</option>
+            <option value="01">1 月</option><option value="02">2 月</option><option value="03">3 月</option>
+            <option value="04">4 月</option><option value="05">5 月</option><option value="06">6 月</option>
+            <option value="07">7 月</option><option value="08">8 月</option><option value="09">9 月</option>
+            <option value="10">10 月</option><option value="11">11 月</option><option value="12">12 月</option>
+          </select>
           <input type="number" id="ua-fmin" placeholder="近30天订课≥" style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:13px;width:110px">
           <input type="number" id="ua-mmin" placeholder="累计消费≥(元)" style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:13px;width:120px">
           <button class="btn btn-save" onclick="uaLoad(1)">查询</button>
@@ -1082,6 +1098,9 @@ function uaFilters() {
     f_min: $('ua-fmin').value || '',
     m_min: $('ua-mmin').value ? String(Number($('ua-mmin').value) * 100) : '',
     labels: $('ua-label').value || '',
+    gender: $('ua-gender').value || '',
+    age_range: $('ua-age').value || '',
+    birthday_month: $('ua-bmonth').value || '',
     page_size: 50
   };
 }

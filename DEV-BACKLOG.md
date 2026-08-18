@@ -26,11 +26,11 @@
 > 捕捉「看了没订」的意图 + 收集性别/生日画像。本期只做采集与分析看板，推荐引擎下期（#D6）。
 > 口径：P0 三事件（首页曝光/详情浏览含停留时长/搜索词）；画像=用户自填（微信不提供真实性别年龄）；激励=填单送 20 能量币 + 生日月首订 8 折；关闭个性化开关后续做。
 
-- [ ] **P1｜1. 埋点后端** — `course_events` 表（双方言建表，索引 openid+event_type+created_at）+ `POST /api/track/batch`（event_type 白名单、批量上限 50、未登录丢弃、失败不阻塞主流程）+ TRK 用例 + coverage 探针
-- [ ] **P1｜2. 前端埋点** — `utils/track.js`（本地队列攒批、防抖 5s/10 条/onHide flush、session_id 会话标识）+ 首页/课程详情/搜索三页接入 + FRONT 断言防回退
-- [ ] **P1｜3. 画像收集** — `users` 表加 gender/birthday 列（双方言）+ `GET/PUT /api/me/profile` + 学员端「我的」页画像卡片（引导+编辑+清空）+ 填单送 20 能量币（logOp 留痕，防重复领取）+ PROF 用例
-- [ ] **P2｜4. 生日月 8 折权益** — 生日当天站内信推送祝福 + 生日月内首笔 paid 订课订单自动 8 折（amountFen×0.8 向下取整，logOp 留痕，与会员价取整口径一致）+ BDAY 用例
-- [ ] **P2｜5. 浏览分析看板** — `GET /api/admin/events-analysis`（浏览→订课漏斗、意图人群清单=近 7 天浏览≥2 次未订、搜索词 TOP+无结果词、浏览 vs 订课热度对比）+ web 运营数据 tab 新增折叠卡 + users-analysis 筛选扩展（gender/age_range/birthday_month）+ CSV 画像列 + EVT 用例
+- [x] **P1｜1. 埋点后端** — `course_events` 表（双方言建表，索引 openid+event_type+created_at）+ `POST /api/track/batch`（event_type 白名单、批量上限 50、未登录丢弃、失败不阻塞主流程）+ TRK 用例 + coverage 探针（2026-08-18 完成，a4d75f4）
+- [x] **P1｜2. 前端埋点** — `utils/track.js`（本地队列攒批、防抖 5s/10 条/onHide flush、session_id 会话标识）+ 首页/课程详情/搜索三页接入 + FRONT 断言防回退（2026-08-18 完成，06ed35b）
+- [x] **P1｜3. 画像收集** — `users` 表加 gender/birthday 列（双方言）+ `GET/PUT /api/me/profile` + 学员端「我的」页画像卡片（引导+编辑+清空）+ 填单送 20 能量币（logOp 留痕，防重复领取）+ PROF 用例（2026-08-18 完成，c40eee6，顺带修双层 readBody 挂起 BUG-LEDGER #59）
+- [x] **P2｜4. 生日月 8 折权益** — 生日当天站内信推送祝福 + 生日月内首笔 paid 订课订单自动 8 折（amountFen×0.8 向下取整，logOp 留痕，与会员价取整口径一致）+ BDAY 用例（2026-08-18 完成，3d70d2e）
+- [x] **P2｜5. 浏览分析看板** — `GET /api/admin/events-analysis`（浏览→订课漏斗、意图人群清单=近 7 天浏览≥2 次未订、搜索词 TOP+无结果词、浏览 vs 订课热度对比）+ web 运营数据 tab 新增折叠卡 + users-analysis 筛选扩展（gender/age_range/birthday_month）+ CSV 画像列 + EVT 用例（2026-08-18 完成，4cbd666；画像筛选补漏 EVT-02~05 当日完成）
 
 ### DESIGN #D4 运营数据展示（设计文档: 运营数据展示设计方案.md，2026-08-18 确认）
 
