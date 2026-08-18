@@ -1244,6 +1244,14 @@ const API_ROUTES = [
       await logOp('admin', 'coach_update', { coachId: id, name: name || null }, 'ok');
       sendJson(r, 200, { code: 200, ok: true });
     } },
+  // 删除教练档案（web 管理页，2026-08-18：清理合并/误建残留空档案；有绑定/课程/模板的拒绝删除）
+  { m: 'DELETE', p: /^\/api\/admin\/coaches\/\d+$/, f: async (q, r, u) => {
+      const id = Number(u.pathname.split('/')[4]);
+      const res = await db.deleteCoach(id);
+      if (!res.ok) return sendJson(r, 400, { code: 400, message: res.error });
+      await logOp('admin', 'coach_delete', { coachId: id }, 'ok');
+      sendJson(r, 200, { code: 200, ok: true });
+    } },
   { m: 'GET',    p: /^\/api\/sessions\/\d+$/, f: async(q, r, u) => await handleSessionDetail(q, r, u.pathname.split('/')[3]) }
 ];
 
@@ -1269,6 +1277,7 @@ const ADMIN_PATHS = [
   { m: 'GET',    p: /^\/api\/admin\/(sessions|invite-board)$/ },
   { m: 'GET',    p: /^\/api\/admin\/coaches$/ },
   { m: 'PUT',    p: /^\/api\/admin\/coaches\/\d+$/ },
+  { m: 'DELETE', p: /^\/api\/admin\/coaches\/\d+$/ },
   // 教练分配（BUGS-INBOX #14：065968e 遗漏——web 管理网页「教练分配」可被任何人调用，
   // 绕过访问码把任意用户设成教练提权；小程序 admin-students 页共用此接口，真机如需
   // 设教练请改走 web 管理网页（#8 架构方向：管理操作统一在 web，带 Admin-Token））

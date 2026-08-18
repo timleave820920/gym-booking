@@ -15,7 +15,7 @@ const { listPassPackages, getUserPass, getUserPassForDate, getUserPassInfo, expi
 const { syncAchievements, REWARD_COINS } = require('./db/achievements');
 const { genOrderNo, createOrder, payOrder, listOrdersByUser, getRevenueStats, promoteFromWaitlist, joinWaitlist, cancelWaitlist, listWaitlistByUser, refundExpiredWaitlist } = require('./db/orders');
 const { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, checkinByCode, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings } = require('./db/bookings');
-const { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach, listCoachesWithBind, unassignCoach, setUserRole, updateCoachProfile } = require('./db/coach');
+const { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach, listCoachesWithBind, unassignCoach, setUserRole, updateCoachProfile, deleteCoach } = require('./db/coach');
 
 
 module.exports = {
@@ -118,5 +118,6 @@ module.exports = {
   listCoachesWithBind,
   unassignCoach,
   setUserRole,
-  updateCoachProfile
+  updateCoachProfile,
+  deleteCoach
 };

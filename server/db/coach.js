@@ -240,4 +240,21 @@ async function setUserRole(openid, role) {
   }
 }
 
-module.exports = { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach, listCoachesWithBind, unassignCoach, setUserRole, updateCoachProfile };
+/**
+ * 删除教练档案（web 管理页，2026-08-18：清理合并后残留空档案）
+ * 保护：已绑定用户 / 名下还有场次或排课模板的档案不可删（历史数据完整性）；
+ * 先解绑（unassignCoach）再删。删除不可恢复。
+ */
+async function deleteCoach(coachId) {
+  const coach = await driver.get('SELECT user_openid FROM coaches WHERE id = ?', [coachId]);
+  if (!coach) return { ok: false, error: '教练档案不存在' };
+  if (coach.user_openid) return { ok: false, error: '该档案已绑定用户，请先解绑再删除' };
+  const refs = await driver.get(
+    'SELECT (SELECT COUNT(*) FROM course_sessions WHERE coach_id = ?) + (SELECT COUNT(*) FROM schedule_templates WHERE coach_id = ?) AS n',
+    [coachId, coachId]);
+  if (refs && refs.n > 0) return { ok: false, error: '该教练名下还有场次或排课模板，不能删除' };
+  await driver.run('DELETE FROM coaches WHERE id = ?', [coachId]);
+  return { ok: true };
+}
+
+module.exports = { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach, listCoachesWithBind, unassignCoach, setUserRole, updateCoachProfile, deleteCoach };

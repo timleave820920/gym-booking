@@ -407,6 +407,21 @@ async function runSuite() {
   check('ADMIN-23b', '教练档案 bio 已由课程介绍写入',
     (r.data.coaches.find(c => c.id === 1) || {}).bio === '课程保存写入的教练简介',
     `bio=${r.data.coaches.find(c => c.id === 1) && r.data.coaches.find(c => c.id === 1).bio}`);
+  // 删除教练档案（2026-08-18：清理合并残留空档案；有绑定/课程/模板的拒绝删除）
+  r = await req('DELETE', '/api/admin/coaches/1', null, { noToken: true });
+  check('ADMIN-24', '无 token 删除档案 → 401', r.status === 401, `status=${r.status}`);
+  r = await req('DELETE', '/api/admin/coaches/999');
+  check('ADMIN-25', '不存在的档案 → 400', r.status === 400 && (r.data.message || '').includes('不存在'), `msg=${r.data && r.data.message}`);
+  r = await req('DELETE', '/api/admin/coaches/1');
+  check('ADMIN-26', '有场次/模板引用的档案拒绝删除', r.status === 400 && (r.data.message || '').includes('场次或排课模板'), `msg=${r.data && r.data.message}`);
+  // 造一个干净档案（user-role 自动建档）→ 解绑 → 删除 → 列表消失
+  r = await req('POST', '/api/admin/user-role', { openid: T.user2.openid, role: 'coach' });
+  const tmpCoachId = r.data && r.data.coach_id;
+  await req('POST', '/api/admin/coach-unassign', { coach_id: tmpCoachId });
+  r = await req('DELETE', '/api/admin/coaches/' + tmpCoachId);
+  check('ADMIN-27', '删除干净档案成功', r.status === 200 && r.data.ok === true, `status=${r.status} msg=${r.data && r.data.message}`);
+  r = await req('GET', '/api/admin/coaches');
+  check('ADMIN-27b', '列表已无该档案', !(r.data.coaches || []).some(c => c.id === tmpCoachId), '删除后残留');
 
   // ===== 1. 账号登录 =====
   console.log('\n── 2. 账号与登录 ──');
