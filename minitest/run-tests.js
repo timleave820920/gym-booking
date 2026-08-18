@@ -515,11 +515,30 @@ async function runSuite() {
 
   // ===== 3. 订课链路（订单化）=====
   console.log('\n── 4. 订课链路 ──');
+  // B2（2026-08-18）：微信支付改真实回调闭环后，测试统一走 balance——先给测试用户注入余额
+  // （排除保持 0 余额的负向用例用户：wtl0=候补余额不足 / bal=订课余额不足 / nobody=不存在）
+  {
+    const _dbx = require('../server/db.js');
+    _dbx.db.prepare("UPDATE users SET balance_fen = balance_fen + 100000 WHERE openid LIKE 'uid_test_%' AND openid NOT IN ('uid_test_wtl0','uid_test_bal','uid_test_nobody')").run();
+  }
+  // WX 系列（B2 钱闭环）：未配置商户号时 status=false / create、notify 400 明确报错
+  r = await req('GET', '/api/wxpay/status');
+  check('WX-01', 'wxpay 状态(未配置商户号)', ok(r, 200) && r.data.enabled === false, `enabled=${r.data && r.data.enabled}`);
+  r = await req('POST', '/api/wxpay/create', { orderId: 1, openid: T.user1.openid });
+  check('WX-02', '统一下单未配置 → 400', r.status === 400 && (r.data.message || '').includes('未开通'), `msg=${r.data && r.data.message}`);
+  r = await req('POST', '/api/wxpay/notify', { resource: {} });
+  check('WX-03', '回调未配置 → 400', r.status === 400, `status=${r.status}`);
   r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: ctx.sessionId, amountFen: 6800, orderType: 'book' });
   check('ORD-01', '下单(订课)', r.status === 201 && r.data.order.status === 'pending', `msg=${r.data && r.data.message}`);
   ctx.orderId = r.data.order.id;
+  // WX-04（B2 钱闭环闸门）：wxpay 无微信回调凭证 → 拒绝（模拟支付封死，前端无法绕过回调标 paid）
   r = await req('POST', `/api/orders/${ctx.orderId}/pay`, { openid: T.user1.openid, payMethod: 'wxpay' });
-  check('ORD-02', '支付回写', ok(r, 200) && r.data.order.status === 'paid' && r.data.booking, `status=${r.data && r.data.order && r.data.order.status}`);
+  check('WX-04', 'wxpay 无回调凭证拒绝', r.status === 400 && (r.data.message || '').includes('微信支付须由微信回调确认'), `status=${r.status} msg=${r.data && r.data.message}`);
+  // WX-04b：被拒订单未被标记 paid（再次下单仍报「待支付」）
+  r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: ctx.sessionId, amountFen: 6800, orderType: 'book' });
+  check('WX-04b', '被拒后订单仍 pending', r.status === 400 && (r.data.message || '').includes('待支付'), `msg=${r.data && r.data.message}`);
+  r = await req('POST', `/api/orders/${ctx.orderId}/pay`, { openid: T.user1.openid, payMethod: 'balance' });
+  check('ORD-02', '支付回写(balance)', ok(r, 200) && r.data.order.status === 'paid' && r.data.booking, `status=${r.data && r.data.order && r.data.order.status}`);
   ctx.bookingId = r.data.booking.id;
   ctx.paidOrderId = ctx.orderId;
   r = await req('POST', `/api/orders/${ctx.orderId}/pay`, { openid: T.user1.openid });
@@ -557,7 +576,9 @@ async function runSuite() {
   check('WTL-01', '满员排位下单', r.status === 201 && r.data.order.status === 'pending', `msg=${r.data && r.data.message}`);
   ctx.waitOrderId = r.data.order.id;
   r = await req('POST', `/api/orders/${ctx.waitOrderId}/pay`, { openid: T.user1.openid, payMethod: 'wxpay' });
-  check('WTL-02', '排位支付', ok(r, 200) && r.data.wait && r.data.wait.status === 'waiting', `wait=${r.data && r.data.wait && r.data.wait.status}`);
+  check('WTL-02-0', '候补 wxpay 无凭证拒绝', r.status === 400, `status=${r.status}`);
+  r = await req('POST', `/api/orders/${ctx.waitOrderId}/pay`, { openid: T.user1.openid, payMethod: 'balance' });
+  check('WTL-02', '排位支付(balance)', ok(r, 200) && r.data.wait && r.data.wait.status === 'waiting', `wait=${r.data && r.data.wait && r.data.wait.status}`);
   ctx.waitId = r.data.wait.id;
   // WTL-02b：候补余额支付需余额充足（回归 BUG-LEDGER #9：原不校验不扣款，退出却退款=刷钱漏洞）
   r = await req('POST', '/api/auth/login', { openid: 'uid_test_wtl0', nickname: '候补零余额' });
@@ -570,7 +591,7 @@ async function runSuite() {
   r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: ctx.fullSessionId, amountFen: 6800, orderType: 'waitlist' });
   check('WTL-04a', '二号排位成功', r.status === 201, `msg=${r.data && r.data.message}`);
   const wait2Order = r.data.order;
-  r = await req('POST', `/api/orders/${wait2Order.id}/pay`, { openid: T.user2.openid, payMethod: 'wxpay' });
+  r = await req('POST', `/api/orders/${wait2Order.id}/pay`, { openid: T.user2.openid, payMethod: 'balance' });
   check('WTL-04a-pay', '二号排位支付', ok(r, 200) && r.data.wait && r.data.wait.status === 'waiting', `msg=${r.data && r.data.message}`);
   r = await req('GET', `/api/waitlist?openid=${T.user2.openid}`);
   check('WTL-05', '我的候补列表', ok(r, 200) && r.data.waits.length >= 1, `count=${r.data && r.data.waits && r.data.waits.length}`);
@@ -580,7 +601,7 @@ async function runSuite() {
   db.db.prepare(`UPDATE course_sessions SET booked_count = 0 WHERE id = ${ctx.fullSessionId}`).run();
   r = await req('POST', '/api/orders', { openid: T.holder.openid, sessionId: ctx.fullSessionId, amountFen: 6800, orderType: 'book' });
   const holderOrder = r.data.order;
-  await req('POST', `/api/orders/${holderOrder.id}/pay`, { openid: T.holder.openid, payMethod: 'wxpay' });
+  await req('POST', `/api/orders/${holderOrder.id}/pay`, { openid: T.holder.openid, payMethod: 'balance' });
   // 查 holder 的 bookingId
   r = await req('GET', `/api/orders?openid=${T.holder.openid}`);
   const holderPaid = r.data.orders.find(o => o.session_id === ctx.fullSessionId && o.status === 'paid');
@@ -610,7 +631,7 @@ async function runSuite() {
   r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: ctx.tomorrowSessionId, amountFen: 6800, orderType: 'waitlist' });
   const wlT = r.data.order;
   if (wlT) {
-    await req('POST', `/api/orders/${wlT.id}/pay`, { openid: T.user2.openid, payMethod: 'wxpay' });
+    await req('POST', `/api/orders/${wlT.id}/pay`, { openid: T.user2.openid, payMethod: 'balance' });
     db.db.prepare(`UPDATE course_sessions SET date = '2026-08-09' WHERE id = ${ctx.tomorrowSessionId}`).run();
     r = await req('GET', `/api/waitlist?openid=${T.user2.openid}`);
     const wlT2 = (r.data.waits || []).find(w => w.session_id === ctx.tomorrowSessionId);
@@ -637,7 +658,7 @@ async function runSuite() {
   } else {
     const chkSid = await mkSession(todayStr, beijingHM(chkStart), beijingHM(chkEnd), 5, 0);
     r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: chkSid, amountFen: 6800, orderType: 'book' });
-    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user1.openid, payMethod: 'wxpay' });
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user1.openid, payMethod: 'balance' });
     const chkBookingId = r.data.booking.id;
     r = await req('GET', `/api/checkin/${chkBookingId}`);
     check('CHK-01', '凭证信息', ok(r, 200) && r.data.info && r.data.info.course_name, `course=${r.data && r.data.info && r.data.info.course_name}`);
@@ -649,7 +670,7 @@ async function runSuite() {
     check('CHK-04', '重复签到拒绝', r.status === 400 && (r.data.message || '').includes('已签到'), `msg=${r.data && r.data.message}`);
     // 按码核销（BUGS-INBOX #11：随机 5 位纯数字签到码，POST /api/checkin/by-code 反查）
     r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: chkSid, amountFen: 6800, orderType: 'book' });
-    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user2.openid, payMethod: 'wxpay' });
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user2.openid, payMethod: 'balance' });
     const chkByBookingId = r.data.booking.id;
     r = await req('GET', `/api/checkin/${chkByBookingId}`);
     const chkCode = r.data.info && r.data.info.checkin_code;
@@ -668,7 +689,7 @@ async function runSuite() {
   // 非当天场次（独立明天场次）签到
   r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: tmr2, amountFen: 6800, orderType: 'book' });
   const tmrOrder = r.data.order;
-  await req('POST', `/api/orders/${tmrOrder.id}/pay`, { openid: T.user2.openid, payMethod: 'wxpay' });
+  await req('POST', `/api/orders/${tmrOrder.id}/pay`, { openid: T.user2.openid, payMethod: 'balance' });
   r = await req('GET', `/api/orders?openid=${T.user2.openid}`);
   const tmrPaid = r.data.orders.find(o => o.session_id === tmr2 && o.status === 'paid');
   r = await req('POST', `/api/bookings/${tmrPaid.booking_id}/checkin`, { openid: T.coach.openid });
@@ -681,7 +702,7 @@ async function runSuite() {
   if (timeMod.parts(plus120).d === timeMod.parts(chkNow).d) {
     const chkSid2 = await mkSession(todayStr, beijingHM(plus120), beijingHM(new Date(plus120.getTime() + 3600000)), 5, 0);
     r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: chkSid2, amountFen: 6800, orderType: 'book' });
-    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user2.openid, payMethod: 'wxpay' });
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user2.openid, payMethod: 'balance' });
     r = await req('POST', `/api/bookings/${r.data.booking.id}/checkin`, { openid: T.coach.openid });
     check('CHK-07', '提前签到拒绝(未到窗口)', r.status === 400 && (r.data.message || '').includes('未到签到时间'), `msg=${r.data && r.data.message}`);
   }
@@ -714,7 +735,7 @@ async function runSuite() {
   if (timeMod.parts(coStart).d === timeMod.parts(now2).d && timeMod.parts(coEnd).d === timeMod.parts(now2).d) {
     const coSid = await mkSession(todayStr, beijingHM(coStart), beijingHM(coEnd), 5, 0);
     r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: coSid, amountFen: 6800, orderType: 'book' });
-    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user1.openid, payMethod: 'wxpay' });
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user1.openid, payMethod: 'balance' });
     r = await req('POST', `/api/bookings/${r.data.booking.id}/checkin`, { openid: T.coach.openid });
     check('COACH-09', '窗口内签到成功', ok(r, 200) && r.data.booking.checkin_at, `checkin=${r.data && r.data.booking && r.data.booking.checkin_at}`);
     // 我的学员：user1 已收录（含最近课程/日期/总课次）
@@ -781,7 +802,7 @@ async function runSuite() {
   r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: fullSid3, amountFen: 6800 });
   check('SEC-04b-1', '订满链路下单', ok(r, 201), `msg=${r.data && r.data.message}`);
   const ordSid3 = r.data.order.id;
-  r = await req('POST', `/api/orders/${ordSid3}/pay`, { openid: T.user1.openid, payMethod: 'wxpay' });
+  r = await req('POST', `/api/orders/${ordSid3}/pay`, { openid: T.user1.openid, payMethod: 'balance' });
   check('SEC-04b-2', '订满链路支付', ok(r, 200) && r.data.booking, `msg=${r.data && r.data.message}`);
   r = await req('GET', `/api/sessions/${fullSid3}`);
   check('SEC-04b', '支付满员后场次状态=full', ok(r, 200) && r.data.session.status === 'full', `status=${r.data && r.data.session && r.data.session.status}`);
@@ -827,6 +848,8 @@ async function runSuite() {
   r = await req('GET', '/api/member/plans');
   check('MEM-02', '充值套餐列表', ok(r, 200) && r.data.plans.length === 3, `count=${r.data && r.data.plans && r.data.plans.length}`);
   // 储值充值：下单 → 支付 → 余额增加（500 档首充送 30% = 150 → 共 650）
+  // 2026-08-18：B2 后订课/候补测试走 balance 消费，余额非固定值——改用「充值到账差值」断言
+  const balBeforeMem = (await require('../server/db.js').getMemberLevel(T.user1.openid)).balanceFen;
   r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: 0, amountFen: 50000, orderType: 'recharge' });
   check('MEM-03', '充值下单', r.status === 201 && r.data.order.order_type === 'recharge', `msg=${r.data && r.data.message}`);
   const rcOrder = r.data.order;
@@ -839,7 +862,7 @@ async function runSuite() {
   const rcMsg = (r.data.messages || []).find(m => m.type === 'order' && m.title === '充值到账');
   check('MSG-02', '充值到账站内信', ok(r, 200) && !!rcMsg, `count=${r.data && r.data.messages && r.data.messages.length}`);
   r = await req('GET', `/api/member/level?openid=${T.user1.openid}`);
-  check('MEM-05', '余额增加', r.data.level.balanceFen === 65000, `balance=${r.data && r.data.level && r.data.level.balanceFen}`);
+  check('MEM-05', '余额增加(首充65000到账)', r.data.level.balanceFen === balBeforeMem + 65000, `balance=${r.data && r.data.level && r.data.level.balanceFen} 应=${balBeforeMem + 65000}`);
   r = await req('GET', `/api/member/recharges?openid=${T.user1.openid}`);
   check('MEM-06', '充值记录', ok(r, 200) && r.data.recharges.length >= 1, `count=${r.data && r.data.recharges && r.data.recharges.length}`);
   // 无效套餐拒绝
@@ -851,6 +874,7 @@ async function runSuite() {
   r = await req('POST', `/api/orders/${rcOrder2.id}/pay`, { openid: T.user1.openid });
   check('MEM-07b', '复充送10%', ok(r, 200) && r.data.recharge && r.data.recharge.total === 55000 && r.data.recharge.isFirst === false, `total=${r.data && r.data.recharge && r.data.recharge.total} first=${r.data && r.data.recharge && r.data.recharge.isFirst}`);
   // MEM-13：候补余额支付扣会员价（回归 BUG-LEDGER #9：候补扣款+享会员价，6800×0.98→66元=6600分）
+  const balBeforeWtl = (await require('../server/db.js').getMemberLevel(T.user1.openid)).balanceFen;  // 2026-08-18：差值断言（B2 后余额非固定值）
   const wtlSid = await mkSession(todayStr, '22:30', '23:30', 1, 1);  // 满员场次（booked=1）
   r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: wtlSid, amountFen: 6800, orderType: 'waitlist' });
   const wtlOrderId = r.data.order.id;
@@ -864,7 +888,7 @@ async function runSuite() {
   r = await req('DELETE', `/api/waitlist/${wtlWaitId}?openid=${T.user1.openid}`);
   check('MEM-13b', '候补退出退款', ok(r, 200), `msg=${r.data && r.data.message}`);
   r = await req('GET', `/api/member/level?openid=${T.user1.openid}`);
-  check('MEM-13c', '候补退款后余额恢复', r.data.level.balanceFen === 120000, `balance=${r.data.level.balanceFen}`);
+  check('MEM-13c', '候补退款后余额恢复', r.data.level.balanceFen === balBeforeWtl, `balance=${r.data.level.balanceFen} 应=${balBeforeWtl}`);
   // MEM-02c：带 openid 时套餐按用户充值状态展示（回归 BUG-LEDGER #8：前端漏拼 openid 致全显示首充30%）
   r = await req('GET', `/api/member/plans?openid=${T.user1.openid}`);  // user1 已充 500 档两次 → 应为复充
   const p500 = r.data.plans && r.data.plans.find(p => p.amount === 50000);
@@ -961,16 +985,18 @@ async function runSuite() {
   const P2 = { openid: 'uid_test_pass2', nickname: '无卡用户' };
   await req('POST', '/api/auth/login', P);
   await req('POST', '/api/auth/login', P2);
+  // B2（2026-08-18）：次卡购买走 balance 扣款（#49 修复），P/P2 注册晚于全局注入 → 这里补注入
+  require('../server/db.js').db.prepare("UPDATE users SET balance_fen = balance_fen + 400000 WHERE openid IN ('uid_test_pass1','uid_test_pass2')").run();
   r = await req('GET', '/api/passes/packages');
   check('PASS-01', '档位列表(两档含说明)', ok(r, 200) && r.data.packages.length === 2 && r.data.packages.some(pkg => pkg.price_fen === 90000) && r.data.packages.every(pkg => pkg.desc), `n=${r.data && r.data.packages && r.data.packages.length}`);
   // 购买 12 次档（模拟微信支付）
   r = await req('POST', '/api/orders', { openid: P.openid, orderType: 'pass', amountFen: 90000 });
   check('PASS-02a', '次卡下单', r.status === 201 && r.data.order.status === 'pending', `msg=${r.data && r.data.message}`);
-  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P.openid, payMethod: 'wxpay' });
+  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P.openid, payMethod: 'balance' });
   check('PASS-02', '支付发卡(12次)', ok(r, 200) && r.data.recharge && r.data.recharge.pass.remaining === 12, `rem=${r.data && r.data.recharge && r.data.recharge.pass && r.data.recharge.pass.remaining}`);
   // 重复购买 24 次档 → 累加 36
   r = await req('POST', '/api/orders', { openid: P.openid, orderType: 'pass', amountFen: 180000 });
-  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P.openid, payMethod: 'wxpay' });
+  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P.openid, payMethod: 'balance' });
   check('PASS-03', '重复购买累加(36次)', ok(r, 200) && r.data.recharge.pass.remaining === 36, `rem=${r.data && r.data.recharge && r.data.recharge.pass.remaining}`);
   r = await req('GET', `/api/passes/my?openid=${P.openid}`);
   check('PASS-03b', '我的次卡(36次/天数)', ok(r, 200) && r.data.pass.hasPass && r.data.pass.remaining === 36 && r.data.pass.daysLeft > 50, `rem=${r.data && r.data.pass && r.data.pass.remaining} days=${r.data && r.data.pass && r.data.pass.daysLeft}`);
@@ -1017,7 +1043,7 @@ async function runSuite() {
   // 无卡用户订课 → 非 pass（走微信）；注：tomorrowSessionId 已被候补节置满，另造新场次
   const passFreeSid = await mkSession(tomorrowStr, '10:30', '11:30', 5, 0);
   r = await req('POST', '/api/orders', { openid: P2.openid, sessionId: passFreeSid, amountFen: 6800, orderType: 'book' });
-  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P2.openid, payMethod: 'wxpay' });
+  r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P2.openid, payMethod: 'balance' });
   check('PASS-13', '无卡走原支付方式(非pass)', ok(r, 200) && r.data.order.pay_source !== 'pass', `src=${r.data && r.data.order && r.data.order.pay_source}`);
   // 过期作废
   db.db.prepare(`UPDATE user_passes SET expires_at = datetime('now','localtime','-1 day') WHERE user_openid = ?`).run(P.openid);
@@ -1030,6 +1056,7 @@ async function runSuite() {
   db.db.prepare("DELETE FROM orders WHERE user_openid LIKE 'uid_test_pass%'").run();
   db.db.prepare("DELETE FROM bookings WHERE user_openid LIKE 'uid_test_pass%'").run();
   db.db.prepare("DELETE FROM waitlist WHERE user_openid LIKE 'uid_test_pass%'").run();
+  db.db.prepare("DELETE FROM balance_logs WHERE user_openid LIKE 'uid_test_pass%'").run();  // #49 次卡购买走 balance 扣款 → 留痕 balance_logs，先删再删 users（FK）
   db.db.prepare("DELETE FROM users WHERE openid LIKE 'uid_test_pass%'").run();
 
   // ===== 清理测试数据 =====

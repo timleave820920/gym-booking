@@ -84,6 +84,9 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     assert.equal(r.status, 201, '注册B');
     r = await req('POST', '/api/auth/login', COACH);
     assert.equal(r.status, 201, '注册教练');
+    // B2（2026-08-18）：探针支付改走储值余额（wxpay 未开通被闸门拒）→ 补余额
+    db.db.prepare('UPDATE users SET balance_fen = balance_fen + 500000 WHERE openid IN (?, ?, ?)')
+      .run(U1.openid, U2.openid, COACH.openid);
     r = await req('GET', '/api/users/stats?openid=' + U1.openid);
     assert.equal(r.data.code, 200, '用户统计');
     // 手机号换号（B1 合规 2026-08-18：未企业认证 → 400，不写假号）
@@ -113,8 +116,8 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     r = await req('POST', '/api/orders', { openid: U1.openid, sessionId: sid, amountFen: 8000, orderType: 'book' });
     assert.equal(r.status, 201, '下单');
     const orderId = r.data.order.id;
-    r = await req('POST', `/api/orders/${orderId}/pay`, { openid: U1.openid, payMethod: 'wxpay' });
-    assert.equal(r.data.code, 200, '支付（demo 微信模拟）');
+    r = await req('POST', `/api/orders/${orderId}/pay`, { openid: U1.openid, payMethod: 'balance' });
+    assert.equal(r.data.code, 200, '支付（储值余额）');
     const bookingId = r.data.booking.id;   // booking 在支付后返回
     r = await req('GET', '/api/orders?openid=' + U1.openid);
     assert.ok(r.data.orders.length >= 1, '订单列表');
@@ -125,7 +128,7 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     r = await req('POST', '/api/orders', { openid: U2.openid, sessionId: sid, amountFen: 8000, orderType: 'book' });
     assert.equal(r.status, 201, 'U2 下单');
     const u2OrderId = r.data.order.id;
-    r = await req('POST', `/api/orders/${u2OrderId}/pay`, { openid: U2.openid, payMethod: 'wxpay' });
+    r = await req('POST', `/api/orders/${u2OrderId}/pay`, { openid: U2.openid, payMethod: 'balance' });
     assert.equal(r.data.code, 200, 'U2 支付');
     r = await req('GET', '/api/sessions/' + sid);
     assert.equal(r.data.session.status, 'full', '满员状态');
@@ -194,6 +197,7 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     const U3 = { openid: 'uid_cov_u3', nickname: '覆盖测试C' };
     r = await req('POST', '/api/auth/login', U3);
     assert.equal(r.status, 201, '注册C');
+    db.db.prepare('UPDATE users SET balance_fen = balance_fen + 500000 WHERE openid = ?').run(U3.openid);
     r = await req('POST', '/api/invite', { inviter: U1.openid, invitee: U3.openid });
     assert.equal(r.data.code, 200, '绑定邀请C');
     const s3 = db.db.prepare(
@@ -201,7 +205,7 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     ).run(course.id, todayStr).lastInsertRowid;
     r = await req('POST', '/api/orders', { openid: U3.openid, sessionId: s3, amountFen: 8000, orderType: 'book' });
     assert.equal(r.status, 201, '好友下单');
-    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: U3.openid, payMethod: 'wxpay' });
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: U3.openid, payMethod: 'balance' });
     assert.equal(r.data.code, 200, '好友首订支付（触发邀请奖励）');
     r = await req('GET', '/api/member/rewards?openid=' + U1.openid);
     assert.ok(r.data.rewards.length >= 1, '邀请奖励未读');
@@ -333,7 +337,7 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     ).run(course.id, todayStr).lastInsertRowid;
     r = await req('POST', '/api/orders', { openid: U2.openid, sessionId: s4, amountFen: 8000, orderType: 'book' });
     assert.equal(r.status, 201, '订满下单');
-    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: U2.openid, payMethod: 'wxpay' });
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: U2.openid, payMethod: 'balance' });
     assert.equal(r.data.code, 200, '订满支付');
     r = await req('POST', '/api/waitlist', { openid: U3.openid, sessionId: s4, amountFen: 8000 });
     assert.equal(r.status, 201, '候补排位');

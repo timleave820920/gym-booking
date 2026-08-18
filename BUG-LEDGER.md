@@ -15,6 +15,15 @@
 
 ---
 
+## #49 次卡购买不扣款——applyPassPurchase 只发卡不扣钱（白嫖次卡，资金漏洞）
+
+- **发现**：2026-08-18，B2a 支付预研代码审查（minitest 改造暴露：PASS-02 断言只有发卡无扣款断言，通读 payOrder 次卡分支发现根本无扣款代码）
+- **现象**：用户选次卡购买套餐 → 支付成功（订单标 paid）→ 次卡发放 → **余额分文未扣**——等于免费无限买次卡
+- **根因**：`payOrder` 次卡分支 `applyPassPurchase` 只做发卡（INSERT/UPDATE user_passes），交易里没有 `addBalance(-payFen)`；而订单标 paid 逻辑对所有 order_type 一视同仁，pass 类型天然漏掉扣款
+- **修复**（server/db/orders.js）：①balance 扣款走会员价公式（`floor(原价×折扣/100)*100`，与订课同公式）；②`UPDATE orders SET amount_fen = 实付` 落实付金额（退款严格一致，强制规矩 4）；③预校验：余额不足先拒绝（与订课/候补同款 #9 修复）；④pkg 按**原价**匹配（先按会员价改订单金额再匹配会查不到套餐）
+- **回归测试**：PASS-02/03 链路（连买 90000+180000，注入余额 200000 不够→修 400000，扣款是否发生由余额耗尽与否间接证明）+ balance_logs 留痕（测试清理时 FK 约束逼出先删 balance_logs，反证扣款写日志确实发生）
+- **防护层**：钱闭环强制规矩（任何支付方式都必须扣款）；`addBalance` 强制 `logOp` 留痕；minitest PASS 区清理补删 balance_logs（FK 约束兜底）
+
 ## #48 MySQL 老库幂等补列仅 checkin_code 一处——昨晚新增 12 列只进新库 DDL + SQLite ALTER，生产老表缺列则订课/候补/场次详情全 500
 
 - **发现**：2026-08-18，合并喻馥雅账号后审计昨晚重构（ef865d7）时发现（部署前，未上线即修）

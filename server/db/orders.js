@@ -93,12 +93,14 @@ async function createOrder({ user_openid, session_id, amount_fen = 0, order_type
 }
 
 /**
- * 支付回写（模拟支付成功后调用；幂等：已支付订单重复调用直接返回成功）
+ * 支付回写（本地支付确认/微信回调确认后调用；幂等：已支付订单重复调用直接返回成功）
  * 事务：订单 pending→paid + 生成 booking（扣余位）或 waitlist 记录
- * @param {object} p { openid, orderId, pay_method }
+ * @param {object} p { openid, orderId, pay_method, wxpayVerified }
+ *   wxpayVerified=true 仅限微信支付回调验签解密通过后传入（B2 钱闭环闸门，
+ *   2026-08-18）：wxpay 订单没有回调确认一律拒绝，前端无法绕过微信直接标 paid。
  * @returns {{ok:true, order:object, booking?:object, wait?:object}|{ok:false, error:string}}
  */
-async function payOrder({ openid, orderId, pay_method = 'balance' }) {
+async function payOrder({ openid, orderId, pay_method = 'balance', wxpayVerified = false }) {
   const order = await driver.get('SELECT * FROM orders WHERE id = ? AND user_openid = ?', [orderId, openid]);
   if (!order) return { ok: false, error: '订单不存在' };
   if (order.status === 'paid') {
@@ -124,9 +126,17 @@ async function payOrder({ openid, orderId, pay_method = 'balance' }) {
   const canUsePass = (pay_method === 'pass') && !!pass;
   const effMethod = canUsePass ? 'pass' : (pay_method === 'pass' ? 'wxpay' : pay_method);
 
+  // 钱闭环闸门（强制规矩 4）：微信支付必须由微信回调确认——最终实付方式为 wxpay
+  // （含「选次卡但卡不可用」回退场景）而无 wxpayVerified 一律拒绝，杜绝「模拟微信支付成功」
+  // （历史：前端调 payOrder('wxpay') 即标 paid）
+  if (effMethod === 'wxpay' && !wxpayVerified) {
+    return { ok: false, error: '微信支付须由微信回调确认' };
+  }
+
   // 会员价预校验：储值支付需余额充足（不足直接拒绝，避免事务回滚）
   // 订课 + 候补都校验（修复 BUG-LEDGER #9：候补 balance 支付原不校验不扣款，退出却退款=刷钱漏洞）
-  if ((order.order_type === 'book' || order.order_type === 'waitlist') && effMethod === 'balance'
+  // 次卡购买也校验（BUG-LEDGER #49：pass 购买原不扣款=白嫖次卡）
+  if ((order.order_type === 'book' || order.order_type === 'waitlist' || order.order_type === 'pass') && effMethod === 'balance'
       && MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {
     const lv = await getMemberLevel(order.user_openid);
     // 会员价 = 原价 × 折扣率，向下取整到元（无角分）
@@ -144,11 +154,20 @@ async function payOrder({ openid, orderId, pay_method = 'balance' }) {
     await driver.run("UPDATE orders SET status = 'paid', pay_method = ?, pay_source = ?, paid_at = ? WHERE id = ?", [effMethod, effMethod, time.nowDateTimeStr(), orderId]);
 
     if (order.order_type === 'pass') {
-      // 次卡购买：单卡累加发卡（次数叠加 + 作废日期顺延）
-      const pkg = (await listPassPackages()).find(p => p.price_fen === order.amount_fen);
+      // 次卡购买：先扣款（BUG-LEDGER #49：原不扣款=白嫖次卡）再单卡累加发卡（次数叠加 + 作废日期顺延）
+      const pkg = (await listPassPackages()).find(p => p.price_fen === order.amount_fen);   // 套餐按原价匹配
       if (!pkg) {
         await driver.exec('ROLLBACK');
         return { ok: false, error: '无效的次卡套餐' };
+      }
+      if (effMethod === 'balance') {
+        let payFen = order.amount_fen;
+        if (MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {
+          const lv = await getMemberLevel(order.user_openid);
+          if (lv) payFen = Math.floor(order.amount_fen * lv.discount / 100) * 100;
+        }
+        await addBalance(order.user_openid, -payFen, '次卡购买', order.order_no);
+        await driver.run('UPDATE orders SET amount_fen = ? WHERE id = ?', [payFen, orderId]);  // 订单金额落实付（退款严格一致）
       }
       const r = await applyPassPurchase({ openid: order.user_openid, orderId, packageId: pkg.id });
       if (!r.ok) {

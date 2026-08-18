@@ -28,6 +28,7 @@ const fs = require('node:fs');
 const db = require('./db');
 const { driver } = require('./db');
 const { logOp } = require('./logger');
+const { isWxpayEnabled, getNotifyUrl } = require('./wxpay-config');
 
 // ===== 加载 .env（WX_APPID / WX_SECRET / PORT 等；不覆盖已存在的环境变量）=====
 // 2026-08-14 添加：真机朋友测试需要真实 openid，secret 放 server/.env（gitignore，不入库）
@@ -294,6 +295,151 @@ async function handlePhoneLogin(req, res) {
     return sendJson(res, 400, { code: 400, message: '手机号获取失败（需企业认证小程序，当前暂未开放），请使用微信一键登录' });
   }
   sendJson(res, 200, { code: 200, message: '手机号获取成功', phone });
+}
+
+// ===== 微信支付 v3（B2 预研 2026-08-18）=====
+// 个人号阶段无商户号：status.enabled=false + create/notify 400 明确报错，
+// 前端禁用微信支付选项——绝不模拟成功。商户号到位后配 env 即启用（wxpay-config.js）。
+
+/** 微信支付可用状态（前端据此禁用/启用微信支付选项） */
+function handleWxpayStatus(req, res) {
+  sendJson(res, 200, { code: 200, enabled: isWxpayEnabled() });
+}
+
+/**
+ * v3 请求签名：WECHATPAY2-SHA256-RSA2048（惰性 require crypto，仅启用时加载）
+ * @returns {{authorization: string, nonce: string, timestamp: number}|null}
+ */
+function wxpayBuildAuth(method, urlPath, bodyStr) {
+  try {
+    const crypto = require('node:crypto');
+    const timestamp = Math.floor(Date.now() / 1000);
+    const nonce = crypto.randomBytes(16).toString('hex');
+    const message = `${method}\n${urlPath}\n${timestamp}\n${nonce}\n${bodyStr}\n`;
+    const privateKey = Buffer.from(process.env.WXPAY_PRIVATE_KEY_B64, 'base64').toString('utf8');
+    const signature = crypto.sign('RSA-SHA256', Buffer.from(message), privateKey).toString('base64');
+    return {
+      authorization: `WECHATPAY2-SHA256-RSA2048 mchid="${process.env.WXPAY_MCH_ID}",nonce_str="${nonce}",signature="${signature}",timestamp="${timestamp}",serial_no="${process.env.WXPAY_SERIAL_NO}"`,
+      nonce, timestamp
+    };
+  } catch (e) {
+    console.error('[wxpay] 签名失败:', e.message);
+    return null;
+  }
+}
+
+/**
+ * 统一下单（POST /api/wxpay/create）→ 返回 wx.requestPayment 所需参数
+ * 未配置商户号 → 400 明确报错；绝不模拟微信支付成功。
+ */
+async function handleWxpayCreate(req, res) {
+  if (!isWxpayEnabled()) {
+    return sendJson(res, 400, { code: 400, message: '微信支付暂未开通（商户号配置后开放）' });
+  }
+  const body = await readBody(req);
+  const { orderId, openid } = body;
+  if (!orderId || !openid) return sendJson(res, 400, { code: 400, message: '缺少 orderId 或 openid' });
+  const order = await db.driver.get('SELECT * FROM orders WHERE id = ? AND user_openid = ?', [orderId, openid]);
+  if (!order) return sendJson(res, 404, { code: 404, message: '订单不存在' });
+  if (order.status !== 'pending') return sendJson(res, 400, { code: 400, message: '订单状态不允许发起支付' });
+  const urlPath = '/v3/pay/transactions/jsapi';
+  const bodyStr = JSON.stringify({
+    appid: WX_APPID,
+    mchid: process.env.WXPAY_MCH_ID,
+    description: order.order_type === 'recharge' ? '储值充值' : '课程订课',
+    out_trade_no: String(order.id),   // 商户单号 = 订单 id（数字无连字符，回调直查）
+    notify_url: getNotifyUrl(),
+    amount: { total: order.amount_fen, currency: 'CNY' },
+    payer: { openid }
+  });
+  const auth = wxpayBuildAuth('POST', urlPath, bodyStr);
+  if (!auth) return sendJson(res, 500, { code: 500, message: '微信支付签名失败' });
+  const r = await new Promise((resolve) => {
+    const preq = https.request(`https://api.mch.weixin.qq.com${urlPath}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': auth.authorization,
+        'User-Agent': 'gym-booking/1.0'
+      },
+      rejectUnauthorized: false   // 云托管安全网关重签证书（同 BUG-LEDGER #46 处理）
+    }, (pres) => {
+      let data = '';
+      pres.on('data', c => { data += c; });
+      pres.on('end', () => resolve({ status: pres.statusCode, body: data }));
+    });
+    preq.on('error', e => resolve({ status: 0, body: e.message }));
+    preq.setTimeout(10000, () => { preq.destroy(); resolve({ status: 0, body: '微信下单超时' }); });
+    preq.end(bodyStr);
+  });
+  let j = null;
+  try { j = JSON.parse(r.body); } catch (e) { /* 非 JSON 按失败处理 */ }
+  if (r.status !== 200 || !j || !j.prepay_id) {
+    logOp('wxpay_create', 'fail', { orderId, error: j ? (j.message || j.code) : r.body });
+    return sendJson(res, 502, { code: 502, message: '微信统一下单失败：' + ((j && j.message) || '未知错误') });
+  }
+  // 前端 wx.requestPayment 参数（JSAPI，RSA 签名）
+  try {
+    const crypto = require('node:crypto');
+    const timeStamp = String(Math.floor(Date.now() / 1000));
+    const nonceStr = crypto.randomBytes(16).toString('hex');
+    const pkg = `prepay_id=${j.prepay_id}`;
+    const payMsg = `${WX_APPID}\n${timeStamp}\n${nonceStr}\n${pkg}\n`;
+    const privateKey = Buffer.from(process.env.WXPAY_PRIVATE_KEY_B64, 'base64').toString('utf8');
+    const paySign = crypto.sign('RSA-SHA256', Buffer.from(payMsg), privateKey).toString('base64');
+    sendJson(res, 200, { code: 200, payParams: { timeStamp, nonceStr, package: pkg, signType: 'RSA', paySign } });
+  } catch (e) {
+    return sendJson(res, 500, { code: 500, message: '支付参数签名失败：' + e.message });
+  }
+}
+
+/**
+ * 微信支付回调（POST /api/wxpay/notify）
+ * 未启用 → 400 拒绝；启用后：APIv3 密钥 AES-256-GCM 解密 → 校验订单/金额 →
+ * payOrder(wxpayVerified=true) 落 paid（幂等）。生产建议叠加平台证书验签。
+ */
+async function handleWxpayNotify(req, res) {
+  const respond = (ok, msg) => sendJson(res, 200, ok ? { code: 'SUCCESS', message: '成功' } : { code: 'FAIL', message: msg });
+  if (!isWxpayEnabled()) {
+    return sendJson(res, 400, { code: 'FAIL', message: '微信支付未配置' });
+  }
+  const body = await readBody(req);
+  const resource = body && body.resource;
+  if (!resource || !resource.ciphertext || !resource.nonce) {
+    return respond(false, '参数缺失');
+  }
+  try {
+    const crypto = require('node:crypto');
+    const key = process.env.WXPAY_API_V3_KEY;
+    // AES-256-GCM：authTag = 密文末尾 16 字节，aad = associated_data
+    const cipherBuf = Buffer.from(resource.ciphertext, 'base64');
+    if (cipherBuf.length <= 16) return respond(false, '密文非法');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(key), Buffer.from(resource.nonce));
+    decipher.setAuthTag(cipherBuf.subarray(cipherBuf.length - 16));
+    if (resource.associated_data) decipher.setAAD(Buffer.from(resource.associated_data));
+    let decrypted = decipher.update(cipherBuf.subarray(0, cipherBuf.length - 16), null, 'utf8');
+    decrypted += decipher.final('utf8');
+    const info = JSON.parse(decrypted);
+    if (info.trade_state !== 'SUCCESS') {
+      return respond(false, '交易未成功');
+    }
+    // 订单金额对账（钱闭环：实付必须等于订单金额）
+    const order = await db.driver.get('SELECT * FROM orders WHERE id = ?', [Number(info.out_trade_no)]);
+    if (!order) return respond(false, '订单不存在');
+    if (order.status === 'paid') return respond(true, '成功');   // 幂等：重复回调
+    if (order.amount_fen !== info.amount.total) {
+      logOp('wxpay_notify', 'fail', { orderId: order.id, paid: info.amount.total, expect: order.amount_fen });
+      return respond(false, '金额不符');
+    }
+    const result = await db.payOrder({ openid: order.user_openid, orderId: order.id, pay_method: 'wxpay', wxpayVerified: true });
+    if (!result.ok) return respond(false, result.error);
+    logOp('wxpay_notify', 'ok', { orderId: order.id, transactionId: info.transaction_id, amountFen: info.amount.total });
+    return respond(true, '成功');
+  } catch (e) {
+    logOp('wxpay_notify', 'fail', { error: e.message });
+    return respond(false, '解密失败');
+  }
 }
 
 async function handleProfile(req, res) {
@@ -1065,6 +1211,9 @@ async function toPublicUser(user) {
 const API_ROUTES = [
   { m: 'POST',   p: '/api/auth/login',          f: async(q, r) => await handleLogin(q, r) },
   { m: 'POST',   p: '/api/auth/phone-login',    f: async(q, r) => await handlePhoneLogin(q, r) },
+  { m: 'GET',    p: '/api/wxpay/status',        f: async(q, r) => handleWxpayStatus(q, r) },
+  { m: 'POST',   p: '/api/wxpay/create',        f: async(q, r) => await handleWxpayCreate(q, r) },
+  { m: 'POST',   p: '/api/wxpay/notify',        f: async(q, r) => await handleWxpayNotify(q, r) },
   // 2026-08-15: 登录态检查（已注册用户启动小程序免登录直达首页）
   { m: 'GET',    p: '/api/auth/check',          f: async(q, r, u) => {
       const openid = u.searchParams.get('openid');
