@@ -15,6 +15,14 @@
 
 ---
 
+## #59 PUT /api/me/profile 挂起——路由层 readBody 消费流 end 后 handler 内二次 readBody，监听永不触发（DEV #D5-3 自发现）
+
+- **现象**：填写画像接口 PUT /api/me/profile 客户端请求永远无响应（curl -m 15 超时；测试套件 PROF-04 卡死整轮跑不完）。GET /api/me/profile、login（POST+readBody）、coach/notes（PUT+readBody）全部正常——仅该路由挂（2026-08-18 dev #D5-3 测试中发现）。
+- **根因**：**双层 readBody**。路由条目 `f: async(q, r) => { const body = await readBody(q); await handleUpdateMyProfile(q, r, body); }` 已消费请求流并触发 `end`；handler 内部第一行又 `const body = await readBody(req)`——**流的 end 事件已被第一层消费，第二次注册的 `req.on('end')` 永不触发** → Promise 永不 resolve → 挂起。其他 PUT handler（coach/notes 等）模式是路由层读 body 后传参，handler 不自读，故不受影响。
+- **修复**：`handleUpdateMyProfile(req, res, body)` 改收路由层传入的 body，删除 handler 内二次 readBody；注释标明「双层 readBody 会挂起」防再犯。
+- **回归测试**：PROF-04~10（PUT 画像全套：非法性别/生日 400、首填 +20 币、落库、流水留痕、生日月标记、重复不发币）——此前整轮卡死在 PROF-04，修复后 329/329 全绿。
+- **防护层**：L1 本地 hook（run-tests 全量，PUT 套件卡住即整轮红）。兜底思路：**readBody 是流消费操作，同一请求只允许读一次**——路由层读 body 后必须传参给 handler，禁止 handler 内再读；新增 PUT 路由时对照既有 handler 签名（`(req, res, body)`）。
+
 ## #57 订课并发超卖（P0 资金/数据安全）——下单宽松快照检查、支付无容量闸门，500 并发下容量 10 的课 256 人支付成功
 
 - **现象**：压测任务（用户要求 500 并发完美应对）第一版脚本断言参数错位全假绿，修复后极端模式暴露：容量 10 的场次，500 并发「下单→支付」后 `booked_count=256`、paid 订单 256 笔——**256 人订上 10 个位置**，真超卖（2026-08-18 压测发现）。

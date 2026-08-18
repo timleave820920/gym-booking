@@ -81,6 +81,31 @@
       </view>
     </view>
 
+    <!-- 社交画像卡（DESIGN #D5-3）：性别/生日自填 → 首次送 20 能量币 + 生日月首订 8 折 -->
+    <view class="profile-card" wx:if="{{profile}}">
+      <view class="profile-card-head">
+        <text class="profile-card-title">🎯 完善画像</text>
+        <text class="profile-card-sub" wx:if="{{!profileSaved}}">首次填写奖励 20 能量币</text>
+        <text class="profile-card-sub" wx:else>已完善，可随时修改</text>
+      </view>
+      <view class="profile-row">
+        <text class="profile-label">性别</text>
+        <view class="gender-group">
+          <view class="gender-item {{genderSel === 0 ? 'on' : ''}}" data-g="0" bindtap="onGenderTap">未知</view>
+          <view class="gender-item {{genderSel === 1 ? 'on' : ''}}" data-g="1" bindtap="onGenderTap">男</view>
+          <view class="gender-item {{genderSel === 2 ? 'on' : ''}}" data-g="2" bindtap="onGenderTap">女</view>
+        </view>
+      </view>
+      <view class="profile-row">
+        <text class="profile-label">生日</text>
+        <picker mode="date" end="{{todayStr}}" value="{{birthdaySel}}" bindchange="onBirthdayChange">
+          <view class="birthday-pick {{birthdaySel ? '' : 'ph'}}">{{birthdaySel || '选择生日'}}</view>
+        </picker>
+      </view>
+      <view class="profile-bday-tip" wx:if="{{profile.in_birthday_month}}">🎂 本月是您的生日月，首次订课享 8 折</view>
+      <view class="profile-save" bindtap="saveProfile">保存画像</view>
+    </view>
+
     <!-- 菜单组 -->
     <view class="menu-group" wx:for="{{menus}}" wx:key="index" wx:for-item="group">
       <view class="menu-row flex-row" wx:for="{{group}}" wx:key="name"

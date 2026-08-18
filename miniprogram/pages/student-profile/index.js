@@ -33,8 +33,17 @@ Page({
         avatar: api.toFullUrl(user.avatar) || '/images/2_556.png'
       },
       // 2026-08-15: 注册不强制设置资料 → 新用户在此提示（可选）
-      showProfileTip: this.needProfileTip(user)
+      showProfileTip: this.needProfileTip(user),
+      // 生日 picker 上限（DESIGN #D5-3）
+      todayStr: this.formatToday()
     });
+  },
+
+  // 本地日期 YYYY-MM-DD（仅作 picker 上限展示，业务判定以服务器为准）
+  formatToday() {
+    const d = new Date();
+    const p = (n) => (n < 10 ? '0' + n : '' + n);
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
   },
 
   // 是否提示完善资料：注册时跳过设置 或 昵称/头像未设置（昵称为空/默认名，头像为默认占位图）
@@ -53,9 +62,56 @@ Page({
   onShow() {
     this.loadBalance();       // 加载余额（无动画）
     this.loadUnread();
+    this.loadProfile();       // 社交画像（DESIGN #D5-3）
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 3 });
     }
+  },
+
+  // ===== 社交画像（DESIGN #D5-3）：性别/生日自填 → 20 能量币 + 生日月首订 8 折 =====
+  loadProfile() {
+    const openid = this.data.openid;
+    if (!openid) return;
+    api.getMyProfile(openid).then((res) => {
+      const p = res.profile;
+      this.setData({
+        profile: p,
+        genderSel: p.gender,
+        birthdaySel: p.birthday || '',
+        profileSaved: !!(p.gender || p.birthday)
+      });
+    }).catch(() => {});
+  },
+
+  onGenderTap(e) {
+    this.setData({ genderSel: Number(e.currentTarget.dataset.g) });
+  },
+
+  onBirthdayChange(e) {
+    this.setData({ birthdaySel: e.detail.value });
+  },
+
+  // 保存画像：首次填写（此前性别/生日均空）后端发 20 能量币，成功后刷新余额
+  saveProfile() {
+    const openid = this.data.openid;
+    if (!openid) { wx.showToast({ title: '请先登录', icon: 'none' }); return; }
+    const gender = this.data.genderSel === undefined ? 0 : this.data.genderSel;
+    const birthday = this.data.birthdaySel || '';
+    if (!gender && !birthday) {
+      wx.showToast({ title: '请选择性别或生日', icon: 'none' });
+      return;
+    }
+    api.updateMyProfile({ openid, gender, birthday }).then((res) => {
+      this.setData({ profile: res.profile, profileSaved: true });
+      if (res.bonusCoins > 0) {
+        wx.showToast({ title: `完善画像奖励 ${res.bonusCoins} 能量币`, icon: 'success' });
+        this.loadBalance();  // 刷新能量币余额
+      } else {
+        wx.showToast({ title: res.message || '画像已更新', icon: 'success' });
+      }
+    }).catch(() => {
+      wx.showToast({ title: '保存失败，请重试', icon: 'none' });
+    });
   },
 
   // 拉取未读消息数 → 消息通知入口角标

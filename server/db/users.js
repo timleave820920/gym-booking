@@ -39,6 +39,50 @@ async function updateProfile(openid, { nickname, avatar }) {
   return await findUserByOpenid(openid);
 }
 
+// ===== 社交画像（DESIGN #D5）：性别/生日（微信自 2021 年起不再提供真实性别年龄，只能用户自填）=====
+
+/** 读取画像：gender 0=未知 1=男 2=女；birthday YYYY-MM-DD；in_birthday_month 供前端高亮/8 折提示 */
+async function getUserProfile(openid) {
+  const user = await findUserByOpenid(openid);
+  if (!user) return null;
+  const birthday = user.birthday || '';
+  return {
+    openid,
+    gender: user.gender || 0,
+    birthday,
+    profile_bonus_claimed: !!user.profile_bonus_claimed,
+    in_birthday_month: !!(birthday && birthday.slice(0, 7) === time.todayStr().slice(0, 7))
+  };
+}
+
+/**
+ * 填写/更新画像；首次填写（此前无任何画像信息）发放 20 能量币（一次性，profile_bonus_claimed 落库防重复）
+ * @returns {{ok:true, profile, bonusCoins:number}|{ok:false, error:string}}
+ */
+async function updateUserProfile(openid, { gender, birthday }) {
+  const user = await findUserByOpenid(openid);
+  if (!user) return { ok: false, error: '用户不存在，请先登录' };
+  if (gender !== undefined && ![0, 1, 2].includes(Number(gender))) {
+    return { ok: false, error: '性别取值：0 未知 / 1 男 / 2 女' };
+  }
+  if (birthday !== undefined && birthday !== '' && !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(birthday)) {
+    return { ok: false, error: '生日格式应为 YYYY-MM-DD' };
+  }
+  const firstTime = !user.gender && !user.birthday;
+  const g = gender === undefined ? (user.gender || 0) : Number(gender);
+  const b = birthday === undefined ? (user.birthday || '') : birthday;
+  await driver.run('UPDATE users SET gender = ?, birthday = ?, profile_bonus_claimed = 1 WHERE openid = ?', [g, b, openid]);
+  let bonusCoins = 0;
+  if (firstTime) {
+    // 惰性 require 防循环依赖（coin.js → users.js 单向，这里反向取用）
+    const { addCoins } = require('./coin');
+    const ENERGY_CONFIG = require('../energy-config.js');
+    const after = await addCoins(openid, ENERGY_CONFIG.earnRules.profile, '完善画像奖励', 'PROFILE-BONUS', true);
+    bonusCoins = after ? ENERGY_CONFIG.earnRules.profile : 0;
+  }
+  return { ok: true, profile: await getUserProfile(openid), bonusCoins };
+}
+
 // ===== 会员体系（等级/储值/奖励/邀请）=====
 // 数值统一从 member-config.js 读取（唯一数据源，改配置即全局生效）
 
@@ -85,4 +129,4 @@ async function clearUsers() {
 
 // ===== 课程相关（结构见 DATA-MODEL.md）=====
 // ===== 导出 =====
-module.exports = { findUserByOpenid, createUser, touchLogin, updateProfile, countUsers, listUsers, deleteUserById, deleteUserByOpenid, clearUsers };
+module.exports = { findUserByOpenid, createUser, touchLogin, updateProfile, countUsers, listUsers, deleteUserById, deleteUserByOpenid, clearUsers, getUserProfile, updateUserProfile };

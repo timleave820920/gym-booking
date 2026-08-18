@@ -462,6 +462,33 @@ async function handleProfile(req, res) {
   });
 }
 
+// 社交画像（DESIGN #D5-3）：读取（GET /api/me/profile?openid=）
+async function handleMyProfile(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  const profile = await db.getUserProfile(openid);
+  if (!profile) return sendJson(res, 404, { code: 404, message: '用户不存在，请先登录' });
+  return sendJson(res, 200, { code: 200, profile });
+}
+
+// 填写/更新画像（PUT /api/me/profile）：首次填写送 20 能量币（DESIGN #D5 激励）
+// body 由路由层 readBody 后传入（双层 readBody 会挂起：流 end 已被第一层消费，第二次注册的监听永不触发）
+async function handleUpdateMyProfile(req, res, body) {
+  const { openid, gender, birthday } = body;
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  const result = await db.updateUserProfile(openid, { gender, birthday });
+  if (!result.ok) return sendJson(res, 400, { code: 400, message: result.error });
+  // 能量币发放留痕（规矩 #6）
+  if (result.bonusCoins > 0) logOp(openid, 'profile_bonus', { coins: result.bonusCoins, reason: '完善画像奖励' }, 'ok');
+  return sendJson(res, 200, {
+    code: 200,
+    message: result.bonusCoins > 0 ? `画像已完善，获得 ${result.bonusCoins} 能量币` : '画像已更新',
+    profile: result.profile,
+    bonusCoins: result.bonusCoins
+  });
+}
+
 async function handleUsers(req, res) {
   const users = await db.listUsers();
   // BUGS-INBOX #41：toPublicUser 为 async，map 不 await 会得到 Promise 数组（序列化后全空对象）
@@ -1423,6 +1450,12 @@ const API_ROUTES = [
   { m: 'POST',   p: '/api/track/batch', f: async(q, r) => {
       const body = await readBody(q);
       await handleTrackBatch(q, r, body);
+    } },
+  // 社交画像（DESIGN #D5-3）：我的页画像卡
+  { m: 'GET',    p: '/api/me/profile',  f: async(q, r, u) => await handleMyProfile(q, r, u) },
+  { m: 'PUT',    p: '/api/me/profile',  f: async(q, r) => {
+      const body = await readBody(q);
+      await handleUpdateMyProfile(q, r, body);
     } },
   { m: 'GET',    p: '/api/admin/logs',          f: async(q, r) => await handleAdminLogs(q, r) },
   { m: 'GET',    p: '/api/admin/attendance',    f: async(q, r) => await handleAttendance(q, r) },

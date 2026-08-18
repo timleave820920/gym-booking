@@ -5,7 +5,7 @@
  * 2026-08-18 P0 清理：移除 17 个未用 re-export（内部模块直接互引，不走聚合层）
  */
 const { db, driver, courseCols } = require('./db-core');
-const { findUserByOpenid, createUser, touchLogin, updateProfile, countUsers, listUsers, deleteUserById, deleteUserByOpenid, clearUsers } = require('./db/users');
+const { findUserByOpenid, createUser, touchLogin, updateProfile, countUsers, listUsers, deleteUserById, deleteUserByOpenid, clearUsers, getUserProfile, updateUserProfile } = require('./db/users');
 const { todayCoinsEarned, getCoinInfo, listCoinLogs, listShopItems, exchangeCoinItem, listMyExchanges } = require('./db/coin');
 const { getMemberLevel, refundOrderMoney, calcRechargeBonus, listRecharges, listUnreadBalanceLogs, markBalanceLogsRead, RECHARGE_PLANS } = require('./db/members');
 const { listInvitationDetails, inviteBoardStats, bindInvitation, getInviteStats } = require('./db/invite');
@@ -136,5 +136,8 @@ module.exports = {
   groupMessage,
   // 浏览埋点（DESIGN #D5）
   batchTrack,
-  eventsAnalysis
+  eventsAnalysis,
+  // 社交画像（DESIGN #D5）
+  getUserProfile,
+  updateUserProfile
 };

@@ -2,6 +2,7 @@
 
 > 输入「bug：xxx」自动登记（UserPromptSubmit 钩子捕获）；描述不清我会追问。
 > 状态：⬜ 待确认 ｜ ⏳ 修复中 ｜ ✅ 已修复（登记 BUG-LEDGER #N）
+- [ ] #58（2026-08-18）后台的四个 tab 顺序：运营数据，课程设定，排课系统，教练分配（当前顺序与要求不符，待批准后修）
 - [x] #42（2026-08-17）教练工作台，我的课程页面，课程排序方式：1）当前正在进行的课程；2）未来的课程，越近的越靠前；3）已经结束的课程，越近的越靠前 → ✅ 已修复（BUG-LEDGER #42：session-sort.js 新增 sortCoachSessions 三态排序——进行中→未开始升序→已结束降序；SORT-05~08 回归，186/186 绿）
 - [x] #41（2026-08-17，排查 #40 时探测发现）GET /api/users 返回空对象数组——index.js:245 `users.map(toPublicUser)` 中 toPublicUser 为 async 函数，map 未 await → Promise 数组序列化为 `[{},{}...]`（JSON.stringify 对 Promise 输出 {}）。本地 AUTH-05 只断言数组长度所以假绿。→ ✅ 已修复（BUG-LEDGER #41：await Promise.all + AUTH-05b 字段断言防假绿，186/186 绿）
 - [x] #40（2026-08-17）通过前端登录页面的教练入口进入，报错"教练档案不存在"。→ ✅ 已修复（BUG-LEDGER #40：① web 管理网页新增「教练分配」tab——GET /api/admin/coaches 列表（含绑定昵称）+ POST /api/admin/coach-unassign 解绑（role 回落 student），均访问码保护；② 生产绑定喻馥雅 demo_3dmuxq→coaches#1；ADMIN-08~13 回归 + coverage 探针 13.6，193/193 绿）

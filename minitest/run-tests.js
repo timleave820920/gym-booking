@@ -336,6 +336,13 @@ async function runSuite() {
       && /require\('\.\.\/\.\.\/utils\/track\.js'\)/.test(d5DetailJs)
       && /track\.courseView\(/.test(d5DetailJs) && /reportCourseView/.test(d5DetailJs),
     '首页 page_view 曝光+search 关键词、详情 course_view 停留时长（onHide/onUnload 上报）');
+  // DESIGN #D5-3 画像卡防回退：我的页有画像卡（性别三选+生日 picker+保存），保存走 PUT /api/me/profile
+  check('FRONT-21', '我的页画像卡防回退（DESIGN #D5-3：性别/生日/20 能量币）',
+    /profile-card/.test(pfWxml) && /onGenderTap/.test(pfWxml) && /onBirthdayChange/.test(pfWxml)
+      && /saveProfile/.test(pfWxml)
+      && /getMyProfile\(/.test(pfSrc) && /updateMyProfile\(/.test(pfSrc)
+      && /完善画像奖励/.test(pfSrc),
+    '画像卡须含性别三选/生日 picker/保存按钮；JS 加载 GET 画像并 PUT 保存（首次奖励提示）');
   // 2026-08-18 UI 统一批（BUG-LEDGER #51/#53/#54/#55）：后退按钮统一 back-wrap 箭头；
   // 分享必须用 button open-type="share"（view 不触发转发）；低版本基础库降级相册；等级页文案
   const detailWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.wxml'), 'utf8');
@@ -1059,6 +1066,37 @@ async function runSuite() {
     `top=${JSON.stringify(evA.search.top)}`);
   r = await req('GET', '/api/admin/events-analysis?date=2026-99-99');
   check('TRK-10', 'date 非法格式 → 400', r.status === 400, `status=${r.status}`);
+
+  // ===== 6.12 社交画像（DESIGN #D5-3）：性别/生日 + 填单 20 能量币 =====
+  console.log('\n── 6.12 社交画像 ──');
+  r = await req('GET', '/api/me/profile');
+  check('PROF-01', '缺 openid → 400', r.status === 400, `status=${r.status}`);
+  r = await req('GET', '/api/me/profile?openid=uid_nobody');
+  check('PROF-02', '不存在用户 → 404', r.status === 404, `status=${r.status}`);
+  const profOpenid = 'uid_test_prof';
+  await req('POST', '/api/auth/login', { openid: profOpenid, nickname: '画像测试' });
+  r = await req('GET', `/api/me/profile?openid=${profOpenid}`);
+  check('PROF-03', '未填画像默认值（0 未知/空生日/未领奖）',
+    ok(r, 200) && r.data.profile.gender === 0 && r.data.profile.birthday === '' && r.data.profile.profile_bonus_claimed === false,
+    `profile=${JSON.stringify(r.data && r.data.profile)}`);
+  r = await req('PUT', '/api/me/profile', { openid: profOpenid, gender: 5 });
+  check('PROF-04', '非法性别 → 400', r.status === 400, `msg=${r.data && r.data.message}`);
+  r = await req('PUT', '/api/me/profile', { openid: profOpenid, birthday: '2026-13-01' });
+  check('PROF-05', '非法生日（13 月）→ 400', r.status === 400, `msg=${r.data && r.data.message}`);
+  const profBirth = `${timeMod.parts().y}-${String(timeMod.parts().mo).padStart(2, '0')}-15`; // 本月 15 号（顺带测生日月标记）
+  r = await req('PUT', '/api/me/profile', { openid: profOpenid, gender: 1, birthday: profBirth });
+  check('PROF-06', '首次填写成功 + 20 能量币', ok(r, 200) && r.data.bonusCoins === 20 && r.data.profile.gender === 1 && r.data.profile.birthday === profBirth, `bonus=${r.data && r.data.bonusCoins} profile=${JSON.stringify(r.data && r.data.profile)}`);
+  {
+    const _dbx = require('../server/db.js');
+    const row = await _dbx.driver.get('SELECT gender, birthday, profile_bonus_claimed FROM users WHERE openid = ?', [profOpenid]);
+    check('PROF-07', '画像落库（gender/birthday/bonus_claimed）', row && row.gender === 1 && row.birthday === profBirth && row.profile_bonus_claimed === 1, `row=${JSON.stringify(row)}`);
+    const coins = await _dbx.driver.all("SELECT `change`, reason FROM coin_logs WHERE user_openid = ? AND reason = '完善画像奖励'", [profOpenid]);
+    check('PROF-08', '能量币流水留痕（+20 完善画像奖励）', coins.length === 1 && coins[0].change === 20, `coins=${JSON.stringify(coins)}`);
+  }
+  r = await req('GET', `/api/me/profile?openid=${profOpenid}`);
+  check('PROF-09', '生日月标记 in_birthday_month=true', r.data.profile.in_birthday_month === true, `profile=${JSON.stringify(r.data && r.data.profile)}`);
+  r = await req('PUT', '/api/me/profile', { openid: profOpenid, gender: 2 });
+  check('PROF-10', '重复填写不再发币且性别可改', ok(r, 200) && r.data.bonusCoins === 0 && r.data.profile.gender === 2, `bonus=${r.data && r.data.bonusCoins} gender=${r.data && r.data.profile && r.data.profile.gender}`);
 
   // ===== 6.5 教练工作台（DESIGN #D1）：我的学员 / 笔记 / 结算 / 设教练 =====
   console.log('\n── 6.5 教练工作台 ──');

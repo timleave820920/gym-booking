@@ -376,6 +376,16 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     r = await req('GET', '/api/admin/events-analysis', null, { 'Admin-Token': 'cov-admin' });
     assert.ok(r.data.funnel && typeof r.data.funnel.expose === 'number'
       && Array.isArray(r.data.intent) && Array.isArray(r.data.search.top), '浏览分析聚合');
+    // ---- 13.11 DESIGN #D5-3 社交画像探针：读取 / 填写 + 20 能量币 ----
+    const profOid = 'uid_cov_prof';
+    r = await req('POST', '/api/auth/login', { openid: profOid, nickname: '画像探针' });
+    assert.equal(r.status, 201, '画像探针注册');
+    r = await req('GET', '/api/me/profile?openid=' + profOid);
+    assert.ok(r.data.profile && r.data.profile.gender === 0, '画像读取');
+    r = await req('PUT', '/api/me/profile', { openid: profOid, gender: 1, birthday: '2000-06-15' });
+    assert.equal(r.data.bonusCoins, 20, '完善画像送 20 能量币');
+    r = await req('PUT', '/api/me/profile', { openid: profOid, gender: 2 });
+    assert.equal(r.data.bonusCoins, 0, '重复填写不再发币');
     delete process.env.ADMIN_TOKEN;
 
     // ---- 14 候补复杂路径：排位 / 退订转正 / 退出退款 / 过期退款 ----

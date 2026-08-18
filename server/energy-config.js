@@ -14,7 +14,8 @@ module.exports = {
     invite:      100,    // 每成功邀请 1 人（叠加储值奖励）
     recharge:    50,     // 每充值 ¥100 → 50 币（按金额折算，向下取整）
     levelUp:     200,    // 每次升级 → 200 币
-    achievement: 50      // 每解锁 1 项成就 → 50 币（成就系统 REWARD_COINS 同源）
+    achievement: 50,     // 每解锁 1 项成就 → 50 币（成就系统 REWARD_COINS 同源）
+    profile:     20      // 完善社交画像（性别/生日，一次性，DESIGN #D5）
   },
 
   // 每日获取上限（防刷币，0 = 不限制；2026-08-14 用户决定取消上限）

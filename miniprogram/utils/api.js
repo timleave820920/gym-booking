@@ -337,5 +337,13 @@ module.exports = {
   // 批量上报用户行为事件（track.js 攒批调用；白名单外事件服务端静默丢弃）
   trackBatch(data) {
     return localRequest('/api/track/batch', 'POST', data);
+  },
+
+  // ===== 社交画像（DESIGN #D5-3）：性别/生日自填，首次送 20 能量币 =====
+  getMyProfile(openid) {
+    return localRequest('/api/me/profile?openid=' + openid, 'GET');
+  },
+  updateMyProfile(data) {
+    return localRequest('/api/me/profile', 'PUT', data);
   }
 };
