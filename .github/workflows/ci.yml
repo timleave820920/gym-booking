@@ -29,12 +29,17 @@ jobs:
         env:
           WX_APPID: test_appid
           WX_SECRET: test_secret
+          # 手动启动路径（非干净库模式）须显式配 ADMIN_TOKEN：
+          # 后端启用管理访问码校验，测试侧同步注入同值 header（run-tests.js 优先读 env）
+          ADMIN_TOKEN: test-admin-token
 
       - name: 健康检查
         run: curl -s --retry 5 --retry-delay 2 http://127.0.0.1:3000/api/health
 
       - name: 全量测试（SQLite 方言）
         run: node minitest/run-tests.js http://127.0.0.1:3000
+        env:
+          ADMIN_TOKEN: test-admin-token
 
       - name: 覆盖率探针
         run: node --test --experimental-test-coverage minitest/coverage.test.js
