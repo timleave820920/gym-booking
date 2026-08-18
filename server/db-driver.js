@@ -175,7 +175,8 @@ function createMysqlPool() {
     queueLimit: 200,
     acquireTimeout: 10000,
     timezone: '+08:00', // 让 MySQL 返回的 DATETIME/时间计算按北京时间（BUG-LEDGER #28 防回归）
-    dateStrings: true  // DATETIME 以 'YYYY-MM-DD HH:MM:SS' 字符串返回，与应用层字符串契约一致（BUG-LEDGER #31：建表已改 DATETIME 类型）
+    dateStrings: true,  // DATETIME 以 'YYYY-MM-DD HH:MM:SS' 字符串返回，与应用层字符串契约一致（BUG-LEDGER #31：建表已改 DATETIME 类型）
+    decimalNumbers: true // SUM/ROUND 等聚合返回 DECIMAL——mysql2 默认转字符串，SQLite 返回 number，业务 `typeof === 'number'` 断言在 MySQL 全炸（BUG-LEDGER #60：DASH-07）。金额/计数均 INT 聚合，2^53 内精度安全
   });
   // 每连接初始化：会话时区 +08:00 —— DEFAULT (CURRENT_TIMESTAMP) 的默认时间列按北京落库。
   // ⚠️ 必须用 callback 风格：connection 事件转发的是 callback 版连接（inheritEvents 原样转发 corePool

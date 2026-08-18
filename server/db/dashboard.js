@@ -158,6 +158,7 @@ async function getDashboard(dateStr) {
 
   // D 系统健康
   // change 是 MySQL 保留字裸用报错（coin.js 已包反引号，此处补上；反引号双方言兼容）
+  // issued/spent 包 fen() 强转 number：MySQL SUM 返回 DECIMAL（decimalNumbers 已配但双保险）
   const coins = await driver.get(`SELECT
       COALESCE(SUM(CASE WHEN \`change\` > 0 THEN \`change\` ELSE 0 END),0) issued,
       COALESCE(SUM(CASE WHEN \`change\` < 0 THEN -\`change\` ELSE 0 END),0) spent
@@ -204,7 +205,7 @@ async function getDashboard(dateStr) {
         coaches: coachRows.map(r => ({ ...r, rate: pct(r.booked, r.cap) }))
       },
       system: {
-        coins: { issued: coins.issued, spent: coins.spent, exchanges },
+        coins: { issued: fen(coins.issued), spent: fen(coins.spent), exchanges },
         msg_total: msg.total,
         msg_read_rate: pct(msg.read_cnt, msg.total),
         members,

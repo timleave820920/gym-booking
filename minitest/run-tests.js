@@ -176,6 +176,11 @@ async function main() {
       console.log('[干净库模式] 后端已停止，临时库已删除');
     }
   }
+
+  // 正常失败路径也强制退出：MySQL 模式 mysql2 连接池句柄阻塞自然退出（仅设 exitCode 会挂到 CI 超时，
+  // BUG-LEDGER #60：2026-08-18 test-mysql 失败后 10 分钟超时的直接根因；异常路径由 main().catch process.exit(2) 兜底，
+  // 放 try/catch 之后保证异常堆栈先打印再退出）
+  process.exit(suiteFailed > 0 ? 1 : 0);
 }
 
 async function runSuite() {
