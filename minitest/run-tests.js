@@ -98,6 +98,7 @@ const ctx = {
 async function main() {
   // ===== 干净库模式（DB_PATH 设置时）：自管临时库 + 独立后端生命周期 =====
   let child = null;
+  let logPath = null; // 后端日志落盘路径（if(DB_PATH) 块内赋值，finally 块内读取——必须提升到函数级作用域）
   if (DB_PATH) {
     for (const suffix of ['', '-wal', '-shm']) {
       try { fs.rmSync(DB_PATH + suffix, { force: true }); } catch (e) {}
@@ -123,7 +124,7 @@ async function main() {
     // ② 独立端口起后端（不与开发中的 3000 冲突）
     // 后端日志落盘（stdio:'ignore' 曾致 CI test-mysql 失败时 [server error] 完全不可见，2026-08-18 排障教训：
     // 无法判断 500 是业务错还是连接池挂起——测试失败/启动失败时打印尾部定位）
-    const logPath = require('node:path').join(require('node:os').tmpdir(), `gym-backend-${process.pid}.log`);
+    logPath = require('node:path').join(require('node:os').tmpdir(), `gym-backend-${process.pid}.log`);
     const logFd = fs.openSync(logPath, 'w');
     const port = 3100 + Math.floor(Math.random() * 500);
     child = spawn(process.execPath, ['server/index.js'], {
@@ -804,7 +805,7 @@ async function runSuite() {
   const wlT = r.data.order;
   if (wlT) {
     await req('POST', `/api/orders/${wlT.id}/pay`, { openid: T.user2.openid, payMethod: 'balance' });
-    await db.driver.run(`UPDATE course_sessions SET date = '2026-08-09' WHERE id = ${ctx.tomorrowSessionId}`);
+    await db.driver.run(`UPDATE course_sessions SET \`date\` = '2026-08-09' WHERE id = ${ctx.tomorrowSessionId}`);
     r = await req('GET', `/api/waitlist?openid=${T.user2.openid}`);
     const wlT2 = (r.data.waits || []).find(w => w.session_id === ctx.tomorrowSessionId);
     check('WTL-08', '过期自动退款', wlT2 && wlT2.status === 'refunded', `status=${wlT2 && wlT2.status}`);
@@ -945,7 +946,7 @@ async function runSuite() {
     && typeof D.core.refund_fen === 'number',
     `date=${D.date} nu=${D.core && D.core.new_users} br=${D.core && D.core.booking_rate} cr=${D.core && D.core.checkin_rate} r7=${D.core && D.core.retention && D.core.retention.d7}`);
   // 订课率口径：当日 published/full 场次 预约÷总席位（与库直查精确一致）
-  const dashCap = await _dbx.driver.get("SELECT COALESCE(SUM(capacity),0) cap, COALESCE(SUM(booked_count),0) booked FROM course_sessions WHERE date = ? AND status IN ('published','full')", [todayStr]);
+  const dashCap = await _dbx.driver.get("SELECT COALESCE(SUM(capacity),0) cap, COALESCE(SUM(booked_count),0) booked FROM course_sessions WHERE `date` = ? AND status IN ('published','full')", [todayStr]);
   const dashRate = dashCap.cap > 0 ? Math.round(dashCap.booked / dashCap.cap * 1000) / 10 : 0;
   check('DASH-04', '订课率=预约÷总席位（与库直查一致）',
     D.core.booking_rate === dashRate, `api=${D.core.booking_rate} db=${dashRate}`);

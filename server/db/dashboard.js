@@ -36,7 +36,7 @@ async function getDashboard(dateStr) {
   const newUsers = (await driver.get('SELECT COUNT(*) c FROM users WHERE date(created_at) = ?', [day])).c;
 
   const capRow = await driver.get(
-    "SELECT COALESCE(SUM(capacity),0) cap, COALESCE(SUM(booked_count),0) booked FROM course_sessions WHERE date = ? AND status IN ('published','full')", [day]);
+    "SELECT COALESCE(SUM(capacity),0) cap, COALESCE(SUM(booked_count),0) booked FROM course_sessions WHERE `date` = ? AND status IN ('published','full')", [day]);
   const bookingRate = pct(capRow.booked, capRow.cap);
 
   const ckRow = await driver.get(`
@@ -136,10 +136,10 @@ async function getDashboard(dateStr) {
   }
   const repurchase = await driver.get(`
     SELECT COUNT(DISTINCT user_openid) users FROM bookings WHERE session_id IN
-      (SELECT id FROM course_sessions WHERE date = ?) AND status = 'booked'`, [day]);
+      (SELECT id FROM course_sessions WHERE \`date\` = ?) AND status = 'booked'`, [day]);
   const repurchaseMany = await driver.get(`
     SELECT COUNT(*) c FROM (SELECT user_openid FROM bookings WHERE session_id IN
-      (SELECT id FROM course_sessions WHERE date = ?) AND status = 'booked'
+      (SELECT id FROM course_sessions WHERE \`date\` = ?) AND status = 'booked'
       GROUP BY user_openid HAVING COUNT(*) >= 2) t`, [day]);
 
   // C 课程热度（当日课预约率排行 + 时段 + 教练）
@@ -157,9 +157,10 @@ async function getDashboard(dateStr) {
     WHERE s.date = ? AND s.status IN ('published','full') GROUP BY co.id ORDER BY booked DESC`, [day]);
 
   // D 系统健康
+  // change 是 MySQL 保留字裸用报错（coin.js 已包反引号，此处补上；反引号双方言兼容）
   const coins = await driver.get(`SELECT
-      COALESCE(SUM(CASE WHEN change > 0 THEN change ELSE 0 END),0) issued,
-      COALESCE(SUM(CASE WHEN change < 0 THEN -change ELSE 0 END),0) spent
+      COALESCE(SUM(CASE WHEN \`change\` > 0 THEN \`change\` ELSE 0 END),0) issued,
+      COALESCE(SUM(CASE WHEN \`change\` < 0 THEN -\`change\` ELSE 0 END),0) spent
     FROM coin_logs WHERE date(created_at) = ?`, [day]);
   const exchanges = (await driver.get('SELECT COUNT(*) c FROM coin_exchanges WHERE date(created_at) = ?', [day])).c;
   // 别名 read_cnt（read 是 MySQL reserved 关键字，裸别名语法报错；BUG-LEDGER #60）

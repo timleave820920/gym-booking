@@ -241,7 +241,7 @@ async function buildActions(day, today, prev) {
 async function saveReport(day, summary, metrics, trends, actions) {
   const now = time.nowDateTimeStr();
   const upd = await driver.run(
-    'UPDATE daily_reports SET summary=?, metrics=?, trends=?, actions=?, generated_at=? WHERE date=?',
+    'UPDATE daily_reports SET summary=?, metrics=?, trends=?, actions=?, generated_at=? WHERE `date`=?',
     [summary, JSON.stringify(metrics), JSON.stringify(trends), JSON.stringify(actions), now, day]);
   if (upd.changes === 0) {
     await driver.run(
@@ -279,7 +279,8 @@ async function generateReport(dateStr) {
 /** 惰性获取：有缓存直接返回（同日幂等），无则生成落库 */
 async function getDailyReport(dateStr) {
   const day = dateStr || time.todayStr();
-  const row = await driver.get('SELECT * FROM daily_reports WHERE date = ?', [day]);
+  // 反引号包 date（MySQL 保留字裸用报错；反引号双方言兼容，mysql-schema.js 注释确认）
+  const row = await driver.get('SELECT * FROM daily_reports WHERE `date` = ?', [day]);
   if (row) return parseReport(row);
   return generateReport(day);
 }
@@ -287,7 +288,7 @@ async function getDailyReport(dateStr) {
 /** 手动重新生成（覆盖当天缓存；占位日无缓存可删） */
 async function regenerateReport(dateStr) {
   const day = dateStr || time.todayStr();
-  await driver.run('DELETE FROM daily_reports WHERE date = ?', [day]);
+  await driver.run('DELETE FROM daily_reports WHERE `date` = ?', [day]);
   return generateReport(day);
 }
 
