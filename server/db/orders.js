@@ -552,7 +552,11 @@ async function listWaitlistByUser(openid) {
     SELECT w.id, w.wait_no, w.session_id, w.amount_fen, w.status, w.expire_mode, w.created_at, w.promoted_at, w.refunded_at,
            s.date, s.start_time, s.end_time, s.capacity, s.booked_count,
            c.id AS course_id, c.name AS course_name, c.level, c.duration_min,
-           co.name AS coach_name, v.name AS venue_name
+           co.name AS coach_name, v.name AS venue_name,
+           -- 排队总人数 + 我的位置（DESIGN #D3：您前面还有 N 人）；个人候补量小，相关子查询可接受
+           (SELECT COUNT(*) FROM waitlist w2 WHERE w2.session_id = w.session_id AND w2.status = 'waiting') AS waitlist_count,
+           (SELECT COUNT(*) FROM waitlist w2 WHERE w2.session_id = w.session_id AND w2.status = 'waiting'
+             AND (w2.created_at < w.created_at OR (w2.created_at = w.created_at AND w2.id < w.id))) AS my_wait_position
     FROM waitlist w
     JOIN course_sessions s ON s.id = w.session_id
     JOIN courses c ON c.id = s.course_id

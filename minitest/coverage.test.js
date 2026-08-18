@@ -382,6 +382,10 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     r = await req('POST', '/api/waitlist', { openid: W4.openid, sessionId: s4, amountFen: 8000 });
     assert.equal(r.status, 201, 'W4排位');
     const w4Id = r.data.wait.id;
+    // DESIGN #D3 排位人数探针：U3 已转正，队列只剩 W4 → 总数 1、位置 0
+    r = await req('GET', '/api/sessions/' + s4 + '?openid=' + W4.openid);
+    assert.equal(r.data.session.waitlist_count, 1, 'D3 排队人数探针');
+    assert.equal(r.data.session.my_wait_position, 0, 'D3 我的位置探针');
     r = await req('DELETE', `/api/waitlist/${w4Id}?openid=${W4.openid}`);
     assert.equal(r.data.code, 200, '退出候补退款');
     // 过期退款：造「今天已开始且满员」的场次，GET /api/waitlist 顺带触发 refundExpiredWaitlist

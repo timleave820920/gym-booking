@@ -268,17 +268,21 @@ async function updateSessionCapacity(id, capacity) {
   return { ok: true };
 }
 
-/** 按日期查场次，并标记当前用户是否已预订/已排位（openid 可选） */
+/** 按日期查场次，标记当前用户是否已预订/已排位，并带排队人数（DESIGN #D3，openid 可选） */
 async function listSessionsByDateForUser(date, openid) {
   const sessions = await listSessionsByDate(date);
-  if (!openid) return sessions;
+  // 全部场次排队人数一次聚合（GROUP BY 一条 SQL，禁止 N+1 循环查询）
+  const waitCounts = await driver.all("SELECT session_id, COUNT(*) c FROM waitlist WHERE status = 'waiting' GROUP BY session_id");
+  const waitCountMap = new Map(waitCounts.map(r => [r.session_id, r.c]));
+  const withCounts = sessions.map(s => ({ ...s, waitlist_count: waitCountMap.get(s.id) || 0 }));
+  if (!openid) return withCounts;
   // 查该用户已预订的场次 id 集合（仅 booked 状态）
   const bookedRows = await driver.all("SELECT session_id FROM bookings WHERE user_openid = ? AND status = 'booked'", [openid]);
   const bookedSet = new Set(bookedRows.map(r => r.session_id));
   // 查该用户候补排位中的场次 id 集合（仅 waiting 状态）
   const waitRows = await driver.all("SELECT session_id FROM waitlist WHERE user_openid = ? AND status = 'waiting'", [openid]);
   const waitSet = new Set(waitRows.map(r => r.session_id));
-  return sessions.map(s => ({ ...s, booked_by_me: bookedSet.has(s.id), waitlisted_by_me: waitSet.has(s.id) }));
+  return withCounts.map(s => ({ ...s, booked_by_me: bookedSet.has(s.id), waitlisted_by_me: waitSet.has(s.id) }));
 }
 
 /** 场次详情（学员端课程详情） */

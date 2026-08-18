@@ -97,6 +97,9 @@ Page({
         bookedUsers: s.bookedUsers || [],
         isBooked: !!s.booked_by_me,
         isWaitlisted: !!s.waitlisted_by_me,
+        // 排位人数（DESIGN #D3）：waitlistCount 总是返回；myWaitPosition 仅已排位时有值（前面还有 N 人）
+        waitlistCount: s.waitlist_count || 0,
+        myWaitPosition: s.my_wait_position,
         status,
         // 训练详情：管理员配置的长文描述；未配置回退 placeholder
         descText: s.course_desc || DEFAULT_TRAINING,

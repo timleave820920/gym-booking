@@ -46,6 +46,8 @@
             </view>
           </view>
           <text class="wait-expire" wx:if="{{item.isWait}}">{{item.expireText}}</text>
+          <!-- 排位人数（DESIGN #D3）：刷新/切回页面即最新；前面还有 N 人帮用户判断等待预期 -->
+          <text class="wait-pos" wx:if="{{item.isWait && item.myWaitPosition !== null}}">前面还有 {{item.myWaitPosition}} 人排队 · 当前共 {{item.waitlistCount}} 人</text>
           <view class="flex-row card-actions">
             <view class="btn-sm btn-outline" wx:if="{{!item.isWait}}" catchtap="refund" data-id="{{item.id}}" data-name="{{item.name}}">退订</view>
             <view class="btn-sm btn-outline" wx:if="{{item.isWait}}" catchtap="exitWaitlist" data-id="{{item.id}}" data-name="{{item.name}}">退出候补</view>

@@ -172,7 +172,8 @@ Page({
       price: (s.price_fen / 100).toFixed(0),
       memberPrice: Math.floor(Number((s.price_fen / 100).toFixed(0)) * discount), // 会员价 = 正价 × 等级折扣，向下取整到元
       img: s.cover || DEFAULT_COVER,
-      bookedByMe: !!s.booked_by_me
+      bookedByMe: !!s.booked_by_me,
+      waitlistCount: s.waitlist_count || 0  // 满员排队人数（DESIGN #D3）
     })).map(s => this.decorateSession(s));
     list.sort(this.sortSessions);
     return list;

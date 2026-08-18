@@ -1242,14 +1242,23 @@ async function handleSessionsByDate(req, res, date) {
 async function handleSessionDetail(req, res, id) {
   const s = await db.getSessionById(Number(id));
   if (!s) return sendJson(res, 404, { code: 404, message: '场次不存在' });
-  // 携带 openid 时标记是否已订
+  // 携带 openid 时标记是否已订；排队人数与身份无关总是返回（DESIGN #D3）
   const url = new URL(req.url, `http://${req.headers.host}`);
   const openid = url.searchParams.get('openid') || null;
-  let result = s;
+  const wc = await driver.get("SELECT COUNT(*) c FROM waitlist WHERE session_id = ? AND status = 'waiting'", [s.id]);
+  let result = { ...s, waitlist_count: wc.c };
   if (openid) {
     const booked = await driver.get("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ? AND status = 'booked'", [openid, s.id]);
-    const waited = await driver.get("SELECT id FROM waitlist WHERE user_openid = ? AND session_id = ? AND status = 'waiting'", [openid, s.id]);
-    result = { ...s, booked_by_me: !!booked, waitlisted_by_me: !!waited };
+    const waited = await driver.get("SELECT id, created_at FROM waitlist WHERE user_openid = ? AND session_id = ? AND status = 'waiting'", [openid, s.id]);
+    // 我的排位位置 = 同场次排队中、先于我的数量（「您前面还有 N 人」，DESIGN #D3）。
+    // 排序与 promoteFromWaitlist 的 ORDER BY created_at, id 完全一致：created_at 秒级精度会并列，
+    // 用 id 打破平局（自增主键 = 入队顺序），保证「显示的位置」就是「转正的顺序」
+    let myWaitPos = null;
+    if (waited) {
+      const before = await driver.get("SELECT COUNT(*) c FROM waitlist WHERE session_id = ? AND status = 'waiting' AND (created_at < ? OR (created_at = ? AND id < ?))", [s.id, waited.created_at, waited.created_at, waited.id]);
+      myWaitPos = before.c;
+    }
+    result = { ...result, booked_by_me: !!booked, waitlisted_by_me: !!waited, my_wait_position: myWaitPos };
   }
   // 轮播图 JSON → 数组；已预约用户（预约墙头像+昵称）
   let images = [];

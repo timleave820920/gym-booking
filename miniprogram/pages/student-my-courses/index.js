@@ -92,6 +92,9 @@ Page({
             statusType: 'waiting',
             isWait: true,
             expireText: w.expire_mode === '1h' ? '课前1小时自动取消' : (w.expire_mode === '2h' ? '课前2小时自动取消' : '开课时自动取消'),
+            // 排位人数（DESIGN #D3）：总排队人数 + 我前面的人数（刷新页面/切回页面即最新）
+            waitlistCount: w.waitlist_count || 0,
+            myWaitPosition: w.my_wait_position,
             checked: false
           }));
         // 待上课（含候补）排序：最近要开始的排最前（#36）

@@ -134,3 +134,10 @@
   color: #5B57EB;
   font-weight: 600;
 }
+/* 排位位置提示（DESIGN #D3）：灰色小字，区分于紫色到期提示 */
+.wait-pos {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #8A8A8A;
+}

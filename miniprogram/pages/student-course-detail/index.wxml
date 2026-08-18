@@ -104,12 +104,17 @@
       <text class="price-value">¥ {{course.price}}</text>
       <text class="price-sub">单次 ¥{{course.price}} · 约课后直接支付</text>
     </view>
-    <view class="book-btn {{isBooked || isWaitlisted ? 'booked' : (status === 'ongoing' || status === 'ended' ? 'booked' : '')}}" bindtap="bookNow" data-booked="{{isBooked}}">
-      <text wx:if="{{isBooked}}">已预订</text>
-      <text wx:elif="{{isWaitlisted}}">排位中</text>
-      <text wx:elif="{{status === 'ongoing'}}">{{t.ongoing}}</text>
-      <text wx:elif="{{status === 'ended'}}">{{t.ended}}</text>
-      <text wx:else>{{t.bookImmediate}}</text>
+    <view class="flex-col wait-col">
+      <view class="book-btn {{isBooked || isWaitlisted ? 'booked' : (status === 'ongoing' || status === 'ended' ? 'booked' : '')}}" bindtap="bookNow" data-booked="{{isBooked}}">
+        <text wx:if="{{isBooked}}">已预订</text>
+        <text wx:elif="{{isWaitlisted}}">排位中</text>
+        <text wx:elif="{{status === 'ongoing'}}">{{t.ongoing}}</text>
+        <text wx:elif="{{status === 'ended'}}">{{t.ended}}</text>
+        <text wx:else>{{t.bookImmediate}}</text>
+      </view>
+      <!-- 排位人数提示（DESIGN #D3）：已排位=您前面还有 N 人；满员未排位=当前 N 人排队中 -->
+      <view class="waitlist-hint" wx:if="{{isWaitlisted && myWaitPosition !== null}}">您前面还有 {{myWaitPosition}} 人</view>
+      <view class="waitlist-hint" wx:elif="{{!isBooked && !isWaitlisted && waitlistCount > 0}}">当前 {{waitlistCount}} 人排队中</view>
     </view>
   </view>
 </view>

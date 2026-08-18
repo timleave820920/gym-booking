@@ -102,7 +102,8 @@
               <text wx:if="{{item.isBooked}}">已约</text>
               <text wx:elif="{{item.waitlisted}}">{{t.waitlisted}}</text>
               <text wx:elif="{{item.canWaitlist}}">{{t.waitlistBtn}}</text>
-              <text wx:elif="{{item.isFull}}">已满</text>
+              <!-- 满员按钮显示排队人数（DESIGN #D3）：帮用户判断要不要付费排位；金色斜条已示满员 -->
+              <text wx:elif="{{item.isFull}}">{{item.canWaitlist && item.waitlistCount > 0 ? item.waitlistCount + '人排队' : '已满'}}</text>
               <text wx:elif="{{item.status === 'ongoing'}}">{{t.ongoing}}</text>
               <text wx:elif="{{item.status === 'ended'}}">{{t.ended}}</text>
               <text wx:else>预约</text>

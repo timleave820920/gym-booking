@@ -298,6 +298,15 @@ async function runSuite() {
   check('FRONT-12', '退订截止提示防回退（开课前 2 小时内不可退订/退出候补）',
     /开课前 2 小时内不可退订/.test(myCoursesSrc) && /开课前 2 小时内不可退出/.test(myCoursesSrc),
     '退订/退出候补确认弹窗需明示截止规则（2026-08-18 用户拍板）');
+  // DESIGN #D3 排位人数可视化防回退：详情页按钮下 waitlist-hint、我的课程页 wait-pos 位置、
+  // 首页满员按钮排队人数（waitlistCount 透传）——任一被删则断言红
+  const d3DetailWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.wxml'), 'utf8');
+  const d3MyCoursesWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-my-courses', 'index.wxml'), 'utf8');
+  check('FRONT-17', '排位人数展示防回退（详情页/我的课程页/首页卡片，DESIGN #D3）',
+    /waitlist-hint/.test(d3DetailWxml) && /您前面还有/.test(d3DetailWxml) && /当前.*人排队中/.test(d3DetailWxml)
+      && /wait-pos/.test(d3MyCoursesWxml) && /前面还有/.test(d3MyCoursesWxml)
+      && /waitlistCount/.test(coursesSrc),
+    'DESIGN #D3：详情页排位提示（前面还有 N 人/当前 N 人排队中）、我的课程页位置、首页满员按钮人数');
   // 2026-08-18 UI 统一批（BUG-LEDGER #51/#53/#54/#55）：后退按钮统一 back-wrap 箭头；
   // 分享必须用 button open-type="share"（view 不触发转发）；低版本基础库降级相册；等级页文案
   const detailWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.wxml'), 'utf8');
@@ -651,6 +660,21 @@ async function runSuite() {
   check('WTL-04a-pay', '二号排位支付', ok(r, 200) && r.data.wait && r.data.wait.status === 'waiting', `msg=${r.data && r.data.message}`);
   r = await req('GET', `/api/waitlist?openid=${T.user2.openid}`);
   check('WTL-05', '我的候补列表', ok(r, 200) && r.data.waits.length >= 1, `count=${r.data && r.data.waits && r.data.waits.length}`);
+  // DESIGN #D3 排位人数可视化：排队总数 + 我的位置（user1 先排 → user2 在其后）
+  const wlUser2 = (r.data.waits || []).find(w => w.session_id === ctx.fullSessionId);
+  check('WTL-05b', '候补列表带排队总数', !!wlUser2 && wlUser2.waitlist_count === 2, `count=${wlUser2 && wlUser2.waitlist_count}`);
+  check('WTL-05c', '候补列表带我的位置(后排=1)', !!wlUser2 && wlUser2.my_wait_position === 1, `pos=${wlUser2 && wlUser2.my_wait_position}`);
+  r = await req('GET', `/api/waitlist?openid=${T.user1.openid}`);
+  const wlUser1 = (r.data.waits || []).find(w => w.session_id === ctx.fullSessionId);
+  check('WTL-05c-2', '先排者位置=0', !!wlUser1 && wlUser1.my_wait_position === 0, `pos=${wlUser1 && wlUser1.my_wait_position}`);
+  // 详情接口：waitlist_count 总是返回；已排位时带 my_wait_position
+  r = await req('GET', `/api/sessions/${ctx.fullSessionId}?openid=${T.user2.openid}`);
+  check('WTL-05d', '详情接口排队人数', ok(r, 200) && r.data.session.waitlist_count === 2 && r.data.session.my_wait_position === 1, `count=${r.data && r.data.session && r.data.session.waitlist_count} pos=${r.data && r.data.session && r.data.session.my_wait_position}`);
+  // 列表接口：GROUP BY 一次聚合带出全部场次排队人数
+  const fullDate2 = (timeMod.parts().h >= 21) ? tomorrowStr : todayStr;
+  r = await req('GET', '/api/sessions?date=' + fullDate2 + '&openid=' + T.user2.openid);
+  const listItem = (r.data.sessions || []).find(s => s.id === ctx.fullSessionId);
+  check('WTL-05e', '列表接口排队人数', !!listItem && listItem.waitlist_count === 2, `count=${listItem && listItem.waitlist_count}`);
 
   // 退订触发转正：holder 订满员场次(调低余位) → 退订 → 最早排位者(田立)转正
   const db = require('../server/db.js');
@@ -667,6 +691,10 @@ async function runSuite() {
   r = await req('GET', `/api/waitlist?openid=${T.user1.openid}`);
   const wl1 = (r.data.waits || []).find(w => w.session_id === ctx.fullSessionId);
   check('WTL-06b', '转正状态 promoted', wl1 && wl1.status === 'promoted', `status=${wl1 && wl1.status}`);
+  // DESIGN #D3：转正后排队人数 -1（user1 已转正，剩 user2）；转正者不再有位置（null）
+  r = await req('GET', `/api/sessions/${ctx.fullSessionId}?openid=${T.user1.openid}`);
+  check('WTL-06c', '转正后排队人数-1', ok(r, 200) && r.data.session.waitlist_count === 1, `count=${r.data && r.data.session && r.data.session.waitlist_count}`);
+  check('WTL-06d', '转正者无排位位置', ok(r, 200) && r.data.session.my_wait_position === null, `pos=${r.data && r.data.session && r.data.session.my_wait_position}`);
 
   // 退出候补（二号）
   r = await req('GET', `/api/waitlist?openid=${T.user2.openid}`);
@@ -678,6 +706,9 @@ async function runSuite() {
     r = await req('GET', `/api/orders?openid=${T.user2.openid}`);
     const w2Order = (r.data.orders || []).find(o => o.wait_id === w2.id);
     check('WTL-07b', '候补订单已退款', w2Order && w2Order.status === 'refunded', `status=${w2Order && w2Order.status}`);
+    // DESIGN #D3：退出后排队人数归零
+    r = await req('GET', `/api/sessions/${ctx.fullSessionId}?openid=${T.user2.openid}`);
+    check('WTL-07c', '退出后排队人数归零', ok(r, 200) && r.data.session.waitlist_count === 0, `count=${r.data && r.data.session && r.data.session.waitlist_count}`);
   } else {
     check('WTL-07', '退出候补退款', false, '未找到 waiting 记录');
   }
