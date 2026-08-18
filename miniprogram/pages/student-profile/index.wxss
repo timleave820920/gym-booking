@@ -130,8 +130,16 @@
 .menu-group .menu-row:last-child {
   border-bottom: none;
 }
-/* 一次性画像卡入口（2026-08-18：保存后整卡隐藏，仅留此轻量入口展开编辑） */
+/* 一次性画像卡入口（2026-08-18：保存后整卡隐藏，仅留此轻量入口展开编辑）
+   白色底卡片同「联系客服」菜单组（#FFFFFF+圆角+阴影，2026-08-18 用户要求） */
 .profile-entry {
+  margin-top: 32rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 0 28rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.04);
+  height: 104rpx;
+  align-items: center;
   justify-content: space-between;
   color: var(--dark, #333);
   font-size: 28rpx;
