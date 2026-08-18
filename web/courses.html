@@ -91,6 +91,35 @@ td .cap-input { width: 64px; padding: 4px 6px; font-size: 12px; }
 .tr-day { font-size: 10px; color: var(--gray); }
 .tr-num { font-size: 10px; color: var(--gray); }
 .member-line { font-size: 12px; color: var(--purple); margin-top: 6px; }
+/* 运营 Dashboard（DESIGN #D4，2026-08-18） */
+.dash-bar { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+.dash-bar label { font-size: 13px; color: var(--gray); }
+.dash-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.dash-kpi { background: var(--dark); border-radius: 12px; padding: 14px 16px; position: relative; }
+.dash-kpi .k-label { font-size: 12px; color: #bbb; }
+.dash-kpi .k-val { font-size: 24px; font-weight: 700; color: var(--lime); margin-top: 6px; line-height: 1.15; }
+.dash-kpi .k-val small { font-size: 13px; font-weight: 400; color: #ccc; }
+.dash-kpi .k-delta { font-size: 11px; margin-top: 4px; }
+.dash-kpi .k-delta.up { color: #7AD3A6; } .dash-kpi .k-delta.down { color: #F79C9C; } .dash-kpi .k-delta.flat { color: #888; }
+.dash-kpi .k-sub { font-size: 11px; color: #9a9a9a; margin-top: 6px; border-top: 1px dashed rgba(255,255,255,0.12); padding-top: 6px; }
+.trend-switch { display: flex; gap: 6px; margin-bottom: 10px; }
+.trend-switch button { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 5px 12px; font-size: 12px; cursor: pointer; }
+.trend-switch button.active { background: var(--purple); color: #fff; border-color: var(--purple); }
+canvas#dashTrend { width: 100%; height: 240px; }
+.fold { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 12px; background: #fff; }
+.fold summary { cursor: pointer; padding: 12px 16px; font-size: 14px; font-weight: 700; list-style: none; display: flex; align-items: center; justify-content: space-between; }
+.fold summary::after { content: '▾'; color: var(--gray); transition: transform 0.15s; }
+.fold[open] summary::after { transform: rotate(180deg); }
+.fold-inner { padding: 0 16px 16px; }
+.fold-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.mini-metrics { display: flex; gap: 10px; flex-wrap: wrap; }
+.mm { background: #F8F5EA; border-radius: 10px; padding: 10px 14px; min-width: 120px; }
+.mm .mm-v { font-size: 18px; font-weight: 700; color: var(--dark); }
+.mm .mm-l { font-size: 11px; color: var(--gray); margin-top: 2px; }
+.mm.hot { background: #FCEBEB; } .mm.hot .mm-v { color: var(--red); }
+.mm.good { background: #E5FFC9; } .mm.good .mm-v { color: #3D9970; }
+.dash-table td { white-space: normal; }
+.dash-empty { text-align: center; color: var(--gray); padding: 18px 0; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -99,7 +128,7 @@ td .cap-input { width: 64px; padding: 4px 6px; font-size: 12px; }
   <nav class="tabs">
     <button class="tab active" id="tab-set" onclick="switchTab('set')">课程设定</button>
     <button class="tab" id="tab-sch" onclick="switchTab('sch')">排表管理</button>
-    <button class="tab" id="tab-board" onclick="switchTab('board')">邀请看板</button>
+    <button class="tab" id="tab-board" onclick="switchTab('board')">运营数据</button>
     <button class="tab" id="tab-coach" onclick="switchTab('coach')">教练分配</button>
   </nav>
 </header>
@@ -205,44 +234,146 @@ td .cap-input { width: 64px; padding: 4px 6px; font-size: 12px; }
   </main>
 </section>
 
-<!-- ============ 邀请看板 ============ -->
+<!-- ============ 运营数据（DESIGN #D4，替换邀请看板 tab） ============ -->
 <section class="panel hidden" id="panel-board">
   <main style="flex:1; min-width:0">
-    <!-- 总览指标 -->
-    <div class="board-cards">
-      <div class="bc"><div class="bc-v" id="bd-total">-</div><div class="bc-l">总邀请</div></div>
-      <div class="bc"><div class="bc-v" id="bd-ordered">-</div><div class="bc-l">已首订</div></div>
-      <div class="bc"><div class="bc-v" id="bd-rate">-</div><div class="bc-l">转化率</div></div>
-      <div class="bc"><div class="bc-v" id="bd-inviters">-</div><div class="bc-l">参与邀请人</div></div>
-      <div class="bc"><div class="bc-v" id="bd-reward">-</div><div class="bc-l">已发放奖励</div></div>
+    <div class="dash-bar">
+      <label>查看日期</label>
+      <input type="date" id="dash-date" value="" style="padding:7px 10px; border:1px solid var(--line); border-radius:8px; font-size:13px">
+      <button class="btn btn-save" onclick="loadDashboard()">查询</button>
+      <span style="font-size:12px;color:var(--gray)">口径：订课率=预约÷总席位 · 签到率=签到÷预约 · 留存=注册后 N 天仍有订课/签到 · 确认收入=已签到或已过退订截止（课前 2 小时）· 未确认收入=可退订部分+候补排位费</span>
     </div>
 
-    <div style="display:flex; gap:16px; align-items:flex-start;">
-      <div class="block" style="flex:1.2">
-        <h3>近 14 天每日新增邀请</h3>
-        <div class="trend" id="bd-trend"></div>
-      </div>
-      <div class="block" style="flex:1">
-        <h3>邀请人 Top 10</h3>
-        <table>
-          <thead><tr><th>#</th><th>邀请人</th><th>邀请数</th><th>已首订</th></tr></thead>
-          <tbody id="bd-top"></tbody>
-        </table>
-      </div>
+    <!-- 7 KPI 卡（含昨日环比） -->
+    <div class="dash-kpis">
+      <div class="dash-kpi"><div class="k-label">新用户</div><div class="k-val" id="dk-new">-</div><div class="k-delta flat" id="dk-new-d">环比 --</div></div>
+      <div class="dash-kpi"><div class="k-label">订课率</div><div class="k-val" id="dk-book">-</div><div class="k-delta flat" id="dk-book-d">环比 --</div></div>
+      <div class="dash-kpi"><div class="k-label">签到率</div><div class="k-val" id="dk-check">-</div><div class="k-delta flat" id="dk-check-d">环比 --</div></div>
+      <div class="dash-kpi"><div class="k-label">行为留存 7/14/30 天</div><div class="k-val" id="dk-ret">-</div><div class="k-sub" id="dk-ret-sub">注册当日无样本显示 --</div></div>
+      <div class="dash-kpi"><div class="k-label">储值（当日充值 · 余额负债）</div><div class="k-val" id="dk-recharge">-</div><div class="k-sub" id="dk-recharge-sub">累计充值→消费转化 --</div></div>
+      <div class="dash-kpi"><div class="k-label">确认收入</div><div class="k-val" id="dk-conf">-</div><div class="k-delta flat" id="dk-conf-d">昨日 --</div></div>
+      <div class="dash-kpi"><div class="k-label">未确认收入</div><div class="k-val" id="dk-unconf">-</div><div class="k-sub" id="dk-unconf-sub">今日退款 --</div></div>
     </div>
 
+    <!-- 趋势图（原生 canvas，4 指标切换） -->
     <div class="block">
-      <h3>邀请明细 <span style="font-size:12px;color:var(--gray);font-weight:400">（选择用户查看其带来的新用户）</span></h3>
-      <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px">
-        <select id="bd-user" onchange="loadInviteDetails()" style="width:300px"></select>
-        <span style="font-size:12px;color:var(--gray)" id="bd-user-count"></span>
+      <h3>趋势（近 7/30 天）</h3>
+      <div class="trend-switch">
+        <button class="active" id="tw-new" onclick="setTrend('newUsers')">新用户</button>
+        <button id="tw-book" onclick="setTrend('bookingRate')">订课率</button>
+        <button id="tw-check" onclick="setTrend('checkinRate')">签到率</button>
+        <button id="tw-rev" onclick="setTrend('revenueFen')">确认收入</button>
+        <button id="tw-d7" class="active" onclick="setTrendDays('d7')">近 7 天</button>
+        <button id="tw-d30" onclick="setTrendDays('d30')">近 30 天</button>
       </div>
-      <table>
-        <thead><tr><th>被邀请人</th><th>状态</th><th>绑定时间</th><th>已发奖励</th></tr></thead>
-        <tbody id="bd-details"></tbody>
-      </table>
-      <div class="empty-tip" id="bd-details-empty" style="display:none">该用户暂无邀请记录</div>
+      <canvas id="dashTrend" width="900" height="240"></canvas>
     </div>
+
+    <!-- 4 组折叠卡 -->
+    <details class="fold" id="fold-revenue" open>
+      <summary>① 收入线索（退订率 / 候补转正 / 空置损失）</summary>
+      <div class="fold-inner">
+        <div class="mini-metrics">
+          <div class="mm"><div class="mm-v" id="dk-cancel-rate">-</div><div class="mm-l">当日退订率（退订÷预约）</div></div>
+          <div class="mm"><div class="mm-v" id="dk-promote-rate">-</div><div class="mm-l">候补转正率（转正÷已终结排位）</div></div>
+          <div class="mm hot"><div class="mm-v" id="dk-empty-loss">-</div><div class="mm-l">空置损失（空席×原价，未确认收入潜在值）</div></div>
+        </div>
+      </div>
+    </details>
+    <details class="fold" id="fold-growth">
+      <summary>② 用户增长（新客漏斗 / 沉睡双档 / 复购）</summary>
+      <div class="fold-inner">
+        <div class="fold-grid">
+          <div><h4 style="font-size:13px;margin:6px 0 8px">当日新客漏斗</h4><table class="dash-table">
+            <thead><tr><th>阶段</th><th>人数</th><th>转化</th></tr></thead>
+            <tbody id="dk-funnel"></tbody></table></div>
+          <div><h4 style="font-size:13px;margin:6px 0 8px">沉睡用户（无订课/签到）</h4><table class="dash-table">
+            <thead><tr><th>档位</th><th>人数</th></tr></thead>
+            <tbody id="dk-dormant"></tbody></table>
+            <div style="font-size:11px;color:var(--gray);margin-top:6px">14 天 = 预警（运营召回） · 30 天 = 重沉睡（重点唤醒）</div></div>
+          <div><h4 style="font-size:13px;margin:6px 0 8px">当日订课复购</h4><table class="dash-table">
+            <thead><tr><th>指标</th><th>人数</th></tr></thead>
+            <tbody id="dk-repurchase"></tbody></table></div>
+        </div>
+      </div>
+    </details>
+    <details class="fold" id="fold-courses">
+      <summary>③ 课程热度（预约率 TOP5 / 冷门 / 时段 / 教练）</summary>
+      <div class="fold-inner">
+        <div class="fold-grid">
+          <div><h4 style="font-size:13px;margin:6px 0 8px">预约率 TOP 5</h4><table class="dash-table">
+            <thead><tr><th>课程</th><th>预约/容量</th><th>率</th></tr></thead>
+            <tbody id="dk-top"></tbody></table></div>
+          <div><h4 style="font-size:13px;margin:6px 0 8px">冷门（预约率最低 5 门）</h4><table class="dash-table">
+            <thead><tr><th>课程</th><th>预约/容量</th><th>率</th></tr></thead>
+            <tbody id="dk-cold"></tbody></table></div>
+          <div><h4 style="font-size:13px;margin:6px 0 8px">时段热度</h4><table class="dash-table">
+            <thead><tr><th>时段</th><th>预约/容量</th><th>率</th></tr></thead>
+            <tbody id="dk-hours"></tbody></table></div>
+          <div><h4 style="font-size:13px;margin:6px 0 8px">教练表现</h4><table class="dash-table">
+            <thead><tr><th>教练</th><th>预约/容量</th><th>率</th></tr></thead>
+            <tbody id="dk-coaches"></tbody></table></div>
+        </div>
+      </div>
+    </details>
+    <details class="fold" id="fold-system">
+      <summary>④ 系统健康（能量币 / 消息阅读 / 会员分布 / 次卡动销）</summary>
+      <div class="fold-inner">
+        <div class="fold-grid">
+          <div><h4 style="font-size:13px;margin:6px 0 8px">能量币当日</h4><table class="dash-table">
+            <thead><tr><th>项</th><th>值</th></tr></thead>
+            <tbody id="dk-coins"></tbody></table></div>
+          <div><h4 style="font-size:13px;margin:6px 0 8px">站内信</h4><table class="dash-table">
+            <thead><tr><th>项</th><th>值</th></tr></thead>
+            <tbody id="dk-msg"></tbody></table></div>
+          <div><h4 style="font-size:13px;margin:6px 0 8px">会员等级分布</h4><table class="dash-table">
+            <thead><tr><th>等级</th><th>人数</th></tr></thead>
+            <tbody id="dk-members"></tbody></table></div>
+          <div><h4 style="font-size:13px;margin:6px 0 8px">次卡动销（当日）</h4><table class="dash-table">
+            <thead><tr><th>项</th><th>值</th></tr></thead>
+            <tbody id="dk-passes"></tbody></table></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- 原邀请看板（tab 被替换后保留为折叠，接口不变） -->
+    <details class="fold" id="fold-invite">
+      <summary>邀请看板（原独立 tab，保留入口）</summary>
+      <div class="fold-inner">
+        <div class="board-cards">
+          <div class="bc"><div class="bc-v" id="bd-total">-</div><div class="bc-l">总邀请</div></div>
+          <div class="bc"><div class="bc-v" id="bd-ordered">-</div><div class="bc-l">已首订</div></div>
+          <div class="bc"><div class="bc-v" id="bd-rate">-</div><div class="bc-l">转化率</div></div>
+          <div class="bc"><div class="bc-v" id="bd-inviters">-</div><div class="bc-l">参与邀请人</div></div>
+          <div class="bc"><div class="bc-v" id="bd-reward">-</div><div class="bc-l">已发放奖励</div></div>
+        </div>
+        <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap">
+          <div class="block" style="flex:1.2; min-width:280px">
+            <h3>近 14 天每日新增邀请</h3>
+            <div class="trend" id="bd-trend"></div>
+          </div>
+          <div class="block" style="flex:1; min-width:280px">
+            <h3>邀请人 Top 10</h3>
+            <table>
+              <thead><tr><th>#</th><th>邀请人</th><th>邀请数</th><th>已首订</th></tr></thead>
+              <tbody id="bd-top"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="block">
+          <h3>邀请明细 <span style="font-size:12px;color:var(--gray);font-weight:400">（选择用户查看其带来的新用户）</span></h3>
+          <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px">
+            <select id="bd-user" onchange="loadInviteDetails()" style="width:300px"></select>
+            <span style="font-size:12px;color:var(--gray)" id="bd-user-count"></span>
+          </div>
+          <table>
+            <thead><tr><th>被邀请人</th><th>状态</th><th>绑定时间</th><th>已发奖励</th></tr></thead>
+            <tbody id="bd-details"></tbody>
+          </table>
+          <div class="empty-tip" id="bd-details-empty" style="display:none">该用户暂无邀请记录</div>
+        </div>
+      </div>
+    </details>
   </main>
 </section>
 
@@ -339,7 +470,7 @@ function switchTab(name) {
   $('tab-board').classList.toggle('active', name === 'board');
   $('tab-coach').classList.toggle('active', name === 'coach');
   if (name === 'sch') loadSchedule();
-  if (name === 'board') loadInviteBoard();
+  if (name === 'board') loadDashboard();
   if (name === 'coach') loadCoaches();
 }
 
@@ -357,6 +488,7 @@ function init() {
     fillScheduleCourse();
     $('f-date-from').innerHTML = daysOptions(new Date(), new Date(new Date().getTime() + 60 * 864e5), today());
     $('f-date-to').innerHTML = daysOptions(new Date(), new Date(new Date().getTime() + 60 * 864e5), todayPlus(20));
+    if ($('dash-date')) $('dash-date').value = today();
   });
 }
 function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -608,7 +740,148 @@ function cancelSession(id) {
   }).catch(function (e) { toast($('pubMsg'), e.message, true); });
 }
 
-// ===== 邀请看板 =====
+// ===== 运营 Dashboard（DESIGN #D4，web「运营数据」tab，2026-08-18） =====
+var dashData = null;          // 当日聚合
+var dashPrev = null;          // 昨日聚合（环比）
+var dashTrendKey = 'newUsers';
+var dashTrendDays = 'd7';
+function todayIso() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function dayAgoIso(n) {
+  var d = new Date();
+  d.setDate(d.getDate() - (n || 1));
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function yuan(fen) { return '¥' + (Number(fen || 0) / 100).toLocaleString('zh-CN', { maximumFractionDigits: 2 }); }
+function deltaMark(cur, prev) {
+  if (typeof cur !== 'number' || typeof prev !== 'number' || prev === 0) return '<span class="k-delta flat">环比 --</span>';
+  var p = Math.round((cur - prev) / prev * 100);
+  var cls = p > 0 ? 'up' : (p < 0 ? 'down' : 'flat');
+  var arrow = p > 0 ? '▲' : (p < 0 ? '▼' : '');
+  return '<span class="k-delta ' + cls + '">' + arrow + (p === 0 ? '持平' : '环比 ' + (p > 0 ? '+' : '') + p + '%') + '</span>';
+}
+function loadDashboard() {
+  var date = $('dash-date').value || todayIso();
+  Promise.all([
+    api('/admin/dashboard?date=' + date),
+    api('/admin/dashboard?date=' + dayAgoIso(1))
+  ]).then(function (res) {
+    dashData = res[0]; dashPrev = res[1];
+    renderDashboard();
+    loadInviteBoard();          // 折叠区原邀请看板
+  }).catch(function (e) { alert('运营数据加载失败：' + e.message); });
+}
+function renderDashboard() {
+  var c = dashData.core, p = dashPrev && dashPrev.core;
+  // 7 KPI 卡
+  $('dk-new').textContent = c.new_users;
+  $('dk-new-d').innerHTML = deltaMark(c.new_users, p && p.new_users);
+  $('dk-book').textContent = c.booking_rate + '%';
+  $('dk-book-d').innerHTML = deltaMark(c.booking_rate, p && p.booking_rate);
+  $('dk-check').textContent = c.checkin_rate + '%';
+  $('dk-check-d').innerHTML = deltaMark(c.checkin_rate, p && p.checkin_rate);
+  var r = c.retention || {};
+  var rv = [r.d7, r.d14, r.d30].map(function (v) { return v === null ? '--' : v + '%'; });
+  $('dk-ret').textContent = rv.join(' / ');
+  $('dk-ret-sub').textContent = 'd7 / d14 / d30（注册当日 cohort，无样本显示 --）';
+  $('dk-recharge').textContent = yuan(c.recharge.fen) + ' <small>· 负债 ' + yuan(c.recharge.balance_fen) + '</small>';
+  $('dk-recharge-sub').textContent = '充值→消费转化 ' + (c.recharge.consume_ratio || 0) + '% · 当日 ' + c.recharge.count + ' 笔';
+  $('dk-conf').textContent = yuan(c.confirmed_revenue_fen);
+  $('dk-conf-d').innerHTML = deltaMark(c.confirmed_revenue_fen, p && p.confirmed_revenue_fen);
+  $('dk-unconf').textContent = yuan(c.unconfirmed_revenue_fen);
+  $('dk-unconf-sub').textContent = '今日退款 ' + yuan(c.refund_fen) + ' · 含候补排位费';
+  // 4 组折叠卡
+  var g = dashData.groups;
+  $('dk-cancel-rate').textContent = g.revenue.cancel_rate + '%';
+  $('dk-promote-rate').textContent = g.revenue.waitlist_promote_rate + '%';
+  $('dk-empty-loss').textContent = yuan(g.revenue.empty_seat_loss_fen);
+  $('dk-funnel').innerHTML = funnelRow('注册', g.growth.funnel.registered, 100) +
+    funnelRow('首次订课', g.growth.funnel.first_booked, g.growth.funnel.registered ? Math.round(g.growth.funnel.first_booked / g.growth.funnel.registered * 100) : 0) +
+    funnelRow('首次签到', g.growth.funnel.first_checkin, g.growth.funnel.first_booked ? Math.round(g.growth.funnel.first_checkin / g.growth.funnel.first_booked * 100) : 0);
+  $('dk-dormant').innerHTML = '<tr><td>14 天预警</td><td>' + g.growth.dormant.d14 + ' 人</td></tr><tr><td>30 天重沉睡</td><td>' + g.growth.dormant.d30 + ' 人</td></tr>';
+  $('dk-repurchase').innerHTML = '<tr><td>当日订课用户</td><td>' + g.growth.repurchase_users + ' 人</td></tr><tr><td>其中订 ≥2 节（高价值）</td><td>' + g.growth.repurchase_many + ' 人</td></tr>';
+  $('dk-top').innerHTML = heatRows(g.courses.top) || '<tr><td colspan="3" class="dash-empty">当日无课</td></tr>';
+  $('dk-cold').innerHTML = heatRows(g.courses.cold) || '<tr><td colspan="3" class="dash-empty">当日无课</td></tr>';
+  $('dk-hours').innerHTML = g.courses.hours.map(function (h) {
+    return '<tr><td>' + h.h + ':00-' + h.h + ':59</td><td>' + h.booked + '/' + h.cap + '</td><td>' + h.rate + '%</td></tr>';
+  }).join('') || '<tr><td colspan="3" class="dash-empty">当日无课</td></tr>';
+  $('dk-coaches').innerHTML = g.courses.coaches.map(function (co) {
+    return '<tr><td>' + esc(co.name) + '</td><td>' + co.booked + '/' + co.cap + '</td><td>' + co.rate + '%</td></tr>';
+  }).join('') || '<tr><td colspan="3" class="dash-empty">当日无课</td></tr>';
+  $('dk-coins').innerHTML = '<tr><td>发放</td><td>' + g.system.coins.issued + '</td></tr><tr><td>消耗</td><td>' + g.system.coins.spent + '</td></tr><tr><td>兑换笔数</td><td>' + g.system.coins.exchanges + '</td></tr>';
+  $('dk-msg').innerHTML = '<tr><td>当日消息</td><td>' + (g.system.msg_total || 0) + '</td></tr><tr><td>阅读率</td><td>' + g.system.msg_read_rate + '%</td></tr>';
+  $('dk-members').innerHTML = g.system.members.map(function (m) {
+    return '<tr><td>Lv.' + m.level_lv + '</td><td>' + m.c + ' 人</td></tr>';
+  }).join('') || '<tr><td colspan="2" class="dash-empty">暂无用户</td></tr>';
+  $('dk-passes').innerHTML = '<tr><td>当日购卡</td><td>' + g.system.passes.bought + ' 张</td></tr><tr><td>当日扣次订课</td><td>' + g.system.passes.used + ' 次</td></tr>';
+  renderTrendCanvas();
+}
+function funnelRow(label, v, pctV) {
+  return '<tr><td>' + label + '</td><td>' + v + '</td><td>' + (pctV === 100 ? '100%' : pctV + '%') + '</td></tr>';
+}
+function heatRows(list) {
+  return (list || []).map(function (h) {
+    return '<tr><td>' + esc(h.name) + '</td><td>' + h.booked_count + '/' + h.capacity + '</td><td>' + h.rate + '%</td></tr>';
+  }).join('');
+}
+// 趋势图：原生 canvas 折线（无第三方库）
+function setTrend(key) {
+  dashTrendKey = key;
+  ['newUsers', 'bookingRate', 'checkinRate', 'revenueFen'].forEach(function (k) {
+    $('tw-' + (k === 'newUsers' ? 'new' : k === 'bookingRate' ? 'book' : k === 'checkinRate' ? 'check' : 'rev')).classList.toggle('active', k === key);
+  });
+  renderTrendCanvas();
+}
+function setTrendDays(win) {
+  dashTrendDays = win;
+  $('tw-d7').classList.toggle('active', win === 'd7');
+  $('tw-d30').classList.toggle('active', win === 'd30');
+  renderTrendCanvas();
+}
+function renderTrendCanvas() {
+  var cv = $('dashTrend'), ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height, padL = 52, padR = 16, padT = 14, padB = 28;
+  ctx.clearRect(0, 0, W, H);
+  var t = dashData.trend[dashTrendDays];
+  if (!t || !t.days || !t.days.length) return;
+  var raw = t[dashTrendKey];
+  var isPct = dashTrendKey === 'bookingRate' || dashTrendKey === 'checkinRate';
+  var fmt = isPct ? function (v) { return v + '%'; } : (dashTrendKey === 'revenueFen' ? function (v) { return '¥' + Math.round(v / 100); } : String);
+  var max = Math.max.apply(null, raw.concat([1]));
+  var min = isPct ? 0 : Math.min.apply(null, raw.concat([0]));
+  if (max === min) max = min + 1;
+  // 网格 + Y 轴
+  ctx.strokeStyle = '#EFE9D8'; ctx.fillStyle = '#8A8A8A'; ctx.font = '11px sans-serif'; ctx.lineWidth = 1;
+  for (var g = 0; g <= 4; g++) {
+    var y = padT + (H - padT - padB) * g / 4;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.textAlign = 'right'; ctx.fillText(fmt(Math.round((max - (max - min) * g / 4) * 10) / 10), padL - 6, y + 4);
+  }
+  // X 轴（等宽抽点，最多 ~15 个标签）
+  var step = Math.max(1, Math.ceil(t.days.length / 15));
+  t.days.forEach(function (d, i) {
+    if (i % step === 0) { ctx.textAlign = 'center'; ctx.fillText(d.slice(5), padL + (W - padL - padR) * i / (t.days.length - 1), H - 8); }
+  });
+  // 折线
+  ctx.strokeStyle = '#6C5CE7'; ctx.lineWidth = 2; ctx.beginPath();
+  raw.forEach(function (v, i) {
+    var x = padL + (W - padL - padR) * i / (t.days.length - 1);
+    var y = padT + (H - padT - padB) * (1 - (v - min) / (max - min));
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  // 数据点
+  ctx.fillStyle = '#6C5CE7';
+  raw.forEach(function (v, i) {
+    var x = padL + (W - padL - padR) * i / (t.days.length - 1);
+    var y = padT + (H - padT - padB) * (1 - (v - min) / (max - min));
+    ctx.beginPath(); ctx.arc(x, y, 2.6, 0, Math.PI * 2); ctx.fill();
+  });
+}
+
+// ===== 邀请看板（折叠保留） =====
 var boardUsers = [];
 function loadInviteBoard() {
   api('/admin/invite-board').then(function (j) {

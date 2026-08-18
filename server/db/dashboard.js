@@ -203,6 +203,7 @@ async function getDashboard(dateStr) {
       },
       system: {
         coins: { issued: coins.issued, spent: coins.spent, exchanges },
+        msg_total: msg.total,
         msg_read_rate: pct(msg.read, msg.total),
         members,
         passes: { bought: passes.bought, used: passes.used }

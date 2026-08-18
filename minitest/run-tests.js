@@ -307,6 +307,14 @@ async function runSuite() {
       && /wait-pos/.test(d3MyCoursesWxml) && /前面还有/.test(d3MyCoursesWxml)
       && /waitlistCount/.test(coursesSrc),
     'DESIGN #D3：详情页排位提示（前面还有 N 人/当前 N 人排队中）、我的课程页位置、首页满员按钮人数');
+  // DESIGN #D4 运营数据 web tab 防回退：tab 改名、loadDashboard 存在、canvas 趋势图、
+  // 7 KPI 卡 + 4 组折叠卡结构（任一被删则断言红）
+  const webHtml = fs.readFileSync(path.join(PROJECT_ROOT, 'web', 'courses.html'), 'utf8');
+  check('FRONT-18', 'web 运营数据 tab 防回退（DESIGN #D4）',
+    /运营数据/.test(webHtml) && /function loadDashboard/.test(webHtml) && /id="dashTrend"/.test(webHtml)
+      && /class="dash-kpi"/.test(webHtml) && /fold-revenue/.test(webHtml) && /fold-courses/.test(webHtml)
+      && /dk-dormant/.test(webHtml),
+    'DESIGN #D4：tab 改「运营数据」、loadDashboard、canvas 趋势图、7 KPI 卡、4 组折叠卡');
   // 2026-08-18 UI 统一批（BUG-LEDGER #51/#53/#54/#55）：后退按钮统一 back-wrap 箭头；
   // 分享必须用 button open-type="share"（view 不触发转发）；低版本基础库降级相册；等级页文案
   const detailWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.wxml'), 'utf8');
