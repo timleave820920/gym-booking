@@ -126,7 +126,9 @@ Page({
   // 使用微信头像：官方头像选择器（微信头像/拍照/相册）
   chooseWechatAvatar() {
     if (!wx.chooseAvatar) {
-      wx.showToast({ title: '微信版本过低，无法使用微信头像', icon: 'none' });
+      // BUG-LEDGER #54：低版本基础库无 chooseAvatar → 不阻断，自动降级相册选图（仍可换头像）
+      wx.showToast({ title: '当前微信版本不支持微信头像，已改用相册选图', icon: 'none' });
+      this.chooseLocalImage();
       return;
     }
     // BUG-LEDGER #18：开发者工具是模拟环境，无真实微信头像数据，「使用微信头像」只能返回
@@ -142,10 +144,11 @@ Page({
         this.handleAvatarChosen({ detail: { avatarUrl: res.avatarUrl } });
       },
       fail: (err) => {
-        // 用户主动取消不提示；接口失败（隐私协议未声明「选中的头像或昵称」/基础库过低）给反馈，避免"点了没反应"
+        // 用户主动取消不提示；接口失败（隐私协议未声明「选中的头像或昵称」/基础库过低）→ 降级相册，避免"点了没反应"
         if (err && err.errMsg && err.errMsg.indexOf('cancel') >= 0) return;
         console.error('[avatar] chooseAvatar 失败', JSON.stringify(err));
-        wx.showToast({ title: '无法打开微信头像选择', icon: 'none' });
+        wx.showToast({ title: '微信头像不可用，已改用相册选图', icon: 'none' });
+        this.chooseLocalImage();
       }
     });
   },

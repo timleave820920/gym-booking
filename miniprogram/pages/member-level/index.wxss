@@ -57,10 +57,16 @@
 
 /* 等级权益 */
 .sec-title {
-  margin: 40rpx 0 20rpx;
+  margin: 40rpx 0 8rpx;
   font-size: 30rpx;
   font-weight: 700;
   color: #1A1A23;
+}
+.sec-sub {
+  display: block;
+  margin-bottom: 20rpx;
+  font-size: 24rpx;
+  color: #8A8A93;
 }
 .levels-row {
   display: flex;

@@ -13,9 +13,9 @@
     <view class="round-btn flex-center" bindtap="goBack">
       <text class="icon-back"></text>
     </view>
-    <view class="round-btn flex-center" open-type="share">
+    <button class="round-btn flex-center share-round" open-type="share" aria-label="分享">
       <text class="icon-share"></text>
-    </view>
+    </button>
   </view>
 
   <!-- 内容区 -->
@@ -26,10 +26,10 @@
         <text class="course-title">{{course.name}}</text>
         <text class="course-sub">{{course.sub}}</text>
       </view>
-      <view class="share-btn" open-type="share">
+      <button class="share-btn" open-type="share">
         <text class="share-ico"></text>
         <text>分享</text>
-      </view>
+      </button>
     </view>
 
     <!-- 课程时间：起止 + 年月日小字 -->

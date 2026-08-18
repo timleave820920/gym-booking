@@ -298,6 +298,26 @@ async function runSuite() {
   check('FRONT-12', '退订截止提示防回退（开课前 2 小时内不可退订/退出候补）',
     /开课前 2 小时内不可退订/.test(myCoursesSrc) && /开课前 2 小时内不可退出/.test(myCoursesSrc),
     '退订/退出候补确认弹窗需明示截止规则（2026-08-18 用户拍板）');
+  // 2026-08-18 UI 统一批（BUG-LEDGER #51/#53/#54/#55）：后退按钮统一 back-wrap 箭头；
+  // 分享必须用 button open-type="share"（view 不触发转发）；低版本基础库降级相册；等级页文案
+  const detailWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.wxml'), 'utf8');
+  const coachPfWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'coach-profile', 'index.wxml'), 'utf8');
+  const coachPfWxss = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'coach-profile', 'index.wxss'), 'utf8');
+  const levelWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'member-level', 'index.wxml'), 'utf8');
+  check('FRONT-13', '课程详情页分享按钮为 button open-type=share（#53 防回退：view 不触发转发）',
+    /<button class="round-btn flex-center share-round" open-type="share"[^>]*>/.test(detailWxml)
+      && /<button class="share-btn" open-type="share">/.test(detailWxml),
+    '分享必须放在 button 组件上（open-type 仅 button 生效），view 点击无反应');
+  check('FRONT-14', '低版本基础库换头像自动降级相册（#54 防回退）',
+    /if \(!wx\.chooseAvatar\)[\s\S]{0,220}this\.chooseLocalImage\(\)/.test(pfSrc),
+    '无 chooseAvatar（基础库<2.21.2）不得报错阻断，须降级相册选图保证仍可换头像');
+  check('FRONT-15', '教练详情页返回按钮统一 icon-back 箭头（#51 防回退）',
+    !/‹/.test(coachPfWxml) && /icon-back/.test(coachPfWxml) && /icon-back/.test(coachPfWxss),
+    'cp-back 不得用字符箭头（‹），须用全局统一 icon-back SVG 箭头');
+  check('FRONT-16', '会员等级页文案「任意储值」（#55/#56）',
+    /任意储值/.test(levelWxml) && !/0 节课起/.test(levelWxml)
+      && /任意储值成为会员，多上课程升级会员/.test(levelWxml),
+    '青铜档条件文案改「任意储值」；等级权益区有储值/上课升级引导语');
 
   // ===== 1.65 上课页排序（BUG-LEDGER #36：纯函数模块真实断言）=====
   console.log('\n── 1.65 上课页排序（BUG-LEDGER #36）──');

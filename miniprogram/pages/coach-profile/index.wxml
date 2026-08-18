@@ -1,7 +1,7 @@
 <view class="page">
   <!-- 导航 -->
   <view class="cp-nav">
-    <view class="cp-back" bindtap="goBack">‹</view>
+    <view class="cp-back" bindtap="goBack"><text class="icon-back"></text></view>
     <text class="cp-nav-title">教练介绍</text>
     <view class="cp-nav-sp"></view>
   </view>

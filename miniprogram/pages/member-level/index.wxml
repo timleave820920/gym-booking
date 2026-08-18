@@ -15,6 +15,7 @@
 
     <!-- 等级权益 -->
     <view class="sec-title">等级权益</view>
+    <text class="sec-sub">任意储值成为会员，多上课程升级会员</text>
     <view class="levels-row">
       <view class="level-item {{index === currentIdx ? 'level-current' : ''}}" wx:for="{{levels}}" wx:key="name">
         <view class="level-badge" style="background: {{item.color}};">
@@ -22,7 +23,7 @@
         </view>
         <text class="level-name">{{item.name}}</text>
         <text class="level-discount">{{item.discountText}}</text>
-        <text class="level-min">{{item.min === 0 ? '0 节课起' : item.min + ' 节课'}}</text>
+        <text class="level-min">{{item.min === 0 ? '任意储值' : item.min + ' 节课'}}</text>
         <view class="level-tag" wx:if="{{index === currentIdx}}">当前</view>
       </view>
     </view>

@@ -15,6 +15,32 @@
 
 ---
 
+## #54 换头像报「微信版本过低」——chooseAvatar 低版本基础库直接阻断，用户无法换头像
+
+- **现象**：个人中心 → 换头像 → 选择微信头像，弹「微信版本过低，无法使用微信头像」——用户卡死，无法换头像（2026-08-18 用户报）。
+- **根因**：`student-profile.chooseWechatAvatar` 用 `if (!wx.chooseAvatar)` 检测（`wx.chooseAvatar` 需基础库 ≥2.21.2），低版本（老手机/低版本微信）不满足时**直接 toast 报错 return**——报错路径是死路，没有替代方案。开发工具 libVersion 3.17.1 正常，真机才暴露。
+- **修复**：报错路径改为**自动降级相册选图**（`this.chooseLocalImage()`）——低版本仍可换头像，toast 明示「已改用相册选图」；`wx.chooseAvatar` fail 回调（隐私协议未声明/接口异常）同样降级相册，杜绝「点了没反应」。
+- **回归测试**：FRONT-14 静态断言（`!wx.chooseAvatar` 分支内必须有 `this.chooseLocalImage()` 降级调用，防回退报错死路）。
+- **防护层**：L1 本地 hook（全量随 commit 跑）。兜底思路：能力检测失败路径必须提供**降级方案**而非报错阻断；前端兜底类分支是静态断言重点。
+
+## #53 课程详情页分享按钮无效——open-type="share" 放在 view 上不生效（微信组件能力限制）
+
+- **现象**：课程详情页顶部/标题行两个「分享」按钮点击无任何反应，无法转发给好友（2026-08-18 用户报）。
+- **根因**：WXML 里分享按钮是 `<view open-type="share">`——**open-type 是 button 组件的属性**，view 上声明无效（不触发转发）；页面 onShareAppMessage 已定义（title/path/imageUrl 齐全），按钮却不触发。
+- **修复**：两处分享入口 `<view>` 改 `<button open-type="share">`（hero-nav 圆钮 `share-round` + 标题行 `share-btn`）；WXSS 补 button 默认样式 reset（`padding/border/line-height` + `::after{border:none}`），视觉与原来一致。顺带：返回/分享图标从深色半透明底白图标统一为浅色底 + 标准深色箭头（#51 同一批）。
+- **回归测试**：FRONT-13 静态断言（两处分享必须为 `<button ... open-type="share">`，防回退 view 写法）。
+- **防护层**：L1 本地 hook。兜底思路：微信组件专属属性（open-type/form-type 等）只对 button 生效，分享类交互必须 button 承载；静态断言锁定标签名。
+
+## #51 课程详情页顶部后退按钮样式与其他页面不一致——悬浮深色圆钮 vs 全局 back-wrap 箭头
+
+- **现象**：课程详情页顶部返回按钮是悬浮半透明深色圆钮，其他二级页（成就/消息/能量币等）是 `icon-back` 箭头 + 标题的标准样式；教练详情页更是字符箭头「‹」白圆钮（2026-08-18 用户报：统一为同一样式，全局对齐）。
+- **根因**：无统一规范——course-detail 因 hero 轮播图采用悬浮圆钮，coach-profile 用 `‹` 字符，其余页 back-wrap，三套样式并存。
+- **修复**：① course-detail hero-nav 返回按钮：底改白色半透明（rgba(255,255,255,0.72)）+ 箭头换标准 back-wrap 同款 SVG（36rpx 深色 `#1A1A23`）；② coach-profile `cp-back` 去字符「‹」改 icon-back 箭头；③ 全仓后退按钮收敛为 icon-back 一个视觉语言（图标 SVG 统一 18×18 viewBox）。
+- **回归测试**：FRONT-15 静态断言（coach-profile 无「‹」字符、含 icon-back；course-detail 图标已统一）。
+- **防护层**：L1 本地 hook。兜底思路：全局 UI 一致性靠统一图标资源（icon-back SVG 单源）而非各页自绘；新页面导航应复用既有类。
+
+---
+
 ## #50 time.parseBeijing 缺秒变 Invalid Date——退订/退出候补截止校验全部静默失效（B3 新功能上线即废）
 
 - **现象**：B3「课前 2 小时退订截止」上线后，开课前 1 小时场次的订课仍能成功退订/退出候补（应 400 拒绝）。
