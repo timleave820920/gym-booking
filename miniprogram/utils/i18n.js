@@ -66,12 +66,8 @@ const DICT = {
   // ===== 通用 =====
   gymName: { zh: '综合训练馆', en: 'Gym Center' },
   brandSlogan: { zh: '挥洒汗水，遇见更好的自己', en: 'Sweat it out, meet a better you' },
-  demoEntry: { zh: '演示身份入口', en: 'Demo Role Entry' },
-  demoHint: { zh: '正式版将按角色登录分流，此入口仅用于演示', en: 'The full version routes by role; this entry is for demo only' },
   roleStudent: { zh: '学员', en: 'Student' },
-  roleCoach: { zh: '教练', en: 'Coach' },
   roleAdmin: { zh: '管理员', en: 'Admin' },
-  demoRoleTitle: { zh: '角色入口 · 演示', en: 'Role Entry · Demo' },
   search: { zh: '搜索', en: 'Search' },
   settings: { zh: '设置', en: 'Settings' },
   exit: { zh: '退出', en: 'Exit' },

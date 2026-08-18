@@ -8,9 +8,6 @@ Page({
     loggingIn: false,
     lang: 'zh',              // 当前语言
     t: i18n.t(),             // 语言字典
-    userCount: 0,            // 当前注册用户数
-    nickInput: '',           // 昵称输入（测试账号快捷登录）
-    matchedTest: null,        // 匹配到的测试账号
     showPrivacy: false,      // 隐私协议弹窗（首次启动）
     privacyOk: false,         // 隐私授权状态（官方 wx.getPrivacySetting）
     // 2026-08-15: 登录后引导设置头像昵称（新用户/昵称为空时）
@@ -65,7 +62,6 @@ Page({
       // 协议勾选状态持久化：用户首次勾选后记住（'1'=已勾选；'0'或空=未勾选）
       agreed: wx.getStorageSync('agreed_terms') === '1'
     });
-    this.loadUserCount();
     // 隐私协议检测（微信 2023.9 起强制：官方 wx.getPrivacySetting）
     this.requirePrivacy().then((ok) => {
       if (!ok) this.setData({ showPrivacy: true });
@@ -100,42 +96,9 @@ Page({
     wx.navigateTo({ url: '/pages/agreement/index?type=service' });
   },
 
-  // 测试账号表：昵称 → 角色（昵称命中即用 djb2 哈希登录对应 demo_ 账号；2026-08-17 起
-  // 演示身份一律 demo_<哈希>，正式登录不产生任何演示账号）
-  TEST_ACCOUNTS: { '田立': 'student', '喻馥雅': 'coach', '蚂蚁': 'student', '艳子': 'student' },
-
-  onNickInput(e) {
-    const nick = String(e.detail.value || '').trim();
-    const role = this.TEST_ACCOUNTS[nick] || null;
-    this.setData({
-      nickInput: e.detail.value,
-      matchedTest: role ? { nick, role } : null
-    });
-  },
-
-  // 测试账号快捷登录（喻馥雅=教练 / 蚂蚁·艳子=学员）
-  nickLogin() {
-    const mt = this.data.matchedTest;
-    if (!mt) return;
-    if (!this.checkAgree()) return;
-    const nick = mt.nick;
-    wx.showModal({
-      title: '测试账号登录',
-      content: `将以「${nick}」${mt.role === 'coach' ? '（教练）' : '（学员）'}身份登录，确认？`,
-      confirmText: '确认',
-      success: (r) => {
-        if (r.confirm) {
-          this.doLogin({ name: nick, avatar: '/images/2_556.png' }, nick);
-        }
-      }
-    });
-  },
-
   onShow() {
     // 2026-08-15: 已注册用户免登录——storage 有登录态且后端确认用户存在 → 直达对应首页
     this.tryAutoEnter();
-    // 每次回到登录页刷新用户数（清空后立即更新）
-    this.loadUserCount();
   },
 
   // 已登录用户启动直达（预约页/教练课表），不再展示登录页；后端查无此人（清库后）→ 清除本地登录态回登录页
@@ -166,15 +129,6 @@ Page({
     });
   },
 
-  // 拉取当前注册用户数
-  loadUserCount() {
-    api.getUsersStats().then((res) => {
-      this.setData({ userCount: res.totalUsers || 0 });
-    }).catch(() => {
-      this.setData({ userCount: 0 });
-    });
-  },
-
   // ===== 语言切换 =====
   switchLang() {
     const next = this.data.lang === 'zh' ? 'en' : 'zh';
@@ -190,100 +144,6 @@ Page({
     this.setData({ agreed: next });
     // 持久化勾选状态（用户主动勾选后记住，下次进入免重复勾选）
     wx.setStorageSync('agreed_terms', next ? '1' : '0');
-  },
-
-  // ===== 演示身份快捷登录（不写数据库，直接进入对应端）=====
-  async quickLogin(e) {
-    if (!this.checkAgree()) return;         // 协议未勾选 → 拦截（与正式登录一致）
-    const ok = await this.requirePrivacy(); // 隐私未同意 → 弹窗拦截
-    if (!ok) {
-      wx.showToast({ title: '请先同意隐私协议', icon: 'none' });
-      return;
-    }
-    const role = e.currentTarget.dataset.role;
-    // 2026-08-15: 教练入口 → 默认用「喻馥雅」教练身份登录（后端真实测试账号，coach_id=1，
-    // 清库后可自动重建）；不再使用本地伪造 demo_coach（后端无此用户，接口会失败）
-    if (role === 'coach') {
-      this.doLogin({ name: '喻馥雅', avatar: '/images/2_1468.png' }, '喻馥雅');
-      return;
-    }
-    const urls = {
-      student: '/pages/student-courses/index'
-    };
-    const names = {
-      student: '学员'
-    };
-    const token = 'demo_' + role + '_' + Date.now();
-    const userInfo = {
-      name: names[role],
-      avatar: '/images/2_556.png',
-      role: role,
-      // 演示身份 openid 一律随机 demo_（2026-08-17 起，此入口为本地空态演示，
-      // 页面按 openid 查不到历史数据属预期）
-      openid: 'demo_' + role + '_' + Date.now(),
-      totalClasses: 32,
-      totalHours: '28.5h',
-      totalCalories: '12,480',
-      streak: 12
-    };
-    // 同步写入 storage（页面接口按 openid 读取数据）
-    wx.setStorageSync('openid', userInfo.openid);
-    // 教练演示身份：绑定真实教练档案（喻馥雅 id=1，当前 126 场次全由其带课）
-    if (role === 'coach') {
-      userInfo.name = '喻馥雅';
-      userInfo.avatar = '/images/2_1468.png';
-      userInfo.coach_id = 1;
-    }
-    wx.setStorageSync('token', token);
-    wx.setStorageSync('userInfo', userInfo);
-    app.globalData.userInfo = userInfo;
-    app.globalData.role = role;
-
-    wx.showToast({ title: names[role] + '身份进入', icon: 'none' });
-    setTimeout(() => {
-      wx.switchTab({
-        url: urls[role],
-        fail: () => wx.redirectTo({ url: urls[role] })
-      });
-    }, 400);
-  },
-
-  // ===== 一键清空数据库（管理员入口改造）=====
-  clearDb() {
-    wx.showModal({
-      title: '清空数据库',
-      content: '将永久删除数据库中的所有用户，且无法恢复！确定继续？',
-      confirmText: '清空',
-      confirmColor: '#E5484D',
-      success: (res) => {
-        if (res.confirm) {
-          // 二次确认（危险操作）
-          wx.showModal({
-            title: '再次确认',
-            content: '这是不可逆操作，所有用户数据将被清空。是否继续？',
-            confirmText: '确认清空',
-            confirmColor: '#E5484D',
-            success: (res2) => {
-              if (res2.confirm) {
-                wx.showLoading({ title: '清空中...' });
-                api.clearUsers().then((r) => {
-                  wx.hideLoading();
-                  wx.showToast({ title: r.message || '已清空', icon: 'none' });
-                }).catch((err) => {
-                  wx.hideLoading();
-                  wx.showModal({
-                    title: '清空失败',
-                    content: err.message || '无法连接服务器',
-                    showCancel: false,
-                    confirmText: '知道了'
-                  });
-                });
-              }
-            }
-          });
-        }
-      }
-    });
   },
 
   // ===== 微信一键登录 =====
@@ -379,25 +239,15 @@ Page({
   },
 
   // ===== 执行登录（对接后端：首次=注册，再次=登录）=====
-  // 昵称 → openid（与后端测试账号一致的 djb2 哈希）
-  hashNick(nick) {
-    let h = 5381;
-    for (let i = 0; i < nick.length; i++) h = ((h * 33) ^ nick.charCodeAt(i)) >>> 0;
-    return 'demo_' + h.toString(36);
-  },
-
-  doLogin(userProfile, testNick) {
+  doLogin(userProfile) {
     wx.login({
       success: (res) => {
-        // 2026-08-15: 演示账号（昵称快捷登录）不传 code → 后端不换真实 openid（测试账号体系）；
-        // 微信一键/手机号登录传 code → 后端 code2Session 换真实 openid（各自独立新号）
-        const code = testNick ? '' : (res.code || '');
-
-        // 2026-08-17 用户指令：正式登录不再有任何 demo 兜底——openid 传空，后端只认
+        // 2026-08-17 用户指令：正式登录不做任何 demo 兜底——openid 传空，后端只认
         // code 换出的真实 openid（换号失败后端 400 报错，前端弹窗重试，绝不静默变演示账号）；
-        // 昵称快捷登录（田立/喻馥雅/蚂蚁/艳子）→ djb2 哈希 demo_ 账号（无演示特例）
-        const nick = String((testNick || userProfile.name) || '').trim();
-        const openid = testNick ? this.hashNick(testNick) : '';
+        // 2026-08-18: 昵称快捷登录/演示身份入口已移除，注册角色一律由后端默认（学员），
+        // 教练身份经管理后台「教练分配」绑定后生效
+        const code = res.code || '';
+        const openid = '';
         wx.setStorageSync('openid', openid);
 
         // 请求后端注册/登录
@@ -406,9 +256,7 @@ Page({
           openid,
           nickname: userProfile.name || '',
           avatar: userProfile.avatar || '',
-          phone: userProfile.phone || '',
-          // 2026-08-15: 喻馥雅=教练测试账号 → 注册时落 role=coach（清库后重建账号需要）
-          role: testNick === '喻馥雅' ? 'coach' : undefined
+          phone: userProfile.phone || ''
         }).then((res2) => {
           const isNewUser = res2.isNewUser;
           const user = res2.user;
@@ -475,7 +323,7 @@ Page({
             confirmText: '重试',
             cancelText: '取消',
             success: (r) => {
-              if (r.confirm) this.doLogin(userProfile, testNick);
+              if (r.confirm) this.doLogin(userProfile);
             }
           });
         });
