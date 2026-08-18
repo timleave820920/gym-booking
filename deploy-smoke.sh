@@ -8,7 +8,7 @@
 #   此脚本 30 秒即可定案，不再靠人肉 curl 排查。
 #
 # 用法：bash deploy-smoke.sh [BASE_URL] [重试次数]
-#   BASE_URL 默认自动读取 miniprogram/utils/api.js 的 FALLBACK_BASE_URL（单一配置源）
+#   BASE_URL 默认自动读取 miniprogram/utils/api.js 的 TCB_BASE_URL（单一配置源）
 #   本地验证：先起后端，再 bash deploy-smoke.sh http://127.0.0.1:3000
 #   重建窗口期：bash deploy-smoke.sh 5   （每 10 秒重试一次，最多 5 次）
 #
@@ -24,11 +24,11 @@
 #                                        本地未加载 .env 时为 400 参数校验，提示不判失败）
 # ============================================================
 
-# 默认 URL：从 api.js 提取（唯一人工配置源，见 CLAUDE.md 架构段）
-BASE_URL="${1:-$(sed -n "s/.*FALLBACK_BASE_URL *= *'\([^']*\)'.*/\1/p" miniprogram/utils/api.js | head -1)}"
+# 默认 URL：从 api.js 提取（唯一人工配置源，见 CLAUDE.md 架构段；2026-08-18 重构后改名 TCB_BASE_URL）
+BASE_URL="${1:-$(sed -n "s/.*TCB_BASE_URL *= *'\([^']*\)'.*/\1/p" miniprogram/utils/api.js | head -1)}"
 RETRIES="${2:-1}"
 if [ -z "$BASE_URL" ]; then
-  echo "✗ 无法从 miniprogram/utils/api.js 提取 FALLBACK_BASE_URL，请显式传入地址"
+  echo "✗ 无法从 miniprogram/utils/api.js 提取 TCB_BASE_URL，请显式传入地址"
   exit 2
 fi
 
