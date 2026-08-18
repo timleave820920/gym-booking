@@ -185,6 +185,16 @@ module.exports = {
     return localRequest('/api/orders/' + orderId + '/pay', 'POST', data);
   },
 
+  // 微信支付开通状态（未配置商户号 → { enabled: false }，前端禁用微信支付选项）
+  wxpayStatus() {
+    return localRequest('/api/wxpay/status', 'GET');
+  },
+
+  // 微信统一下单（B2：返回 wx.requestPayment 所需参数 payParams）
+  wxpayCreate(data) {
+    return localRequest('/api/wxpay/create', 'POST', data);
+  },
+
   // 查询我的订单
   getMyOrders(openid, status) {
     let qs = 'openid=' + openid;

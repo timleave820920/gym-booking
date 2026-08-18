@@ -275,6 +275,20 @@ async function runSuite() {
     /WECHAT_API_HOSTS = new Set\(\[['"]api\.weixin\.qq\.com['"], ['"]api\.mch\.weixin\.qq\.com['"]\]\)/.test(indexSrc2)
       && /rejectUnauthorized: !WECHAT_API_HOSTS\.has\(new URL\(url\)\.hostname\)/.test(indexSrc2),
     '云托管网关自签证书：白名单关校验必须显式限定微信官方域名；白名单外保持默认严格校验');
+  // B2（2026-08-18）：支付链路无「模拟支付」残留——微信支付必须走统一下单 + requestPayment + 轮询回调落库
+  const paySrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-pay', 'index.js'), 'utf8');
+  const rechargeSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'member-recharge', 'index.js'), 'utf8');
+  const apiSrc2 = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'utils', 'api.js'), 'utf8');
+  check('FRONT-09', '微信支付真实链路防回退（模拟支付已除根）',
+    !/模拟支付|演示支付|demo.?pay/i.test(paySrc) && !/模拟支付|演示支付|demo.?pay/i.test(rechargeSrc)
+      && /wxpayCreate/.test(apiSrc2) && /wxpayStatus/.test(apiSrc2)
+      && /wx\.requestPayment/.test(paySrc) && /wx\.requestPayment/.test(rechargeSrc)
+      && /pollPaid/.test(paySrc) && /pollPaid/.test(rechargeSrc),
+    'B2 支付预研：微信支付必须走统一下单→requestPayment→轮询回调落库；禁止回退模拟支付');
+  check('FRONT-10', '支付页/充值页未开通商户号禁用微信支付（B2 防回退）',
+    /wxpayEnabled/.test(paySrc) && /商户号配置后开放/.test(paySrc)
+      && /wxpayEnabled/.test(rechargeSrc) && /商户号配置后开放/.test(rechargeSrc),
+    '商户号未配置 → 微信支付选项/充值按钮禁用并明示「商户号配置后开放」');
 
   // ===== 1.65 上课页排序（BUG-LEDGER #36：纯函数模块真实断言）=====
   console.log('\n── 1.65 上课页排序（BUG-LEDGER #36）──');

@@ -21,9 +21,10 @@
     </view>
 
     <!-- 充值按钮 -->
-    <view class="pay-btn" bindtap="recharge">
-      <text class="pay-btn-txt">立即充值</text>
+    <view class="pay-btn {{wxpayEnabled ? '' : 'pay-btn-off'}}" bindtap="recharge">
+      <text class="pay-btn-txt">{{wxpayEnabled ? '立即充值' : '微信支付暂未开通'}}</text>
     </view>
+    <view class="pay-off-tip" wx:if="{{!wxpayEnabled}}">商户号配置后开放充值</view>
 
     <!-- 充值记录 -->
     <view class="sec-title">充值记录</view>

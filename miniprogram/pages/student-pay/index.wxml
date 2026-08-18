@@ -28,7 +28,7 @@
     <!-- 支付方式（有次卡默认选中次卡，可切换储值/微信，2026-08-15） -->
     <view class="section-title">选择支付方式</view>
     <view class="method-list">
-      <view class="method-row flex-between {{item.selected ? 'method-selected' : ''}}"
+      <view class="method-row flex-between {{item.selected ? 'method-selected' : ''}} {{item.disabled ? 'method-row-off' : ''}}"
             wx:for="{{payMethods}}" wx:key="id"
             data-id="{{item.id}}" bindtap="selectMethod">
         <view class="flex-row method-left">

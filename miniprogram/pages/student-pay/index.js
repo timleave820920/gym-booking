@@ -25,7 +25,8 @@ Page({
     passHint: '',          // 次卡优先提示（有可用次卡时显示）
     usePass: false,        // 有可用次卡 → 强制次卡支付（支付方式区置灰、不默认选中）
     passRemaining: 0,      // 次卡剩余次数
-    passExpired: false     // 有卡但对所选场次日期不可用（次数包已过期）→ 只能用储值/微信支付
+    passExpired: false,    // 有卡但对所选场次日期不可用（次数包已过期）→ 只能用储值/微信支付
+    wxpayEnabled: false    // 微信支付开通状态（商户号未配置 → 禁用微信支付选项，B2 2026-08-18）
   },
 
   onLoad() {
@@ -40,6 +41,24 @@ Page({
       img: '/images/3_24.png'
     };
     this.setData({ course });
+    // B2：查询微信支付开通状态（未开通 → 微信支付置灰「商户号配置后开放」）
+    api.wxpayStatus().then((res) => {
+      const enabled = !!(res && res.enabled);
+      this.setData({
+        wxpayEnabled: enabled,
+        // 同步微信支付选项文案/禁用态（desc 后端 status 接口为准）
+        payMethods: this.data.payMethods.map(m => m.id === 1
+          ? { ...m, desc: enabled ? '推荐使用' : '商户号配置后开放', disabled: !enabled }
+          : m)
+      });
+    }).catch(() => {
+      // 查询失败保守处理：保持禁用（避免点击后被后端 400 拒绝的体验）
+      this.setData({
+        payMethods: this.data.payMethods.map(m => m.id === 1
+          ? { ...m, desc: '商户号配置后开放', disabled: true }
+          : m)
+      });
+    });
   },
 
   // 2026-08-15: 每次回到页面刷新余额/次卡——修复「充值返回后仍显示余额不足」
@@ -156,6 +175,12 @@ Page({
   selectMethod(e) {
     // 2026-08-15: 有次卡也可切换支付方式——次卡(3)/储值(2)/微信(1) 自由选择，默认选中次卡
     const id = e.currentTarget.dataset.id;
+    const target = this.data.payMethods.find(m => m.id === id);
+    // B2：微信支付未开通 → 选项置灰不可选（JS 拦截双保险，wxml 侧 pointer-events 已拦）
+    if (target && target.disabled) {
+      wx.showToast({ title: '微信支付暂未开通（商户号配置后开放）', icon: 'none' });
+      return;
+    }
     const payMethods = this.data.payMethods.map(m => ({
       ...m, selected: m.id === id
     }));
@@ -176,6 +201,16 @@ Page({
     }
     // 余额支付预校验（余额不足拦截；有次卡时跳过——本次走次卡不扣余额）
     const selected = this.data.payMethods.find(m => m.selected);
+    // B2：微信支付未开通 → 拦截（商户号配置后开放）
+    if (!this.data.usePass && selected && selected.id === 1 && !this.data.wxpayEnabled) {
+      wx.showModal({
+        title: '微信支付暂未开通',
+        content: '商户号配置后开放。当前可用储值余额或次卡支付。',
+        confirmText: '知道了',
+        showCancel: false
+      });
+      return;
+    }
     if (!this.data.usePass && selected && selected.id === 2 && !this.data.canBalancePay) {
       wx.showModal({
         title: '余额不足',
@@ -201,7 +236,7 @@ Page({
     }).then((res) => {
       this.setData({ order: res.order });
       wx.showLoading({ title: '支付中...' });
-      // 第二步：模拟支付成功后，支付回写落库
+      // 第二步：余额/次卡支付回写落库（微信支付走 wxpayFlow 真实链路）
       setTimeout(() => this.confirmPay(res.order.id, openid), 800);
     }).catch((err) => {
       this._paying = false;
@@ -216,26 +251,20 @@ Page({
   },
 
   // 支付回写：订单 pending → paid + 生成订课/候补
+  // 微信支付走真实链路（统一下单 → wx.requestPayment → 轮询回调落库）；余额/次卡直接回写
   confirmPay(orderId, openid) {
     // 有可用次卡 → payMethod 传 pass（后端 effMethod=pass 强制次卡，金额 0）
     // 无次卡 → 按用户选中：微信=wxpay / 余额=balance
     const selected = this.data.payMethods.find(m => m.selected);
     const payMethod = this.data.usePass ? 'pass' : (selected && selected.id === 1 ? 'wxpay' : 'balance');
+    if (payMethod === 'wxpay') {
+      this.wxpayFlow(orderId, openid);
+      return;
+    }
     api.payOrder(orderId, { openid, payMethod }).then((res) => {
       this._paying = false;
       wx.hideLoading();
-      const isWaitlist = this.data.course.mode === 'waitlist';
-      // 实付金额落全局（后端支付回写时订单金额已修正为实付：次卡=0/余额=会员折扣价/微信=原价）
-      // 注意：次卡支付 amount_fen=0 也是有效值，不能用 truthy 判断（BUG 修复：0 会被误判为缺失回退原价）
-      const paidFen = res.order && res.order.amount_fen;
-      const usedPass = res.order && res.order.pay_source === 'pass';
-      app.globalData.payResult = {
-        amount: paidFen != null ? String((paidFen / 100).toFixed(0)) : String(Number(this.data.course.price) || 0),
-        paySource: usedPass ? 'pass' : (res.order && res.order.pay_source) || '',
-        isWaitlist
-      };
-      // 跳转支付成功落地页（携带模式）
-      wx.redirectTo({ url: '/pages/pay-success/index' + (isWaitlist ? '?mode=waitlist' : '') });
+      this.finishPay(res.order);
     }).catch((err) => {
       this._paying = false;
       wx.hideLoading();
@@ -246,5 +275,96 @@ Page({
         confirmText: '知道了'
       });
     });
+  },
+
+  // B2（2026-08-18）：微信支付链路——统一下单 → wx.requestPayment → 轮询订单至 paid
+  wxpayFlow(orderId, openid) {
+    api.wxpayCreate({ orderId, openid }).then((res) => {
+      const p = res.payParams;
+      if (!p || !p.package) {
+        this._paying = false;
+        wx.hideLoading();
+        wx.showModal({ title: '支付失败', content: '微信支付参数异常，请重试', showCancel: false, confirmText: '知道了' });
+        return;
+      }
+      wx.requestPayment({
+        timeStamp: p.timeStamp,
+        nonceStr: p.nonceStr,
+        package: p.package,
+        signType: p.signType || 'RSA',
+        paySign: p.paySign,
+        success: () => this.pollPaid(orderId, openid, 0),
+        fail: (e) => {
+          this._paying = false;
+          wx.hideLoading();
+          if (e && (e.errMsg || '').indexOf('cancel') >= 0) {
+            wx.showToast({ title: '已取消支付', icon: 'none' });
+          } else {
+            wx.showToast({ title: '支付未完成，请重试', icon: 'none' });
+          }
+        }
+      });
+    }).catch((err) => {
+      this._paying = false;
+      wx.hideLoading();
+      wx.showModal({
+        title: '支付失败',
+        content: err.message || '无法连接服务器，请稍后重试',
+        showCancel: false,
+        confirmText: '知道了'
+      });
+    });
+  },
+
+  // B2：微信支付成功 → 轮询订单至 paid（微信回调落库有延迟）；10 次 × 1.5s 上限
+  pollPaid(orderId, openid, tries) {
+    api.getMyOrders(openid).then((res) => {
+      const order = (res.orders || []).find(o => o.id === orderId);
+      if (order && order.status === 'paid') {
+        this._paying = false;
+        wx.hideLoading();
+        this.finishPay(order);
+      } else if (tries < 10) {
+        setTimeout(() => this.pollPaid(orderId, openid, tries + 1), 1500);
+      } else {
+        this._paying = false;
+        wx.hideLoading();
+        wx.showModal({
+          title: '支付结果确认中',
+          content: '支付已提交，稍后自动生效。可在「我的订单」查看结果。',
+          showCancel: false,
+          confirmText: '知道了'
+        });
+      }
+    }).catch(() => {
+      if (tries < 10) {
+        setTimeout(() => this.pollPaid(orderId, openid, tries + 1), 1500);
+      } else {
+        this._paying = false;
+        wx.hideLoading();
+        wx.showModal({
+          title: '支付结果确认中',
+          content: '支付已提交，稍后自动生效。可在「我的订单」查看结果。',
+          showCancel: false,
+          confirmText: '知道了'
+        });
+      }
+    });
+  },
+
+  // 支付落地：写全局 payResult → 跳转成功页（balance/pass 用支付回写结果；wxpay 用轮询到的订单）
+  finishPay(order) {
+    const isWaitlist = this.data.course.mode === 'waitlist';
+    // 实付金额落全局（后端支付回写时订单金额已修正为实付：次卡=0/余额=会员折扣价/微信=原价）
+    // 注意：次卡支付 amount_fen=0 也是有效值，不能用 truthy 判断（BUG 修复：0 会被误判为缺失回退原价）
+    const paidFen = order && order.amount_fen;
+    const usedPass = order && order.pay_source === 'pass';
+    app.globalData.payResult = {
+      amount: paidFen != null ? String((paidFen / 100).toFixed(0)) : String(Number(this.data.course.price) || 0),
+      paySource: usedPass ? 'pass' : (order && order.pay_source) || '',
+      isWaitlist
+    };
+    // 跳转支付成功落地页（携带模式）
+    wx.redirectTo({ url: '/pages/pay-success/index' + (isWaitlist ? '?mode=waitlist' : '') });
   }
 });

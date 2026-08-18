@@ -10,12 +10,19 @@ Page({
     pageSize: 10,        // 每页条数
     offset: 0,           // 当前已加载条数（下一页偏移）
     hasMore: true,       // 是否还有更早记录
-    loadingMore: false   // 加载中标记
+    loadingMore: false,  // 加载中标记
+    wxpayEnabled: false  // 微信支付开通状态（B2 2026-08-18：商户号未配置 → 充值不可用）
   },
 
   onLoad() {
     this.loadPlans();
     this.loadInfo();
+    // B2：查询微信支付开通状态（未开通 → 充值按钮禁用提示）
+    api.wxpayStatus().then((res) => {
+      this.setData({ wxpayEnabled: !!(res && res.enabled) });
+    }).catch(() => {
+      this.setData({ wxpayEnabled: false });
+    });
   },
 
   onShow() {
@@ -99,8 +106,14 @@ Page({
     this.setData({ selectedId: Number(e.currentTarget.dataset.id) });
   },
 
-  // 立即充值 → 下单 → 支付回写（复用订单流程）
+  // 立即充值 → 下单 → 微信支付（B2 2026-08-18：统一下单 → wx.requestPayment → 轮询回调落库）
   recharge() {
+    // 商户号未配置 → 充值不可用（明确提示，不造假支付）
+    if (!this.data.wxpayEnabled) {
+      wx.showToast({ title: '微信支付暂未开通（商户号配置后开放）', icon: 'none' });
+      return;
+    }
+    if (this._recharging) return;   // 防连点锁
     const plan = this.data.plans.find(p => p.id === this.data.selectedId);
     if (!plan) return;
     const user = app.globalData.userInfo || {};
@@ -109,6 +122,7 @@ Page({
       wx.showToast({ title: '未登录', icon: 'none' });
       return;
     }
+    this._recharging = true;
     wx.showLoading({ title: '下单中...' });
     api.createOrder({
       openid,
@@ -116,20 +130,72 @@ Page({
       amountFen: plan.amount,
       orderType: 'recharge'
     }).then((res) => {
+      this._rechargingOrderId = res.order.id;   // 保存订单 id 供轮询
       wx.showLoading({ title: '支付中...' });
-      setTimeout(() => {
-        api.payOrder(res.order.id, { openid, payMethod: 'wxpay' }).then(() => {
-          wx.hideLoading();
-          wx.showToast({ title: '充值成功', icon: 'success' });
-          this.loadInfo();
-        }).catch((err) => {
-          wx.hideLoading();
-          wx.showToast({ title: err.message || '支付失败', icon: 'none' });
+      return api.wxpayCreate({ orderId: res.order.id, openid });
+    }).then((res) => {
+      const p = res.payParams;
+      if (!p || !p.package) throw { message: '微信支付参数异常，请重试' };
+      return new Promise((resolve, reject) => {
+        wx.requestPayment({
+          timeStamp: p.timeStamp,
+          nonceStr: p.nonceStr,
+          package: p.package,
+          signType: p.signType || 'RSA',
+          paySign: p.paySign,
+          success: resolve,
+          fail: reject
         });
-      }, 800);
+      });
+    }).then(() => {
+      // 微信回调异步落库 → 轮询订单至 paid（上限 10 次 × 1.5s）
+      this.pollPaid(this._rechargingOrderId);
     }).catch((err) => {
+      this._recharging = false;
       wx.hideLoading();
-      wx.showToast({ title: err.message || '下单失败', icon: 'none' });
+      const msg = (err && err.message) || '支付失败';
+      if (msg.indexOf('cancel') >= 0) {
+        wx.showToast({ title: '已取消支付', icon: 'none' });
+      } else {
+        wx.showToast({ title: msg, icon: 'none' });
+      }
+    });
+  },
+
+  // B2：轮询充值订单至 paid → 刷新余额/记录/首充状态
+  pollPaid(orderId, tries = 0) {
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+    api.getMyOrders(openid).then((res) => {
+      const order = (res.orders || []).find(o => o.id === orderId);
+      if (order && order.status === 'paid') {
+        this._recharging = false;
+        wx.hideLoading();
+        wx.showToast({ title: '充值成功', icon: 'success' });
+        this.loadInfo();
+      } else if (tries < 10) {
+        setTimeout(() => this.pollPaid(orderId, tries + 1), 1500);
+      } else {
+        this._recharging = false;
+        wx.hideLoading();
+        wx.showModal({
+          title: '支付结果确认中',
+          content: '支付已提交，稍后自动到账。可在「充值记录」查看结果。',
+          showCancel: false
+        });
+      }
+    }).catch(() => {
+      if (tries < 10) {
+        setTimeout(() => this.pollPaid(orderId, tries + 1), 1500);
+      } else {
+        this._recharging = false;
+        wx.hideLoading();
+        wx.showModal({
+          title: '支付结果确认中',
+          content: '支付已提交，稍后自动到账。可在「充值记录」查看结果。',
+          showCancel: false
+        });
+      }
     });
   }
 });
