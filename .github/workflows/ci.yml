@@ -83,6 +83,9 @@ jobs:
         run: npm ci
 
       - name: 全量测试（MySQL 方言，干净库模式）
+        # timeout 兜底：2026-08-18 首次跑 MySQL 全量即无限挂起（run 18 分钟无输出），
+        # 池防御（queueLimit/acquireTimeout）+ seed 超时检测已加，此处防再挂
+        timeout-minutes: 10
         run: node minitest/run-tests.js
         env:
           DB_DRIVER: mysql

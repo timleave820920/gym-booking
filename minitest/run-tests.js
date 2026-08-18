@@ -104,11 +104,18 @@ async function main() {
     }
     console.log(`[干净库模式] 临时库: ${DB_PATH}`);
     // ① seed 基础数据（教练/场地/课程等，测试用例依赖）
+    // timeout 60s：MySQL 模式 seed 挂起检测（2026-08-18 CI test-mysql 首次跑全量即无限挂起，
+    // spawnSync 无超时则 run-tests.js 永远等；超时即打印尾部输出定位挂点）
     const seedRes = spawnSync(process.execPath, ['server/seed.js'], {
       cwd: PROJECT_ROOT,
       env: { ...process.env, DB_PATH },
-      encoding: 'utf8'
+      encoding: 'utf8',
+      timeout: 60000
     });
+    if (seedRes.error && seedRes.error.code === 'ETIMEDOUT') {
+      console.error('✖ [干净库模式] seed 超时（60s）——疑似 MySQL 连接挂起:\n' + (seedRes.stdout || '').slice(0, 800));
+      process.exit(2);
+    }
     if (seedRes.status !== 0) {
       console.error('✖ [干净库模式] seed 失败:\n' + (seedRes.stderr || seedRes.stdout || '').slice(0, 800));
       process.exit(2);

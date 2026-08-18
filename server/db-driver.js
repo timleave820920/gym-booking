@@ -127,6 +127,11 @@ function createMysqlPool() {
     // 池 + 其他连接（云托管管理连接等）需留余量。
     connectionLimit: Number(process.env.MYSQL_POOL_SIZE) || 50,
     waitForConnections: true,
+    // 池耗尽防挂死（2026-08-18 CI test-mysql 首次跑全量即无限挂起：mysql2 默认 queueLimit=0
+    // 无限排队 + acquireTimeout 无限等待——池满时请求永远排队，进程永不退出）。
+    // 有限排队 + 获取超时：池满 10s 后快速报错（测试红/请求 500），而非无限挂起。
+    queueLimit: 200,
+    acquireTimeout: 10000,
     timezone: '+08:00', // 让 MySQL 返回的 DATETIME/时间计算按北京时间（BUG-LEDGER #28 防回归）
     dateStrings: true  // DATETIME 以 'YYYY-MM-DD HH:MM:SS' 字符串返回，与应用层字符串契约一致（BUG-LEDGER #31：建表已改 DATETIME 类型）
   });
