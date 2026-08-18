@@ -121,11 +121,15 @@ async function main() {
       process.exit(2);
     }
     // ② 独立端口起后端（不与开发中的 3000 冲突）
+    // 后端日志落盘（stdio:'ignore' 曾致 CI test-mysql 失败时 [server error] 完全不可见，2026-08-18 排障教训：
+    // 无法判断 500 是业务错还是连接池挂起——测试失败/启动失败时打印尾部定位）
+    const logPath = require('node:path').join(require('node:os').tmpdir(), `gym-backend-${process.pid}.log`);
+    const logFd = fs.openSync(logPath, 'w');
     const port = 3100 + Math.floor(Math.random() * 500);
     child = spawn(process.execPath, ['server/index.js'], {
       cwd: PROJECT_ROOT,
       env: { ...process.env, DB_PATH, PORT: String(port), WX_APPID: 'test_appid', WX_SECRET: 'test_secret', ADMIN_TOKEN },
-      stdio: 'ignore'
+      stdio: ['ignore', logFd, logFd]
     });
     BASE = `http://127.0.0.1:${port}`;
     // ③ 健康检查轮询（最多 20 秒）
@@ -139,16 +143,26 @@ async function main() {
     }
     if (!up) {
       console.error(`✖ [干净库模式] 后端启动失败（端口 ${port}）`);
+      try {
+        console.error('--- 后端日志尾部 ---\n' + fs.readFileSync(logPath, 'utf8').split('\n').slice(-20).join('\n'));
+      } catch (e) {}
       child.kill();
       process.exit(2);
     }
     console.log(`[干净库模式] 后端就绪: ${BASE}`);
   }
 
+  let suiteFailed = 0;
   try {
-    await runSuite();
+    suiteFailed = await runSuite();
   } finally {
     // ④ 清理：杀后端 + 删临时库（进程内 require 的 db 也指向临时库，一并释放）
+    // 测试失败时打印后端日志尾部（排障利器：500 时 [server error] 可见，判断业务错 vs 连接池挂起）
+    if (suiteFailed > 0 && child && logPath) {
+      try {
+        console.error('\n--- 后端日志尾部（最近 40 行）---\n' + fs.readFileSync(logPath, 'utf8').split('\n').slice(-40).join('\n') + '\n--- 日志完毕 ---');
+      } catch (e) {}
+    }
     if (child) child.kill();
     if (DB_PATH) {
       await new Promise(res => setTimeout(res, 300)); // 等子进程释放 SQLite 文件锁
@@ -345,6 +359,16 @@ async function runSuite() {
       && /getDailyReport/.test(repSrc) && /regenerateReport/.test(repSrc) && /listReports/.test(repSrc)
       && /daily_reports/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db-core.js'), 'utf8')),
     '📋 运营日报折叠卡（日期选择+查询+重新生成）、loadReport 渲染（一句话总结/关键数据网格/趋势/行动建议）、后端规则引擎接口');
+  // BUGS-INBOX #58 防回退：四 tab 顺序 运营数据/课程设定/排课系统/教练分配 + 默认打开「运营数据」
+  // （tab-board 在 HTML 中先于 tab-set 声明 = 顺序正确；init 末尾调 switchTab('board') = 默认打开）
+  check('FRONT-24', '后台四 tab 顺序+默认运营数据防回退（BUGS-INBOX #58）',
+    /<button class="tab active" id="tab-board"[^>]*>运营数据</.test(webHtml)
+      && /id="tab-set"[^>]*>课程设定</.test(webHtml)
+      && /id="tab-sch"[^>]*>排课系统</.test(webHtml)
+      && /id="tab-coach"[^>]*>教练分配</.test(webHtml)
+      && webHtml.indexOf("switchTab('board')") < webHtml.indexOf("switchTab('set')")
+      && /switchTab\('board'\);/.test(webHtml),
+    'nav 顺序：运营数据(active)/课程设定/排课系统/教练分配；「排表管理」更名「排课系统」；init 默认 switchTab(board)');
   // DESIGN #D5 浏览埋点防回退：首页 page_view 曝光/搜索词、详情 course_view 停留时长（onHide/onUnload 上报）
   const d5DetailJs = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.js'), 'utf8');
   check('FRONT-20', '浏览埋点防回退（DESIGN #D5：首页曝光/搜索词/详情停留时长）',
@@ -1709,9 +1733,12 @@ async function runSuite() {
   };
   require('node:fs').writeFileSync(__dirname + '/report.json', JSON.stringify(report, null, 2));
   process.exitCode = failed > 0 ? 1 : 0;
+  return failed;
 }
 
 main().catch(e => {
   console.error('测试脚本异常:', e);
-  process.exitCode = 2;
+  // 强制退出：MySQL 模式 require 的 mysql2 连接池句柄会阻塞自然退出，仅设 exitCode 永不结束
+  // （2026-08-18 CI test-mysql 失败后 10 分钟超时的直接根因）
+  process.exit(2);
 });

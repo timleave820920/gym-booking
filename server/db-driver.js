@@ -59,38 +59,80 @@ class SqliteDriver {
 // ===== MySQL 驱动（S5 落地生产路径；mysql2 惰性 require 保持本地零依赖）=====
 class MysqlDriver {
   // conn：mysql2 连接池 或 事务内单连接（接口一致）
+  // _txConn：事务专用连接——exec('BEGIN') 从池取单连接并开启事务，期间 get/all/run/exec
+  // 全部复用该连接（同一事务所有语句同连接），COMMIT/ROLLBACK 后释放归还池。
+  // 之前的缺陷（BUG-LEDGER #60 根因）：BEGIN/语句/COMMIT 全走 pool.query/execute 随机连接，
+  // 事务被拆散成独立自动提交语句，COMMIT 落在无事务连接上（no-op），事务连接悬空污染池。
   constructor(conn) {
     this._conn = conn;
+    this._txConn = null;
     this.isMysql = true;
   }
 
+  // 执行目标：事务进行中 → 事务连接，否则普通连接
+  _target() { return this._txConn || this._conn; }
+
   async get(sql, params) {
-    const [rows] = await this._conn.execute(sql, params || []);
+    const [rows] = await this._target().execute(sql, params || []);
     return rows[0];
   }
 
   async all(sql, params) {
-    const [rows] = await this._conn.execute(sql, params || []);
+    const [rows] = await this._target().execute(sql, params || []);
     return rows;
   }
 
   async run(sql, params) {
-    const [r] = await this._conn.execute(sql, params || []);
+    const [r] = await this._target().execute(sql, params || []);
     return { changes: r.affectedRows, lastInsertRowid: r.insertId };
   }
 
   // 加锁事务开始（并发防重用，BUG-LEDGER #57b）：MySQL 事务延迟锁，BEGIN 即可，
   // 真正的锁在 getExclusive 的 FOR UPDATE 上（行锁/间隙锁，第二个事务等待第一个提交后读到最新行）
-  async beginExclusive() { await this.exec('BEGIN'); }
+  async beginExclusive() { await this._beginTx(); }
 
   // 加锁读：FOR UPDATE 锁定读（当前读，看到最新已提交数据；无匹配行时持间隙锁防并发插入）
   async getExclusive(sql, params) { return this.get(sql + ' FOR UPDATE', params); }
 
-  // 拆多条语句逐条执行（建表/seed 用；无过程体，按 ; 切分足够）
+  // 拆多条语句逐条执行（建表/seed 用；无过程体，按 ; 切分足够）。
+  // BEGIN/COMMIT/ROLLBACK 由本方法管理专用事务连接（单条语句时精确匹配，不带参数）。
   async exec(sql) {
+    const head = sql.trim();
+    if (/^BEGIN\b/i.test(head)) { await this._beginTx(); return; }
+    if (/^COMMIT\b/i.test(head)) { await this._commitTx(); return; }
+    if (/^ROLLBACK\b/i.test(head)) { await this._rollbackTx(); return; }
     for (const stmt of sql.split(';').map(s => s.trim()).filter(Boolean)) {
-      await this._conn.query(stmt);
+      await this._target().query(stmt);
     }
+  }
+
+  async _beginTx() {
+    if (this._txConn) return; // 幂等：重复 BEGIN 不重复取连接
+    if (typeof this._conn.getConnection !== 'function') return; // 单连接包装（tx() 内）：事务已由外层 beginTransaction 管理
+    const conn = await this._conn.getConnection();
+    try {
+      await conn.beginTransaction();
+    } catch (e) {
+      conn.release();
+      throw e;
+    }
+    this._txConn = conn;
+  }
+
+  async _commitTx() {
+    const conn = this._txConn;
+    if (!conn) return;
+    this._txConn = null;
+    await conn.commit();
+    conn.release();
+  }
+
+  async _rollbackTx() {
+    const conn = this._txConn;
+    if (!conn) return;
+    this._txConn = null;
+    await conn.rollback();
+    conn.release();
   }
 
   async tx(fn) {

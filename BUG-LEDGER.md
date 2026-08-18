@@ -15,6 +15,34 @@
 
 ---
 
+## #58 后台四个 tab 顺序与要求不符——应为 运营数据/课程设定/排课系统/教练分配，且默认打开「运营数据」（BUGS-INBOX #58）
+
+- **现象**：管理后台（web/courses.html）tab 顺序为 课程设定/排表管理/运营数据/教练分配，默认打开「课程设定」；用户要求：**运营数据，课程设定，排课系统，教练分配** + 默认打开「运营数据」（2026-08-18 用户报）。
+- **根因**：tab 顺序即静态 HTML nav 声明顺序，`active` 默认在课程设定；「排表管理」命名与用户预期「排课系统」不符；页面加载无默认打开运营数据的逻辑（运营数据 tab 靠手动点击才 loadDashboard）。
+- **修复**：① nav 顺序调整 + active 移至 tab-board；②「排表管理」→「排课系统」；③ panel 初始可见性改 panel-board（panel-set 加 hidden）；④ init() 末尾 `switchTab('board')` 默认打开并联动加载 loadDashboard/loadReport。
+- **回归测试**：FRONT-24 静态断言（tab 顺序/命名/默认 active/init 调 switchTab('board')）；本地 352/352 + TZ=UTC 全绿。
+- **防护层**：L1 本地 hook（FRONT-24 随全量跑）。兜底思路：管理页 tab 顺序与默认页是用户可见契约，用静态断言锁定 HTML 声明顺序与 init 行为，防后续误调顺序。
+
+## #61 退订 500：MAX(booked_count-1, 0) 是 SQLite 标量扩展——MySQL 只认单参数聚合 MAX，退订恢复余位直接语法报错（CI test-mysql WTL-06 根因）
+
+- **现象**：CI test-mysql job（MySQL 8 service 跑全量）WTL-06 退订转正失败——退订接口 500、promoted 缺失；PASS-08 退订退次同样 500。本地 SQLite 全量全绿（SQLite 支持标量 `MAX(a,b)`），方言差异只在 MySQL 暴露（2026-08-18 CI 排障发现）。
+- **根因**：`UPDATE course_sessions SET booked_count = MAX(booked_count - 1, 0)`——双参标量形式是 SQLite 扩展，**MySQL 的 MAX 只接受单参数（聚合函数），此写法在 MySQL 直接语法报错** → 退订/退出候补恢复余位 500。SQLite 侧多年全绿掩盖了方言点（此前 MySQL 真机未跑过该分支或未退订）。
+- **修复**：改 `CASE WHEN booked_count > 0 THEN booked_count - 1 ELSE 0 END`——双方言 100% 兼容。注意**无公共双参取大函数**：SQLite 是 `max(a,b)`、MySQL 是 `GREATEST(a,b)`，两者互不通（GREATEST 在 SQLite 报 no such function，实测 node:sqlite 3.53）。
+- **回归测试**：WTL-06 系列 + PASS-08/08b/08c/08d（退订转正/退次/重订金额）在 CI test-mysql 全量验证；本地 SQLite 352/352 + TZ=UTC 全绿。
+- **防护层**：CI test-mysql 全量（MySQL 是生产方言，任何红都是真实缺陷）。兜底思路：**写业务 SQL 先问「MySQL 支持吗」**——SQLite 特有标量函数（max/min 双参等）在 MySQL 是语法错误而非行为差异，一律用 CASE WHEN 等双方言兼容语法。
+
+## #60 MySQL 事务被拆散——exec('BEGIN') 在连接池随机连接上执行，事务连接悬空污染池（CI test-mysql 全红主根因）
+
+- **现象**：CI test-mysql job（MySQL 8 service，DB_DRIVER=mysql 跑全量）从出生起从未绿过：ADMIN-28b 500、WTL-06 退订转正失败、DASH-03 500、TypeError 级联崩溃、随后 10 分钟挂到 CI 超时。后端 stderr 被 run-tests `stdio:'ignore'` 丢弃，无法判断 500 是业务错还是连接池问题（2026-08-18 首次跑全量即发现）。
+- **根因**（双层）：
+  1. **MysqlDriver.exec 事务拆散**：`exec('BEGIN'/'COMMIT'/'ROLLBACK')` 在 `pool.query()`（随机连接）上执行，事务内语句全走 `pool.execute()`（又是随机连接）——BEGIN 后的语句各自自动提交、COMMIT 落在无事务连接上（no-op），**开启事务的那条连接悬空在池里**，被后续请求随机复用（事务残留/锁等待），且事务内「读自己写」的语义完全失效。调用点：bookings.js checkinBooking/cancelBooking、coach.js assignCoach。订课主链路用 driver.tx()（正确单连接实现）所以订课测试绿——差异即证据。
+  2. **run-tests 主进程不退出**：main().catch 只设 process.exitCode，MySQL 模式 require 的 mysql2 连接池句柄阻塞进程结束 → 失败后挂到 CI 10 分钟超时。
+- **修复**：
+  1. **MysqlDriver 事务连接管理**：新增 `_txConn`——exec('BEGIN') 从池 getConnection + beginTransaction 绑定专用连接，期间 get/all/run/exec 经 `_target()` 复用该连接，COMMIT/ROLLBACK 提交/回滚后 release 归还；beginExclusive/getExclusive(FOR UPDATE) 走同一通道（#57b 并发防重用语义保持）；事务内重复 BEGIN 幂等，单连接包装（tx() 内）no-op。
+  2. **run-tests 落盘与退出**：后端 spawn stdio 改日志文件（启动失败/测试失败打印尾部，[server error] 可见）；main().catch 改 `process.exit(2)` 强制退出。
+- **回归测试**：SQLite 352/352 + TZ=UTC 352/352 全绿（驱动行为对 SQLite 零变化）；CI test-mysql job 重新全量（此前必红，本次须绿）。
+- **防护层**：CI test-mysql 全量（MySQL 方言即生产方言，任何红都是真实缺陷）；run-tests 失败自动带后端日志尾部。兜底思路：**驱动层事务必须单连接承载**——BEGIN/COMMIT 与事务内语句同一连接是事务语义的前提，连接池随机分配只适用于无状态单语句；对事务 API 的测试必须在两种驱动下都真实跑过（本次 SQLite 全绿 + MySQL 全红 = 驱动方言测试缺口）。
+
 ## #59 PUT /api/me/profile 挂起——路由层 readBody 消费流 end 后 handler 内二次 readBody，监听永不触发（DEV #D5-3 自发现）
 
 - **现象**：填写画像接口 PUT /api/me/profile 客户端请求永远无响应（curl -m 15 超时；测试套件 PROF-04 卡死整轮跑不完）。GET /api/me/profile、login（POST+readBody）、coach/notes（PUT+readBody）全部正常——仅该路由挂（2026-08-18 dev #D5-3 测试中发现）。

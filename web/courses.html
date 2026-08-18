@@ -128,15 +128,15 @@ canvas#dashTrend { width: 100%; height: 240px; }
 <header>
   <div class="brand">综合训练馆 · 课程管理</div>
   <nav class="tabs">
-    <button class="tab active" id="tab-set" onclick="switchTab('set')">课程设定</button>
-    <button class="tab" id="tab-sch" onclick="switchTab('sch')">排表管理</button>
-    <button class="tab" id="tab-board" onclick="switchTab('board')">运营数据</button>
+    <button class="tab active" id="tab-board" onclick="switchTab('board')">运营数据</button>
+    <button class="tab" id="tab-set" onclick="switchTab('set')">课程设定</button>
+    <button class="tab" id="tab-sch" onclick="switchTab('sch')">排课系统</button>
     <button class="tab" id="tab-coach" onclick="switchTab('coach')">教练分配</button>
   </nav>
 </header>
 
 <!-- ============ 课程设定 ============ -->
-<section class="panel" id="panel-set">
+<section class="panel hidden" id="panel-set">
   <aside class="course-list">
     <h2>课程列表 <button class="btn btn-new" onclick="newCourse()">+ 新增</button></h2>
     <div id="courseList"></div>
@@ -237,7 +237,7 @@ canvas#dashTrend { width: 100%; height: 240px; }
 </section>
 
 <!-- ============ 运营数据（DESIGN #D4，替换邀请看板 tab） ============ -->
-<section class="panel hidden" id="panel-board">
+<section class="panel" id="panel-board">
   <main style="flex:1; min-width:0">
     <div class="dash-bar">
       <label>查看日期</label>
@@ -640,6 +640,8 @@ function init() {
     $('f-date-to').innerHTML = daysOptions(new Date(), new Date(new Date().getTime() + 60 * 864e5), todayPlus(20));
     if ($('dash-date')) $('dash-date').value = today();
     if ($('rep-date')) $('rep-date').value = today();
+    // 默认打开「运营数据」tab（BUGS-INBOX #58：四 tab 顺序 运营数据/课程设定/排课系统/教练分配 + 默认运营数据）
+    switchTab('board');
   });
 }
 function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }

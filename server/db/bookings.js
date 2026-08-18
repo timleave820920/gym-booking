@@ -254,7 +254,9 @@ async function cancelBooking(openid, bookingId) {
     }
     // 仅未签到订单恢复余位
     if (!booking.checkin_at) {
-      await driver.run('UPDATE course_sessions SET booked_count = MAX(booked_count - 1, 0) WHERE id = ?', [booking.session_id]);
+      // 防负下限用 CASE WHEN（双方言 100% 兼容：SQLite 标量是 max(a,b)，MySQL 是 GREATEST(a,b)，无公共双参取大函数，
+      // 原 MAX(booked_count-1,0) 在 MySQL 只认聚合 MAX 报语法错，BUG-LEDGER #60）
+      await driver.run('UPDATE course_sessions SET booked_count = CASE WHEN booked_count > 0 THEN booked_count - 1 ELSE 0 END WHERE id = ?', [booking.session_id]);
       await syncSessionStatus(booking.session_id);
       // 有候补者 → 最早排位者自动转正（候补队列先进先出）
       promoted = await promoteFromWaitlist(booking.session_id);
