@@ -18,6 +18,7 @@ const { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession
 const { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach, listCoachesWithBind, unassignCoach, setUserRole, updateCoachProfile, deleteCoach } = require('./db/coach');
 const { addAdminLog, listAdminLogs } = require('./db/admin-log');
 const { getDashboard } = require('./db/dashboard');
+const { queryUsersAnalysis, getTimeline, groupMessage } = require('./db/users-analysis');
 
 
 module.exports = {
@@ -127,5 +128,9 @@ module.exports = {
   addAdminLog,
   listAdminLogs,
   // 运营 Dashboard（DESIGN #D4）
-  getDashboard
+  getDashboard,
+  // 用户分析（DESIGN #D4-3）
+  queryUsersAnalysis,
+  getTimeline,
+  groupMessage
 };

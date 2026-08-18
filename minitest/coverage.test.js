@@ -353,6 +353,15 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     // ---- 13.8 DESIGN #D4 运营 Dashboard 探针 ----
     r = await req('GET', '/api/admin/dashboard', null, { 'Admin-Token': 'cov-admin' });
     assert.ok(r.data.core && typeof r.data.core.booking_rate === 'number' && Array.isArray(r.data.trend.d7.days), '运营 Dashboard 聚合');
+    // ---- 13.9 DESIGN #D4-3 用户分析探针 ----
+    r = await req('GET', '/api/admin/users-analysis?page=1&page_size=10', null, { 'Admin-Token': 'cov-admin' });
+    assert.ok(r.data.users[0] && typeof r.data.users[0].m_level === 'number' && r.data.stats, 'RMF 分层清单');
+    r = await req('GET', `/api/admin/users-analysis/${U1.openid}/timeline`, null, { 'Admin-Token': 'cov-admin' });
+    assert.ok(Array.isArray(r.data.rows), '行为时间线');
+    r = await req('GET', '/api/admin/export/user-analysis', null, { 'Admin-Token': 'cov-admin' });
+    assert.equal(r.status, 200, '用户分析 CSV');
+    r = await req('POST', '/api/admin/users-analysis/message', { openids: [U2.openid], title: '覆盖探针触达', content: 'coverage' }, { 'Admin-Token': 'cov-admin' });
+    assert.equal(r.data.sent, 1, '群组触达');
     delete process.env.ADMIN_TOKEN;
 
     // ---- 14 候补复杂路径：排位 / 退订转正 / 退出退款 / 过期退款 ----

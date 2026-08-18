@@ -1175,6 +1175,15 @@ async function handleExport(req, res, type) {
       rows.map(r => [r.order_no, r.user_openid, r.order_type, r.amount_fen, r.status, r.pay_source, r.paid_at, r.refunded_at]));
     return;
   }
+  if (type === 'user-analysis') {
+    // 用户分析 CSV（与 users-analysis 同筛选参数，全量不分页，DESIGN #D4-3）
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const data = await db.queryUsersAnalysis(Object.fromEntries(url.searchParams));
+    sendCsv(res, 'user-analysis.csv',
+      ['openid', '昵称', '手机号', '角色', '等级', '近度R(天)', '近30天订课F', '累计实付M(分)', 'R档', 'F档', 'M档', '沉睡档位', '余额(分)', '注册时间', '最后登录'],
+      data.users.map(u => [u.openid, u.nickname, u.phone, u.role, u.level_lv, u.r === null ? '' : u.r, u.f, u.m, u.r_level, u.f_level, u.m_level, u.dormant, u.balance_fen, u.created_at, u.last_login_at]));
+    return;
+  }
   if (type === 'revenue') {
     // 营收按日汇总：已支付订课/候补/充值金额 − 退款金额
     const rows = await driver.all(`SELECT substr(o.paid_at, 1, 10) AS day,
@@ -1186,7 +1195,7 @@ async function handleExport(req, res, type) {
       rows.map(r => [r.day, r.income_fen, r.refund_fen]));
     return;
   }
-  sendJson(res, 400, { code: 400, message: '导出类型支持 users/orders/revenue' });
+  sendJson(res, 400, { code: 400, message: '导出类型支持 users/orders/revenue/user-analysis' });
 }
 
 // ===== 消息中心（站内信）=====
@@ -1279,6 +1288,31 @@ async function handleDashboard(req, res, url) {
   return sendJson(res, 200, data);
 }
 
+// ===== 用户分析（DESIGN #D4-3）：RMF 分层清单 / 个体时间线 / 群组触达 =====
+async function handleUsersAnalysis(req, res, url) {
+  const data = await db.queryUsersAnalysis(Object.fromEntries(url.searchParams));
+  return sendJson(res, 200, { code: 200, ...data });
+}
+
+async function handleUserTimeline(req, res, url) {
+  const m = /^\/api\/admin\/users-analysis\/([^/]+)\/timeline$/.exec(url.pathname);
+  const openid = m ? decodeURIComponent(m[1]) : '';
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  const rows = await db.getTimeline(openid);
+  return sendJson(res, 200, { code: 200, openid, rows });
+}
+
+async function handleGroupMessage(req, res, body) {
+  const { openids, title, content } = body || {};
+  try {
+    const result = await db.groupMessage(openids, title, content);
+    await logOp('web', 'user_analysis_message', { count: result.sent, title }, 'ok');
+    return sendJson(res, 200, { code: 200, message: `已发送 ${result.sent} 条（跳过重复 ${result.skipped}）`, ...result });
+  } catch (e) {
+    return sendJson(res, 400, { code: 400, message: e.message });
+  }
+}
+
 async function toPublicUser(user) {
   let coach_id = null;
   if (user.role === 'coach') {
@@ -1356,9 +1390,15 @@ const API_ROUTES = [
     } },
   { m: 'GET',    p: '/api/admin/invite-board',  f: async(q, r) => sendJson(r, 200, { code: 200, board: await db.inviteBoardStats() }) },
   { m: 'GET',    p: '/api/admin/dashboard',     f: async(q, r, u) => await handleDashboard(q, r, u) },
+  { m: 'GET',    p: '/api/admin/users-analysis', f: async(q, r, u) => await handleUsersAnalysis(q, r, u) },
+  { m: 'GET',    p: /^\/api\/admin\/users-analysis\/[^/]+\/timeline$/, f: async(q, r, u) => await handleUserTimeline(q, r, u) },
+  { m: 'POST',   p: '/api/admin/users-analysis/message', f: async(q, r) => {
+      const body = await readBody(q);
+      await handleGroupMessage(q, r, body);
+    } },
   { m: 'GET',    p: '/api/admin/logs',          f: async(q, r) => await handleAdminLogs(q, r) },
   { m: 'GET',    p: '/api/admin/attendance',    f: async(q, r) => await handleAttendance(q, r) },
-  { m: 'GET',    p: /^\/api\/admin\/export\/[a-z]+$/, f: async(q, r, u) => await handleExport(q, r, u.pathname.split('/')[4]) },
+  { m: 'GET',    p: /^\/api\/admin\/export\/[a-z-]+$/, f: async(q, r, u) => await handleExport(q, r, u.pathname.split('/')[4]) },
   // ===== 次卡包 =====
   { m: 'GET',    p: '/api/passes/packages',     f: async(q, r) => sendJson(r, 200, { code: 200, packages: await db.listPassPackages() }) },
   { m: 'GET',    p: '/api/achievements/sync',   f: async(q, r, u) => {
@@ -1591,10 +1631,12 @@ const ADMIN_PATHS = [
   { m: 'DELETE', p: /^\/api\/courses\/\d+$/ },
   { m: 'PUT',    p: /^\/api\/sessions\/\d+$/ },
   { m: 'DELETE', p: /^\/api\/sessions\/\d+$/ },
-  { m: 'GET',    p: /^\/api\/admin\/(sessions|invite-board|dashboard)$/ },
+  { m: 'GET',    p: /^\/api\/admin\/(sessions|invite-board|dashboard|users-analysis)$/ },
+  { m: 'GET',    p: /^\/api\/admin\/users-analysis\/[^/]+\/timeline$/ },
+  { m: 'POST',   p: /^\/api\/admin\/users-analysis\/message$/ },
   { m: 'GET',    p: /^\/api\/admin\/coaches$/ },
   { m: 'GET',    p: /^\/api\/admin\/(logs|attendance)$/ },
-  { m: 'GET',    p: /^\/api\/admin\/export\/[a-z]+$/ },
+  { m: 'GET',    p: /^\/api\/admin\/export\/[a-z-]+$/ },
   { m: 'PUT',    p: /^\/api\/admin\/coaches\/\d+$/ },
   { m: 'DELETE', p: /^\/api\/admin\/coaches\/\d+$/ },
   // 教练分配（BUGS-INBOX #14：065968e 遗漏——web 管理网页「教练分配」可被任何人调用，

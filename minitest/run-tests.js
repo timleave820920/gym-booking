@@ -904,6 +904,74 @@ async function runSuite() {
     r.status === 200 && D2.date === '2026-01-01' && typeof D2.core.new_users === 'number',
     `date=${D2.date} br=${D2.core && D2.core.booking_rate}`);
 
+  // ===== 6.10 用户分析（DESIGN #D4-3）：RMF 分层 / 时间线 / 群组触达 / CSV =====
+  console.log('\n── 6.10 用户分析 ──');
+  r = await req('GET', '/api/admin/users-analysis', null, { noToken: true });
+  check('ANAL-01', '无 token 拉用户分析 → 401', r.status === 401, `status=${r.status}`);
+  r = await req('GET', '/api/admin/users-analysis?page=1&page_size=20');
+  const A = r.data || {};
+  const a0 = A.users && A.users[0];
+  check('ANAL-02', 'RMF 分层清单：分页+打分+沉睡字段齐全',
+    r.status === 200 && typeof A.total === 'number' && A.pages >= 1 && A.users.length >= 1
+    && a0 && typeof a0.r_level === 'number' && a0.r_level >= 1 && a0.r_level <= 5
+    && typeof a0.f_level === 'number' && a0.m_level >= 1
+    && ['0', '14', '30'].includes(a0.dormant) && (a0.r === null || typeof a0.r === 'number') && typeof a0.f === 'number' && typeof a0.m === 'number'
+    && A.stats && typeof A.stats.total_users === 'number' && typeof A.stats.avg_m_fen === 'number',
+    `total=${A.total} n=${A.users && A.users.length} u0=${JSON.stringify(a0 && { r: a0.r, f: a0.f, m: a0.m, rl: a0.r_level, d: a0.dormant })}`);
+  // 排序：默认 monetary 降序
+  r = await req('GET', '/api/admin/users-analysis?order=monetary&page_size=50');
+  const A2 = r.data || {};
+  const monOk = (A2.users || []).every((u, i, arr) => i === 0 || arr[i - 1].m >= u.m);
+  check('ANAL-03', '默认按金额降序', r.status === 200 && monOk, `monOk=${monOk} top=${A2.users && A2.users[0] && A2.users[0].m}`);
+  // 搜索昵称（user1 昵称在 AUTH-04 更新为「田立新版」）
+  r = await req('GET', '/api/admin/users-analysis?q=' + encodeURIComponent('田立新版'));
+  check('ANAL-04', '昵称搜索过滤', r.status === 200 && (r.data.users || []).length === 1 && r.data.users[0].openid === T.user1.openid,
+    `n=${r.data.users && r.data.users.length} oid=${r.data.users && r.data.users[0] && r.data.users[0].openid}`);
+  // 数值门槛（user1 已消费 → m>=1000 至少命中，且全部满足门槛）
+  r = await req('GET', '/api/admin/users-analysis?m_min=1000');
+  check('ANAL-05', '金额门槛筛选（全部满足 m>=1000）',
+    r.status === 200 && r.data.users.length >= 1 && r.data.users.every(u => u.m >= 1000),
+    `n=${r.data.users && r.data.users.length}`);
+  // 沉睡档位参数合法（此时测试用户都有近行为 → dormant=14 无命中也正常）
+  r = await req('GET', '/api/admin/users-analysis?dormant=30');
+  check('ANAL-05b', '沉睡档位筛选参数生效', r.status === 200 && r.data.users.every(u => u.dormant === '30'),
+    `n=${r.data.users && r.data.users.length}`);
+  // 分页：page_size=1 第 2 页与第 1 页不同用户
+  r = await req('GET', '/api/admin/users-analysis?page=1&page_size=1');
+  const p1oid = r.data.users && r.data.users[0] && r.data.users[0].openid;
+  r = await req('GET', '/api/admin/users-analysis?page=2&page_size=1');
+  const p2oid = r.data.users && r.data.users[0] && r.data.users[0].openid;
+  check('ANAL-05c', '分页生效（第 2 页不同用户）', r.status === 200 && !!p1oid && !!p2oid && p1oid !== p2oid,
+    `p1=${p1oid} p2=${p2oid}`);
+  // 个体时间线（user1 订课/支付过 → rows 含 book/order）
+  r = await req('GET', `/api/admin/users-analysis/${T.user1.openid}/timeline`, null, { noToken: true });
+  check('ANAL-06', '无 token 拉时间线 → 401', r.status === 401, `status=${r.status}`);
+  r = await req('GET', `/api/admin/users-analysis/${T.user1.openid}/timeline`);
+  const tl = r.data && r.data.rows || [];
+  check('ANAL-07', '行为时间线（订课/支付/余额类型齐全）',
+    r.status === 200 && tl.length >= 1 && tl.some(x => x.type === 'book') && tl.some(x => x.type === 'order'),
+    `n=${tl.length} types=${tl.map(x => x.type).join(',')}`);
+  r = await req('GET', '/api/admin/users-analysis/nobody_timeline_x/timeline');
+  check('ANAL-07b', '不存在用户时间线 → 空数组', r.status === 200 && Array.isArray(r.data.rows) && r.data.rows.length === 0, `n=${r.data.rows && r.data.rows.length}`);
+  // 群组触达（站内信 promo + dedup 防重）
+  r = await req('POST', '/api/admin/users-analysis/message', { openids: [T.user1.openid, T.user2.openid], title: '沉睡召回测试', content: '好久不见，送你一张体验课' });
+  check('ANAL-08', '群组触达成功', r.status === 200 && r.data.sent === 2 && r.data.skipped === 0,
+    `sent=${r.data.sent} skip=${r.data.skipped}`);
+  r = await req('POST', '/api/admin/users-analysis/message', { openids: [T.user1.openid], title: '沉睡召回测试', content: '再发一次' });
+  check('ANAL-08b', '同标题重复触达去重（dedup_key）', r.status === 200 && r.data.sent === 0 && r.data.skipped === 1,
+    `sent=${r.data.sent} skip=${r.data.skipped}`);
+  r = await req('POST', '/api/admin/users-analysis/message', { openids: Array.from({ length: 201 }, (_, i) => 'fake' + i), title: '超量测试' });
+  check('ANAL-08c', '超过 200 人拒绝', r.status === 400, `status=${r.status} msg=${r.data && r.data.message}`);
+  r = await req('POST', '/api/admin/users-analysis/message', { openids: [T.user1.openid] });
+  check('ANAL-08d', '缺标题拒绝', r.status === 400, `status=${r.status} msg=${r.data && r.data.message}`);
+  // CSV 导出（同筛选参数，复用 B3 导出模式）
+  r = await req('GET', '/api/admin/export/user-analysis', null, { noToken: true });
+  check('ANAL-09', '无 token 导出用户分析 → 401', r.status === 401, `status=${r.status}`);
+  r = await req('GET', '/api/admin/export/user-analysis?q=' + encodeURIComponent('田立新版'));
+  check('ANAL-09b', '用户分析 CSV（BOM+表头+RMF 字段）',
+    r.status === 200 && r.raw.charCodeAt(0) === 0xFEFF && r.raw.includes('近度R(天)') && r.raw.includes('沉睡档位') && r.raw.includes(T.user1.openid),
+    `head=${r.raw.slice(0, 60)}`);
+
   // ===== 6.5 教练工作台（DESIGN #D1）：我的学员 / 笔记 / 结算 / 设教练 =====
   console.log('\n── 6.5 教练工作台 ──');
   const now2 = new Date();
