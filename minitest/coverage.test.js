@@ -404,6 +404,18 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     assert.ok(r.data.booking, '生日折扣支付');
     const bdayOrdRow = db.db.prepare('SELECT amount_fen FROM orders WHERE id = ?').get(r.data.order.id);
     assert.equal(bdayOrdRow.amount_fen, 5400, '生日月首订 8 折金额（6800×0.8 取整到元）');
+
+    // ---- 13.13 DESIGN #D6 运营日报探针：规则引擎生成 / 幂等缓存 ----
+    process.env.ADMIN_TOKEN = 'cov-token';
+    r = await req('GET', `/api/admin/reports?date=${s5Date}`, null, { 'Admin-Token': 'cov-token' });
+    assert.equal(r.status, 200, '日报生成');
+    assert.equal(r.data.empty, false, '今日有数据非占位');
+    assert.ok(r.data.summary && r.data.summary.length > 0, '一句话总结非空');
+    assert.ok(Array.isArray(r.data.metrics) && r.data.metrics.length >= 4, '关键数据≥4 项');
+    assert.ok(Array.isArray(r.data.actions) && r.data.actions.length >= 1, '行动建议≥1 条（规则 12 保底）');
+    const repG1 = r.data.generated_at;
+    r = await req('GET', `/api/admin/reports?date=${s5Date}`, null, { 'Admin-Token': 'cov-token' });
+    assert.equal(r.data.generated_at, repG1, '同日幂等（缓存命中不重新生成）');
     delete process.env.ADMIN_TOKEN;
 
     // ---- 14 候补复杂路径：排位 / 退订转正 / 退出退款 / 过期退款 ----

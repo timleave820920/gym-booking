@@ -336,6 +336,15 @@ async function runSuite() {
       && /u\.gender, u\.birthday/.test(uaSrc)
       && /'性别', '生日'/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8')),
     '⑥ 浏览分析折叠卡（漏斗 mini-metrics + 意图人群 + 搜索词 + 热度）；用户分析表/CSV 含性别生日画像列');
+  // DESIGN #D6 运营日报防回退：折叠卡（日期选择+重新生成）+ loadReport 渲染（总结/网格/趋势/建议）+ 后端路由
+  const repSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', 'report.js'), 'utf8');
+  check('FRONT-23', 'web 运营日报防回退（DESIGN #D6：折叠卡/重新生成/规则引擎）',
+    /fold-report/.test(webHtml) && /function loadReport/.test(webHtml)
+      && /rep-summary/.test(webHtml) && /rep-metrics/.test(webHtml) && /rep-trends/.test(webHtml) && /rep-actions/.test(webHtml)
+      && /admin\/reports/.test(webHtml) && /regenerate/.test(webHtml)
+      && /getDailyReport/.test(repSrc) && /regenerateReport/.test(repSrc) && /listReports/.test(repSrc)
+      && /daily_reports/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db-core.js'), 'utf8')),
+    '📋 运营日报折叠卡（日期选择+查询+重新生成）、loadReport 渲染（一句话总结/关键数据网格/趋势/行动建议）、后端规则引擎接口');
   // DESIGN #D5 浏览埋点防回退：首页 page_view 曝光/搜索词、详情 course_view 停留时长（onHide/onUnload 上报）
   const d5DetailJs = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.js'), 'utf8');
   check('FRONT-20', '浏览埋点防回退（DESIGN #D5：首页曝光/搜索词/详情停留时长）',
@@ -940,6 +949,78 @@ async function runSuite() {
   check('DASH-09', '指定历史日期生效（返回该日口径）',
     r.status === 200 && D2.date === '2026-01-01' && typeof D2.core.new_users === 'number',
     `date=${D2.date} br=${D2.core && D2.core.booking_rate}`);
+
+  // ===== 6.9b 运营日报（DESIGN #D6）：规则引擎 / 惰性幂等 / 重新生成 / 占位 =====
+  console.log('\n── 6.9b 运营日报 ──');
+  // 清空历史报告，保证幂等断言从干净态开始（预清理未含 daily_reports）
+  {
+    const _dbx = require('../server/db.js');
+    await _dbx.driver.run('DELETE FROM daily_reports');
+  }
+  r = await req('GET', '/api/admin/reports', null, { noToken: true });
+  check('REP-01', '无 token 拉运营日报 → 401', r.status === 401, `status=${r.status}`);
+  r = await req('GET', '/api/admin/reports?date=2026-8-1');
+  check('REP-02', '非法 date 格式 → 400', r.status === 400, `status=${r.status}`);
+  // 无数据历史日 → 占位（不落库）：2026-01-01 早于 seed 场次窗口（8/10~8/30）且无测试数据
+  r = await req('GET', '/api/admin/reports?date=2026-01-01');
+  check('REP-03', '无数据日返回占位（当日无运营数据）',
+    r.status === 200 && r.data.empty === true && r.data.summary === '当日无运营数据',
+    `empty=${r.data && r.data.empty} summary=${r.data && r.data.summary}`);
+  {
+    const _dbx = require('../server/db.js');
+    const row = await _dbx.driver.get("SELECT * FROM daily_reports WHERE date = '2026-01-01'");
+    check('REP-03b', '占位日不落库', !row, `row=${JSON.stringify(row)}`);
+  }
+  // 今日报告（seed 8/18 有场次 → 正常生成）
+  r = await req('GET', `/api/admin/reports?date=${todayStr}`);
+  const R1 = r.data || {};
+  check('REP-04', '今日报告生成（summary/metrics/trends/actions 齐全）',
+    r.status === 200 && R1.empty === false && typeof R1.summary === 'string' && R1.summary.length > 0
+    && Array.isArray(R1.metrics) && R1.metrics.length >= 4
+    && Array.isArray(R1.trends) && R1.trends.length >= 4
+    && Array.isArray(R1.actions) && R1.actions.length >= 1,
+    `summary=${R1.summary} m=${R1.metrics && R1.metrics.length} t=${R1.trends && R1.trends.length} a=${R1.actions && R1.actions.length}`);
+  check('REP-04b', 'metrics 关键字段（label/value/flag/consecutive）',
+    r.status === 200 && R1.metrics.every(m => m.label && m.value !== undefined && m.flag && m.consecutive),
+    `first=${JSON.stringify(R1.metrics[0])}`);
+  // 幂等：同日再访 generated_at 不变（惰性缓存命中）
+  r = await req('GET', `/api/admin/reports?date=${todayStr}`);
+  check('REP-05', '同日幂等（不重复生成）', r.status === 200 && r.data.generated_at === R1.generated_at,
+    `g1=${R1.generated_at} g2=${r.data.generated_at}`);
+  // 规则 2 断言：seed 8/18 场次 0 预约 → 订课率 0% < 60% → 排课建议
+  const act2 = R1.actions.find(a => a.title.includes('订课率'));
+  check('REP-07', '规则 2 触发：订课率<60% 出排课建议',
+    !!act2 && act2.scope === '排课' && act2.severity === 'medium' && act2.suggestion.length > 0,
+    `act=${JSON.stringify(act2)}`);
+  // 趋势检测纯函数（连续 ≥3 天同向；持平中断）
+  {
+    const repMod = require('../server/db/report.js');
+    const s1 = repMod.streakOf([10, 20, 30]);
+    const s2 = repMod.streakOf([30, 20, 10, 5]);
+    const s3 = repMod.streakOf([10, 10, 10]);
+    const s4 = repMod.streakOf([5, 10, 8, 7]);
+    check('REP-08', '趋势连续升降检测（streakOf）',
+      s1.direction === 'up' && s1.streak === 3 && s2.direction === 'down' && s2.streak === 4
+      && s3.direction === 'flat' && s4.direction === 'down' && s4.streak === 3,
+      `s1=${JSON.stringify(s1)} s2=${JSON.stringify(s2)} s3=${JSON.stringify(s3)} s4=${JSON.stringify(s4)}`);
+  }
+  // 构造满员场次 → 重新生成 → 规则 3（热门课加场）触发
+  await mkSession(todayStr, '23:30', '23:59', 1, 1);
+  r = await req('GET', `/api/admin/reports?date=${todayStr}&regenerate=1`);
+  const R2 = r.data || {};
+  const act3 = R2.actions.find(a => a.title.includes('接近满员'));
+  check('REP-09', '规则 3 触发：满员课建议加场（重新生成覆盖）',
+    r.status === 200 && !!act3 && act3.scope === '排课' && act3.suggestion.includes('加场'),
+    `act=${JSON.stringify(act3)}`);
+  // 严重度排序：高→中→低
+  const sevIdx = { high: 0, medium: 1, low: 2 };
+  const sortedOk = R2.actions.every((a, i, arr) => i === 0 || sevIdx[arr[i - 1].severity] <= sevIdx[a.severity]);
+  check('REP-10', '建议按严重度排序（高→中→低）', sortedOk, `sevs=${R2.actions.map(a => a.severity).join(',')}`);
+  // 列表：无 date 返回最近 7 天（今天在列）
+  r = await req('GET', '/api/admin/reports');
+  check('REP-11', '无 date 返回报告列表（今天在列）',
+    r.status === 200 && Array.isArray(r.data.reports) && r.data.reports.some(x => x.date === todayStr),
+    `n=${r.data.reports && r.data.reports.length}`);
 
   // ===== 6.10 用户分析（DESIGN #D4-3）：RMF 分层 / 时间线 / 群组触达 / CSV =====
   console.log('\n── 6.10 用户分析 ──');

@@ -1362,6 +1362,22 @@ async function handleEventsAnalysis(req, res, url) {
   return sendJson(res, 200, { code: 200, ...data });
 }
 
+// ===== 运营日报（DESIGN #D6）=====
+// ?date=YYYY-MM-DD 惰性生成/读缓存（同日幂等）；&regenerate=1 手动覆盖当天；无 date 返回最近 7 天列表
+async function handleReports(req, res, url) {
+  const dateStr = url.searchParams.get('date');
+  const regen = url.searchParams.get('regenerate') === '1';
+  if (dateStr !== null) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(dateStr)) {
+      return sendJson(res, 400, { code: 400, message: 'date 格式应为 YYYY-MM-DD' });
+    }
+    const rep = regen ? await db.regenerateReport(dateStr) : await db.getDailyReport(dateStr);
+    return sendJson(res, 200, rep);
+  }
+  const reports = await db.listReports(7);
+  return sendJson(res, 200, { code: 200, reports });
+}
+
 async function toPublicUser(user) {
   let coach_id = null;
   if (user.role === 'coach') {
@@ -1446,6 +1462,7 @@ const API_ROUTES = [
       await handleGroupMessage(q, r, body);
     } },
   { m: 'GET',    p: '/api/admin/events-analysis', f: async(q, r, u) => await handleEventsAnalysis(q, r, u) },
+  { m: 'GET',    p: '/api/admin/reports',         f: async(q, r, u) => await handleReports(q, r, u) },
   // 浏览埋点（DESIGN #D5）
   { m: 'POST',   p: '/api/track/batch', f: async(q, r) => {
       const body = await readBody(q);

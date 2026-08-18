@@ -20,6 +20,7 @@ const { addAdminLog, listAdminLogs } = require('./db/admin-log');
 const { getDashboard } = require('./db/dashboard');
 const { queryUsersAnalysis, getTimeline, groupMessage } = require('./db/users-analysis');
 const { batchTrack, eventsAnalysis } = require('./db/events');
+const { getDailyReport, regenerateReport, listReports } = require('./db/report');
 
 
 module.exports = {
@@ -140,5 +141,9 @@ module.exports = {
   eventsAnalysis,
   // 社交画像（DESIGN #D5）
   getUserProfile,
-  updateUserProfile
+  updateUserProfile,
+  // 运营日报（DESIGN #D6）
+  getDailyReport,
+  regenerateReport,
+  listReports
 };

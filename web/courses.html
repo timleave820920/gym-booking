@@ -112,6 +112,8 @@ canvas#dashTrend { width: 100%; height: 240px; }
 .fold[open] summary::after { transform: rotate(180deg); }
 .fold-inner { padding: 0 16px 16px; }
 .fold-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.rep-delta { font-size: 11px; margin-top: 2px; }
+.rep-delta.up { color: #7AD3A6; } .rep-delta.down { color: #F79C9C; } .rep-delta.flat { color: #888; }
 .mini-metrics { display: flex; gap: 10px; flex-wrap: wrap; }
 .mm { background: #F8F5EA; border-radius: 10px; padding: 10px 14px; min-width: 120px; }
 .mm .mm-v { font-size: 18px; font-weight: 700; color: var(--dark); }
@@ -243,6 +245,35 @@ canvas#dashTrend { width: 100%; height: 240px; }
       <button class="btn btn-save" onclick="loadDashboard()">查询</button>
       <span style="font-size:12px;color:var(--gray)">口径：订课率=预约÷总席位 · 签到率=签到÷预约 · 留存=注册后 N 天仍有订课/签到 · 确认收入=已签到或已过退订截止（课前 2 小时）· 未确认收入=可退订部分+候补排位费</span>
     </div>
+
+    <!-- 📋 运营日报（DESIGN #D6：规则引擎日报告，惰性生成+手动重新生成） -->
+    <details class="fold" id="fold-report" open>
+      <summary>📋 运营日报（自动生成 · 关键数据 / 趋势 / 行动建议）</summary>
+      <div class="fold-inner">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px">
+          <input type="date" id="rep-date" value="" style="padding:7px 10px; border:1px solid var(--line); border-radius:8px; font-size:13px">
+          <button class="btn btn-save" onclick="loadReport(false)">查询</button>
+          <button class="btn" onclick="loadReport(true)">重新生成</button>
+          <span style="font-size:12px;color:var(--gray)">每日首次查看自动生成（同日不重复）· 重新生成覆盖当天 · 建议按严重度红/黄/绿</span>
+        </div>
+        <div id="rep-empty" class="empty-tip" style="display:none">当日无运营数据</div>
+        <div id="rep-body" style="display:none">
+          <div style="background:var(--dark);border-radius:10px;padding:12px 16px;margin-bottom:12px">
+            <div style="font-size:15px;font-weight:700;color:var(--lime)" id="rep-summary">-</div>
+            <div style="font-size:11px;color:var(--gray);margin-top:4px" id="rep-meta">-</div>
+          </div>
+          <div class="mini-metrics" id="rep-metrics"></div>
+          <div class="block" style="margin-top:12px">
+            <h3>趋势解读（近 7 天 · 连续 ≥3 天标记）</h3>
+            <div id="rep-trends" style="font-size:12px"></div>
+          </div>
+          <div class="block" style="margin-top:12px">
+            <h3>行动建议（今日该做什么）</h3>
+            <div id="rep-actions"></div>
+          </div>
+        </div>
+      </div>
+    </details>
 
     <!-- 7 KPI 卡（含昨日环比） -->
     <div class="dash-kpis">
@@ -608,6 +639,7 @@ function init() {
     $('f-date-from').innerHTML = daysOptions(new Date(), new Date(new Date().getTime() + 60 * 864e5), today());
     $('f-date-to').innerHTML = daysOptions(new Date(), new Date(new Date().getTime() + 60 * 864e5), todayPlus(20));
     if ($('dash-date')) $('dash-date').value = today();
+    if ($('rep-date')) $('rep-date').value = today();
   });
 }
 function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -890,7 +922,45 @@ function loadDashboard() {
     dashData = res[0]; dashPrev = res[1];
     renderDashboard();
     loadInviteBoard();          // 折叠区原邀请看板
+    loadReport(false);          // 运营日报联动（DESIGN #D6：打开即报告）
   }).catch(function (e) { alert('运营数据加载失败：' + e.message); });
+}
+// ===== 运营日报（DESIGN #D6）：惰性生成/缓存 + 手动重新生成，建议按严重度配色 =====
+function loadReport(regen) {
+  var date = $('rep-date').value || today();
+  api('/admin/reports?date=' + date + (regen ? '&regenerate=1' : ''))
+    .then(function (r) {
+      $('rep-empty').style.display = r.empty ? 'block' : 'none';
+      $('rep-body').style.display = r.empty ? 'none' : 'block';
+      if (r.empty) return;
+      $('rep-summary').textContent = r.summary;
+      $('rep-meta').textContent = '报告日期：' + r.date + ' · 生成时间：' + (r.generated_at || '');
+      // 关键数据网格（环比 ▲▼ + 连续 N 天 ⚠️）
+      $('rep-metrics').innerHTML = (r.metrics || []).map(function (m) {
+        var mark = m.flag === 'up' ? '▲' : m.flag === 'down' ? '▼' : '—';
+        var delta = m.delta_pct === null || m.delta_pct === undefined ? '' : (m.delta_pct > 0 ? '+' : '') + m.delta_pct + '%';
+        var consec = m.consecutive === 'down' ? ' · 连续下滑 ⚠️' : m.consecutive === 'up' ? ' · 连续上升 📈' : '';
+        return '<div class="mm"><div class="mm-v">' + (m.value === null ? '--' : m.value) + '</div>'
+          + '<div class="mm-l">' + m.label + '</div>'
+          + '<div class="rep-delta ' + m.flag + '">' + mark + ' ' + (delta || '环比 --') + consec + '</div></div>';
+      }).join('') || '<div class="empty-tip">无关键数据</div>';
+      // 趋势解读（连续 ≥3 天同向标记）
+      $('rep-trends').innerHTML = (r.trends || []).map(function (t) {
+        var mark = t.direction === 'up' ? '📈 连续上升 ' + t.streak + ' 天'
+          : t.direction === 'down' ? '📉 连续下降 ' + t.streak + ' 天 ⚠️' : '— 平稳';
+        return '<div style="margin:5px 0"><b>' + t.label + '</b>：' + mark + '</div>';
+      }).join('') || '<div class="empty-tip">无趋势数据</div>';
+      // 行动建议（severity 配色：红=优先 / 黄=关注 / 绿=提示）
+      var sevMap = { high: ['#F79C9C', '优先'], medium: ['#FFD79E', '关注'], low: ['#7AD3A6', '提示'] };
+      $('rep-actions').innerHTML = (r.actions || []).map(function (a, i) {
+        var c = sevMap[a.severity] || ['#ccc', a.severity];
+        return '<div style="border-left:4px solid ' + c[0] + ';background:var(--dark);border-radius:8px;padding:10px 12px;margin:8px 0">'
+          + '<div style="font-size:13px;font-weight:600">' + (i + 1) + '. <span style="color:' + c[0] + '">[' + c[1] + ']</span>【' + a.scope + '】' + a.title + '</div>'
+          + '<div style="font-size:12px;color:var(--gray);margin-top:4px">💡 ' + a.suggestion + '</div>'
+          + '<div style="font-size:11px;color:#9a9a9a;margin-top:2px">📊 ' + a.data + '</div></div>';
+      }).join('') || '<div class="empty-tip">无行动建议</div>';
+    })
+    .catch(function (e) { alert('运营日报加载失败：' + e.message); });
 }
 function renderDashboard() {
   var c = dashData.core, p = dashPrev && dashPrev.core;
