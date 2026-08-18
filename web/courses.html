@@ -350,6 +350,11 @@ canvas#dashTrend { width: 100%; height: 240px; }
             <option value="monetary">按累计消费</option><option value="recency">按近度（最近活跃）</option>
             <option value="frequency">按近 30 天频次</option><option value="last_active">按最后登录</option>
           </select>
+          <select id="ua-label" style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+            <option value="">全部偏好标签</option><option value="次卡用户">次卡用户</option>
+            <option value="储值用户">储值用户</option><option value="守约学员">守约学员</option>
+            <option value="新用户">新用户</option><option value="摇摆用户">摇摆用户（退订多）</option>
+          </select>
           <input type="number" id="ua-fmin" placeholder="近30天订课≥" style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:13px;width:110px">
           <input type="number" id="ua-mmin" placeholder="累计消费≥(元)" style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:13px;width:120px">
           <button class="btn btn-save" onclick="uaLoad(1)">查询</button>
@@ -368,7 +373,7 @@ canvas#dashTrend { width: 100%; height: 240px; }
           <thead><tr>
             <th style="width:30px"><input type="checkbox" id="ua-all" onclick="uaToggleAll(this)"></th>
             <th>用户</th><th>R 近度</th><th>F 频次</th><th>M 金额</th><th>R/F/M 档</th>
-            <th>沉睡</th><th>余额</th><th>最后活跃</th><th>操作</th>
+            <th>沉睡</th><th>偏好标签</th><th>余额</th><th>最后活跃</th><th>操作</th>
           </tr></thead>
           <tbody id="ua-body"></tbody>
         </table>
@@ -464,7 +469,8 @@ canvas#dashTrend { width: 100%; height: 240px; }
 <!-- 用户分析：行为时间线钻取弹层（DESIGN #D4-3） -->
 <div id="ua-tl" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); align-items:center; justify-content:center; z-index:30">
   <div style="width:680px; max-width:94vw; background:#fff; border-radius:14px; padding:22px; box-shadow:0 10px 40px rgba(0,0,0,0.2); max-height:86vh; overflow:auto">
-    <h3 style="font-size:15px; margin-bottom:14px">用户行为时间线（最近 50 条）</h3>
+    <h3 style="font-size:15px; margin-bottom:10px">用户行为时间线（最近 50 条）</h3>
+    <div id="tl-tags" style="margin-bottom:12px"></div>
     <table>
       <thead><tr><th>时间</th><th>类型</th><th>描述</th><th>金额</th></tr></thead>
       <tbody id="tl-body"></tbody>
@@ -964,6 +970,7 @@ function uaFilters() {
     order: $('ua-order').value || 'monetary',
     f_min: $('ua-fmin').value || '',
     m_min: $('ua-mmin').value ? String(Number($('ua-mmin').value) * 100) : '',
+    labels: $('ua-label').value || '',
     page_size: 50
   };
 }
@@ -997,12 +1004,15 @@ function renderUA(j) {
     var d = u.dormant === '30' ? '<span style="color:var(--red)">30 天重沉睡</span>'
       : u.dormant === '14' ? '<span style="color:#D8A200">14 天预警</span>'
       : '<span style="color:#3D9970">活跃</span>';
+    var tags = (u.labels || []).slice(0, 3).map(function (t) { return '<span style="display:inline-block;background:#F0EDDF;border-radius:8px;padding:1px 8px;font-size:11px;color:var(--dark);margin:1px 2px">' + esc(t) + '</span>'; }).join('');
     return '<tr>' +
       '<td><input type="checkbox" class="ua-cb" value="' + esc(u.openid) + '" onchange="uaSelChange(this)"></td>' +
       '<td>' + esc(u.nickname || u.openid) + '<div style="font-size:11px;color:var(--gray)">Lv.' + u.level_lv + ' · ' + esc(u.phone || '未留手机') + '</div></td>' +
       '<td>' + (u.r === null ? '--' : u.r + ' 天') + '</td><td>' + u.f + '</td><td>' + yuan(u.m) + '</td>' +
       '<td>' + u.r_level + ' / ' + u.f_level + ' / ' + u.m_level + '</td>' +
-      '<td>' + d + '</td><td>' + yuan(u.balance_fen) + '</td>' +
+      '<td>' + d + '</td>' +
+      '<td title="' + esc((u.labels || []).join('，')) + '">' + (tags || '<span style="color:var(--gray);font-size:11px">--</span>') + '</td>' +
+      '<td>' + yuan(u.balance_fen) + '</td>' +
       '<td>' + (u.last_active_at ? u.last_active_at.slice(0, 16) : '--') + '</td>' +
       '<td><button class="cap-save" onclick="uaTimeline(\'' + esc(u.openid) + '\')">时间线</button></td>' +
       '</tr>';
@@ -1025,9 +1035,14 @@ function uaExport() {
     .map(function (k) { return k + '=' + encodeURIComponent(f[k]); }).join('&');
   window.open('/api/admin/export/user-analysis?' + qs, '_blank');
 }
-// 个体时间线钻取
+// 个体时间线钻取（含偏好标签卡，DESIGN #D4-4）
 function uaTimeline(openid) {
   api('/admin/users-analysis/' + encodeURIComponent(openid) + '/timeline').then(function (j) {
+    var u = uaUsers.find(function (x) { return x.openid === openid; });
+    var tags = (u && u.labels || []).map(function (t) {
+      return '<span style="display:inline-block;background:#F0EDDF;border-radius:8px;padding:2px 10px;font-size:12px;color:var(--dark);margin:2px 4px">' + esc(t) + '</span>';
+    }).join('');
+    $('tl-tags').innerHTML = tags || '<span style="color:var(--gray);font-size:12px">暂无标签</span>';
     var typeLabel = { book: '订课', order: '支付/退款', recharge: '充值', balance: '余额', coin: '能量币', msg: '消息' };
     $('tl-body').innerHTML = (j.rows || []).map(function (x) {
       return '<tr><td>' + (x.t || '').slice(0, 16) + '</td><td>' + (typeLabel[x.type] || x.type) + '</td><td>' + esc(x.desc) + '</td><td>' + (x.type === 'msg' ? '' : yuan(x.amount_fen || 0)) + '</td></tr>';

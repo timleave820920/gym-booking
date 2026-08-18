@@ -356,6 +356,7 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     // ---- 13.9 DESIGN #D4-3 用户分析探针 ----
     r = await req('GET', '/api/admin/users-analysis?page=1&page_size=10', null, { 'Admin-Token': 'cov-admin' });
     assert.ok(r.data.users[0] && typeof r.data.users[0].m_level === 'number' && r.data.stats, 'RMF 分层清单');
+    assert.ok(Array.isArray(r.data.users[0].labels) && r.data.users[0].labels.length >= 1, '偏好标签计算');
     r = await req('GET', `/api/admin/users-analysis/${U1.openid}/timeline`, null, { 'Admin-Token': 'cov-admin' });
     assert.ok(Array.isArray(r.data.rows), '行为时间线');
     r = await req('GET', '/api/admin/export/user-analysis', null, { 'Admin-Token': 'cov-admin' });

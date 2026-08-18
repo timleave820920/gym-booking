@@ -77,11 +77,15 @@ async function queryUsersAnalysis(filters = {}) {
   const rMax = filters.r_max !== undefined && filters.r_max !== '' ? Number(filters.r_max) : null;
   const fMin = filters.f_min !== undefined && filters.f_min !== '' ? Number(filters.f_min) : null;
   const mMin = filters.m_min !== undefined && filters.m_min !== '' ? Number(filters.m_min) : null;
+  const labelsKw = (filters.labels || '').split(',').map(s => s.trim()).filter(Boolean);
   const order = filters.order || 'monetary';
   const page = Math.max(1, Number(filters.page) || 1);
   const pageSize = Math.min(200, Math.max(1, Number(filters.page_size) || 20));
 
   let rows = (await baseRows()).map(decorate);
+  // 偏好标签（DESIGN #D4-4）：全量计算一次挂到行上，供筛选与展示
+  const labelMap = await computeLabelsForOpenids(rows.map(u => u.openid));
+  rows.forEach(u => { u.labels = labelMap.get(u.openid) || []; });
   // 角色：默认只看学员（运营对象）；coach/all 可选
   if (role === 'student') rows = rows.filter(u => u.role === 'student');
   else if (role === 'coach') rows = rows.filter(u => u.role === 'coach');
@@ -89,6 +93,10 @@ async function queryUsersAnalysis(filters = {}) {
   if (q) {
     const ql = q.toLowerCase();
     rows = rows.filter(u => u.nickname.toLowerCase().includes(ql) || u.phone.includes(q) || u.openid.toLowerCase().includes(ql));
+  }
+  // 偏好标签筛选（任一关键词命中任一标签即入）
+  if (labelsKw.length) {
+    rows = rows.filter(u => labelsKw.some(kw => u.labels.some(l => l.includes(kw))));
   }
   // 沉睡档位
   if (dormant !== null && ['0', '14', '30'].includes(dormant)) {
@@ -168,4 +176,71 @@ async function groupMessage(openids, title, content) {
   return { sent, skipped: openids.length - sent };
 }
 
-module.exports = { queryUsersAnalysis, getTimeline, groupMessage };
+// ===== 偏好标签（DESIGN #D4-4，P2）：课程/教练/时段/场馆/支付习惯/行为特质 =====
+
+const SLOT_LABELS = [
+  { key: '早场', from: 6, to: 10 }, { key: '午间', from: 10, to: 14 },
+  { key: '下午', from: 14, to: 18 }, { key: '晚间', from: 18, to: 22 }
+];
+const slotOf = (h) => (SLOT_LABELS.find(s => h >= s.from && h < s.to) || { key: '其他' }).key;
+const PAY_LABELS = { pass: '次卡用户', balance: '储值用户', wxpay: '微信支付用户' };
+const topKey = (map) => { let best = null, bestN = 0; for (const [k, n] of map) if (n > bestN) { best = k; bestN = n; } return best; };
+
+/**
+ * 批量计算用户偏好标签（一次 SQL 拉指定用户全部订课维度，内存聚合）
+ * @param {string[]} openids
+ * @returns {Map<string, string[]>} openid → 标签数组（顺序：课程/分类/教练/时段/场馆/支付/特质）
+ */
+async function computeLabelsForOpenids(openids) {
+  const out = new Map(openids.map(o => [o, []]));
+  if (!openids.length) return out;
+  const ph = openids.map(() => '?').join(',');
+  const rows = await driver.all(`
+    SELECT b.user_openid, c.name course, c.category, co.name coach, substr(s.start_time,1,2) h,
+           v.name venue, b.pay_source, b.status, b.checkin_at
+    FROM bookings b
+    JOIN course_sessions s ON s.id = b.session_id
+    JOIN courses c ON c.id = s.course_id
+    JOIN coaches co ON co.id = s.coach_id
+    JOIN venues v ON v.id = s.venue_id
+    WHERE b.user_openid IN (${ph})`, openids);
+  const agg = {};
+  for (const u of openids) agg[u] = { course: new Map(), category: new Map(), coach: new Map(), slot: new Map(), venue: new Map(), pay: new Map(), booked: 0, checkin: 0, cancelled: 0 };
+  for (const r of rows) {
+    const a = agg[r.user_openid];
+    if (!a) continue;
+    const sl = slotOf(Number(r.h));
+    a.course.set(r.course, (a.course.get(r.course) || 0) + 1);
+    a.category.set(r.category, (a.category.get(r.category) || 0) + 1);
+    a.coach.set(r.coach, (a.coach.get(r.coach) || 0) + 1);
+    a.slot.set(sl, (a.slot.get(sl) || 0) + 1);
+    a.venue.set(r.venue, (a.venue.get(r.venue) || 0) + 1);
+    a.pay.set(r.pay_source, (a.pay.get(r.pay_source) || 0) + 1);
+    a.booked++;
+    if (r.checkin_at) a.checkin++;
+    if (r.status === 'cancelled') a.cancelled++;
+  }
+  // 新用户判定批量查一次（防 N+1）
+  const createdMap = new Map((await driver.all(`SELECT openid, created_at FROM users WHERE openid IN (${ph})`, openids)).map(r => [r.openid, r.created_at]));
+  for (const u of openids) {
+    const a = agg[u];
+    const labels = [];
+    const course = topKey(a.course); if (course) labels.push('最爱课：' + course);
+    const cat = topKey(a.category); if (cat) labels.push('偏爱：' + cat);
+    const coach = topKey(a.coach); if (coach) labels.push('常约教练：' + coach);
+    const slot = topKey(a.slot); if (slot) labels.push('常练时段：' + slot);
+    const venue = topKey(a.venue); if (venue) labels.push('常去场馆：' + venue);
+    const pay = topKey(a.pay); if (pay && PAY_LABELS[pay]) labels.push(PAY_LABELS[pay]);
+    // 行为特质
+    const booked = a.booked;
+    if (booked >= 2 && a.checkin / booked >= 0.8) labels.push('守约学员');
+    if (a.cancelled >= 2 && a.cancelled / Math.max(booked + a.cancelled, 1) >= 0.5) labels.push('摇摆用户（退订多）');
+    const created = createdMap.get(u);
+    if (labels.length < 5 && created && Date.now() - time.parseBeijing(created).getTime() <= 14 * dayMs) labels.push('新用户');
+    if (labels.length === 0) labels.push('体验中');
+    out.set(u, labels);
+  }
+  return out;
+}
+
+module.exports = { queryUsersAnalysis, getTimeline, groupMessage, computeLabelsForOpenids };

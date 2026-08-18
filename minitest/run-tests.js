@@ -972,9 +972,20 @@ async function runSuite() {
   r = await req('GET', '/api/admin/export/user-analysis', null, { noToken: true });
   check('ANAL-09', '无 token 导出用户分析 → 401', r.status === 401, `status=${r.status}`);
   r = await req('GET', '/api/admin/export/user-analysis?q=' + encodeURIComponent('田立新版'));
-  check('ANAL-09b', '用户分析 CSV（BOM+表头+RMF 字段）',
-    r.status === 200 && r.raw.charCodeAt(0) === 0xFEFF && r.raw.includes('近度R(天)') && r.raw.includes('沉睡档位') && r.raw.includes(T.user1.openid),
+  check('ANAL-09b', '用户分析 CSV（BOM+表头+RMF 字段+偏好标签）',
+    r.status === 200 && r.raw.charCodeAt(0) === 0xFEFF && r.raw.includes('近度R(天)') && r.raw.includes('沉睡档位') && r.raw.includes('偏好标签') && r.raw.includes(T.user1.openid),
     `head=${r.raw.slice(0, 60)}`);
+  // 偏好标签（DESIGN #D4-4）：列表带标签、标签筛选、行为特质
+  r = await req('GET', '/api/admin/users-analysis?q=' + encodeURIComponent('田立新版'));
+  const ua1 = r.data && r.data.users && r.data.users[0];
+  check('ANAL-10', '列表返回偏好标签（课程/教练/支付习惯/特质）',
+    r.status === 200 && ua1 && Array.isArray(ua1.labels) && ua1.labels.length >= 1
+    && ua1.labels.some(l => l.includes('储值') || l.includes('次卡') || l.includes('最爱课')),
+    `labels=${JSON.stringify(ua1 && ua1.labels)}`);
+  r = await req('GET', '/api/admin/users-analysis?labels=' + encodeURIComponent('储值用户'));
+  check('ANAL-11', '偏好标签筛选（储值用户）',
+    r.status === 200 && r.data.users.length >= 1 && r.data.users.every(u => u.labels.some(l => l.includes('储值用户'))),
+    `n=${r.data.users && r.data.users.length} first=${JSON.stringify(r.data.users && r.data.users[0] && r.data.users[0].labels)}`);
 
   // ===== 6.5 教练工作台（DESIGN #D1）：我的学员 / 笔记 / 结算 / 设教练 =====
   console.log('\n── 6.5 教练工作台 ──');
