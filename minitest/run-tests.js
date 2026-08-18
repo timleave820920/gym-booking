@@ -1564,8 +1564,10 @@ async function runSuite() {
   const rcgOpenid = 'uid_test_rcg';
   await req('POST', '/api/auth/login', { openid: rcgOpenid, nickname: '分页测试' });
   for (let i = 0; i < 25; i++) {
-    await dbx.driver.run("INSERT INTO member_recharges (recharge_no, user_openid, order_id, amount_fen, bonus_fen, status, created_at) VALUES (?, ?, 0, 50000, 5000, 'paid', datetime('now','localtime','-' || ? || ' minutes'))",
-      ['RCG_' + i, rcgOpenid, i + 1]);
+    // created_at 业务层算好传参（datetime('now','localtime','-N minutes') 是 SQLite 语法，MySQL 报语法错——BUG-LEDGER #60）
+    const createdAt = timeMod.nowDateTimeStr(new Date(Date.now() - (i + 1) * 60000));
+    await dbx.driver.run("INSERT INTO member_recharges (recharge_no, user_openid, order_id, amount_fen, bonus_fen, status, created_at) VALUES (?, ?, 0, 50000, 5000, 'paid', ?)",
+      ['RCG_' + i, rcgOpenid, createdAt]);
   }
   r = await req('GET', `/api/member/recharges?openid=${rcgOpenid}`);
   check('RCG-01', '分页第1页10笔+hasMore', (r.data.recharges || []).length === 10 && r.data.hasMore === true, `count=${r.data.recharges && r.data.recharges.length} hasMore=${r.data.hasMore}`);

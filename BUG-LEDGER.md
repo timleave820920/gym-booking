@@ -37,7 +37,7 @@
 - **根因**（双层）：
   1. **MysqlDriver.exec 事务拆散**：`exec('BEGIN'/'COMMIT'/'ROLLBACK')` 在 `pool.query()`（随机连接）上执行，事务内语句全走 `pool.execute()`（又是随机连接）——BEGIN 后的语句各自自动提交、COMMIT 落在无事务连接上（no-op），**开启事务的那条连接悬空在池里**，被后续请求随机复用（事务残留/锁等待），且事务内「读自己写」的语义完全失效。调用点：bookings.js checkinBooking/cancelBooking、coach.js assignCoach。订课主链路用 driver.tx()（正确单连接实现）所以订课测试绿——差异即证据。
   2. **mysql2 execute 把 number 一律编码成 DOUBLE 绑定**（lib/packets/encode_parameter.js `toParameter` 实证）——MySQL 的 **LIMIT/OFFSET 必须整数类型**，DOUBLE 绑定直接 `ER_WRONG_ARGUMENTS` 500。5 处 `LIMIT ?`/`OFFSET ?`（操作日志/能量币流水/充值记录/消息列表/日报列表）全是雷，ADMIN-28b 是套件第一个撞雷点（时间线自洽：28b→28c→DASH-03 连环 500 后 TypeError 崩）。
-  3. **`read` 保留字裸别名**：dashboard.js `SUM(is_read) read` —— READ 是 MySQL reserved 关键字，裸别名语法报错（DASH-03 500）。
+  3. **MySQL 保留字裸用**（mysql-schema.js:12 注释早已声明 `desc`/`change`/`date`/`role` 须反引号，但 SQL 层漏网）：`SUM(is_read) read` 别名（READ reserved）、`CASE WHEN change > 0`（coin.js 已包反引号而 dashboard.js 漏了）、`WHERE date = ?` 裸列名（dashboard/report/测试直连共 6 处；带限定符的 `s.date` 在 MySQL 合法——「period 后接标识符不必引号」，故只修裸用）——全部改反引号（双方言兼容）。
   4. **run-tests 主进程不退出**：main().catch 只设 process.exitCode，MySQL 模式 require 的 mysql2 连接池句柄阻塞进程结束 → 失败后挂到 CI 10 分钟超时。
 - **修复**：
   1. **MysqlDriver 事务连接管理**：新增 `_txConn`——exec('BEGIN') 从池 getConnection + beginTransaction 绑定专用连接，期间 get/all/run/exec 经 `_target()` 复用该连接，COMMIT/ROLLBACK 提交/回滚后 release 归还；beginExclusive/getExclusive(FOR UPDATE) 走同一通道（#57b 并发防重用语义保持）；事务内重复 BEGIN 幂等，单连接包装（tx() 内）no-op。
