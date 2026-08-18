@@ -1268,6 +1268,17 @@ async function handleSessionDetail(req, res, id) {
   return sendJson(res, 200, { code: 200, session: { ...result, images, bookedUsers } });
 }
 
+// ===== 运营 Dashboard（DESIGN #D4，web 管理页「运营数据」tab 数据源）=====
+async function handleDashboard(req, res, url) {
+  const dateStr = url.searchParams.get('date') || null;
+  // 日期格式校验（防注入/非法输入进 SQL 比较）
+  if (dateStr !== null && !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return sendJson(res, 400, { code: 400, message: 'date 格式应为 YYYY-MM-DD' });
+  }
+  const data = await db.getDashboard(dateStr);
+  return sendJson(res, 200, data);
+}
+
 async function toPublicUser(user) {
   let coach_id = null;
   if (user.role === 'coach') {
@@ -1344,6 +1355,7 @@ const API_ROUTES = [
       sendJson(r, 200, { code: 200, details: await db.listInvitationDetails(openid) });
     } },
   { m: 'GET',    p: '/api/admin/invite-board',  f: async(q, r) => sendJson(r, 200, { code: 200, board: await db.inviteBoardStats() }) },
+  { m: 'GET',    p: '/api/admin/dashboard',     f: async(q, r, u) => await handleDashboard(q, r, u) },
   { m: 'GET',    p: '/api/admin/logs',          f: async(q, r) => await handleAdminLogs(q, r) },
   { m: 'GET',    p: '/api/admin/attendance',    f: async(q, r) => await handleAttendance(q, r) },
   { m: 'GET',    p: /^\/api\/admin\/export\/[a-z]+$/, f: async(q, r, u) => await handleExport(q, r, u.pathname.split('/')[4]) },
@@ -1579,7 +1591,7 @@ const ADMIN_PATHS = [
   { m: 'DELETE', p: /^\/api\/courses\/\d+$/ },
   { m: 'PUT',    p: /^\/api\/sessions\/\d+$/ },
   { m: 'DELETE', p: /^\/api\/sessions\/\d+$/ },
-  { m: 'GET',    p: /^\/api\/admin\/(sessions|invite-board)$/ },
+  { m: 'GET',    p: /^\/api\/admin\/(sessions|invite-board|dashboard)$/ },
   { m: 'GET',    p: /^\/api\/admin\/coaches$/ },
   { m: 'GET',    p: /^\/api\/admin\/(logs|attendance)$/ },
   { m: 'GET',    p: /^\/api\/admin\/export\/[a-z]+$/ },

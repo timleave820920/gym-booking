@@ -350,6 +350,9 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     assert.ok(r.data.summary && typeof r.data.summary.attended === 'number', '到课率汇总');
     r = await req('GET', '/api/admin/export/users', null, { 'Admin-Token': 'cov-admin' });
     assert.equal(r.status, 200, '学员导出');
+    // ---- 13.8 DESIGN #D4 运营 Dashboard 探针 ----
+    r = await req('GET', '/api/admin/dashboard', null, { 'Admin-Token': 'cov-admin' });
+    assert.ok(r.data.core && typeof r.data.core.booking_rate === 'number' && Array.isArray(r.data.trend.d7.days), '运营 Dashboard 聚合');
     delete process.env.ADMIN_TOKEN;
 
     // ---- 14 候补复杂路径：排位 / 退订转正 / 退出退款 / 过期退款 ----

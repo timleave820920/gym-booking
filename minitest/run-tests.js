@@ -846,6 +846,56 @@ async function runSuite() {
   r = await req('GET', '/api/admin/export/xxx');
   check('EXP-05', '非法导出类型 → 400', r.status === 400, `status=${r.status}`);
 
+  // ===== 6.9 运营 Dashboard 聚合接口（DESIGN #D4，web 管理页「运营数据」tab 数据源）=====
+  console.log('\n── 6.9 运营 Dashboard ──');
+  r = await req('GET', '/api/admin/dashboard', null, { noToken: true });
+  check('DASH-01', '无 token 拉 Dashboard → 401（并入 ADMIN_PATHS）', r.status === 401, `status=${r.status}`);
+  r = await req('GET', '/api/admin/dashboard?date=2026-8-1');
+  check('DASH-02', '非法 date 格式 → 400', r.status === 400, `status=${r.status}`);
+  r = await req('GET', '/api/admin/dashboard');
+  const D = r.data || {};
+  check('DASH-03', '默认今天：core 7 指标齐全',
+    r.status === 200 && D.date === todayStr
+    && typeof D.core.new_users === 'number' && typeof D.core.booking_rate === 'number'
+    && typeof D.core.checkin_rate === 'number' && !!D.core.retention
+    && (D.core.retention.d7 === null || typeof D.core.retention.d7 === 'number')
+    && D.core.recharge && typeof D.core.recharge.fen === 'number' && typeof D.core.recharge.balance_fen === 'number'
+    && typeof D.core.confirmed_revenue_fen === 'number' && typeof D.core.unconfirmed_revenue_fen === 'number'
+    && typeof D.core.refund_fen === 'number',
+    `date=${D.date} nu=${D.core && D.core.new_users} br=${D.core && D.core.booking_rate} cr=${D.core && D.core.checkin_rate} r7=${D.core && D.core.retention && D.core.retention.d7}`);
+  // 订课率口径：当日 published/full 场次 预约÷总席位（与库直查精确一致）
+  const dashCap = _dbx.db.prepare("SELECT COALESCE(SUM(capacity),0) cap, COALESCE(SUM(booked_count),0) booked FROM course_sessions WHERE date = ? AND status IN ('published','full')").get(todayStr);
+  const dashRate = dashCap.cap > 0 ? Math.round(dashCap.booked / dashCap.cap * 1000) / 10 : 0;
+  check('DASH-04', '订课率=预约÷总席位（与库直查一致）',
+    D.core.booking_rate === dashRate, `api=${D.core.booking_rate} db=${dashRate}`);
+  // 签到率口径：当日课 bookings 中 checkin_at 非空占比（签到是唯一到课证明 B1）
+  const dashCk = _dbx.db.prepare(`SELECT COUNT(*) total, SUM(CASE WHEN checkin_at IS NOT NULL THEN 1 ELSE 0 END) done
+    FROM bookings b JOIN course_sessions s ON s.id = b.session_id WHERE s.date = ? AND b.status = 'booked'`).get(todayStr);
+  const dashCkRate = dashCk.total > 0 ? Math.round(dashCk.done / dashCk.total * 1000) / 10 : 0;
+  check('DASH-05', '签到率=已签到÷预约（与库直查一致）',
+    D.core.checkin_rate === dashCkRate, `api=${D.core.checkin_rate} db=${dashCkRate}`);
+  check('DASH-06', '趋势 d7=7 天 / d30=30 天（数组等长）',
+    D.trend && D.trend.d7 && D.trend.d7.days.length === 7 && D.trend.d30 && D.trend.d30.days.length === 30
+    && D.trend.d7.newUsers.length === 7 && D.trend.d30.revenueFen.length === 30,
+    `d7=${D.trend && D.trend.d7 && D.trend.d7.days.length} d30=${D.trend && D.trend.d30 && D.trend.d30.days.length}`);
+  check('DASH-07', '4 组折叠卡数据齐全',
+    D.groups && D.groups.revenue && typeof D.groups.revenue.cancel_rate === 'number'
+    && typeof D.groups.revenue.waitlist_promote_rate === 'number'
+    && D.groups.growth && D.groups.growth.funnel && typeof D.groups.growth.funnel.registered === 'number'
+    && D.groups.growth.dormant && typeof D.groups.growth.dormant.d14 === 'number'
+    && D.groups.courses && Array.isArray(D.groups.courses.top) && Array.isArray(D.groups.courses.hours) && Array.isArray(D.groups.courses.coaches)
+    && D.groups.system && typeof D.groups.system.coins.issued === 'number' && typeof D.groups.system.msg_read_rate === 'number'
+    && Array.isArray(D.groups.system.members) && typeof D.groups.system.passes.bought === 'number',
+    `groups=${JSON.stringify(Object.keys(D.groups || {}))}`);
+  check('DASH-08', '收入两轨非负（确认=签到或过退订截止，未确认=可退+候补）',
+    D.core.confirmed_revenue_fen >= 0 && D.core.unconfirmed_revenue_fen >= 0 && D.core.refund_fen >= 0,
+    `cf=${D.core.confirmed_revenue_fen} uf=${D.core.unconfirmed_revenue_fen} rf=${D.core.refund_fen}`);
+  r = await req('GET', '/api/admin/dashboard?date=2026-01-01');
+  const D2 = r.data || {};
+  check('DASH-09', '指定历史日期生效（返回该日口径）',
+    r.status === 200 && D2.date === '2026-01-01' && typeof D2.core.new_users === 'number',
+    `date=${D2.date} br=${D2.core && D2.core.booking_rate}`);
+
   // ===== 6.5 教练工作台（DESIGN #D1）：我的学员 / 笔记 / 结算 / 设教练 =====
   console.log('\n── 6.5 教练工作台 ──');
   const now2 = new Date();

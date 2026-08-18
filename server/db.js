@@ -17,6 +17,7 @@ const { genOrderNo, createOrder, payOrder, listOrdersByUser, getRevenueStats, pr
 const { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, checkinByCode, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings, attendanceStats } = require('./db/bookings');
 const { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach, listCoachesWithBind, unassignCoach, setUserRole, updateCoachProfile, deleteCoach } = require('./db/coach');
 const { addAdminLog, listAdminLogs } = require('./db/admin-log');
+const { getDashboard } = require('./db/dashboard');
 
 
 module.exports = {
@@ -124,5 +125,7 @@ module.exports = {
   deleteCoach,
   // 管理操作日志（B3 2026-08-18）
   addAdminLog,
-  listAdminLogs
+  listAdminLogs,
+  // 运营 Dashboard（DESIGN #D4）
+  getDashboard
 };
