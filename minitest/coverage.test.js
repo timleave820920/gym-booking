@@ -269,15 +269,17 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     r = await req('PUT', `/api/courses/${covCourseId}`, { name: '覆盖测试课程改', tags: '测试' });
     assert.equal(r.data.code, 200, '更新课程');
     // 时段用 14:00-15:00（避开 seed 场次 10:00/11:00/15:00/16:00/20:00/21:00，排课冲突检测 BUG-LEDGER #7 相关功能会跳过重叠时段）
-    const [cy, cm, cd] = todayStr.split('-').map(Number);
-    const wd = new Date(Date.UTC(cy, cm - 1, cd)).getUTCDay(); // 无时区依赖的星期
+    // 2026-08-18：发布日期改用「明天」——固定今天 14:00 的场次在 14:00 后跑探针会被发布跳过（已开始时段不生成）→ 探针 14:00 后必挂
+    const pubBase = new Date(); pubBase.setDate(pubBase.getDate() + 1);   // 明天（本地时间，必然未来）
+    const pubDate = `${pubBase.getFullYear()}-${pad2(pubBase.getMonth() + 1)}-${pad2(pubBase.getDate())}`;
+    const wd = pubBase.getDay(); // 明天的星期（0=周日，排课规则 1-7）
     r = await req('PUT', `/api/courses/${covCourseId}/rules`, { rules: [{ weekday: wd === 0 ? 7 : wd, start_time: '14:00', end_time: '15:00', venue_id: 1, coach_id: 1, capacity: 5 }] });
     assert.equal(r.data.code, 200, '保存排课规则');
-    r = await req('POST', `/api/courses/${covCourseId}/publish`, { start_date: todayStr, end_date: todayStr });
+    r = await req('POST', `/api/courses/${covCourseId}/publish`, { start_date: pubDate, end_date: pubDate });
     assert.equal(r.data.code, 200, '发布场次');
     const pubSid = db.db.prepare("SELECT id FROM course_sessions WHERE course_id=? AND source='manual' LIMIT 1").get(covCourseId);
     assert.ok(pubSid, '发布产生场次');
-    r = await req('GET', `/api/admin/sessions?from=${todayStr}&to=${todayStr}&course_id=${covCourseId}`);
+    r = await req('GET', `/api/admin/sessions?from=${pubDate}&to=${pubDate}&course_id=${covCourseId}`);
     assert.ok(Array.isArray(r.data.sessions), '范围场次');
     // 访问码保护探针（BUGS-INBOX #8）：env 配置后管理接口 401，随后清除恢复（探针成对）
     process.env.ADMIN_TOKEN = 'cov-admin';
@@ -386,6 +388,22 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     assert.equal(r.data.bonusCoins, 20, '完善画像送 20 能量币');
     r = await req('PUT', '/api/me/profile', { openid: profOid, gender: 2 });
     assert.equal(r.data.bonusCoins, 0, '重复填写不再发币');
+    // ---- 13.12 DESIGN #D5-4 生日月首订 8 折探针：储值支付首单自动 8 折（与会员价取更优）----
+    const bdayOid = 'uid_cov_bday';
+    r = await req('POST', '/api/auth/login', { openid: bdayOid, nickname: '生日探针' });
+    assert.equal(r.status, 201, '生日探针注册');
+    const bMonth = `${timeMod.parts().y}-${pad2(timeMod.parts().mo)}`;
+    db.db.prepare('UPDATE users SET birthday = ?, balance_fen = 10000 WHERE openid = ?').run(`${bMonth}-20`, bdayOid);
+    const s5Date = `${timeMod.parts().y}-${pad2(timeMod.parts().mo)}-${pad2(timeMod.parts().d)}`;
+    const sBday = db.db.prepare(
+      "INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source) VALUES (?,1,1,?,?,?,5,0,'published','cov_suite')"
+    ).run(1, s5Date, '23:00', '24:00');
+    r = await req('POST', '/api/orders', { openid: bdayOid, sessionId: sBday.lastInsertRowid, amountFen: 6800 });
+    assert.equal(r.status, 201, '生日折扣下单');
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: bdayOid, payMethod: 'balance' });
+    assert.ok(r.data.booking, '生日折扣支付');
+    const bdayOrdRow = db.db.prepare('SELECT amount_fen FROM orders WHERE id = ?').get(r.data.order.id);
+    assert.equal(bdayOrdRow.amount_fen, 5400, '生日月首订 8 折金额（6800×0.8 取整到元）');
     delete process.env.ADMIN_TOKEN;
 
     // ---- 14 候补复杂路径：排位 / 退订转正 / 退出退款 / 过期退款 ----

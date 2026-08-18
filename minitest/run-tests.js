@@ -1098,6 +1098,52 @@ async function runSuite() {
   r = await req('PUT', '/api/me/profile', { openid: profOpenid, gender: 2 });
   check('PROF-10', '重复填写不再发币且性别可改', ok(r, 200) && r.data.bonusCoins === 0 && r.data.profile.gender === 2, `bonus=${r.data && r.data.bonusCoins} gender=${r.data && r.data.profile && r.data.profile.gender}`);
 
+  // ===== 6.13 生日月首订 8 折（DESIGN #D5-4）：储值支付书订单生日月首单自动 8 折（与会员价取更优，向下取整到元）=====
+  console.log('\n── 6.13 生日月首订 8 折 ──');
+  {
+    const _dbx = require('../server/db.js');
+    const bdayOpenid = 'uid_test_bday';
+    await req('POST', '/api/auth/login', { openid: bdayOpenid, nickname: '生日测试' });
+    const bmonth = `${timeMod.parts().y}-${String(timeMod.parts().mo).padStart(2, '0')}`;
+    // 直连造当月生日 + 余额 100 元（绕开充值链路）
+    await _dbx.driver.run('UPDATE users SET birthday = ?, balance_fen = 10000 WHERE openid = ?', [`${bmonth}-10`, bdayOpenid]);
+    const bdaySid = await mkSession(todayStr, '22:00', '23:00', 5, 0);
+    r = await req('POST', '/api/orders', { openid: bdayOpenid, sessionId: bdaySid, amountFen: 6800 });
+    check('BDAY-01', '生日月订课下单', ok(r, 201), `msg=${r.data && r.data.message}`);
+    const bdayOrdId = r.data.order.id;
+    r = await req('POST', `/api/orders/${bdayOrdId}/pay`, { openid: bdayOpenid, payMethod: 'balance' });
+    check('BDAY-02', '生日月首订支付成功', ok(r, 200) && r.data.booking, `msg=${r.data && r.data.message}`);
+    const bdayOrd = await _dbx.driver.get('SELECT amount_fen FROM orders WHERE id = ?', [bdayOrdId]);
+    const bdayBk = await _dbx.driver.get('SELECT amount_fen FROM bookings WHERE user_openid = ? AND session_id = ?', [bdayOpenid, bdaySid]);
+    // 6800×0.8=5440 → 向下取整到元 = 5400（54 元）；会员价（青铜 98 折）6600 → 取更优 5400
+    check('BDAY-03', '首订实付 8 折（5400，与会员价取更优）', bdayOrd.amount_fen === 5400 && bdayBk.amount_fen === 5400, `order=${bdayOrd.amount_fen} booking=${bdayBk.amount_fen}`);
+    const bdayBal = await _dbx.driver.get('SELECT balance_fen FROM users WHERE openid = ?', [bdayOpenid]);
+    check('BDAY-04', '余额按 8 折价扣除（100−54=46 元）', bdayBal.balance_fen === 4600, `balance=${bdayBal.balance_fen}`);
+    const bdayMsg = await _dbx.driver.get('SELECT content FROM messages WHERE user_openid = ? ORDER BY id DESC LIMIT 1', [bdayOpenid]);
+    check('BDAY-05', '站内信标注生日月首订 8 折', !!bdayMsg && (bdayMsg.content || '').includes('生日月首订 8 折'), `msg=${bdayMsg && bdayMsg.content}`);
+    // 第二单：当月已有 paid 书订单 → 8 折不再适用，回会员价 6600（先重置余额，第一单扣了 54 元）
+    await _dbx.driver.run('UPDATE users SET balance_fen = 10000 WHERE openid = ?', [bdayOpenid]);
+    const bdaySid2 = await mkSession(todayStr, '22:30', '23:30', 5, 0);
+    r = await req('POST', '/api/orders', { openid: bdayOpenid, sessionId: bdaySid2, amountFen: 6800 });
+    const bdayOrdId2 = r.data.order.id;
+    r = await req('POST', `/api/orders/${bdayOrdId2}/pay`, { openid: bdayOpenid, payMethod: 'balance' });
+    const bdayOrd2 = await _dbx.driver.get('SELECT amount_fen FROM orders WHERE id = ?', [bdayOrdId2]);
+    check('BDAY-06', '当月第二单回会员价（6600，8 折仅首单）', ok(r, 200) && bdayOrd2.amount_fen === 6600, `amount=${bdayOrd2.amount_fen} msg=${r.data && r.data.message}`);
+    // 非生日月对照：仅会员价
+    const plainOpenid = 'uid_test_plain';
+    await req('POST', '/api/auth/login', { openid: plainOpenid, nickname: '对照用户' });
+    await _dbx.driver.run('UPDATE users SET birthday = ?, balance_fen = 10000 WHERE openid = ?', ['2000-01-10', plainOpenid]);
+    const plainSid = await mkSession(todayStr, '21:30', '22:30', 5, 0);
+    r = await req('POST', '/api/orders', { openid: plainOpenid, sessionId: plainSid, amountFen: 6800 });
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: plainOpenid, payMethod: 'balance' });
+    const plainOrd = await _dbx.driver.get('SELECT amount_fen FROM orders WHERE user_openid = ? ORDER BY id DESC LIMIT 1', [plainOpenid]);
+    check('BDAY-07', '非生日月仅会员价（6600）', r.data.booking && plainOrd.amount_fen === 6600, `amount=${plainOrd.amount_fen} msg=${r.data && r.data.message}`);
+    // 清理测试数据
+    await _dbx.driver.run('DELETE FROM bookings WHERE user_openid IN (?, ?)', [bdayOpenid, plainOpenid]);
+    await _dbx.driver.run('DELETE FROM orders WHERE user_openid IN (?, ?)', [bdayOpenid, plainOpenid]);
+    await _dbx.driver.run('DELETE FROM messages WHERE user_openid IN (?, ?)', [bdayOpenid, plainOpenid]);
+  }
+
   // ===== 6.5 教练工作台（DESIGN #D1）：我的学员 / 笔记 / 结算 / 设教练 =====
   console.log('\n── 6.5 教练工作台 ──');
   const now2 = new Date();

@@ -13,7 +13,7 @@ const { listCoaches, getCoachById, listVenues, listCourses, replaceRules, create
 const { sendMessage, listMessages, unreadMessageCount, markMessageRead, markAllMessagesRead, listSessionsStartingSoon, listBookedUsersBySession } = require('./db/messages');
 const { listPassPackages, getUserPass, getUserPassForDate, getUserPassInfo, expireOverduePasses } = require('./db/passes');
 const { syncAchievements, REWARD_COINS } = require('./db/achievements');
-const { genOrderNo, createOrder, payOrder, listOrdersByUser, getRevenueStats, promoteFromWaitlist, joinWaitlist, cancelWaitlist, listWaitlistByUser, refundExpiredWaitlist } = require('./db/orders');
+const { genOrderNo, createOrder, payOrder, calcBirthdayDiscount, listOrdersByUser, getRevenueStats, promoteFromWaitlist, joinWaitlist, cancelWaitlist, listWaitlistByUser, refundExpiredWaitlist } = require('./db/orders');
 const { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, checkinByCode, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings, attendanceStats } = require('./db/bookings');
 const { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach, listCoachesWithBind, unassignCoach, setUserRole, updateCoachProfile, deleteCoach } = require('./db/coach');
 const { addAdminLog, listAdminLogs } = require('./db/admin-log');
@@ -84,6 +84,7 @@ module.exports = {
   // 订单
   createOrder,
   payOrder,
+  calcBirthdayDiscount,
   listOrdersByUser,
   // 营收统计
   getRevenueStats,

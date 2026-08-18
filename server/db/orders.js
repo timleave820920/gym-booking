@@ -114,6 +114,24 @@ async function createOrder({ user_openid, session_id, amount_fen = 0, order_type
  *   2026-08-18）：wxpay 订单没有回调确认一律拒绝，前端无法绕过微信直接标 paid。
  * @returns {{ok:true, order:object, booking?:object, wait?:object}|{ok:false, error:string}}
  */
+/**
+ * 生日月首订 8 折（DESIGN #D5-4）：生日月 == 当前月（北京时间）且当月无其他已支付书订单（仅首订享）
+ * 与会员价同口径：原价 × 80%，向下取整到元；返回 null 表示不适用
+ */
+async function calcBirthdayDiscount(openid, orderId, amountFen) {
+  const user = await findUserByOpenid(openid);
+  if (!user || !user.birthday) return null;
+  const month = time.todayStr().slice(0, 7);   // YYYY-MM（北京时区）
+  if (user.birthday.slice(0, 7) !== month) return null;
+  // 当月已付书订单计数（排除自身：调用时当前订单可能已标 paid；substr 兼容 SQLite/MySQL）
+  const cnt = await driver.get(
+    "SELECT COUNT(*) AS cnt FROM orders WHERE user_openid = ? AND order_type = 'book' AND status = 'paid' AND id != ? AND substr(paid_at, 1, 7) = ?",
+    [openid, orderId, month]);
+  if (cnt.cnt > 0) return null;
+  // 原价 × 0.8，向下取整到元（与会员价同口径：Math.floor(amount×rate/100)*100，无角分）
+  return Math.floor(amountFen * 0.8 / 100) * 100;
+}
+
 async function payOrder({ openid, orderId, pay_method = 'balance', wxpayVerified = false }) {
   const order = await driver.get('SELECT * FROM orders WHERE id = ? AND user_openid = ?', [orderId, openid]);
   if (!order) return { ok: false, error: '订单不存在' };
@@ -153,8 +171,12 @@ async function payOrder({ openid, orderId, pay_method = 'balance', wxpayVerified
   if ((order.order_type === 'book' || order.order_type === 'waitlist' || order.order_type === 'pass') && effMethod === 'balance'
       && MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {
     const lv = await getMemberLevel(order.user_openid);
-    // 会员价 = 原价 × 折扣率，向下取整到元（无角分）
-    const payFen = lv ? Math.floor(order.amount_fen * lv.discount / 100) * 100 : order.amount_fen;
+    // 会员价 = 原价 × 折扣率，向下取整到元（无角分）；书订单叠加生日月首订 8 折（DESIGN #D5-4，与扣款同口径）
+    let payFen = lv ? Math.floor(order.amount_fen * lv.discount / 100) * 100 : order.amount_fen;
+    if (order.order_type === 'book') {
+      const bday = await calcBirthdayDiscount(order.user_openid, orderId, order.amount_fen);
+      if (bday !== null && bday < payFen) payFen = bday;
+    }
     const user = await findUserByOpenid(order.user_openid);
     if ((user.balance_fen || 0) < payFen) {
       return { ok: false, error: '储值余额不足，请先充值或改用微信支付' };
@@ -162,6 +184,7 @@ async function payOrder({ openid, orderId, pay_method = 'balance', wxpayVerified
   }
 
   let booking = null, wait = null, recharge = null;
+  let bdayApplied = false;   // 生日月首订 8 折已生效（DESIGN #D5-4，站内信提示用）
   await driver.exec('BEGIN');
   try {
     // 1. 订单标记已支付（pay_source 记录实付来源：pass / balance / wxpay）
@@ -253,6 +276,12 @@ async function payOrder({ openid, orderId, pay_method = 'balance', wxpayVerified
         if (lv) {
           // 会员价 = 原价 × 折扣率，向下取整到元（无角分）
           payFen = Math.floor(order.amount_fen * lv.discount / 100) * 100;
+          // 生日月首订 8 折（DESIGN #D5-4）：与会员价取更优（8 折 < 98 折即生日月享 8 折）
+          const bday = await calcBirthdayDiscount(order.user_openid, orderId, order.amount_fen);
+          if (bday !== null) {
+            payFen = Math.min(payFen, bday);
+            bdayApplied = true;
+          }
           // 扣减余额 + 消费流水（余额不足时 addBalance 会让余额为负，事务回滚兜底）
           await addBalance(order.user_openid, -payFen, '订课消费', order.order_no);
         }
@@ -305,7 +334,7 @@ async function payOrder({ openid, orderId, pay_method = 'balance', wxpayVerified
     const sInfo = await getSessionById(order.session_id);
     await sendMessage({
       user_openid: order.user_openid, type: 'booking', title: '订课成功',
-      content: `已成功预约「${sInfo ? sInfo.course_name : '课程'}」${sInfo ? sInfo.date + ' ' + sInfo.start_time : ''}，实付 ¥${(booking.amount_fen / 100).toFixed(0)}`,
+      content: `已成功预约「${sInfo ? sInfo.course_name : '课程'}」${sInfo ? sInfo.date + ' ' + sInfo.start_time : ''}，实付 ¥${(booking.amount_fen / 100).toFixed(0)}${bdayApplied ? '（生日月首订 8 折 🎂）' : ''}`,
       biz_type: 'course', biz_id: order.session_id, jump_url: '/pages/student-my-courses/index',
       dedup_key: `book_paid:${orderId}`
     });
@@ -631,4 +660,4 @@ async function refundExpiredWaitlist() {
  * 统计某学员订课数量
  */
 // ===== 导出 =====
-module.exports = { genOrderNo, createOrder, payOrder, listOrdersByUser, getOrderByNo, getRevenueStats, promoteFromWaitlist, joinWaitlist, cancelWaitlist, listWaitlistByUser, refundExpiredWaitlist };
+module.exports = { genOrderNo, createOrder, payOrder, calcBirthdayDiscount, listOrdersByUser, getOrderByNo, getRevenueStats, promoteFromWaitlist, joinWaitlist, cancelWaitlist, listWaitlistByUser, refundExpiredWaitlist };
