@@ -79,6 +79,7 @@ jobs:
           node-version: 22
 
       - name: 安装依赖（mysql2 是唯一第三方依赖）
+        working-directory: server   # 根目录 package.json 无 lock（Docker 用 npm install 不锁），lock 在 server/
         run: npm ci
 
       - name: 全量测试（MySQL 方言，干净库模式）
