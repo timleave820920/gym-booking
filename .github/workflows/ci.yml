@@ -33,7 +33,7 @@ jobs:
       - name: 健康检查
         run: curl -s --retry 5 --retry-delay 2 http://127.0.0.1:3000/api/health
 
-      - name: 全量测试（77 项）
+      - name: 全量测试（SQLite 方言）
         run: node minitest/run-tests.js http://127.0.0.1:3000
 
       - name: 覆盖率探针
@@ -45,3 +45,45 @@ jobs:
         with:
           name: test-report
           path: minitest/report.json
+
+  # MySQL 方言全量测试（2026-08-18 新增）：生产形态是 DB_DRIVER=mysql，SQLite 只是本地/CI 开发方言。
+  # 此前 MySQL 路径零测试覆盖、问题全生产发现（#57 双方言修复等）——此 job 起真实 MySQL 8 跑全量，
+  # 用干净库模式（DB_PATH 触发自管理生命周期：seed → 独立端口后端 → 全量 → 清理）。
+  test-mysql:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: gym          # 镜像首次启动自动建库（驱动连 MYSQL_DB 前必须存在）
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 安装依赖（mysql2 是唯一第三方依赖）
+        run: npm ci
+
+      - name: 全量测试（MySQL 方言，干净库模式）
+        run: node minitest/run-tests.js
+        env:
+          DB_DRIVER: mysql
+          DB_PATH: /tmp/gym-mysql-clean.db
+          MYSQL_ADDRESS: 127.0.0.1:3306
+          MYSQL_USERNAME: root
+          MYSQL_PASSWORD: root
+          MYSQL_DB: gym
+          WX_APPID: test_appid
+          WX_SECRET: test_secret

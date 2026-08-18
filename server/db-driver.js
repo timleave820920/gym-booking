@@ -122,7 +122,10 @@ function createMysqlPool() {
     user: process.env.MYSQL_USERNAME || 'root',
     password: process.env.MYSQL_PASSWORD || '',
     database: process.env.MYSQL_DB || 'gym',
-    connectionLimit: 5,
+    // 连接池大小：默认 50（5000 并发路径——5 个连接下事务全部串行排队，是吞吐第一闸门）；
+    // 小规模部署用 MYSQL_POOL_SIZE 环境变量收紧（如 10）。注意 MySQL max_connections 默认 151，
+    // 池 + 其他连接（云托管管理连接等）需留余量。
+    connectionLimit: Number(process.env.MYSQL_POOL_SIZE) || 50,
     waitForConnections: true,
     timezone: '+08:00', // 让 MySQL 返回的 DATETIME/时间计算按北京时间（BUG-LEDGER #28 防回归）
     dateStrings: true  // DATETIME 以 'YYYY-MM-DD HH:MM:SS' 字符串返回，与应用层字符串契约一致（BUG-LEDGER #31：建表已改 DATETIME 类型）
