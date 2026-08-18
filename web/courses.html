@@ -336,6 +336,52 @@ canvas#dashTrend { width: 100%; height: 240px; }
       </div>
     </details>
 
+    <!-- 用户分析（DESIGN #D4-3：RMF 分层清单 / 个体时间线钻取 / 群组触达） -->
+    <details class="fold" id="fold-analysis" open>
+      <summary>⑤ 用户分析（RMF 分层 / 沉睡双档 / 群组触达）</summary>
+      <div class="fold-inner">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px">
+          <input type="text" id="ua-q" placeholder="搜索昵称/手机号/openid" style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;width:200px">
+          <select id="ua-dormant" style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+            <option value="">全部用户</option><option value="0">活跃（R&lt;14 天）</option>
+            <option value="14">沉睡预警（14 天）</option><option value="30">重沉睡（30 天）</option>
+          </select>
+          <select id="ua-order" style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+            <option value="monetary">按累计消费</option><option value="recency">按近度（最近活跃）</option>
+            <option value="frequency">按近 30 天频次</option><option value="last_active">按最后登录</option>
+          </select>
+          <input type="number" id="ua-fmin" placeholder="近30天订课≥" style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:13px;width:110px">
+          <input type="number" id="ua-mmin" placeholder="累计消费≥(元)" style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:13px;width:120px">
+          <button class="btn btn-save" onclick="uaLoad(1)">查询</button>
+          <button class="btn" onclick="uaExport()" style="background:#F0EDDF;color:var(--gray)">导出 CSV</button>
+          <span id="ua-msg" class="msg"></span>
+        </div>
+        <div class="mini-metrics" style="margin-bottom:12px">
+          <div class="mm"><div class="mm-v" id="ua-st-total">-</div><div class="mm-l">命中用户</div></div>
+          <div class="mm good"><div class="mm-v" id="ua-st-active">-</div><div class="mm-l">30 天活跃</div></div>
+          <div class="mm hot"><div class="mm-v" id="ua-st-d14">-</div><div class="mm-l">14 天预警</div></div>
+          <div class="mm hot"><div class="mm-v" id="ua-st-d30">-</div><div class="mm-l">30 天重沉睡</div></div>
+          <div class="mm"><div class="mm-v" id="ua-st-avgm">-</div><div class="mm-l">人均累计消费</div></div>
+          <div class="mm"><div class="mm-v" id="ua-st-avgf">-</div><div class="mm-l">人均 30 天频次</div></div>
+        </div>
+        <table>
+          <thead><tr>
+            <th style="width:30px"><input type="checkbox" id="ua-all" onclick="uaToggleAll(this)"></th>
+            <th>用户</th><th>R 近度</th><th>F 频次</th><th>M 金额</th><th>R/F/M 档</th>
+            <th>沉睡</th><th>余额</th><th>最后活跃</th><th>操作</th>
+          </tr></thead>
+          <tbody id="ua-body"></tbody>
+        </table>
+        <div style="display:flex; align-items:center; gap:12px; margin-top:12px; flex-wrap:wrap">
+          <button class="btn" onclick="uaLoad(uaPage - 1)" style="background:#F0EDDF;color:var(--gray)" id="ua-prev">上一页</button>
+          <span style="font-size:13px;color:var(--gray)" id="ua-pg"></span>
+          <button class="btn" onclick="uaLoad(uaPage + 1)" style="background:#F0EDDF;color:var(--gray)" id="ua-next">下一页</button>
+          <button class="btn btn-save" onclick="uaOpenMsg()" id="ua-msg-btn">给选中 N 人发站内信</button>
+        </div>
+        <div class="dash-empty" id="ua-empty" style="display:none">无匹配用户</div>
+      </div>
+    </details>
+
     <!-- 原邀请看板（tab 被替换后保留为折叠，接口不变） -->
     <details class="fold" id="fold-invite">
       <summary>邀请看板（原独立 tab，保留入口）</summary>
@@ -414,6 +460,34 @@ canvas#dashTrend { width: 100%; height: 240px; }
     </div>
   </main>
 </section>
+
+<!-- 用户分析：行为时间线钻取弹层（DESIGN #D4-3） -->
+<div id="ua-tl" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); align-items:center; justify-content:center; z-index:30">
+  <div style="width:680px; max-width:94vw; background:#fff; border-radius:14px; padding:22px; box-shadow:0 10px 40px rgba(0,0,0,0.2); max-height:86vh; overflow:auto">
+    <h3 style="font-size:15px; margin-bottom:14px">用户行为时间线（最近 50 条）</h3>
+    <table>
+      <thead><tr><th>时间</th><th>类型</th><th>描述</th><th>金额</th></tr></thead>
+      <tbody id="tl-body"></tbody>
+    </table>
+    <div style="display:flex; justify-content:flex-end; margin-top:16px">
+      <button class="btn" style="background:#F0EDDF;color:var(--gray)" onclick="uaCloseTl()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 用户分析：群组触达弹层（DESIGN #D4-3） -->
+<div id="ua-msgbox" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); align-items:center; justify-content:center; z-index:30">
+  <div style="width:480px; max-width:92vw; background:#fff; border-radius:14px; padding:22px; box-shadow:0 10px 40px rgba(0,0,0,0.2)">
+    <h3 style="font-size:15px; margin-bottom:6px">群组站内信触达 <span style="font-size:12px;color:var(--gray)" id="ua-msg-count"></span></h3>
+    <div style="font-size:12px;color:var(--gray); margin-bottom:14px">同一标题对同一用户只发一次（dedup 防重复推送）；小程序「消息中心」可查看</div>
+    <div class="field" style="margin-bottom:10px"><label>标题 *（同标题同用户不重复发）</label><input type="text" id="ua-msg-title" placeholder="如：沉睡唤醒 · 本周体验课 5 折"></div>
+    <div class="field" style="margin-bottom:14px"><label>内容</label><textarea id="ua-msg-content" rows="3" placeholder="如：好久不见！本周体验课 5 折，快来看看你常练的课程"></textarea></div>
+    <div style="display:flex; gap:12px; justify-content:flex-end">
+      <button class="btn" style="background:#F0EDDF;color:var(--gray)" onclick="uaCloseMsg()">取消</button>
+      <button class="btn btn-save" onclick="uaSendMsg()">发送</button>
+    </div>
+  </div>
+</div>
 
 <script>
 var meta = { coaches: [], venues: [], categories: [], images: [], timeSlots: [], weekdays: [], capacities: [], statusLabels: {}, levels: [], durations: [], prices: [] };
@@ -879,6 +953,104 @@ function renderTrendCanvas() {
     var y = padT + (H - padT - padB) * (1 - (v - min) / (max - min));
     ctx.beginPath(); ctx.arc(x, y, 2.6, 0, Math.PI * 2); ctx.fill();
   });
+}
+
+// ===== 用户分析（DESIGN #D4-3：RMF 清单 / 时间线钻取 / 群组触达，2026-08-18） =====
+var uaPage = 1, uaUsers = [], uaSel = {};
+function uaFilters() {
+  return {
+    q: $('ua-q').value.trim() || '',
+    dormant: $('ua-dormant').value || '',
+    order: $('ua-order').value || 'monetary',
+    f_min: $('ua-fmin').value || '',
+    m_min: $('ua-mmin').value ? String(Number($('ua-mmin').value) * 100) : '',
+    page_size: 50
+  };
+}
+function uaLoad(page) {
+  var f = uaFilters();
+  f.page = Math.max(1, page || 1);
+  uaPage = f.page;
+  var qs = Object.keys(f).filter(function (k) { return f[k] !== ''; })
+    .map(function (k) { return k + '=' + encodeURIComponent(f[k]); }).join('&');
+  api('/admin/users-analysis?' + qs).then(function (j) {
+    uaUsers = j.users || [];
+    uaSel = {};
+    $('ua-all').checked = false;
+    renderUA(j);
+    $('ua-empty').style.display = j.total ? 'none' : 'block';
+    $('ua-msg').textContent = '';
+  }).catch(function (e) { alert('用户分析加载失败：' + e.message); });
+}
+function renderUA(j) {
+  $('ua-st-total').textContent = j.total;
+  $('ua-st-active').textContent = j.stats.active_30d;
+  $('ua-st-d14').textContent = j.stats.dormant_14;
+  $('ua-st-d30').textContent = j.stats.dormant_30;
+  $('ua-st-avgm').textContent = yuan(j.stats.avg_m_fen);
+  $('ua-st-avgf').textContent = j.stats.avg_f;
+  $('ua-pg').textContent = '第 ' + j.page + ' / ' + j.pages + ' 页';
+  $('ua-prev').disabled = j.page <= 1;
+  $('ua-next').disabled = j.page >= j.pages;
+  $('ua-msg-btn').textContent = '给选中 0 人发站内信';
+  $('ua-body').innerHTML = uaUsers.map(function (u) {
+    var d = u.dormant === '30' ? '<span style="color:var(--red)">30 天重沉睡</span>'
+      : u.dormant === '14' ? '<span style="color:#D8A200">14 天预警</span>'
+      : '<span style="color:#3D9970">活跃</span>';
+    return '<tr>' +
+      '<td><input type="checkbox" class="ua-cb" value="' + esc(u.openid) + '" onchange="uaSelChange(this)"></td>' +
+      '<td>' + esc(u.nickname || u.openid) + '<div style="font-size:11px;color:var(--gray)">Lv.' + u.level_lv + ' · ' + esc(u.phone || '未留手机') + '</div></td>' +
+      '<td>' + (u.r === null ? '--' : u.r + ' 天') + '</td><td>' + u.f + '</td><td>' + yuan(u.m) + '</td>' +
+      '<td>' + u.r_level + ' / ' + u.f_level + ' / ' + u.m_level + '</td>' +
+      '<td>' + d + '</td><td>' + yuan(u.balance_fen) + '</td>' +
+      '<td>' + (u.last_active_at ? u.last_active_at.slice(0, 16) : '--') + '</td>' +
+      '<td><button class="cap-save" onclick="uaTimeline(\'' + esc(u.openid) + '\')">时间线</button></td>' +
+      '</tr>';
+  }).join('');
+}
+function uaSelChange(cb) {
+  if (cb.checked) uaSel[cb.value] = true; else delete uaSel[cb.value];
+  $('ua-msg-btn').textContent = '给选中 ' + Object.keys(uaSel).length + ' 人发站内信';
+}
+function uaToggleAll(cb) {
+  document.querySelectorAll('.ua-cb').forEach(function (c) {
+    c.checked = cb.checked;
+    if (cb.checked) uaSel[c.value] = true; else delete uaSel[c.value];
+  });
+  $('ua-msg-btn').textContent = '给选中 ' + Object.keys(uaSel).length + ' 人发站内信';
+}
+function uaExport() {
+  var f = uaFilters();
+  var qs = Object.keys(f).filter(function (k) { return f[k] !== ''; })
+    .map(function (k) { return k + '=' + encodeURIComponent(f[k]); }).join('&');
+  window.open('/api/admin/export/user-analysis?' + qs, '_blank');
+}
+// 个体时间线钻取
+function uaTimeline(openid) {
+  api('/admin/users-analysis/' + encodeURIComponent(openid) + '/timeline').then(function (j) {
+    var typeLabel = { book: '订课', order: '支付/退款', recharge: '充值', balance: '余额', coin: '能量币', msg: '消息' };
+    $('tl-body').innerHTML = (j.rows || []).map(function (x) {
+      return '<tr><td>' + (x.t || '').slice(0, 16) + '</td><td>' + (typeLabel[x.type] || x.type) + '</td><td>' + esc(x.desc) + '</td><td>' + (x.type === 'msg' ? '' : yuan(x.amount_fen || 0)) + '</td></tr>';
+    }).join('') || '<tr><td colspan="4" class="dash-empty">暂无行为记录</td></tr>';
+    $('ua-tl').style.display = 'flex';
+  }).catch(function (e) { alert(e.message); });
+}
+function uaCloseTl() { $('ua-tl').style.display = 'none'; }
+// 群组触达（选中 → 站内信 promo，后端 dedup 防重）
+function uaOpenMsg() {
+  var n = Object.keys(uaSel).length;
+  if (!n) { alert('请先勾选用户'); return; }
+  $('ua-msg-title').value = ''; $('ua-msg-content').value = '';
+  $('ua-msg-count').textContent = n;
+  $('ua-msgbox').style.display = 'flex';
+}
+function uaCloseMsg() { $('ua-msgbox').style.display = 'none'; }
+function uaSendMsg() {
+  var title = $('ua-msg-title').value.trim();
+  if (!title) { alert('请输入消息标题'); return; }
+  api('/admin/users-analysis/message', 'POST', { openids: Object.keys(uaSel), title: title, content: $('ua-msg-content').value.trim() })
+    .then(function (j) { alert('已发送 ' + j.sent + ' 条（跳过重复 ' + j.skipped + '）'); uaCloseMsg(); uaLoad(uaPage); })
+    .catch(function (e) { alert('发送失败：' + e.message); });
 }
 
 // ===== 邀请看板（折叠保留） =====

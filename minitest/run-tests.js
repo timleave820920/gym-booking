@@ -315,6 +315,10 @@ async function runSuite() {
       && /class="dash-kpi"/.test(webHtml) && /fold-revenue/.test(webHtml) && /fold-courses/.test(webHtml)
       && /dk-dormant/.test(webHtml),
     'DESIGN #D4：tab 改「运营数据」、loadDashboard、canvas 趋势图、7 KPI 卡、4 组折叠卡');
+  check('FRONT-19', 'web 用户分析防回退（DESIGN #D4-3：RMF 清单/时间线/触达）',
+    /function uaLoad/.test(webHtml) && /uaTimeline/.test(webHtml)
+      && /ua-msgbox/.test(webHtml) && /uaSendMsg/.test(webHtml) && /uaExport/.test(webHtml),
+    '用户分析：筛选清单 uaLoad、时间线钻取 uaTimeline、群组触达 uaSendMsg、CSV uaExport');
   // 2026-08-18 UI 统一批（BUG-LEDGER #51/#53/#54/#55）：后退按钮统一 back-wrap 箭头；
   // 分享必须用 button open-type="share"（view 不触发转发）；低版本基础库降级相册；等级页文案
   const detailWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.wxml'), 'utf8');
