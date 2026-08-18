@@ -20,7 +20,9 @@ Page({
     greeting: '',        // 时段问候 + 昵称
     user: { date: '' },  // 当前日期（年月日 + 星期）
     t: i18n.t(),         // 语言字典
-    memberLevelName: '会员'  // 当前会员等级名（青铜/白银/黄金/钻石），价格旁标注
+    memberLevelName: '会员',  // 当前会员等级名（青铜/白银/黄金/钻石），价格旁标注
+    searchKeyword: '',   // 课程搜索关键字（B3 2026-08-18：按课程名/教练名过滤）
+    searchResult: []     // 过滤后的课程列表（关键字非空时使用）
   },
 
   onLoad() {
@@ -71,6 +73,32 @@ Page({
     this.loadSessions(full);
   },
 
+  // B3（2026-08-18）：课程搜索——按课程名/教练名/描述过滤当天列表
+  onSearchInput(e) {
+    const keyword = (e.detail.value || '').trim();
+    this.setData({ searchKeyword: keyword });
+    this.refreshSearch();
+  },
+
+  onSearchClear() {
+    this.setData({ searchKeyword: '', searchResult: [] });
+  },
+
+  // 按当前关键字重算过滤列表（课程列表刷新后也需同步调用，保持过滤一致性）
+  refreshSearch() {
+    const kw = this.data.searchKeyword.toLowerCase();
+    if (!kw) {
+      this.setData({ searchResult: [] });
+      return;
+    }
+    const list = (this.data.courseList || []).filter(c =>
+      (c.name || '').toLowerCase().indexOf(kw) >= 0
+      || (c.coach || '').toLowerCase().indexOf(kw) >= 0
+      || (c.description || '').toLowerCase().indexOf(kw) >= 0
+    );
+    this.setData({ searchResult: list });
+  },
+
   // 从后端拉取当天场次；失败则回退演示数据
   // 性能优化：有本地缓存先秒开渲染（loading=false），后台刷新替换；无缓存才显示骨架屏
   loadSessions(full) {
@@ -89,6 +117,7 @@ Page({
     const cached = sessionCache.get(full);
     if (cached && cached.length) {
       this.setData({ courseList: this.renderList(cached, full, discount), loading: false, offline: false });
+      this.refreshSearch();
     } else {
       this.setData({ loading: true, courseList: [] });
     }
@@ -103,6 +132,7 @@ Page({
       const list = res.sessions || [];
       sessionCache.set(full, list);
       this.setData({ courseList: this.renderList(list, full, discount), loading: false, offline: false });
+      this.refreshSearch();
     }).catch(() => {
       if (this.data.courseList.length > 0) return; // 已有缓存/数据，保持展示
       // 后端不可用 → 用 mock 演示数据（按真实星期映射 mock.days：1=周一..7=周日）
@@ -119,6 +149,7 @@ Page({
         }));
       list.sort(this.sortSessions);
       this.setData({ courseList: list, loading: false, offline: true });
+      this.refreshSearch();
     });
   },
 

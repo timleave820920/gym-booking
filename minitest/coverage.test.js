@@ -168,8 +168,20 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     r = await req('GET', `/api/sessions/${sid}/students`);
     assert.ok(Array.isArray(r.data.students), '场次名单');
 
-    // ---- 07 退订退款（走满员触发的候补转正路径） ----
-    r = await req('DELETE', `/api/bookings/${bookingId}?openid=${U1.openid}`);
+    // ---- 07 退订退款（B3 2026-08-18：开课前 2 小时内不可退订，签到窗口场次(now+30m)已过截止 → 独立造 now+3h 场次退订） ----
+    const rfT = new Date(Date.now() + 3 * 3600 * 60000);
+    const rfDate = `${timeMod.parts(rfT).y}-${pad2(timeMod.parts(rfT).mo)}-${pad2(timeMod.parts(rfT).d)}`;
+    const rfStart = `${pad2(timeMod.parts(rfT).h)}:${pad2(timeMod.parts(rfT).mi)}`;
+    const rfEndT = new Date(rfT.getTime() + 3600 * 60000);
+    const rfEnd = `${pad2(timeMod.parts(rfEndT).h)}:${pad2(timeMod.parts(rfEndT).mi)}`;
+    const sidRf = db.db.prepare(
+      "INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source) VALUES (?,1,1,?,?,?,2,0,'published','cov_suite')"
+    ).run(course.id, rfDate, rfStart, rfEnd).lastInsertRowid;
+    r = await req('POST', '/api/orders', { openid: U1.openid, sessionId: sidRf, amountFen: 8000, orderType: 'book' });
+    assert.equal(r.status, 201, '退订场次下单');
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: U1.openid, payMethod: 'balance' });
+    assert.equal(r.data.code, 200, '退订场次支付');
+    r = await req('DELETE', `/api/bookings/${r.data.booking.id}?openid=${U1.openid}`);
     assert.equal(r.data.code, 200, '退订退款');
 
     // ---- 08 后台统计 ----
@@ -330,11 +342,26 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     assert.equal(r.data.code, 200, '课程保存教练介绍');
     r = await req('GET', '/api/admin/coaches');
     assert.equal(r.data.coaches.find(c => c.id === 1).bio, '课程保存探针简介', '教练 bio 已由课程写入');
+    // ---- 13.7 B3 管理新接口（2026-08-18）：操作日志 / 到课率 / 数据导出探针 ----
+    process.env.ADMIN_TOKEN = 'cov-admin';
+    r = await req('GET', '/api/admin/logs', null, { 'Admin-Token': 'cov-admin' });
+    assert.ok(Array.isArray(r.data.logs), '操作日志');
+    r = await req('GET', '/api/admin/attendance?start=2026-01-01&end=2030-01-01', null, { 'Admin-Token': 'cov-admin' });
+    assert.ok(r.data.summary && typeof r.data.summary.attended === 'number', '到课率汇总');
+    r = await req('GET', '/api/admin/export/users', null, { 'Admin-Token': 'cov-admin' });
+    assert.equal(r.status, 200, '学员导出');
+    delete process.env.ADMIN_TOKEN;
 
     // ---- 14 候补复杂路径：排位 / 退订转正 / 退出退款 / 过期退款 ----
+    // s4 动态 now+3h（B3 2026-08-18：固定 20:00 场次在 18:00 后跑探针会被退订截止拒绝，退订转正用例失效）
+    const s4t = new Date(Date.now() + 3 * 3600 * 60000);
+    const s4Date = `${timeMod.parts(s4t).y}-${pad2(timeMod.parts(s4t).mo)}-${pad2(timeMod.parts(s4t).d)}`;
+    const s4Start = `${pad2(timeMod.parts(s4t).h)}:${pad2(timeMod.parts(s4t).mi)}`;
+    const s4EndT = new Date(s4t.getTime() + 3600 * 60000);
+    const s4End = `${pad2(timeMod.parts(s4EndT).h)}:${pad2(timeMod.parts(s4EndT).mi)}`;
     const s4 = db.db.prepare(
-      "INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source) VALUES (?,1,1,?,'20:00','21:00',1,0,'published','cov_suite')"
-    ).run(course.id, todayStr).lastInsertRowid;
+      "INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source) VALUES (?,1,1,?,?,?,1,0,'published','cov_suite')"
+    ).run(course.id, s4Date, s4Start, s4End).lastInsertRowid;
     r = await req('POST', '/api/orders', { openid: U2.openid, sessionId: s4, amountFen: 8000, orderType: 'book' });
     assert.equal(r.status, 201, '订满下单');
     r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: U2.openid, payMethod: 'balance' });

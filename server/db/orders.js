@@ -5,7 +5,7 @@ const { db, driver } = require('../db-core');
 const { findUserByOpenid } = require('./users');
 const { addCoins, checkLevelUpReward } = require('./coin');
 const { getMemberLevel, addBalance, applyRecharge, refundOrderMoney, calcRechargeBonus, RECHARGE_PLANS } = require('./members');
-const { getSessionById, syncSessionStatus } = require('./courses');
+const { getSessionById, syncSessionStatus, isCancelCutoffReached } = require('./courses');
 const { rewardInviter } = require('./invite');
 const { sendMessage } = require('./messages');
 const { listPassPackages, getUserPass, getUserPassForDate, consumePass, refundPass, applyPassPurchase } = require('./passes');
@@ -480,6 +480,10 @@ async function cancelWaitlist(openid, waitId) {
   const wait = await driver.get('SELECT * FROM waitlist WHERE id = ? AND user_openid = ?', [waitId, openid]);
   if (!wait) return { ok: false, error: '排位记录不存在' };
   if (wait.status !== 'waiting') return { ok: false, error: '该排位已不在队列中' };
+  // B3（2026-08-18）：退出候补与退订同规则——开课前 2 小时内不可退（用户拍板）
+  if (await isCancelCutoffReached(wait.session_id)) {
+    return { ok: false, error: '距离开课不足 2 小时，无法退出候补' };
+  }
   await driver.exec('BEGIN');
   let refundOrder = null;   // 声明在外层，事务后退钱使用
   try {

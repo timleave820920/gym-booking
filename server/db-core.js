@@ -163,6 +163,18 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_coin_logs_user ON coin_logs(user_openid, created_at);
 `);
 
+// 管理操作日志表（B3 2026-08-18：排课/删除/清空等管理关键操作留痕，管理网页可查）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS admin_logs (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    action     TEXT NOT NULL,               -- 操作类型：course_create/update/delete/publish/session_cancel/session_capacity/coach_delete...
+    detail     TEXT DEFAULT '',             -- 详情 JSON（课程 id/名称/场次等）
+    operator   TEXT DEFAULT 'admin',        -- 操作者（当前 web 访问码匿名 → 固定 admin）
+    created_at TEXT DEFAULT (datetime('now','localtime'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_admin_logs_created ON admin_logs(created_at);
+`);
+
 // 能量商店兑换记录表
 db.exec(`
   CREATE TABLE IF NOT EXISTS coin_exchanges (

@@ -29,6 +29,7 @@ const db = require('./db');
 const { driver } = require('./db');
 const { logOp } = require('./logger');
 const { isWxpayEnabled, getNotifyUrl } = require('./wxpay-config');
+const time = require('./time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 
 // ===== 加载 .env（WX_APPID / WX_SECRET / PORT 等；不覆盖已存在的环境变量）=====
 // 2026-08-14 添加：真机朋友测试需要真实 openid，secret 放 server/.env（gitignore，不入库）
@@ -965,9 +966,14 @@ async function handleCreateCourse(req, res, body) {
     price_fen: price_fen || 0,
     cover: cover || '', description: description || '', status: status || 'published', rules: rules || []
   });
+  if (!course.ok) {
+    // B3 冲突检测：排课规则与其他课程冲突 → 明确报错（课程已回滚删除）
+    return sendJson(res, 400, { code: 400, message: course.error || '课程创建失败' });
+  }
   // 「教练介绍」→ 写入该课程教练档案 bio（DESIGN #D2 修复：原字段后端未保存；
   // 未排课前无教练可挂，静默跳过，排课后再次保存课程即生效）
   if (coach_bio !== undefined) await db.setCourseCoachBio(course.id, coach_bio);
+  await db.addAdminLog('course_create', { courseId: course.id, name });
   return sendJson(res, 201, { code: 201, message: '课程已创建', course: { id: course.id } });
 }
 
@@ -975,9 +981,11 @@ async function handleUpdateCourse(req, res, id, body) {
   if (!body || !body.name) {
     return sendJson(res, 400, { code: 400, message: '课程名称必填' });
   }
-  const ok = await db.updateCourse(id, body);
-  if (!ok) return sendJson(res, 404, { code: 404, message: '课程不存在' });
+  const r = await db.updateCourse(id, body);
+  if (r === false) return sendJson(res, 404, { code: 404, message: '课程不存在' });
+  if (r && !r.ok) return sendJson(res, 400, { code: 400, message: r.error || '课程保存失败' });
   if (body.coach_bio !== undefined) await db.setCourseCoachBio(id, body.coach_bio);
+  await db.addAdminLog('course_update', { courseId: Number(id), name: body.name });
   return sendJson(res, 200, { code: 200, message: '课程已保存' });
 }
 
@@ -986,6 +994,7 @@ async function handleDeleteCourse(req, res, id) {
   if (!result.ok) {
     return sendJson(res, 409, { code: 409, message: `课程存在 ${result.bookings} 条预约记录，无法删除` });
   }
+  await db.addAdminLog('course_delete', { courseId: Number(id) });
   return sendJson(res, 200, { code: 200, message: '课程已删除' });
 }
 
@@ -1003,6 +1012,7 @@ async function handlePublishCourse(req, res, id, body) {
   const conflictMsg = result.conflicts && result.conflicts.length > 0
     ? `；跳过 ${result.conflicts.length} 个场地时间冲突场次（如 ${result.conflicts[0].date} ${result.conflicts[0].start_time}）`
     : '';
+  await db.addAdminLog('course_publish', { courseId: Number(id), start_date, end_date, created: result.created, skipped: result.skipped });
   return sendJson(res, 200, {
     code: 200,
     message: `发布完成：新增 ${result.created} 个场次，跳过 ${result.skipped} 个已存在/冲突场次${conflictMsg}`,
@@ -1091,12 +1101,14 @@ async function handleSessionsByRange(req, res) {
 async function handleCancelSession(req, res, id) {
   const result = await db.cancelSession(Number(id));
   if (!result.ok) return sendJson(res, 400, { code: 400, message: result.error });
+  await db.addAdminLog('session_cancel', { sessionId: Number(id) });
   return sendJson(res, 200, { code: 200, message: '场次已取消' });
 }
 
 async function handleUpdateSession(req, res, id, body) {
   const result = await db.updateSessionCapacity(Number(id), body.capacity);
   if (!result.ok) return sendJson(res, 400, { code: 400, message: result.error });
+  await db.addAdminLog('session_capacity', { sessionId: Number(id), capacity: body.capacity });
   return sendJson(res, 200, { code: 200, message: '容量已更新' });
 }
 
@@ -1106,6 +1118,74 @@ async function handleReplaceRules(req, res, id, body) {
   const result = await db.replaceRules(Number(id), body.rules || []);
   if (!result.ok) return sendJson(res, 400, { code: 400, message: result.error });
   return sendJson(res, 200, { code: 200, message: '排课规则已保存' });
+}
+
+// 管理操作日志（GET /api/admin/logs，B3 2026-08-18：管理网页「操作日志」页）
+async function handleAdminLogs(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const limit = Number(url.searchParams.get('limit') || 50);
+  const logs = await db.listAdminLogs(limit);
+  return sendJson(res, 200, { code: 200, logs });
+}
+
+// ===== 数据导出（B3 2026-08-18，P2）：学员/订单/营收 CSV（Excel 兼容：UTF-8 BOM + 引号转义）=====
+function csvEscape(v) {
+  const s = v === null || v === undefined ? '' : String(v);
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+
+function sendCsv(res, filename, header, rows) {
+  const lines = [header, ...rows].map(r => r.map(csvEscape).join(',')).join('\r\n');
+  res.writeHead(200, {
+    'Content-Type': 'text/csv; charset=utf-8',
+    'Content-Disposition': `attachment; filename="${filename}"`
+  });
+  res.end('﻿' + lines);   // BOM：Excel 识别 UTF-8 中文
+}
+
+// 到课率统计（GET /api/admin/attendance?start=&end=&course_id=&coach_id=）
+async function handleAttendance(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const start = url.searchParams.get('start');
+  const end = url.searchParams.get('end');
+  if (!start || !end) return sendJson(res, 400, { code: 400, message: '缺少 start/end 日期' });
+  const result = await db.attendanceStats({
+    start, end,
+    course_id: url.searchParams.get('course_id') || undefined,
+    coach_id: url.searchParams.get('coach_id') || undefined
+  });
+  return sendJson(res, 200, { code: 200, ...result });
+}
+
+// 数据导出（GET /api/admin/export/:type，type = users | orders | revenue）
+async function handleExport(req, res, type) {
+  if (type === 'users') {
+    const rows = await driver.all('SELECT u.openid, u.nickname, u.phone, u.balance_fen, u.role, u.created_at FROM users u ORDER BY u.id');
+    sendCsv(res, 'users.csv',
+      ['openid', '昵称', '手机号', '余额(分)', '角色', '注册时间'],
+      rows.map(r => [r.openid, r.nickname || '', r.phone || '', r.balance_fen, r.role, r.created_at]));
+    return;
+  }
+  if (type === 'orders') {
+    const rows = await driver.all(`SELECT o.order_no, o.user_openid, o.order_type, o.amount_fen, o.status, o.pay_source, o.paid_at, o.refunded_at
+      FROM orders o ORDER BY o.id`);
+    sendCsv(res, 'orders.csv',
+      ['订单号', '用户openid', '类型', '金额(分)', '状态', '支付方式', '支付时间', '退款时间'],
+      rows.map(r => [r.order_no, r.user_openid, r.order_type, r.amount_fen, r.status, r.pay_source, r.paid_at, r.refunded_at]));
+    return;
+  }
+  if (type === 'revenue') {
+    // 营收按日汇总：已支付订课/候补/充值金额 − 退款金额
+    const rows = await driver.all(`SELECT substr(o.paid_at, 1, 10) AS day,
+        SUM(CASE WHEN o.status = 'paid' THEN o.amount_fen ELSE 0 END) AS income_fen,
+        SUM(CASE WHEN o.status = 'refunded' THEN o.amount_fen ELSE 0 END) AS refund_fen
+      FROM orders o WHERE o.paid_at IS NOT NULL GROUP BY substr(o.paid_at, 1, 10) ORDER BY day DESC`);
+    sendCsv(res, 'revenue.csv',
+      ['日期', '收入(分)', '退款(分)'],
+      rows.map(r => [r.day, r.income_fen, r.refund_fen]));
+    return;
+  }
+  sendJson(res, 400, { code: 400, message: '导出类型支持 users/orders/revenue' });
 }
 
 // ===== 消息中心（站内信）=====
@@ -1254,6 +1334,9 @@ const API_ROUTES = [
       sendJson(r, 200, { code: 200, details: await db.listInvitationDetails(openid) });
     } },
   { m: 'GET',    p: '/api/admin/invite-board',  f: async(q, r) => sendJson(r, 200, { code: 200, board: await db.inviteBoardStats() }) },
+  { m: 'GET',    p: '/api/admin/logs',          f: async(q, r) => await handleAdminLogs(q, r) },
+  { m: 'GET',    p: '/api/admin/attendance',    f: async(q, r) => await handleAttendance(q, r) },
+  { m: 'GET',    p: /^\/api\/admin\/export\/[a-z]+$/, f: async(q, r, u) => await handleExport(q, r, u.pathname.split('/')[4]) },
   // ===== 次卡包 =====
   { m: 'GET',    p: '/api/passes/packages',     f: async(q, r) => sendJson(r, 200, { code: 200, packages: await db.listPassPackages() }) },
   { m: 'GET',    p: '/api/achievements/sync',   f: async(q, r, u) => {
@@ -1461,6 +1544,7 @@ const API_ROUTES = [
       const res = await db.deleteCoach(id);
       if (!res.ok) return sendJson(r, 400, { code: 400, message: res.error });
       await logOp('admin', 'coach_delete', { coachId: id }, 'ok');
+      await db.addAdminLog('coach_delete', { coachId: id });
       sendJson(r, 200, { code: 200, ok: true });
     } },
   { m: 'GET',    p: /^\/api\/sessions\/\d+$/, f: async(q, r, u) => await handleSessionDetail(q, r, u.pathname.split('/')[3]) }
@@ -1487,6 +1571,8 @@ const ADMIN_PATHS = [
   { m: 'DELETE', p: /^\/api\/sessions\/\d+$/ },
   { m: 'GET',    p: /^\/api\/admin\/(sessions|invite-board)$/ },
   { m: 'GET',    p: /^\/api\/admin\/coaches$/ },
+  { m: 'GET',    p: /^\/api\/admin\/(logs|attendance)$/ },
+  { m: 'GET',    p: /^\/api\/admin\/export\/[a-z]+$/ },
   { m: 'PUT',    p: /^\/api\/admin\/coaches\/\d+$/ },
   { m: 'DELETE', p: /^\/api\/admin\/coaches\/\d+$/ },
   // 教练分配（BUGS-INBOX #14：065968e 遗漏——web 管理网页「教练分配」可被任何人调用，
@@ -1612,6 +1698,28 @@ if (require.main === module) {
       console.error('[pass expire]', e.message);
     }
   }, 5 * 60 * 1000);
+
+  // 每周自动发布课表（B3 2026-08-18：「每周刷新设定生效」——每天 04:00-04:10 窗口发布
+  // 下周一~周日场次，按 schedule_templates 规则幂等生成；已存在/冲突场次自动跳过）
+  setInterval(async() => {
+    try {
+      const p = time.parts();
+      if (p.h !== 4 || p.mi > 9) return;   // 仅北京时间 04:00-04:09 执行（每分钟轮询）
+      const mon = time.nextMondayStr();
+      const sun = time.addDaysStr(mon, 6);
+      const courses = await db.listCourses();
+      let created = 0, skipped = 0;
+      for (const c of courses) {
+        if (c.status !== 'published' || !c.rules || c.rules.length === 0) continue;  // 草稿/无规则不发布
+        const r = await db.publishSessions(c.id, mon, sun);
+        created += r.created || 0;
+        skipped += r.skipped || 0;
+      }
+      console.log(`[weekly publish] ${mon}~${sun} 新增 ${created} 个场次，跳过 ${skipped} 个已存在/冲突`);
+    } catch (e) {
+      console.error('[weekly publish]', e.message);
+    }
+  }, 60 * 1000);
   });
   // 建表就绪后进程内跑种子（幂等，已有数据跳过）。种子不再阻塞启动：
   // 旧架构 CMD `seed.js && index.js` 依赖 seed 进程显式退出（BUG-LEDGER #34），一旦挂起

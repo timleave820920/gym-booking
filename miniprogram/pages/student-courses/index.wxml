@@ -10,6 +10,14 @@
 
       </view>
 
+      <!-- B3：课程搜索框（按课程名/教练名过滤当天列表） -->
+      <view class="search-bar flex-row">
+        <view class="search-ico"></view>
+        <input class="search-input" placeholder="搜索课程 / 教练" placeholder-class="search-ph"
+               value="{{searchKeyword}}" bindinput="onSearchInput" confirm-type="search" />
+        <text class="search-clear" wx:if="{{searchKeyword}}" bindtap="onSearchClear">✕</text>
+      </view>
+
       <!-- 周日期选择条 -->
       <view class="date-bar flex-row">
         <view class="date-item flex-col {{item.selected ? 'date-active' : ''}}"
@@ -50,7 +58,7 @@
           </view>
         </view>
       </view>
-      <view class="course-card {{item.disabled && !item.isBooked ? 'card-full' : ''}}" wx:for="{{courseList}}" wx:key="id"
+      <view class="course-card {{item.disabled && !item.isBooked ? 'card-full' : ''}}" wx:for="{{searchKeyword ? searchResult : courseList}}" wx:key="id"
             bindtap="goDetail" data-id="{{item.id}}" data-disabled="{{item.disabled}}" data-waitlist="{{item.canWaitlist}}">
         <!-- 剩余席位 0：金色"满员"斜条；1~5：红色"紧张"斜条 -->
         <view class="ribbon ribbon-full" wx:if="{{item.remaining === 0}}">满员</view>
@@ -104,10 +112,10 @@
       </view>
 
       <!-- 空状态 -->
-      <view class="empty-state flex-col" wx:if="{{courseList.length === 0}}">
+      <view class="empty-state flex-col" wx:if="{{(searchKeyword ? searchResult.length : courseList.length) === 0}}">
         <text class="empty-icon">▦</text>
-        <text class="empty-txt">当天暂无排课</text>
-        <text class="empty-sub">试试选择其他日期</text>
+        <text class="empty-txt">{{searchKeyword ? '未找到匹配的课程' : '当天暂无排课'}}</text>
+        <text class="empty-sub">{{searchKeyword ? '换个关键字试试' : '试试选择其他日期'}}</text>
       </view>
       </view>
 

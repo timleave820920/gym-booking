@@ -59,11 +59,11 @@ function nowMin() {
   return p.h * 60 + p.mi;
 }
 
-/** 解析北京时间字符串 'YYYY-MM-DD HH:MM:SS' → 绝对时刻 Date（UTC 时间戳，与系统时区无关） */
+/** 解析北京时间字符串 'YYYY-MM-DD HH:MM(:SS)' → 绝对时刻 Date（UTC 时间戳，与系统时区无关） */
 function parseBeijing(str) {
   const [d, t = '00:00:00'] = String(str).split(' ');
   const [y, mo, dd] = d.split('-').map(Number);
-  const [h, mi, s] = t.split(':').map(Number);
+  const [h, mi, s = '0'] = t.split(':').map(Number);   // 缺秒（'HH:MM' 如 start_time）→ 默认 0，否则 NaN 使 Date 无效（BUG-LEDGER 待登记：退订截止失效）
   return new Date(Date.UTC(y, mo - 1, dd, h - 8, mi, s));
 }
 
@@ -94,4 +94,18 @@ function prevMonthStr() {
   return p.mo === 1 ? `${p.y - 1}-12` : `${p.y}-${pad(p.mo - 1)}`;
 }
 
-module.exports = { TZ, parts, todayStr, nowTimeStr, nowDateTimeStr, nowMin, parseBeijing, prevDateStr, addMinutesStr, prevMonthStr };
+/** 'YYYY-MM-DD' 加/减 N 天（Date.UTC 运算，无时区问题） */
+function addDaysStr(s, days) {
+  const [y, mo, d] = s.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, mo - 1, d + days));
+  return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
+}
+
+/** 北京时间「下周一」'YYYY-MM-DD'（B3 每周自动发布用：周日→明天，周一→+7） */
+function nextMondayStr() {
+  const [y, mo, d] = todayStr().split('-').map(Number);
+  const dow = new Date(Date.UTC(y, mo - 1, d)).getUTCDay();   // 0=周日..6=周六
+  return addDaysStr(todayStr(), (8 - dow) % 7 || 7);
+}
+
+module.exports = { TZ, parts, todayStr, nowTimeStr, nowDateTimeStr, nowMin, parseBeijing, prevDateStr, addMinutesStr, prevMonthStr, addDaysStr, nextMondayStr };

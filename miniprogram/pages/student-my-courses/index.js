@@ -131,7 +131,7 @@ Page({
     const openid = user.openid || wx.getStorageSync('openid');
     wx.showModal({
       title: '退出候补',
-      content: `退出「${name}」候补后费用将原路退回，确定退出吗？`,
+      content: `退出「${name}」候补后费用将原路退回，确定退出吗？（开课前 2 小时内不可退出）`,
       confirmColor: '#E5484D',
       success: (res) => {
         if (res.confirm) {
@@ -159,7 +159,7 @@ Page({
     const openid = user.openid || wx.getStorageSync('openid');
     wx.showModal({
       title: '确认退订',
-      content: `退订「${name}」后名额将释放，确定退订吗？`,
+      content: `退订「${name}」后名额将释放，确定退订吗？（开课前 2 小时内不可退订）`,
       confirmColor: '#E5484D',
       success: (res) => {
         if (res.confirm) {

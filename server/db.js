@@ -14,8 +14,9 @@ const { sendMessage, listMessages, unreadMessageCount, markMessageRead, markAllM
 const { listPassPackages, getUserPass, getUserPassForDate, getUserPassInfo, expireOverduePasses } = require('./db/passes');
 const { syncAchievements, REWARD_COINS } = require('./db/achievements');
 const { genOrderNo, createOrder, payOrder, listOrdersByUser, getRevenueStats, promoteFromWaitlist, joinWaitlist, cancelWaitlist, listWaitlistByUser, refundExpiredWaitlist } = require('./db/orders');
-const { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, checkinByCode, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings } = require('./db/bookings');
+const { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, checkinByCode, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings, attendanceStats } = require('./db/bookings');
 const { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach, listCoachesWithBind, unassignCoach, setUserRole, updateCoachProfile, deleteCoach } = require('./db/coach');
+const { addAdminLog, listAdminLogs } = require('./db/admin-log');
 
 
 module.exports = {
@@ -66,6 +67,7 @@ module.exports = {
   countBookingsByUser,
   countFinishedWorkouts,
   countUpcomingBookings,
+  attendanceStats,
   // 签到
   getCheckinInfo,
   checkinBooking,
@@ -119,5 +121,8 @@ module.exports = {
   unassignCoach,
   setUserRole,
   updateCoachProfile,
-  deleteCoach
+  deleteCoach,
+  // 管理操作日志（B3 2026-08-18）
+  addAdminLog,
+  listAdminLogs
 };

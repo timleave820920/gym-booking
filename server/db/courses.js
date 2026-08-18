@@ -4,6 +4,9 @@
 const { db, driver } = require('../db-core');
 const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 
+// 退订截止：课前 N 小时内不可退订（B3 2026-08-18 用户拍板：课前 2 小时截止，防占位）
+const CANCEL_CUTOFF_HOURS = 2;
+
 async function listCoaches() {
   return await driver.all("SELECT id, name, skills, status FROM coaches WHERE status='active' OR 1=1 ORDER BY id");
 }
@@ -49,6 +52,23 @@ async function replaceRules(courseId, rules) {
       }
     }
   }
+  // 跨课程冲突校验（B3 2026-08-18）：与其他课程的模板同星期 + 同场地/同教练 + 时间重叠 → 拒绝
+  const others = await driver.all(
+    'SELECT o.*, c.name AS course_name FROM schedule_templates o JOIN courses c ON c.id = o.course_id WHERE o.course_id != ?',
+    [courseId]
+  );
+  for (const r of rules) {
+    for (const o of others) {
+      if (r.weekday !== o.weekday) continue;
+      if (r.start_time >= o.end_time || r.end_time <= o.start_time) continue;  // 不重叠
+      if (r.venue_id === o.venue_id) {
+        return { ok: false, error: `排课规则冲突：周${r.weekday} ${r.start_time}-${r.end_time} 与「${o.course_name}」${o.start_time}-${o.end_time} 场地时间重叠` };
+      }
+      if (r.coach_id === o.coach_id) {
+        return { ok: false, error: `排课规则冲突：周${r.weekday} ${r.start_time}-${r.end_time} 与「${o.course_name}」${o.start_time}-${o.end_time} 教练时间重叠` };
+      }
+    }
+  }
   await driver.run('DELETE FROM schedule_templates WHERE course_id = ?', [courseId]);
   for (const r of rules || []) {
     await driver.run(`INSERT INTO schedule_templates (course_id, weekday, start_time, end_time, venue_id, coach_id, capacity)
@@ -62,8 +82,13 @@ async function createCourse(data) {
   const res = await driver.run(`INSERT INTO courses (name, category, level, duration_min, price_fen, cover, description, tags, status)
                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [data.name, data.category, data.level, data.duration_min, data.price_fen, data.cover || '', data.description || '', data.tags || '', data.status || 'published']);
   const id = res.lastInsertRowid;
-  await replaceRules(id, data.rules || []);
-  return { id, ...data };
+  const r = await replaceRules(id, data.rules || []);
+  if (!r.ok) {
+    // B3 冲突检测：规则与其他课程冲突 → 回滚本次创建，避免半成品课程
+    await driver.run('DELETE FROM courses WHERE id = ?', [id]);
+    return { ok: false, error: r.error };
+  }
+  return { ok: true, id, ...data };
 }
 
 /** 更新课程（含规则） @returns 是否成功 */
@@ -90,8 +115,13 @@ async function updateCourse(id, data) {
   const res = await driver.run(`UPDATE courses SET name=?, category=?, level=?, duration_min=?, price_fen=?, cover=?, description=?, tags=?, images=?, summary=?, address=?, lat=?, lng=?, status=?, updated_at=?
                           WHERE id = ?`, [d.name, d.category, d.level, d.duration_min, d.price_fen, d.cover, d.description, d.tags, d.images, d.summary, d.address, d.lat, d.lng, d.status, time.nowDateTimeStr(), id]);
   if (res.changes === 0) return false;
-  await replaceRules(id, data.rules || []);
-  return true;
+  // B3：仅显式传 rules 才替换排课规则（未传 = 只改课程字段，保留原规则——修复「保存课程丢规则」：
+  // 原 `data.rules || []` 语义下只改名字/简介也会清空该课程全部排课模板）
+  if (data.rules !== undefined) {
+    const r = await replaceRules(id, data.rules);
+    if (!r.ok) return { ok: false, error: r.error };   // B3 冲突检测：规则冲突 → 保存失败明确报错
+  }
+  return { ok: true };
 }
 
 /**
@@ -257,6 +287,19 @@ async function getSessionById(id) {
 }
 
 /**
+ * 退订/退出候补截止校验（B3 2026-08-18，用户拍板：课前 2 小时截止）
+ * 开课前 2 小时内不可退订（防占位）；满 2 小时前随时可退、全额退
+ * @returns {boolean} true = 已过截止，不可退
+ */
+async function isCancelCutoffReached(sessionId) {
+  const s = await driver.get('SELECT date, start_time FROM course_sessions WHERE id = ?', [sessionId]);
+  if (!s) return true;   // 场次不存在 → 保守拒绝
+  const startTs = time.parseBeijing(`${s.date} ${s.start_time}`).getTime();
+  if (Number.isNaN(startTs)) return true;   // 时间解析失败 → 保守拒绝（拒绝退订比放行安全）
+  return Date.now() >= startTs - CANCEL_CUTOFF_HOURS * 3600 * 1000;
+}
+
+/**
  * 满员状态联动：booked_count >= capacity → full，否则 published
  * 每次 booked_count 变更后调用（订课/退订/转正），保证场次状态与余位一致
  */
@@ -320,4 +363,4 @@ async function setCourseCoachBio(courseId, bio) {
   return { ok: true };
 }
 
-module.exports = { listCoaches, getCoachById, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById, syncSessionStatus, listBookedUsersWithInfo, setCourseCoachBio };
+module.exports = { listCoaches, getCoachById, listVenues, listCourses, getRules, replaceRules, createCourse, updateCourse, deleteCourse, publishSessions, listSessionsByDate, listSessionsByCoach, listSessionsByRange, cancelSession, updateSessionCapacity, listSessionsByDateForUser, getSessionById, syncSessionStatus, listBookedUsersWithInfo, setCourseCoachBio, isCancelCutoffReached };

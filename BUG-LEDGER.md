@@ -15,6 +15,14 @@
 
 ---
 
+## #50 time.parseBeijing 缺秒变 Invalid Date——退订/退出候补截止校验全部静默失效（B3 新功能上线即废）
+
+- **现象**：B3「课前 2 小时退订截止」上线后，开课前 1 小时场次的订课仍能成功退订/退出候补（应 400 拒绝）。
+- **根因**：`course_sessions.start_time` 存 `HH:MM`（无秒），`isCancelCutoffReached` 用 `time.parseBeijing(\`${date} ${start_time}\`)` 解析——`parseBeijing` 内 `const [h, mi, s] = t.split(':').map(Number)` 对 `'HH:MM'` 得到 `s = NaN`，`Date.UTC(..., NaN)` 产生 Invalid Date，`getTime()` 返回 NaN，`Date.now() >= NaN` 恒为 false → 截止判定永远「未到」，校验形同虚设。start_time 在库里一直是无秒格式，但旧代码没有任何路径用 parseBeijing 解析 start_time，B3 是第一处，一踩即炸。
+- **修复**：① `time.parseBeijing` 缺秒容错：`const [h, mi, s = '0'] = t.split(':').map(Number)`（解构默认值，`'HH:MM'` 时秒取 0）；② `isCancelCutoffReached` 双保险：`getTime()` 为 NaN 时返回 true（保守拒绝，拒绝退订比放行安全）。
+- **回归测试**：run-tests.js ORD-10（课前 1 小时场次退订 → 400「距离开课不足 2 小时」+ 订课保留）+ WTL-09（课前 1 小时满员场次退出候补 → 400）+ TZ=UTC 全量 260 用例全绿。
+- **防护层**：L1 本地 hook（B3 新用例随全量跑）。兜底思路：解析类工具函数对输入格式要容错（缺字段补默认，而非产出 NaN），且「时间判定」类函数对解析失败必须选择保守分支（拒绝而非放行）。
+
 ## #49 次卡购买不扣款——applyPassPurchase 只发卡不扣钱（白嫖次卡，资金漏洞）
 
 - **发现**：2026-08-18，B2a 支付预研代码审查（minitest 改造暴露：PASS-02 断言只有发卡无扣款断言，通读 payOrder 次卡分支发现根本无扣款代码）

@@ -5,7 +5,7 @@ const { db, driver } = require('../db-core');
 const { findUserByOpenid } = require('./users');
 const { addCoins } = require('./coin');
 const { refundOrderMoney } = require('./members');
-const { getSessionById, syncSessionStatus } = require('./courses');
+const { getSessionById, syncSessionStatus, isCancelCutoffReached } = require('./courses');
 const { promoteFromWaitlist } = require('./orders');
 const { sendMessage } = require('./messages');
 const { refundPass } = require('./passes');
@@ -232,6 +232,10 @@ async function cancelBooking(openid, bookingId) {
   const booking = await driver.get('SELECT * FROM bookings WHERE id = ? AND user_openid = ?', [bookingId, openid]);
   if (!booking) return { ok: false, error: '订单不存在' };
   if (booking.status === 'cancelled') return { ok: false, error: '该订单已退订' };
+  // B3（2026-08-18）：退订截止——开课前 2 小时内不可退订（用户拍板，防占位）
+  if (await isCancelCutoffReached(booking.session_id)) {
+    return { ok: false, error: '距离开课不足 2 小时，无法退订' };
+  }
 
   await driver.exec('BEGIN');
   let promoted = null;
@@ -304,6 +308,37 @@ async function countBookingsByUser(openid) {
  * 统计已完成的锻炼次数 = 已订（booked）且场次已结束的总数
  * 场次已结束：日期早于今天，或日期=今天且结束时间早于当前时间
  */
+/**
+ * 到课率统计（B3 2026-08-18，P2）：按日期范围聚合每场次的 到课数/订课数
+ * 数据源：bookings.checkin_at（唯一"实际到课"证明，B1）+ course_sessions.booked_count
+ * @param {object} p { start, end, course_id?, coach_id? } 日期 'YYYY-MM-DD'
+ * @returns {rows: Array<{sessionId,date,start_time,course_name,coach_name,capacity,booked,attended,rate}>, summary: {total, attended, rate}}
+ */
+async function attendanceStats(p) {
+  const conds = ["s.date BETWEEN ? AND ?"];
+  const params = [p.start, p.end];
+  if (p.course_id) { conds.push('s.course_id = ?'); params.push(Number(p.course_id)); }
+  if (p.coach_id) { conds.push('s.coach_id = ?'); params.push(Number(p.coach_id)); }
+  const rows = await driver.all(`
+    SELECT s.id AS sessionId, s.date, s.start_time,
+           c.name AS course_name, co.name AS coach_name,
+           s.capacity, s.booked_count AS booked,
+           (SELECT COUNT(*) FROM bookings b WHERE b.session_id = s.id AND b.checkin_at IS NOT NULL) AS attended
+    FROM course_sessions s
+    JOIN courses c ON c.id = s.course_id
+    JOIN coaches co ON co.id = s.coach_id
+    WHERE ${conds.join(' AND ')}
+    ORDER BY s.date, s.start_time
+  `, params);
+  let total = 0, attended = 0;
+  for (const r of rows) {
+    total += r.booked || 0;
+    attended += r.attended || 0;
+    r.rate = r.booked > 0 ? Math.round((r.attended / r.booked) * 1000) / 10 : null;  // 百分比（一位小数）
+  }
+  return { rows, summary: { total, attended, rate: total > 0 ? Math.round((attended / total) * 1000) / 10 : null } };
+}
+
 async function countFinishedWorkouts(openid) {
   const row = await driver.get(`
     SELECT COUNT(*) c
@@ -332,4 +367,4 @@ async function countUpcomingBookings(openid) {
 }
 
 // ===== 导出 =====
-module.exports = { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, checkinByCode, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings };
+module.exports = { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, checkinByCode, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings, attendanceStats };

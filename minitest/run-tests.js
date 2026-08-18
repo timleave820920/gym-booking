@@ -289,6 +289,15 @@ async function runSuite() {
     /wxpayEnabled/.test(paySrc) && /商户号配置后开放/.test(paySrc)
       && /wxpayEnabled/.test(rechargeSrc) && /商户号配置后开放/.test(rechargeSrc),
     '商户号未配置 → 微信支付选项/充值按钮禁用并明示「商户号配置后开放」');
+  // B3（2026-08-18）：课程搜索（本地过滤）+ 退订截止提示（课前 2 小时）
+  const coursesSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-courses', 'index.js'), 'utf8');
+  const myCoursesSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-my-courses', 'index.js'), 'utf8');
+  check('FRONT-11', '课程搜索防回退（本地过滤 name/coach/description）',
+    /searchKeyword/.test(coursesSrc) && /onSearchInput/.test(coursesSrc) && /refreshSearch/.test(coursesSrc),
+    '课程列表页搜索框：输入即按 name/coach/description 本地过滤，清除恢复全量');
+  check('FRONT-12', '退订截止提示防回退（开课前 2 小时内不可退订/退出候补）',
+    /开课前 2 小时内不可退订/.test(myCoursesSrc) && /开课前 2 小时内不可退出/.test(myCoursesSrc),
+    '退订/退出候补确认弹窗需明示截止规则（2026-08-18 用户拍板）');
 
   // ===== 1.65 上课页排序（BUG-LEDGER #36：纯函数模块真实断言）=====
   console.log('\n── 1.65 上课页排序（BUG-LEDGER #36）──');
@@ -436,6 +445,19 @@ async function runSuite() {
   check('ADMIN-27', '删除干净档案成功', r.status === 200 && r.data.ok === true, `status=${r.status} msg=${r.data && r.data.message}`);
   r = await req('GET', '/api/admin/coaches');
   check('ADMIN-27b', '列表已无该档案', !(r.data.coaches || []).some(c => c.id === tmpCoachId), '删除后残留');
+  // B3 操作日志（2026-08-18）：管理写操作入库留痕，GET /api/admin/logs 可查（管理网页「操作日志」页）
+  r = await req('GET', '/api/admin/logs', null, { noToken: true });
+  check('ADMIN-28', '无 token 拉操作日志 → 401', r.status === 401, `status=${r.status}`);
+  r = await req('GET', '/api/admin/logs');
+  check('ADMIN-28b', '操作日志列表', r.status === 200 && Array.isArray(r.data.logs) && r.data.logs.length >= 1, `status=${r.status} n=${r.data && r.data.logs && r.data.logs.length}`);
+  // 显式造一次 course_create：创建课程 → 日志应含该课程 id（detail 为 JSON 字符串）
+  r = await req('POST', '/api/courses', { name: '日志留痕测试课', category: '测试分类' });
+  const logCid = r.data.course && r.data.course.id;
+  r = await req('GET', '/api/admin/logs');
+  check('ADMIN-28c', '创建课程写日志（含课程 id）',
+    r.status === 200 && r.data.logs.some(l => l.action === 'course_create' && String(l.detail).includes(String(logCid))),
+    `actions=${(r.data.logs || []).map(l => `${l.action}:${l.detail}`).join(' | ')}`);
+  await req('DELETE', `/api/courses/${logCid}`);   // 清理（顺带留 course_delete 痕）
 
   // ===== 1. 账号登录 =====
   console.log('\n── 2. 账号与登录 ──');
@@ -654,6 +676,25 @@ async function runSuite() {
     check('WTL-08', '过期自动退款', false, '排位下单失败: ' + r.data.message);
   }
 
+  // B3 退出候补截止（2026-08-18，用户拍板与退订同规则：开课前 2 小时内不可退出）——造「课前 1 小时」满员场次排队 → 退出被拒
+  {
+    const _cutW = timeMod.addMinutesStr(timeMod.nowDateTimeStr(), 60);   // 北京时间 now+1h（addMinutesStr 跨天安全）
+    const [cutWd, cutWt] = _cutW.split(' ');
+    const cutWEnd = timeMod.addMinutesStr(_cutW, 60).split(' ')[1].slice(0, 5);
+    const cutWSid = await mkSession(cutWd, cutWt.slice(0, 5), cutWEnd, 1, 1);   // 满员 → 只能排位
+    r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: cutWSid, amountFen: 6800, orderType: 'waitlist' });
+    check('WTL-09-1', '课前1小时满员场次排位', r.status === 201, `msg=${r.data && r.data.message}`);
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user2.openid, payMethod: 'balance' });
+    check('WTL-09-2', '排位支付', ok(r, 200) && r.data.wait, `msg=${r.data && r.data.message}`);
+    const cutWaitId = r.data.wait && r.data.wait.id;
+    if (cutWaitId) {
+      r = await req('DELETE', `/api/waitlist/${cutWaitId}?openid=${T.user2.openid}`);
+      check('WTL-09', '课前2小时内退出候补拒绝', r.status === 400 && (r.data.message || '').includes('2 小时'), `status=${r.status} msg=${r.data && r.data.message}`);
+    } else {
+      check('WTL-09', '课前2小时内退出候补拒绝', false, '排位支付未成功');
+    }
+  }
+
   // ===== 5. 签到考勤 =====
   console.log('\n── 6. 签到考勤 ──');
   // 独立的"明天场次"（避免 WTL-08 改日期污染）
@@ -720,6 +761,35 @@ async function runSuite() {
     r = await req('POST', `/api/bookings/${r.data.booking.id}/checkin`, { openid: T.coach.openid });
     check('CHK-07', '提前签到拒绝(未到窗口)', r.status === 400 && (r.data.message || '').includes('未到签到时间'), `msg=${r.data && r.data.message}`);
   }
+
+  // ===== B3 到课率 + 数据导出（2026-08-18，管理网页新页）=====
+  console.log('\n── 6.8 到课率与导出 ──');
+  // 直插已签到 booking 造固定到课率数据（绕过签到窗口；booked_count 与之一致：造 3 订 1 签）
+  const attSid = await mkSession(todayStr, '08:00', '09:00', 5, 3);
+  _dbx.db.prepare(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status, checkin_at)
+                   VALUES (?, ?, ?, 6800, 'booked', 'paid', ?)`)
+    .run('B3ATT' + attSid, T.user2.openid, attSid, timeMod.nowDateTimeStr());
+  r = await req('GET', '/api/admin/attendance?start=2026-01-01&end=2030-01-01', null, { noToken: true });
+  check('ATT-01', '无 token 拉到课率 → 401', r.status === 401, `status=${r.status}`);
+  r = await req('GET', '/api/admin/attendance?start=2026-01-01&end=2030-01-01');
+  check('ATT-02', '到课率汇总（含直插签到）',
+    r.status === 200 && r.data.summary && r.data.summary.total > 0 && r.data.summary.attended >= 1 && typeof r.data.summary.rate === 'number',
+    `total=${r.data.summary && r.data.summary.total} attended=${r.data.summary && r.data.summary.attended} rate=${r.data.summary && r.data.summary.rate}`);
+  r = await req('GET', '/api/admin/attendance?start=2026-01-01&end=2030-01-01&course_id=1');
+  check('ATT-03', '按课程筛选到课率', r.status === 200 && Array.isArray(r.data.rows), `status=${r.status}`);
+  r = await req('GET', '/api/admin/attendance');
+  check('ATT-04', '缺日期到课率 → 400', r.status === 400, `status=${r.status}`);
+  // 数据导出（GET /api/admin/export/:type，CSV：UTF-8 BOM + 引号转义，Excel 兼容）
+  r = await req('GET', '/api/admin/export/users', null, { noToken: true });
+  check('EXP-01', '无 token 导出 → 401', r.status === 401, `status=${r.status}`);
+  r = await req('GET', '/api/admin/export/users');
+  check('EXP-02', '学员导出 CSV(BOM+表头+数据)', r.status === 200 && r.raw.charCodeAt(0) === 0xFEFF && r.raw.includes('openid') && r.raw.includes('昵称') && r.raw.includes(T.user1.openid), `head=${r.raw.slice(0, 50)}`);
+  r = await req('GET', '/api/admin/export/orders');
+  check('EXP-03', '订单导出 CSV', r.status === 200 && r.raw.charCodeAt(0) === 0xFEFF && r.raw.includes('订单号') && r.raw.includes('uid_test_tianli'), `head=${r.raw.slice(0, 50)}`);
+  r = await req('GET', '/api/admin/export/revenue');
+  check('EXP-04', '营收导出 CSV', r.status === 200 && r.raw.charCodeAt(0) === 0xFEFF && r.raw.includes('收入(分)'), `head=${r.raw.slice(0, 50)}`);
+  r = await req('GET', '/api/admin/export/xxx');
+  check('EXP-05', '非法导出类型 → 400', r.status === 400, `status=${r.status}`);
 
   // ===== 6.5 教练工作台（DESIGN #D1）：我的学员 / 笔记 / 结算 / 设教练 =====
   console.log('\n── 6.5 教练工作台 ──');
@@ -801,6 +871,29 @@ async function runSuite() {
   const refundAfter = (r.data.stats[3].value || '').replace(/[^0-9.]/g, '');
   check('REV-02', '退款后营收联动', Number(refundAfter) >= Number(refundBefore), `before=${refundBefore} after=${refundAfter}`);
 
+  // B3 退订截止（2026-08-18 用户拍板：开课前 2 小时内不可退订）——造「开课前 1 小时」场次 → 订课支付 → 退订被拒
+  {
+    const _cut = timeMod.addMinutesStr(timeMod.nowDateTimeStr(), 60);   // 北京时间 now+1h（addMinutesStr 跨天安全）
+    const [cutD, cutT] = _cut.split(' ');
+    const cutEnd = timeMod.addMinutesStr(_cut, 60).split(' ')[1].slice(0, 5);
+    const cutSid = await mkSession(cutD, cutT.slice(0, 5), cutEnd, 5, 0);
+    _dbx.db.prepare("UPDATE users SET balance_fen = balance_fen + 100000 WHERE openid = ?").run(T.user2.openid);
+    r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: cutSid, amountFen: 6800, orderType: 'book' });
+    check('ORD-10-1', '课前1小时场次下单', r.status === 201, `msg=${r.data && r.data.message}`);
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user2.openid, payMethod: 'balance' });
+    check('ORD-10-2', '课前1小时场次支付', ok(r, 200) && r.data.booking, `msg=${r.data && r.data.message}`);
+    const cutBookingId = r.data.booking && r.data.booking.id;
+    if (cutBookingId) {
+      r = await req('DELETE', `/api/bookings/${cutBookingId}?openid=${T.user2.openid}`);
+      check('ORD-10', '课前2小时内退订拒绝', r.status === 400 && (r.data.message || '').includes('2 小时'), `status=${r.status} msg=${r.data && r.data.message}`);
+      // 拒绝后订课仍在（未被误删/误退款）
+      r = await req('GET', `/api/bookings?openid=${T.user2.openid}`);
+      check('ORD-10b', '拒绝退订后订课保留', (r.data.bookings || []).some(b => b.id === cutBookingId && b.status === 'booked'), '订课记录丢失');
+    } else {
+      check('ORD-10', '课前2小时内退订拒绝', false, '支付未成功');
+    }
+  }
+
   // 超卖防护：并发订满员场次
   console.log('\n── 8. 边界与安全 ──');
   const fullSid2 = await mkSession(todayStr, '23:00', '24:00', 1, 1);
@@ -842,9 +935,12 @@ async function runSuite() {
       { weekday: 1, start_time: '10:30', end_time: '11:30', venue_id: 1, coach_id: 1, capacity: 5 }
     ] });
     check('CRS-05c', '规则自冲突拒绝', r.status === 400 && (r.data.message || '').includes('冲突'), `status=${r.status} msg=${r.data && r.data.message}`);
-    // 05a 保存与今天 21:00-22:00 场次重叠的规则（21:30-22:30）
-    r = await req('PUT', `/api/courses/${crsCid}/rules`, { rules: [{ weekday: new Date(todayStr + 'T00:00:00').getDay() || 7, start_time: '21:30', end_time: '22:30', venue_id: 1, coach_id: 1, capacity: 5 }] });
-    check('CRS-05a', '保存冲突规则', ok(r, 200), `msg=${r.data && r.data.message}`);
+    // 05a 直插与今天 21:00-22:00 场次重叠的规则（21:30-22:30）——B3 后保存阶段会拦截「模板 vs 模板」跨课程冲突，
+    // 本用例保留原意图：测发布阶段「模板 vs 已有场次」冲突跳过，故绕过保存校验直插
+    db.db.prepare(`INSERT INTO schedule_templates (course_id, weekday, start_time, end_time, venue_id, coach_id, capacity)
+                   VALUES (?, ?, '21:30', '22:30', 1, 1, 5)`)
+      .run(crsCid, new Date(todayStr + 'T00:00:00').getDay() || 7);
+    check('CRS-05a', '直插冲突规则(测发布跳过)', true, '');
     // 05 发布 → 与已有场次同场地时间重叠 → 跳过（created=0, conflicts>=1）
     r = await req('POST', `/api/courses/${crsCid}/publish`, { start_date: todayStr, end_date: todayStr });
     check('CRS-05', '冲突场次发布被跳过', ok(r, 200) && r.data.created === 0 && (r.data.conflicts || []).length >= 1, `created=${r.data.created} conflicts=${r.data.conflicts && r.data.conflicts.length}`);
@@ -853,6 +949,35 @@ async function runSuite() {
     check('CRS-05b', '清理冲突测试课程', ok(r, 200), `msg=${r.data && r.data.message}`);
   } else {
     check('CRS-05', '创建冲突测试课程', false, '创建课程失败');
+  }
+  // CRS-06 跨课程排课冲突（B3 2026-08-18）：新课程规则与其他课程同场地/同教练时间重叠 → 拒绝保存
+  // 自造参照课程 C（凌晨时段避开 seed 模板，不依赖 seed 具体数据），课程 B 与之比较
+  r = await req('POST', '/api/courses', { name: '跨课参照课C', category: '测试分类' });
+  const crsCId = r.data.course && r.data.course.id;
+  r = await req('POST', '/api/courses', { name: '跨课冲突测试课', category: '测试分类' });
+  const crsBId = r.data.course && r.data.course.id;
+  if (crsCId && crsBId) {
+    // C 的规则：周3 03:00-04:00（凌晨，无 seed 模板可冲突）
+    r = await req('PUT', `/api/courses/${crsCId}/rules`, { rules: [{ weekday: 3, start_time: '03:00', end_time: '04:00', venue_id: 1, coach_id: 1, capacity: 5 }] });
+    check('CRS-06c', '参照课C保存规则', ok(r, 200), `msg=${r.data && r.data.message}`);
+    if (ok(r, 200)) {
+      // B 与 C 同场地同时段重叠（03:30 < 04:00 且 04:30 > 03:00）→ 场地冲突拒绝
+      r = await req('PUT', `/api/courses/${crsBId}/rules`, { rules: [{ weekday: 3, start_time: '03:30', end_time: '04:30', venue_id: 1, coach_id: 1, capacity: 5 }] });
+      check('CRS-06', '跨课程同场地重叠拒绝', r.status === 400 && (r.data.message || '').includes('场地时间重叠'), `status=${r.status} msg=${r.data && r.data.message}`);
+      // 换场地同教练 → 教练重叠拒绝
+      r = await req('PUT', `/api/courses/${crsBId}/rules`, { rules: [{ weekday: 3, start_time: '03:30', end_time: '04:30', venue_id: 999, coach_id: 1, capacity: 5 }] });
+      check('CRS-06b', '跨课程同教练重叠拒绝', r.status === 400 && (r.data.message || '').includes('教练时间重叠'), `status=${r.status} msg=${r.data && r.data.message}`);
+      // 不同星期 → 不重叠 → 保存成功
+      r = await req('PUT', `/api/courses/${crsBId}/rules`, { rules: [{ weekday: 4, start_time: '03:00', end_time: '04:00', venue_id: 1, coach_id: 1, capacity: 5 }] });
+      check('CRS-06e', '跨课程不重叠保存成功', ok(r, 200), `msg=${r.data && r.data.message}`);
+    }
+    r = await req('DELETE', `/api/courses/${crsCId}`);
+    r = await req('DELETE', `/api/courses/${crsBId}`);
+    check('CRS-06d', '清理跨课程测试课', ok(r, 200), `msg=${r.data && r.data.message}`);
+  } else {
+    check('CRS-06', '跨课程同场地重叠拒绝', false, '创建课程失败');
+    check('CRS-06b', '跨课程同教练重叠拒绝', false, '创建课程失败');
+    check('CRS-06e', '跨课程不重叠保存成功', false, '创建课程失败');
   }
 
   // ===== 9. 会员体系 =====

@@ -294,6 +294,15 @@ CREATE TABLE IF NOT EXISTS coach_notes (
   updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (coach_openid, student_openid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS admin_logs (
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  action     VARCHAR(32) NOT NULL,
+  detail     VARCHAR(2000) DEFAULT '',
+  operator   VARCHAR(64) DEFAULT 'admin',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_admin_logs_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `;
 
 module.exports = { MYSQL_SCHEMA };
