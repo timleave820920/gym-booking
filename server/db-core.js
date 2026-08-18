@@ -66,6 +66,39 @@ try { db.exec('ALTER TABLE bookings ADD COLUMN pass_id INTEGER DEFAULT 0'); } ca
 try { db.exec("ALTER TABLE waitlist ADD COLUMN pay_source TEXT DEFAULT 'wxpay'"); } catch (e) {}
 try { db.exec('ALTER TABLE waitlist ADD COLUMN pass_id INTEGER DEFAULT 0'); } catch (e) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN pay_source TEXT DEFAULT 'balance'"); } catch (e) {}
+// 社交画像（DESIGN #D5）：gender 0未填/1男/2女；birthday 存 YYYY-MM-DD（存生日不存年龄，年龄会漂移）；profile_bonus_claimed 防重复领填单奖励
+try { db.exec('ALTER TABLE users ADD COLUMN gender INTEGER DEFAULT 0'); } catch (e) {}
+try { db.exec("ALTER TABLE users ADD COLUMN birthday TEXT DEFAULT ''"); } catch (e) {}
+try { db.exec('ALTER TABLE users ADD COLUMN profile_bonus_claimed INTEGER DEFAULT 0'); } catch (e) {}
+
+// ===== 浏览埋点（DESIGN #D5）：用户行为事件——捕捉「看了没订」的意图 =====
+db.exec(`
+  CREATE TABLE IF NOT EXISTS course_events (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    openid       TEXT NOT NULL,                    -- 用户 openid
+    event_type   TEXT NOT NULL,                    -- page_view/course_view/course_list_view/search
+    target_id    INTEGER DEFAULT 0,                -- 课程/场次 id（search 事件为 0）
+    keyword      TEXT DEFAULT '',                  -- search 事件的关键词
+    source       TEXT DEFAULT '',                  -- 进入来源（home_recommend/search/category/share）
+    page         TEXT DEFAULT '',                  -- 所在页面
+    session_id   TEXT DEFAULT '',                  -- 浏览会话（进小程序→切后台/退出）
+    duration_ms  INTEGER DEFAULT 0,                -- 停留时长（离开时补报）
+    created_at   TEXT DEFAULT (datetime('now','localtime'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_events_openid ON course_events(openid, event_type, created_at);
+`);
+
+// ===== 运营日报（DESIGN #D6）：规则引擎生成结果落库（date 主键幂等）=====
+db.exec(`
+  CREATE TABLE IF NOT EXISTS daily_reports (
+    date         TEXT PRIMARY KEY,
+    summary      TEXT DEFAULT '',
+    metrics      TEXT DEFAULT '[]',
+    trends       TEXT DEFAULT '[]',
+    actions      TEXT DEFAULT '[]',
+    generated_at TEXT DEFAULT (datetime('now','localtime'))
+  );
+`);
 
 // ===== 次卡包表 =====
 db.exec(`

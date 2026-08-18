@@ -9,7 +9,7 @@
  *    CURRENT_TIMESTAMP 落库时区由连接级 SET time_zone='+08:00' 保证北京时区，
  *    与容器 TZ=Asia/Shanghai 的 SQLite localtime 语义一致，防 BUG-LEDGER #28 重演）
  *  - 索引内联在 CREATE TABLE（KEY ...），无独立 CREATE INDEX（MySQL 不支持 IF NOT EXISTS）
- *  - `desc`/`change`/`date`/`role` 是 MySQL 保留字，列名带反引号（SQLite 无需；反引号双方言兼容）——
+ *  - `desc`/`change`/`date`/`role` 是 MySQL 保留字，列名须带反引号（SQLite 无需；反引号双方言兼容）——
  *    新增列前先对照 MySQL 8.0 保留字清单（BUG-LEDGER #32：裸保留字 → 生产建表 ER_PARSE_ERROR）
  *  - coach_config 单行表用 INSERT IGNORE 种子
  */
@@ -32,7 +32,10 @@ CREATE TABLE IF NOT EXISTS users (
   login_count     INT DEFAULT 0,
   balance_fen     INT DEFAULT 0,
   coin_balance    INT DEFAULT 0,
-  level_lv        INT DEFAULT 1
+  level_lv        INT DEFAULT 1,
+  gender          TINYINT DEFAULT 0,       -- 社交画像（DESIGN #D5）：0未填/1男/2女
+  birthday        VARCHAR(10) DEFAULT '',  -- YYYY-MM-DD（存生日不存年龄）
+  profile_bonus_claimed TINYINT DEFAULT 0  -- 填单奖励已领（防重复）
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS class_packages (
@@ -302,6 +305,31 @@ CREATE TABLE IF NOT EXISTS admin_logs (
   operator   VARCHAR(64) DEFAULT 'admin',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_admin_logs_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 浏览埋点（DESIGN #D5）
+CREATE TABLE IF NOT EXISTS course_events (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  openid      VARCHAR(64) NOT NULL,
+  event_type  VARCHAR(32) NOT NULL,
+  target_id   INT DEFAULT 0,
+  keyword     VARCHAR(64) DEFAULT '',
+  source      VARCHAR(32) DEFAULT '',
+  page        VARCHAR(64) DEFAULT '',
+  session_id  VARCHAR(64) DEFAULT '',
+  duration_ms INT DEFAULT 0,
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_events_openid (openid, event_type, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 运营日报（DESIGN #D6）：当日主键幂等
+CREATE TABLE IF NOT EXISTS daily_reports (
+  \`date\`      VARCHAR(10) PRIMARY KEY,
+  summary     VARCHAR(500) DEFAULT '',
+  metrics     TEXT DEFAULT NULL,
+  trends      TEXT DEFAULT NULL,
+  actions     TEXT DEFAULT NULL,
+  generated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `;
 

@@ -1313,6 +1313,28 @@ async function handleGroupMessage(req, res, body) {
   }
 }
 
+// ===== 浏览埋点（DESIGN #D5）=====
+async function handleTrackBatch(req, res, body) {
+  const { openid, events } = body || {};
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  if (!Array.isArray(events) || events.length === 0) {
+    return sendJson(res, 400, { code: 400, message: 'events 数组必填' });
+  }
+  if (events.length > 50) return sendJson(res, 400, { code: 400, message: '批量上限 50' });
+  const accepted = await db.batchTrack(openid, events);
+  return sendJson(res, 200, { code: 200, accepted });
+}
+
+// ===== 浏览分析（DESIGN #D5-5）=====
+async function handleEventsAnalysis(req, res, url) {
+  const dateStr = url.searchParams.get('date') || null;
+  if (dateStr !== null && !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(dateStr)) {
+    return sendJson(res, 400, { code: 400, message: 'date 格式应为 YYYY-MM-DD' });
+  }
+  const data = await db.eventsAnalysis(dateStr || time.todayStr());
+  return sendJson(res, 200, { code: 200, ...data });
+}
+
 async function toPublicUser(user) {
   let coach_id = null;
   if (user.role === 'coach') {
@@ -1395,6 +1417,12 @@ const API_ROUTES = [
   { m: 'POST',   p: '/api/admin/users-analysis/message', f: async(q, r) => {
       const body = await readBody(q);
       await handleGroupMessage(q, r, body);
+    } },
+  { m: 'GET',    p: '/api/admin/events-analysis', f: async(q, r, u) => await handleEventsAnalysis(q, r, u) },
+  // 浏览埋点（DESIGN #D5）
+  { m: 'POST',   p: '/api/track/batch', f: async(q, r) => {
+      const body = await readBody(q);
+      await handleTrackBatch(q, r, body);
     } },
   { m: 'GET',    p: '/api/admin/logs',          f: async(q, r) => await handleAdminLogs(q, r) },
   { m: 'GET',    p: '/api/admin/attendance',    f: async(q, r) => await handleAttendance(q, r) },
@@ -1631,7 +1659,7 @@ const ADMIN_PATHS = [
   { m: 'DELETE', p: /^\/api\/courses\/\d+$/ },
   { m: 'PUT',    p: /^\/api\/sessions\/\d+$/ },
   { m: 'DELETE', p: /^\/api\/sessions\/\d+$/ },
-  { m: 'GET',    p: /^\/api\/admin\/(sessions|invite-board|dashboard|users-analysis)$/ },
+  { m: 'GET',    p: /^\/api\/admin\/(sessions|invite-board|dashboard|users-analysis|events-analysis|reports)$/ },
   { m: 'GET',    p: /^\/api\/admin\/users-analysis\/[^/]+\/timeline$/ },
   { m: 'POST',   p: /^\/api\/admin\/users-analysis\/message$/ },
   { m: 'GET',    p: /^\/api\/admin\/coaches$/ },

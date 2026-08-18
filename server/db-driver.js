@@ -163,6 +163,9 @@ const MYSQL_ENSURE_COLUMNS = {
     ['balance_fen', 'INT DEFAULT 0'],
     ['coin_balance', 'INT DEFAULT 0'],
     ['level_lv', 'INT DEFAULT 1'],
+    ['gender', 'TINYINT DEFAULT 0'],                    // 社交画像（DESIGN #D5）
+    ['birthday', "VARCHAR(10) DEFAULT ''"],
+    ['profile_bonus_claimed', 'TINYINT DEFAULT 0'],
   ],
   bookings: [
     ['checkin_code', 'VARCHAR(5)'],             // 随机 5 位签到码（BUGS-INBOX #11）

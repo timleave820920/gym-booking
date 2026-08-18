@@ -165,18 +165,19 @@ async function runSuite() {
   console.log(`目标: ${BASE} ｜ 开始: ${new Date().toLocaleString()}\n`);
 
   // 预清理上次残留的测试数据（保证用例可重复执行）
+  // 直查统一走 driver（DESIGN #D5 起双驱动跑全量：SQLite 模式同一连接行为不变，MySQL 模式连真库）
   try {
     const db = require('../server/db.js');
-    db.db.prepare("DELETE FROM orders WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM bookings WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM user_passes WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM waitlist WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM course_sessions WHERE source='test_suite'").run();
-    db.db.prepare("DELETE FROM coin_logs WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM coin_exchanges WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM balance_logs WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM member_recharges WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM invitations WHERE inviter LIKE 'uid_test_%' OR invitee LIKE 'uid_test_%'").run();
+    await db.driver.run("DELETE FROM orders WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM bookings WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM user_passes WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM waitlist WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM course_sessions WHERE source='test_suite'");
+    await db.driver.run("DELETE FROM coin_logs WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM coin_exchanges WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM balance_logs WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM member_recharges WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM invitations WHERE inviter LIKE 'uid_test_%' OR invitee LIKE 'uid_test_%'");
     for (const o of ['uid_test_tianli','uid_test_student2','uid_test_coach','uid_test_holder']) {
       const u = await db.findUserByOpenid(o);
       if (u) await db.deleteUserById(u.id);
@@ -586,13 +587,13 @@ async function runSuite() {
   check('CPR-06', '教练页过滤：进行中/已结束不显示', visibleCp.length === 1 && visibleCp[0].start_time === '13:00', `visible=${JSON.stringify(visibleCp.map(s => s.start_time))}`);
 
   // 造一个今天的测试场次（有余位）
-  const mkSession = (date, start, end, cap, booked) => new Promise((resolve) => {
+  const mkSession = async (date, start, end, cap, booked) => {
     const db = require('../server/db.js');
-    db.db.prepare(`INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source)
-                   VALUES (1, 1, 1, ?, ?, ?, ?, ?, 'published', 'test_suite')`).run(date, start, end, cap, booked);
-    const s = db.db.prepare("SELECT id FROM course_sessions WHERE source='test_suite' ORDER BY id DESC LIMIT 1").get();
-    resolve(s.id);
-  });
+    await db.driver.run(`INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source)
+                   VALUES (1, 1, 1, ?, ?, ?, ?, ?, 'published', 'test_suite')`, [date, start, end, cap, booked]);
+    const s = await db.driver.get("SELECT id FROM course_sessions WHERE source='test_suite' ORDER BY id DESC LIMIT 1");
+    return s.id;
+  };
   ctx.sessionId = await mkSession(todayStr, '21:00', '22:00', 10, 0);
   // 满员场次：避开"已开课"时段——refundExpiredWaitlist 会在 GET /api/waitlist 时把已开课场次的候补自动退款，
   // 若测试在开课时间(22:00)之后运行会误杀候补队列（WTL-06/07 必挂）；21 点后跑测试改用明天日期
@@ -607,7 +608,7 @@ async function runSuite() {
   // （排除保持 0 余额的负向用例用户：wtl0=候补余额不足 / bal=订课余额不足 / nobody=不存在）
   {
     const _dbx = require('../server/db.js');
-    _dbx.db.prepare("UPDATE users SET balance_fen = balance_fen + 100000 WHERE openid LIKE 'uid_test_%' AND openid NOT IN ('uid_test_wtl0','uid_test_bal','uid_test_nobody')").run();
+    await _dbx.driver.run("UPDATE users SET balance_fen = balance_fen + 100000 WHERE openid LIKE 'uid_test_%' AND openid NOT IN ('uid_test_wtl0','uid_test_bal','uid_test_nobody')");
   }
   // WX 系列（B2 钱闭环）：未配置商户号时 status=false / create、notify 400 明确报错
   r = await req('GET', '/api/wxpay/status');
@@ -640,8 +641,8 @@ async function runSuite() {
   check('ORD-04c', '连点第二次下单拒绝', r.status === 400 && (r.data.message || '').includes('待支付'), `msg=${r.data && r.data.message}`);
   // 清理 user2 的 pending 订单（避免污染后续用例；user2 未支付无副作用）
   const _dbx = require('../server/db.js');
-  const pend2 = _dbx.db.prepare("SELECT id FROM orders WHERE user_openid=? AND session_id=? AND status='pending'").get(T.user2.openid, ctx.sessionId);
-  if (pend2) _dbx.db.prepare("DELETE FROM orders WHERE id=?").run(pend2.id);
+  const pend2 = await _dbx.driver.get("SELECT id FROM orders WHERE user_openid=? AND session_id=? AND status='pending'", [T.user2.openid, ctx.sessionId]);
+  if (pend2) await _dbx.driver.run("DELETE FROM orders WHERE id=?", [pend2.id]);
   r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: ctx.fullSessionId, amountFen: 6800, orderType: 'book' });
   check('ORD-05', '满员下单拒绝', r.status === 400 && (r.data.message || '').includes('满员'), `msg=${r.data && r.data.message}`);
   r = await req('GET', `/api/orders?openid=${T.user1.openid}`);
@@ -701,7 +702,7 @@ async function runSuite() {
 
   // 退订触发转正：holder 订满员场次(调低余位) → 退订 → 最早排位者(田立)转正
   const db = require('../server/db.js');
-  db.db.prepare(`UPDATE course_sessions SET booked_count = 0 WHERE id = ${ctx.fullSessionId}`).run();
+  await db.driver.run(`UPDATE course_sessions SET booked_count = 0 WHERE id = ${ctx.fullSessionId}`);
   r = await req('POST', '/api/orders', { openid: T.holder.openid, sessionId: ctx.fullSessionId, amountFen: 6800, orderType: 'book' });
   const holderOrder = r.data.order;
   await req('POST', `/api/orders/${holderOrder.id}/pay`, { openid: T.holder.openid, payMethod: 'balance' });
@@ -737,12 +738,12 @@ async function runSuite() {
   }
 
   // 过期退款：明天场次（先设满员）排队 → 改日期为昨天 → 触发
-  db.db.prepare(`UPDATE course_sessions SET booked_count = capacity WHERE id = ${ctx.tomorrowSessionId}`).run();
+  await db.driver.run(`UPDATE course_sessions SET booked_count = capacity WHERE id = ${ctx.tomorrowSessionId}`);
   r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: ctx.tomorrowSessionId, amountFen: 6800, orderType: 'waitlist' });
   const wlT = r.data.order;
   if (wlT) {
     await req('POST', `/api/orders/${wlT.id}/pay`, { openid: T.user2.openid, payMethod: 'balance' });
-    db.db.prepare(`UPDATE course_sessions SET date = '2026-08-09' WHERE id = ${ctx.tomorrowSessionId}`).run();
+    await db.driver.run(`UPDATE course_sessions SET date = '2026-08-09' WHERE id = ${ctx.tomorrowSessionId}`);
     r = await req('GET', `/api/waitlist?openid=${T.user2.openid}`);
     const wlT2 = (r.data.waits || []).find(w => w.session_id === ctx.tomorrowSessionId);
     check('WTL-08', '过期自动退款', wlT2 && wlT2.status === 'refunded', `status=${wlT2 && wlT2.status}`);
@@ -840,9 +841,9 @@ async function runSuite() {
   console.log('\n── 6.8 到课率与导出 ──');
   // 直插已签到 booking 造固定到课率数据（绕过签到窗口；booked_count 与之一致：造 3 订 1 签）
   const attSid = await mkSession(todayStr, '08:00', '09:00', 5, 3);
-  _dbx.db.prepare(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status, checkin_at)
-                   VALUES (?, ?, ?, 6800, 'booked', 'paid', ?)`)
-    .run('B3ATT' + attSid, T.user2.openid, attSid, timeMod.nowDateTimeStr());
+  await _dbx.driver.run(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status, checkin_at)
+                   VALUES (?, ?, ?, 6800, 'booked', 'paid', ?)`,
+    ['B3ATT' + attSid, T.user2.openid, attSid, timeMod.nowDateTimeStr()]);
   r = await req('GET', '/api/admin/attendance?start=2026-01-01&end=2030-01-01', null, { noToken: true });
   check('ATT-01', '无 token 拉到课率 → 401', r.status === 401, `status=${r.status}`);
   r = await req('GET', '/api/admin/attendance?start=2026-01-01&end=2030-01-01');
@@ -883,13 +884,13 @@ async function runSuite() {
     && typeof D.core.refund_fen === 'number',
     `date=${D.date} nu=${D.core && D.core.new_users} br=${D.core && D.core.booking_rate} cr=${D.core && D.core.checkin_rate} r7=${D.core && D.core.retention && D.core.retention.d7}`);
   // 订课率口径：当日 published/full 场次 预约÷总席位（与库直查精确一致）
-  const dashCap = _dbx.db.prepare("SELECT COALESCE(SUM(capacity),0) cap, COALESCE(SUM(booked_count),0) booked FROM course_sessions WHERE date = ? AND status IN ('published','full')").get(todayStr);
+  const dashCap = await _dbx.driver.get("SELECT COALESCE(SUM(capacity),0) cap, COALESCE(SUM(booked_count),0) booked FROM course_sessions WHERE date = ? AND status IN ('published','full')", [todayStr]);
   const dashRate = dashCap.cap > 0 ? Math.round(dashCap.booked / dashCap.cap * 1000) / 10 : 0;
   check('DASH-04', '订课率=预约÷总席位（与库直查一致）',
     D.core.booking_rate === dashRate, `api=${D.core.booking_rate} db=${dashRate}`);
   // 签到率口径：当日课 bookings 中 checkin_at 非空占比（签到是唯一到课证明 B1）
-  const dashCk = _dbx.db.prepare(`SELECT COUNT(*) total, SUM(CASE WHEN checkin_at IS NOT NULL THEN 1 ELSE 0 END) done
-    FROM bookings b JOIN course_sessions s ON s.id = b.session_id WHERE s.date = ? AND b.status = 'booked'`).get(todayStr);
+  const dashCk = await _dbx.driver.get(`SELECT COUNT(*) total, SUM(CASE WHEN checkin_at IS NOT NULL THEN 1 ELSE 0 END) done
+    FROM bookings b JOIN course_sessions s ON s.id = b.session_id WHERE s.date = ? AND b.status = 'booked'`, [todayStr]);
   const dashCkRate = dashCk.total > 0 ? Math.round(dashCk.done / dashCk.total * 1000) / 10 : 0;
   check('DASH-05', '签到率=已签到÷预约（与库直查一致）',
     D.core.checkin_rate === dashCkRate, `api=${D.core.checkin_rate} db=${dashCkRate}`);
@@ -994,6 +995,62 @@ async function runSuite() {
     r.status === 200 && r.data.users.length >= 1 && r.data.users.every(u => u.labels.some(l => l.includes('储值用户'))),
     `n=${r.data.users && r.data.users.length} first=${JSON.stringify(r.data.users && r.data.users[0] && r.data.users[0].labels)}`);
 
+  // ===== 6.11 浏览埋点（DESIGN #D5）：采集校验 / 浏览分析 =====
+  console.log('\n── 6.11 浏览埋点 ──');
+  r = await req('POST', '/api/track/batch', { events: [{ event_type: 'page_view' }] });
+  check('TRK-01', '无 openid → 400', r.status === 400, `status=${r.status}`);
+  r = await req('POST', '/api/track/batch', { openid: T.user1.openid, events: 'not-array' });
+  check('TRK-02', 'events 非数组 → 400', r.status === 400, `status=${r.status}`);
+  r = await req('POST', '/api/track/batch', { openid: T.user1.openid, events: Array.from({ length: 51 }, () => ({ event_type: 'page_view' })) });
+  check('TRK-03', '批量上限 50 → 400', r.status === 400, `status=${r.status}`);
+  // 合法批量：page_view×1 + course_view×1 + search×1（其中混 1 条白名单外事件）
+  r = await req('POST', '/api/track/batch', {
+    openid: T.user1.openid,
+    events: [
+      { event_type: 'page_view', page: 'index', session_id: 'sess-trk-1' },
+      { event_type: 'course_view', target_id: 99999, source: 'search', page: 'detail', session_id: 'sess-trk-1', duration_ms: 1234 },
+      { event_type: 'search', keyword: '搏击', session_id: 'sess-trk-1' },
+      { event_type: 'evil_event', page: 'x' }   // 白名单外 → 丢弃
+    ]
+  });
+  check('TRK-04', '批量上报：合法 3 条入账、非法丢弃', r.status === 200 && r.data.accepted === 3, `accepted=${r.data && r.data.accepted}`);
+  // 直查库确认落库（含 keyword/source/duration）
+  {
+    const _dbx = require('../server/db.js');
+    const ev = await _dbx.driver.all("SELECT * FROM course_events WHERE session_id = 'sess-trk-1' ORDER BY id");
+    check('TRK-05', 'course_events 落库字段完整（keyword/source/duration_ms）',
+      ev.length === 3
+      && ev.some(e => e.event_type === 'search' && e.keyword === '搏击')
+      && ev.some(e => e.event_type === 'course_view' && e.target_id === 99999 && e.duration_ms === 1234 && e.source === 'search')
+      && ev.some(e => e.event_type === 'page_view' && e.page === 'index'),
+      `n=${ev.length} types=${ev.map(e => e.event_type).join(',')}`);
+  }
+  // 浏览分析：无 token → 401（并入 ADMIN_PATHS）
+  r = await req('GET', '/api/admin/events-analysis', null, { noToken: true });
+  check('TRK-06', '无 token 拉浏览分析 → 401', r.status === 401, `status=${r.status}`);
+  // 构造意图人群：同一用户同一课程浏览 2 次（未订过该课）
+  r = await req('POST', '/api/track/batch', {
+    openid: T.user2.openid,
+    events: [
+      { event_type: 'course_view', target_id: 99998, page: 'detail', session_id: 'sess-intent-1' },
+      { event_type: 'course_view', target_id: 99998, page: 'detail', session_id: 'sess-intent-2' }
+    ]
+  });
+  r = await req('GET', '/api/admin/events-analysis');
+  const evA = r.data || {};
+  check('TRK-07', '浏览分析结构（漏斗/意图/搜索词/热度）',
+    r.status === 200
+    && evA.funnel && typeof evA.funnel.expose === 'number' && typeof evA.funnel.detail === 'number' && typeof evA.funnel.booked === 'number' && typeof evA.funnel.checkin === 'number'
+    && Array.isArray(evA.intent) && Array.isArray(evA.search.top) && Array.isArray(evA.hot_by_view),
+    `funnel=${JSON.stringify(evA.funnel)}`);
+  check('TRK-08', '意图人群：7 天内浏览≥2 次未订课程命中',
+    Array.isArray(evA.intent) && evA.intent.some(i => i.target_id === 99998 && i.view_count >= 2 && i.openid === T.user2.openid),
+    `intent=${JSON.stringify(evA.intent)}`);
+  check('TRK-09', '搜索词 TOP 含「搏击」', Array.isArray(evA.search.top) && evA.search.top.some(s => s.keyword === '搏击'),
+    `top=${JSON.stringify(evA.search.top)}`);
+  r = await req('GET', '/api/admin/events-analysis?date=2026-99-99');
+  check('TRK-10', 'date 非法格式 → 400', r.status === 400, `status=${r.status}`);
+
   // ===== 6.5 教练工作台（DESIGN #D1）：我的学员 / 笔记 / 结算 / 设教练 =====
   console.log('\n── 6.5 教练工作台 ──');
   const now2 = new Date();
@@ -1080,7 +1137,7 @@ async function runSuite() {
     const [cutD, cutT] = _cut.split(' ');
     const cutEnd = timeMod.addMinutesStr(_cut, 60).split(' ')[1].slice(0, 5);
     const cutSid = await mkSession(cutD, cutT.slice(0, 5), cutEnd, 5, 0);
-    _dbx.db.prepare("UPDATE users SET balance_fen = balance_fen + 100000 WHERE openid = ?").run(T.user2.openid);
+    await _dbx.driver.run("UPDATE users SET balance_fen = balance_fen + 100000 WHERE openid = ?", [T.user2.openid]);
     r = await req('POST', '/api/orders', { openid: T.user2.openid, sessionId: cutSid, amountFen: 6800, orderType: 'book' });
     check('ORD-10-1', '课前1小时场次下单', r.status === 201, `msg=${r.data && r.data.message}`);
     r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user2.openid, payMethod: 'balance' });
@@ -1128,16 +1185,16 @@ async function runSuite() {
   // 多人都能支付成功 = 超卖（压测 500 并发暴露：容量 10 的课 256 人支付成功）。
   // 直连 SQL 造 pending 订单绕过下单检查，模拟「下单窗口有余位 → 支付前位置被抢光」。
   const gateSid = await mkSession(todayStr, '23:45', '24:45', 1, 1);   // 容量1、初始已满
-  const gateBal0 = _dbx.db.prepare('SELECT balance_fen FROM users WHERE openid = ?').get(T.holder.openid).balance_fen;
-  const gateR = _dbx.db.prepare(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status, expire_mode)
-              VALUES (?, ?, ?, 'book', 6800, 'pending', 'start')`).run('GT' + Date.now(), T.holder.openid, gateSid);
+  const gateBal0 = (await _dbx.driver.get('SELECT balance_fen FROM users WHERE openid = ?', [T.holder.openid])).balance_fen;
+  const gateR = await _dbx.driver.run(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status, expire_mode)
+              VALUES (?, ?, ?, 'book', 6800, 'pending', 'start')`, ['GT' + Date.now(), T.holder.openid, gateSid]);
   r = await req('POST', `/api/orders/${gateR.lastInsertRowid}/pay`, { openid: T.holder.openid, payMethod: 'balance' });
   check('SEC-05-1', '满员时支付拒绝', r.status === 400 && (r.data.message || '').includes('满员'), `status=${r.status} msg=${r.data && r.data.message}`);
-  const gateRow = _dbx.db.prepare('SELECT booked_count FROM course_sessions WHERE id = ?').get(gateSid);
+  const gateRow = await _dbx.driver.get('SELECT booked_count FROM course_sessions WHERE id = ?', [gateSid]);
   check('SEC-05-2', '拒绝后余位未变(无超卖占位)', gateRow.booked_count === 1, `booked_count=${gateRow.booked_count}`);
-  const gateBal1 = _dbx.db.prepare('SELECT balance_fen FROM users WHERE openid = ?').get(T.holder.openid).balance_fen;
+  const gateBal1 = (await _dbx.driver.get('SELECT balance_fen FROM users WHERE openid = ?', [T.holder.openid])).balance_fen;
   check('SEC-05-3', '拒绝后余额未扣(事务回滚)', gateBal1 === gateBal0, `余额 ${gateBal0}→${gateBal1}`);
-  const gateOrd = _dbx.db.prepare('SELECT status FROM orders WHERE id = ?').get(gateR.lastInsertRowid);
+  const gateOrd = await _dbx.driver.get('SELECT status FROM orders WHERE id = ?', [gateR.lastInsertRowid]);
   check('SEC-05-4', '订单已作废(满员拒绝不留 pending 死锁)', gateOrd && gateOrd.status === 'cancelled', `status=${gateOrd && gateOrd.status}`);
   // 创建课程缺参已在 CRS-02 覆盖
   r = await req('POST', '/api/courses/9999/publish', {});
@@ -1156,9 +1213,9 @@ async function runSuite() {
     check('CRS-05c', '规则自冲突拒绝', r.status === 400 && (r.data.message || '').includes('冲突'), `status=${r.status} msg=${r.data && r.data.message}`);
     // 05a 直插与今天 21:00-22:00 场次重叠的规则（21:30-22:30）——B3 后保存阶段会拦截「模板 vs 模板」跨课程冲突，
     // 本用例保留原意图：测发布阶段「模板 vs 已有场次」冲突跳过，故绕过保存校验直插
-    db.db.prepare(`INSERT INTO schedule_templates (course_id, weekday, start_time, end_time, venue_id, coach_id, capacity)
-                   VALUES (?, ?, '21:30', '22:30', 1, 1, 5)`)
-      .run(crsCid, new Date(todayStr + 'T00:00:00').getDay() || 7);
+    await db.driver.run(`INSERT INTO schedule_templates (course_id, weekday, start_time, end_time, venue_id, coach_id, capacity)
+                   VALUES (?, ?, '21:30', '22:30', 1, 1, 5)`,
+      [crsCid, new Date(todayStr + 'T00:00:00').getDay() || 7]);
     check('CRS-05a', '直插冲突规则(测发布跳过)', true, '');
     // 05 发布 → 与已有场次同场地时间重叠 → 跳过（created=0, conflicts>=1）
     r = await req('POST', `/api/courses/${crsCid}/publish`, { start_date: todayStr, end_date: todayStr });
@@ -1292,14 +1349,14 @@ async function runSuite() {
   const rcgOpenid = 'uid_test_rcg';
   await req('POST', '/api/auth/login', { openid: rcgOpenid, nickname: '分页测试' });
   for (let i = 0; i < 25; i++) {
-    dbx.db.prepare("INSERT INTO member_recharges (recharge_no, user_openid, order_id, amount_fen, bonus_fen, status, created_at) VALUES (?, ?, 0, 50000, 5000, 'paid', datetime('now','localtime','-' || ? || ' minutes'))")
-      .run('RCG_' + i, rcgOpenid, i + 1);
+    await dbx.driver.run("INSERT INTO member_recharges (recharge_no, user_openid, order_id, amount_fen, bonus_fen, status, created_at) VALUES (?, ?, 0, 50000, 5000, 'paid', datetime('now','localtime','-' || ? || ' minutes'))",
+      ['RCG_' + i, rcgOpenid, i + 1]);
   }
   r = await req('GET', `/api/member/recharges?openid=${rcgOpenid}`);
   check('RCG-01', '分页第1页10笔+hasMore', (r.data.recharges || []).length === 10 && r.data.hasMore === true, `count=${r.data.recharges && r.data.recharges.length} hasMore=${r.data.hasMore}`);
   r = await req('GET', `/api/member/recharges?openid=${rcgOpenid}&offset=20`);
   check('RCG-02', '第3页5笔+无更多', (r.data.recharges || []).length === 5 && r.data.hasMore === false, `count=${r.data.recharges && r.data.recharges.length} hasMore=${r.data.hasMore}`);
-  dbx.db.prepare("DELETE FROM member_recharges WHERE user_openid=?").run(rcgOpenid);
+  await dbx.driver.run("DELETE FROM member_recharges WHERE user_openid=?", [rcgOpenid]);
 
   // ===== 10. 能量币 =====
   console.log('\n── 10. 能量币 ──');
@@ -1344,7 +1401,7 @@ async function runSuite() {
   await req('POST', '/api/auth/login', P);
   await req('POST', '/api/auth/login', P2);
   // B2（2026-08-18）：次卡购买走 balance 扣款（#49 修复），P/P2 注册晚于全局注入 → 这里补注入
-  require('../server/db.js').db.prepare("UPDATE users SET balance_fen = balance_fen + 400000 WHERE openid IN ('uid_test_pass1','uid_test_pass2')").run();
+  await require('../server/db.js').driver.run("UPDATE users SET balance_fen = balance_fen + 400000 WHERE openid IN ('uid_test_pass1','uid_test_pass2')");
   r = await req('GET', '/api/passes/packages');
   check('PASS-01', '档位列表(两档含说明)', ok(r, 200) && r.data.packages.length === 2 && r.data.packages.some(pkg => pkg.price_fen === 90000) && r.data.packages.every(pkg => pkg.desc), `n=${r.data && r.data.packages && r.data.packages.length}`);
   // 购买 12 次档（模拟微信支付）
@@ -1404,35 +1461,36 @@ async function runSuite() {
   r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: P2.openid, payMethod: 'balance' });
   check('PASS-13', '无卡走原支付方式(非pass)', ok(r, 200) && r.data.order.pay_source !== 'pass', `src=${r.data && r.data.order && r.data.order.pay_source}`);
   // 过期作废
-  db.db.prepare(`UPDATE user_passes SET expires_at = datetime('now','localtime','-1 day') WHERE user_openid = ?`).run(P.openid);
+  await db.driver.run('UPDATE user_passes SET expires_at = ? WHERE user_openid = ?',
+    [timeMod.addMinutesStr(timeMod.nowDateTimeStr(), -1440), P.openid]);  // 方言收口（DESIGN #D2 S2）：datetime() 改 time.js 算好传参
   const expiredN = await db.expireOverduePasses();
   check('PASS-12', '过期任务作废', expiredN >= 1, `n=${expiredN}`);
   r = await req('GET', `/api/passes/my?openid=${P.openid}`);
   check('PASS-12b', '过期状态展示', r.data.pass.expired === true, `expired=${r.data.pass && r.data.pass.expired}`);
   // 次卡测试用户清理
-  db.db.prepare("DELETE FROM user_passes WHERE user_openid LIKE 'uid_test_pass%'").run();
-  db.db.prepare("DELETE FROM orders WHERE user_openid LIKE 'uid_test_pass%'").run();
-  db.db.prepare("DELETE FROM bookings WHERE user_openid LIKE 'uid_test_pass%'").run();
-  db.db.prepare("DELETE FROM waitlist WHERE user_openid LIKE 'uid_test_pass%'").run();
-  db.db.prepare("DELETE FROM balance_logs WHERE user_openid LIKE 'uid_test_pass%'").run();  // #49 次卡购买走 balance 扣款 → 留痕 balance_logs，先删再删 users（FK）
-  db.db.prepare("DELETE FROM users WHERE openid LIKE 'uid_test_pass%'").run();
+  await db.driver.run("DELETE FROM user_passes WHERE user_openid LIKE 'uid_test_pass%'");
+  await db.driver.run("DELETE FROM orders WHERE user_openid LIKE 'uid_test_pass%'");
+  await db.driver.run("DELETE FROM bookings WHERE user_openid LIKE 'uid_test_pass%'");
+  await db.driver.run("DELETE FROM waitlist WHERE user_openid LIKE 'uid_test_pass%'");
+  await db.driver.run("DELETE FROM balance_logs WHERE user_openid LIKE 'uid_test_pass%'");  // #49 次卡购买走 balance 扣款 → 留痕 balance_logs，先删再删 users（FK）
+  await db.driver.run("DELETE FROM users WHERE openid LIKE 'uid_test_pass%'");
 
   // ===== 清理测试数据 =====
   console.log('\n── 11. 清理测试数据 ──');
   try {
-    db.db.prepare("DELETE FROM orders WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM bookings WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM user_passes WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM waitlist WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM course_sessions WHERE source='test_suite'").run();
-    db.db.prepare("DELETE FROM invitations WHERE inviter LIKE 'uid_test_%' OR invitee LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM coach_notes WHERE coach_openid LIKE 'uid_test_%' OR student_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("UPDATE coaches SET user_openid = NULL WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM balance_logs WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM member_recharges WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM coin_logs WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("DELETE FROM coin_exchanges WHERE user_openid LIKE 'uid_test_%'").run();
-    db.db.prepare("UPDATE users SET coin_balance = 0 WHERE openid LIKE 'uid_test_%'").run();
+    await db.driver.run("DELETE FROM orders WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM bookings WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM user_passes WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM waitlist WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM course_sessions WHERE source='test_suite'");
+    await db.driver.run("DELETE FROM invitations WHERE inviter LIKE 'uid_test_%' OR invitee LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM coach_notes WHERE coach_openid LIKE 'uid_test_%' OR student_openid LIKE 'uid_test_%'");
+    await db.driver.run("UPDATE coaches SET user_openid = NULL WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM balance_logs WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM member_recharges WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM coin_logs WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("DELETE FROM coin_exchanges WHERE user_openid LIKE 'uid_test_%'");
+    await db.driver.run("UPDATE users SET coin_balance = 0 WHERE openid LIKE 'uid_test_%'");
     // 清理测试用户（注意可能被引用）
     for (const o of ['uid_test_tianli','uid_test_student2','uid_test_coach','uid_test_holder']) {
       const u = await db.findUserByOpenid(o);

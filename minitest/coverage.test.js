@@ -363,6 +363,19 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     assert.equal(r.status, 200, '用户分析 CSV');
     r = await req('POST', '/api/admin/users-analysis/message', { openids: [U2.openid], title: '覆盖探针触达', content: 'coverage' }, { 'Admin-Token': 'cov-admin' });
     assert.equal(r.data.sent, 1, '群组触达');
+    // ---- 13.10 DESIGN #D5 浏览埋点探针：批量采集 / 浏览分析 ----
+    r = await req('POST', '/api/track/batch', {
+      openid: U1.openid,
+      events: [
+        { event_type: 'page_view', page: 'index', session_id: 'cov-sess' },
+        { event_type: 'course_view', target_id: course.id, page: 'detail', session_id: 'cov-sess', duration_ms: 999 },
+        { event_type: 'search', keyword: '探针', session_id: 'cov-sess' }
+      ]
+    });
+    assert.equal(r.data.accepted, 3, '埋点批量采集');
+    r = await req('GET', '/api/admin/events-analysis', null, { 'Admin-Token': 'cov-admin' });
+    assert.ok(r.data.funnel && typeof r.data.funnel.expose === 'number'
+      && Array.isArray(r.data.intent) && Array.isArray(r.data.search.top), '浏览分析聚合');
     delete process.env.ADMIN_TOKEN;
 
     // ---- 14 候补复杂路径：排位 / 退订转正 / 退出退款 / 过期退款 ----

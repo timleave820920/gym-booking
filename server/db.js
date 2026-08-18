@@ -19,6 +19,7 @@ const { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, 
 const { addAdminLog, listAdminLogs } = require('./db/admin-log');
 const { getDashboard } = require('./db/dashboard');
 const { queryUsersAnalysis, getTimeline, groupMessage } = require('./db/users-analysis');
+const { batchTrack, eventsAnalysis } = require('./db/events');
 
 
 module.exports = {
@@ -132,5 +133,8 @@ module.exports = {
   // 用户分析（DESIGN #D4-3）
   queryUsersAnalysis,
   getTimeline,
-  groupMessage
+  groupMessage,
+  // 浏览埋点（DESIGN #D5）
+  batchTrack,
+  eventsAnalysis
 };
