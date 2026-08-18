@@ -37,8 +37,7 @@ Page({
       venue: 'A馆',
       time: '10:00-11:00',
       dateText: '',
-      price: 68,
-      img: '/images/3_24.png'
+      price: 68
     };
     this.setData({ course });
     // B2：查询微信支付开通状态（未开通 → 微信支付置灰「商户号配置后开放」）

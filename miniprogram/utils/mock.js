@@ -7,22 +7,22 @@ const courses = [
     level: 4, img: '/images/2_193.png', days: [1, 3, 5] },
   { id: 2, name: '流瑜伽 · 舒缓拉伸', category: '瑜伽普拉提', coach: '小满', venue: 'B馆',
     start: '19:30', end: '20:30', duration: '60分钟', price: 68, capacity: 15, booked: 3, remaining: 12,
-    level: 2, img: '/images/2_206.png', days: [1, 2, 4, 6] },
+    level: 2, days: [1, 2, 4, 6] },
   { id: 3, name: '杠铃操 · 全身塑形', category: '力量训练', coach: '大壮', venue: 'A馆',
     start: '08:00', end: '09:00', duration: '60分钟', price: 68, capacity: 20, booked: 15, remaining: 5,
-    level: 3, img: '/images/2_237.png', days: [1, 3, 5] },
+    level: 3, days: [1, 3, 5] },
   { id: 4, name: '动感单车 · 燃脂骑行', category: '燃脂团课', coach: '阿凯', venue: 'C馆',
     start: '12:30', end: '13:30', duration: '60分钟', price: 68, capacity: 25, booked: 23, remaining: 2,
-    level: 4, img: '/images/2_247.png', days: [2, 4, 6] },
+    level: 4, days: [2, 4, 6] },
   { id: 5, name: '空中瑜伽 · 优雅塑形', category: '瑜伽普拉提', coach: '小满', venue: 'B馆',
     start: '15:00', end: '16:00', duration: '60分钟', price: 68, capacity: 15, booked: 5, remaining: 10,
-    level: 2, img: '/images/2_257.png', days: [2, 5, 7] },
+    level: 2, days: [2, 5, 7] },
   { id: 6, name: '核心力量训练', category: '力量训练', coach: '大壮', venue: 'B馆',
     start: '14:30', end: '15:15', duration: '45分钟', price: 58, capacity: 15, booked: 7, remaining: 8,
-    level: 3, img: '/images/2_1350.png', days: [3, 6] },
+    level: 3, days: [3, 6] },
   { id: 7, name: '战绳燃脂挑战', category: '燃脂团课', coach: '阿凯', venue: 'A馆',
     start: '19:00', end: '20:00', duration: '60分钟', price: 68, capacity: 20, booked: 15, remaining: 5,
-    level: 5, img: '/images/2_1374.png', days: [4, 7] }
+    level: 5, days: [4, 7] }
 ];
 
 // 本周日期（周一 ~ 周日）
@@ -56,10 +56,10 @@ const coachSchedule = [
 
 // 教练端 - 学员名单
 const studentRoster = [
-  { id: 1, name: '李明轩', meta: '活跃学员', avatar: '/images/2_708.png', checked: true },
-  { id: 2, name: '王雨桐', meta: '忠实学员', avatar: '/images/2_715.png', checked: true },
-  { id: 3, name: '张子豪', meta: '体验学员', avatar: '/images/2_722.png', checked: false },
-  { id: 4, name: '陈晓萌', meta: '活跃学员', avatar: '/images/2_729.png', checked: false }
+  { id: 1, name: '李明轩', meta: '活跃学员', checked: true },
+  { id: 2, name: '王雨桐', meta: '忠实学员', checked: true },
+  { id: 3, name: '张子豪', meta: '体验学员', checked: false },
+  { id: 4, name: '陈晓萌', meta: '活跃学员', checked: false }
 ];
 
 // 后台 - 仪表盘统计
@@ -81,24 +81,24 @@ const hotCourses = [
 
 // 后台 - 场地
 const venues = [
-  { id: 1, name: 'A 馆 · 综合训练区', capacity: 20, today: 6, img: '/images/2_1350.png' },
-  { id: 2, name: 'B 馆 · 瑜伽普拉提室', capacity: 15, today: 4, img: '/images/2_1358.png' },
-  { id: 3, name: 'C 馆 · 动感单车房', capacity: 25, today: 5, img: '/images/2_1366.png' },
-  { id: 4, name: 'D 馆 · 力量训练区', capacity: 30, today: 8, img: '/images/2_1374.png' }
+  { id: 1, name: 'A 馆 · 综合训练区', capacity: 20, today: 6 },
+  { id: 2, name: 'B 馆 · 瑜伽普拉提室', capacity: 15, today: 4 },
+  { id: 3, name: 'C 馆 · 动感单车房', capacity: 25, today: 5 },
+  { id: 4, name: 'D 馆 · 力量训练区', capacity: 30, today: 8 }
 ];
 
 // 后台 - 学员管理
 const adminStudents = [
-  { id: 1, name: '李明轩', phone: '138****2210', status: '活跃学员', classes: 6, avatar: '/images/2_708.png' },
-  { id: 2, name: '王雨桐', phone: '159****8807', status: '忠实学员', classes: 8, avatar: '/images/2_715.png' },
-  { id: 3, name: '张子豪', phone: '186****3352', status: '体验学员', classes: 2, avatar: '/images/2_722.png' }
+  { id: 1, name: '李明轩', phone: '138****2210', status: '活跃学员', classes: 6 },
+  { id: 2, name: '王雨桐', phone: '159****8807', status: '忠实学员', classes: 8 },
+  { id: 3, name: '张子豪', phone: '186****3352', status: '体验学员', classes: 2 }
 ];
 
 // 后台 - 教练管理
 const adminCoaches = [
   { id: 1, name: '阿凯', skill: 'HIIT · 战绳 · 核心', stat: '本月 42 节 · 好评 4.9', avatar: '/images/2_1468.png' },
-  { id: 2, name: '小满', skill: '瑜伽 · 普拉提 · 拉伸', stat: '本月 36 节 · 好评 4.8', avatar: '/images/2_1474.png' },
-  { id: 3, name: '大壮', skill: '杠铃 · 力量 · 体能', stat: '本月 38 节 · 好评 4.7', avatar: '/images/2_1480.png' }
+  { id: 2, name: '小满', skill: '瑜伽 · 普拉提 · 拉伸', stat: '本月 36 节 · 好评 4.8' },
+  { id: 3, name: '大壮', skill: '杠铃 · 力量 · 体能', stat: '本月 38 节 · 好评 4.7' }
 ];
 
 // 后台 - 营收
