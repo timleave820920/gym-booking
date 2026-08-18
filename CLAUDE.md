@@ -33,6 +33,14 @@ DB_PATH=/tmp/gym-test-clean.db node minitest/run-tests.js   # 干净库模式：
 node minitest/run-tests.js http://127.0.0.1:3000            # 连已有后端（调试用）
 node --test --experimental-test-coverage minitest/coverage.test.js  # 覆盖率探针
 
+# 压力测试（500 并发目标，minitest/stress-test.js，2026-08-18）
+CONCURRENCY=500 WAVE=50 node minitest/stress-test.js        # 默认=真实到达模拟，13 断言全绿（验收基线）
+CONCURRENCY=500 WAVE=500 node minitest/stress-test.js       # 极限一波=上限探测（业务断言仍严格全绿）
+node minitest/stress-test.js http://127.0.0.1:3000          # 连已有后端（本地调试）
+# 场景：A 抢课风暴(容量10×500并发→恰10成功零超卖) B 连点幂等(仅1单) C 候补风暴(全排队) D 读并发 E 退订守恒
+# 注意：WAVE>100 为极限模式，Windows+SQLite 同步驱动下慢事务场景可能有少量 ECONNREFUSED（环境上限，
+# 生产 MySQL 异步驱动无此限制）；验收一律用 WAVE=50。压测发现 P0 超卖已修（BUG-LEDGER #57）
+
 # 部署冒烟（云托管重建后必跑，区分新/旧镜像，防 #12 重演）
 bash deploy-smoke.sh          # 默认探测云端（自动读 api.js FALLBACK_BASE_URL）
 bash deploy-smoke.sh 5        # 重建窗口期：每 10s 重试，最多 5 次

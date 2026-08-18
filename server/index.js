@@ -1647,7 +1647,9 @@ const server = http.createServer(async (req, res) => {
 // 云托管冷启动探针窗口极短，先 listen 让探针尽早通过；请求处理器开头 await driver.ready
 // 兜底（DB 就绪前请求自会等待），建表失败由 ready.catch 退出进程（防无表服务空转）
 if (require.main === module) {
-  server.listen(PORT, HOST, () => {
+  // backlog=0 → SOMAXCONN（压测任务，2026-08-18）：显式数值在 Windows 被 libuv clamp（~511），
+  // 500 并发瞬间到达时 accept 积压 → ECONNREFUSED；0 = 内核最大队列，Windows/Linux 均生效
+  server.listen(PORT, HOST, 0, () => {
   // 启动时探测局域网 IP 并写入前端配置（IP 自动适配）
   const net = writeNetConfig();
   console.log('========================================');

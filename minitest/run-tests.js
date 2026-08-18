@@ -940,6 +940,22 @@ async function runSuite() {
   r = await req('GET', `/api/sessions?date=${todayStr}`);
   const fullVisible = (r.data.sessions || []).some(s => s.id === fullSid3 && s.status === 'full');
   check('SEC-04d', '满员场次列表可见', ok(r, 200) && fullVisible, `ids=${r.data.sessions && r.data.sessions.map(s => s.id).join(',')}`);
+  // SEC-05：支付容量闸门（回归 BUG-LEDGER #57 超卖——下单时有余位、支付时已满，支付必须原子闸门拒绝并全量回滚）
+  // 并发超卖根因：createOrder 的 remaining 检查是宽松快照（下单不占位），支付才占位——并发下单-支付下
+  // 多人都能支付成功 = 超卖（压测 500 并发暴露：容量 10 的课 256 人支付成功）。
+  // 直连 SQL 造 pending 订单绕过下单检查，模拟「下单窗口有余位 → 支付前位置被抢光」。
+  const gateSid = await mkSession(todayStr, '23:45', '24:45', 1, 1);   // 容量1、初始已满
+  const gateBal0 = _dbx.db.prepare('SELECT balance_fen FROM users WHERE openid = ?').get(T.holder.openid).balance_fen;
+  const gateR = _dbx.db.prepare(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status, expire_mode)
+              VALUES (?, ?, ?, 'book', 6800, 'pending', 'start')`).run('GT' + Date.now(), T.holder.openid, gateSid);
+  r = await req('POST', `/api/orders/${gateR.lastInsertRowid}/pay`, { openid: T.holder.openid, payMethod: 'balance' });
+  check('SEC-05-1', '满员时支付拒绝', r.status === 400 && (r.data.message || '').includes('满员'), `status=${r.status} msg=${r.data && r.data.message}`);
+  const gateRow = _dbx.db.prepare('SELECT booked_count FROM course_sessions WHERE id = ?').get(gateSid);
+  check('SEC-05-2', '拒绝后余位未变(无超卖占位)', gateRow.booked_count === 1, `booked_count=${gateRow.booked_count}`);
+  const gateBal1 = _dbx.db.prepare('SELECT balance_fen FROM users WHERE openid = ?').get(T.holder.openid).balance_fen;
+  check('SEC-05-3', '拒绝后余额未扣(事务回滚)', gateBal1 === gateBal0, `余额 ${gateBal0}→${gateBal1}`);
+  const gateOrd = _dbx.db.prepare('SELECT status FROM orders WHERE id = ?').get(gateR.lastInsertRowid);
+  check('SEC-05-4', '订单已作废(满员拒绝不留 pending 死锁)', gateOrd && gateOrd.status === 'cancelled', `status=${gateOrd && gateOrd.status}`);
   // 创建课程缺参已在 CRS-02 覆盖
   r = await req('POST', '/api/courses/9999/publish', {});
   check('CRS-04a', '发布缺日期参数', r.status === 400 && (r.data.message || '').includes('日期'), `msg=${r.data && r.data.message}`);

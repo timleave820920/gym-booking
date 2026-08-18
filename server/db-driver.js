@@ -36,6 +36,13 @@ class SqliteDriver {
 
   async exec(sql) { this._db.exec(sql); }
 
+  // 加锁事务开始（并发防重用，BUG-LEDGER #57b）：BEGIN IMMEDIATE 立即持 RESERVED 写锁，
+  // 事务内所有读都是当前读——多个并发 createOrder 串行化，第二个事务阻塞到第一个提交后才读到最新行
+  async beginExclusive() { this._db.exec('BEGIN IMMEDIATE'); }
+
+  // 加锁读：BEGIN IMMEDIATE 已持写锁，普通读即当前读，无需额外语法
+  async getExclusive(sql, params) { return this.get(sql, params); }
+
   async tx(fn) {
     this._db.exec('BEGIN');
     try {
@@ -71,6 +78,13 @@ class MysqlDriver {
     const [r] = await this._conn.execute(sql, params || []);
     return { changes: r.affectedRows, lastInsertRowid: r.insertId };
   }
+
+  // 加锁事务开始（并发防重用，BUG-LEDGER #57b）：MySQL 事务延迟锁，BEGIN 即可，
+  // 真正的锁在 getExclusive 的 FOR UPDATE 上（行锁/间隙锁，第二个事务等待第一个提交后读到最新行）
+  async beginExclusive() { await this.exec('BEGIN'); }
+
+  // 加锁读：FOR UPDATE 锁定读（当前读，看到最新已提交数据；无匹配行时持间隙锁防并发插入）
+  async getExclusive(sql, params) { return this.get(sql + ' FOR UPDATE', params); }
 
   // 拆多条语句逐条执行（建表/seed 用；无过程体，按 ; 切分足够）
   async exec(sql) {

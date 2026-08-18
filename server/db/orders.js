@@ -69,27 +69,41 @@ async function createOrder({ user_openid, session_id, amount_fen = 0, order_type
   const existing = await driver.get("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ? AND status = 'booked'", [user_openid, session_id]);
   if (existing) return { ok: false, error: '您已预订该课程，请勿重复下单' };
   // 已有待支付订单 → 拒绝重复下单（防连点/并发：BUG-LEDGER #13 狂点狂扣费，bookings 查重在下单时无效，需查 pending 订单）
-  const pendingOrder = await driver.get("SELECT id FROM orders WHERE user_openid = ? AND session_id = ? AND status = 'pending' AND order_type = ?", [user_openid, session_id, order_type]);
-  if (pendingOrder) return { ok: false, error: '您已有待支付订单，请勿重复下单' };
+  // 加锁防重（BUG-LEDGER #57b）：pending 查重「读-判-插」非原子——压测 500 并发下单，多个请求同时
+  // 通过检查 → 残留多笔 pending 单（每次 await 都是让出点，node:sqlite 同步底层也躲不过微任务交错）。
+  // SQLite: BEGIN IMMEDIATE 立即持写锁串行化；MySQL: getExclusive 的 FOR UPDATE 行/间隙锁串行化。
+  await driver.beginExclusive();
+  try {
+    const pendingOrder = await driver.getExclusive("SELECT id FROM orders WHERE user_openid = ? AND session_id = ? AND status = 'pending' AND order_type = ?", [user_openid, session_id, order_type]);
+    if (pendingOrder) {
+      await driver.exec('ROLLBACK');
+      return { ok: false, error: '您已有待支付订单，请勿重复下单' };
+    }
 
-  if (order_type === 'book') {
-    if (session.remaining <= 0) return { ok: false, error: '该课程已满员，请选择候补排位' };
-  } else if (order_type === 'waitlist') {
-    if (session.remaining > 0) return { ok: false, error: '该课程仍有余位，请直接预订' };
-    const queued = await driver.get("SELECT id FROM waitlist WHERE user_openid = ? AND session_id = ? AND status = 'waiting'", [user_openid, session_id]);
-    if (queued) return { ok: false, error: '您已在候补队列中' };
-  } else {
-    return { ok: false, error: '未知订单类型' };
+    if (order_type === 'book') {
+      if (session.remaining <= 0) { await driver.exec('ROLLBACK'); return { ok: false, error: '该课程已满员，请选择候补排位' }; }
+    } else if (order_type === 'waitlist') {
+      if (session.remaining > 0) { await driver.exec('ROLLBACK'); return { ok: false, error: '该课程仍有余位，请直接预订' }; }
+      const queued = await driver.get("SELECT id FROM waitlist WHERE user_openid = ? AND session_id = ? AND status = 'waiting'", [user_openid, session_id]);
+      if (queued) { await driver.exec('ROLLBACK'); return { ok: false, error: '您已在候补队列中' }; }
+    } else {
+      await driver.exec('ROLLBACK');
+      return { ok: false, error: '未知订单类型' };
+    }
+
+    // 候补订单记录自动取消节点（仅 waitlist 生效，其余忽略）
+    const em = (order_type === 'waitlist' && ['start', '1h', '2h'].includes(expire_mode)) ? expire_mode : 'start';
+    const orderNo = await genOrderNo();
+    const r = await driver.run(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status, expire_mode)
+                VALUES (?, ?, ?, ?, ?, 'pending', ?)`, [orderNo, user_openid, session_id, order_type, amount_fen, em]);
+
+    const order = await driver.get(`${ORDER_SELECT} WHERE o.id = ?`, [r.lastInsertRowid]);
+    await driver.exec('COMMIT');
+    return { ok: true, order };
+  } catch (e) {
+    await driver.exec('ROLLBACK');
+    throw e;
   }
-
-  // 候补订单记录自动取消节点（仅 waitlist 生效，其余忽略）
-  const em = (order_type === 'waitlist' && ['start', '1h', '2h'].includes(expire_mode)) ? expire_mode : 'start';
-  const orderNo = await genOrderNo();
-  const r = await driver.run(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status, expire_mode)
-              VALUES (?, ?, ?, ?, ?, 'pending', ?)`, [orderNo, user_openid, session_id, order_type, amount_fen, em]);
-
-  const order = await driver.get(`${ORDER_SELECT} WHERE o.id = ?`, [r.lastInsertRowid]);
-  return { ok: true, order };
 }
 
 /**
@@ -245,17 +259,27 @@ async function payOrder({ openid, orderId, pay_method = 'balance', wxpayVerified
       }
       const bookingNo = 'BK' + Date.now() + Math.random().toString(36).slice(2, 8).toUpperCase();
       const exists = await driver.get("SELECT id FROM bookings WHERE user_openid = ? AND session_id = ?", [order.user_openid, order.session_id]);
+      // 原子容量闸门（BUG-LEDGER #57 超卖）：下单时 remaining 是宽松快照检查，支付才真正占位，
+      // 并发下单-支付下 256 人可同时通过下单检查 → 支付全部成功 = 超卖。占位必须原子比较-更新：
+      // booked_count < capacity 才 +1（MySQL 行锁/SQLite 单写锁保证同一时刻仅一个事务能通过），
+      // changes===0 = 已满员 → 回滚（订单 paid 标记/余额扣减/booking 插入全部撤销）
+      const up = await driver.run('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ? AND booked_count < capacity', [order.session_id]);
+      if (up.changes === 0) {
+        await driver.exec('ROLLBACK');
+        // 满员支付被拒：订单作废而非停留 pending——否则用户被「已有待支付订单」拦截，
+        // 无法转候补也无法重下单（压测 A 场景暴露：40 笔 pending 死锁）
+        await driver.run("UPDATE orders SET status = 'cancelled', cancel_reason = '该课程已满员，支付被拒' WHERE id = ? AND status = 'pending'", [orderId]);
+        return { ok: false, error: '该课程已满员，请选择候补排位' };
+      }
       if (exists) {
         // 复用 booking 时同步金额（BUG：原不更新 amount_fen，次卡支付残留旧值 80 → 站内信/展示金额错）
         await driver.run("UPDATE bookings SET status = 'booked', pay_status = 'paid', cancel_reason = '', checkin_at = NULL, amount_fen = ?, pay_source = ?, pass_id = ? WHERE id = ?", [payFen, effMethod, passId, exists.id]);
-        await driver.run('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?', [order.session_id]);
         await syncSessionStatus(order.session_id);
         booking = await driver.get(`SELECT id, booking_no, amount_fen FROM bookings WHERE id = ?`, [exists.id]);
       } else {
         const r = await driver.run(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status, pay_source, pass_id)
                     VALUES (?, ?, ?, ?, 'booked', 'paid', ?, ?)`, [bookingNo, order.user_openid, order.session_id, payFen, effMethod, passId]);
         booking = await driver.get('SELECT id, booking_no, amount_fen FROM bookings WHERE id = ?', [r.lastInsertRowid]);
-        await driver.run('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?', [order.session_id]);
         await syncSessionStatus(order.session_id);
       }
       // 订单金额落实付（次卡=0/余额=会员价/微信=原价），与 booking/退款保持严格一致

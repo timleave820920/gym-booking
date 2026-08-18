@@ -53,8 +53,12 @@ async function createBooking({ user_openid, session_id, amount_fen = 0, pay_stat
                   VALUES (?, ?, ?, ?, 'booked', ?, ?)`, [bookingNo, user_openid, session_id, amount_fen, pay_status, checkinCode]);
       exists = { id: r.lastInsertRowid };
     }
-    // 2. 扣减余位
-    await driver.run('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ?', [session_id]);
+    // 2. 扣减余位（原子容量闸门，BUG-LEDGER #57 超卖防护：booked_count < capacity 才 +1，满员回滚）
+    const up = await driver.run('UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ? AND booked_count < capacity', [session_id]);
+    if (up.changes === 0) {
+      await driver.exec('ROLLBACK');
+      return { ok: false, error: '该课程已满员，请选择候补排位' };
+    }
     await syncSessionStatus(session_id);
     await driver.exec('COMMIT');
   } catch (e) {

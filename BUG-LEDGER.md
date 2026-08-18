@@ -15,6 +15,20 @@
 
 ---
 
+## #57 订课并发超卖（P0 资金/数据安全）——下单宽松快照检查、支付无容量闸门，500 并发下容量 10 的课 256 人支付成功
+
+- **现象**：压测任务（用户要求 500 并发完美应对）第一版脚本断言参数错位全假绿，修复后极端模式暴露：容量 10 的场次，500 并发「下单→支付」后 `booked_count=256`、paid 订单 256 笔——**256 人订上 10 个位置**，真超卖（2026-08-18 压测发现）。
+- **根因**（双层）：
+  1. **支付无容量闸门**：createOrder 的 `remaining <= 0` 检查是**宽松快照**（下单不占位），支付（payOrder）才真正占位——`INSERT bookings + booked_count+1` 从不复查剩余。并发下单-支付下所有人都通过下单检查 → 支付全部成功 = 超卖。MySQL 生产同代码同漏洞。
+  2. **下单 pending 查重竞态**：createOrder 的「查 pending→INSERT」读-判-插非原子（每次 `await driver.get` 都是微任务让出点），500 并发下单同用户可创建多笔 pending 单。
+  3. **满员支付拒绝后订单停留 pending**：被闸门拒的用户订单卡 pending → 被「已有待支付订单」拦截，无法转候补也无法重下单（死锁，40 笔残留实证）。
+- **修复**：
+  1. **原子容量闸门**：三处占位 `UPDATE course_sessions SET booked_count = booked_count + 1 WHERE id = ? AND booked_count < capacity`，`changes===0`（已满员）→ 事务 ROLLBACK（paid 标记/余额扣减/booking 全部撤销）+ 订单标 `cancelled`（不再卡 pending，用户可转候补）。覆盖 payOrder 两分支 + createBooking（教练代订）。
+  2. **加锁防重**：driver 新增 `beginExclusive()`（SQLite `BEGIN IMMEDIATE` 立即持写锁 / MySQL `BEGIN`）+ `getExclusive()`（MySQL `FOR UPDATE` 行/间隙锁）——createOrder 的 pending 查重+容量检查+INSERT 整体事务化，并发下单串行化。
+  3. **listen backlog=0（SOMAXCONN）**：Windows 下显式 backlog 被 libuv clamp（~511），500 瞬间并发 accept 积压 → ECONNREFUSED；0 = 内核最大队列，Windows/Linux 均生效。
+- **回归测试**：SEC-05 四断言（满员支付拒绝/余位不变/余额未扣/订单作废，直连 SQL 造 pending 绕过下单检查模拟并发窗口）；压测 A-01/A-04/A-05（恰 10 人订上、booked_count=10、paid=10）与 B-01/B-02（连点仅 1 单）；WAVE=50 与 WAVE=500 双模式 13/13 全绿；TZ=UTC 全量 268/268。
+- **防护层**：L1 本地 hook（run-tests 全量含 SEC-05）+ 压测双模式。兜底思路：**任何「先检查后占位」的两段式业务都必须检查点原子化**（检查与占位在同一条语句/同一把锁内），下单-支付时序跨请求的业务尤其高危；压测断言必须检查参数位置（本次假绿 13 条全因 check 调用 4 参错位——描述字符串被当 ok 恒真）。
+
 ## #54 换头像报「微信版本过低」——chooseAvatar 低版本基础库直接阻断，用户无法换头像
 
 - **现象**：个人中心 → 换头像 → 选择微信头像，弹「微信版本过低，无法使用微信头像」——用户卡死，无法换头像（2026-08-18 用户报）。
