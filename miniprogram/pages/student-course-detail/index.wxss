@@ -43,20 +43,9 @@
   background: rgba(255,255,255,0.72);
   backdrop-filter: blur(6rpx);
 }
-/* button 组件需重置默认样式（BUG-LEDGER #53：open-type="share" 必须在 button 上才生效） */
-.share-round {
-  padding: 0;
-  line-height: 1;
-  border: none;
-}
-.share-round::after { border: none; }
 .icon-back {
   width: 36rpx; height: 36rpx;
   background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9L11 14" stroke="%231A1A23" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center/contain;
-}
-.icon-share {
-  width: 30rpx; height: 30rpx;
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M12 3L8 7M12 3L16 7M12 3V15" stroke="%231A1A23" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12V19C5 19.55 5.45 20 6 20H18C18.55 20 19 19.55 19 19V12" stroke="%231A1A23" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
 }
 
 /* 内容区 */
@@ -81,23 +70,24 @@
 }
 .share-btn {
   flex-shrink: 0;
-  margin-top: 6rpx;
   display: flex;
+  flex-direction: row;
   align-items: center;
+  justify-content: center;
   gap: 8rpx;
   background: #1A1A23;
   color: #B9FF66;
   font-size: 24rpx;
   font-weight: 700;
-  border-radius: 40rpx;
-  padding: 14rpx 28rpx;
+  border-radius: 16rpx;
+  padding: 16rpx 26rpx;
   border: none;
   line-height: 1;
 }
 .share-btn::after { border: none; }
 .share-ico {
-  width: 26rpx;
-  height: 26rpx;
+  width: 28rpx;
+  height: 28rpx;
   background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M12 3L8 7M12 3L16 7M12 3V15" stroke="%23B9FF66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12V19C5 19.55 5.45 20 6 20H18C18.55 20 19 19.55 19 19V12" stroke="%23B9FF66" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center/contain;
 }
 

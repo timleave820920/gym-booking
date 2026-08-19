@@ -138,7 +138,8 @@ CREATE TABLE IF NOT EXISTS coaches (
   skills      VARCHAR(255) DEFAULT '',
   rating      DOUBLE DEFAULT 5.0,
   status      VARCHAR(16) DEFAULT 'active',
-  bio         VARCHAR(1000) DEFAULT ''
+  bio         VARCHAR(1000) DEFAULT '',
+  life_photo  VARCHAR(500) DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS venues (

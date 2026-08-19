@@ -13,6 +13,9 @@ Page({
   },
 
   onLoad() {
+    // 状态栏高度：顶部导航与微信胶囊按钮水平对齐（2026-08-19）
+    const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    this.setData({ statusBarH: win.statusBarHeight || 20 });
     this.load();
   },
 
@@ -107,5 +110,10 @@ Page({
   // 获取规则说明 → 独立规则页
   showRules() {
     wx.navigateTo({ url: '/pages/coin-rules/index' });
+  },
+
+  // 返回（统一顶部导航，2026-08-19）
+  goBack() {
+    wx.navigateBack({ delta: 1 });
   }
 });

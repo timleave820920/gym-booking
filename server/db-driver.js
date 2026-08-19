@@ -194,6 +194,9 @@ function createMysqlPool() {
 // MySQL 补列仅 checkin_code 一处——生产老表缺列则订课/候补/场次详情全 500）。
 // 唯一性靠业务层生成查重（SQLite 不支持 ADD COLUMN 带 UNIQUE 约束，双方言统一不用列级 UNIQUE）
 const MYSQL_ENSURE_COLUMNS = {
+  coaches: [
+    ['life_photo', "VARCHAR(500) DEFAULT ''"],  // 教练生活照（2026-08-19 后台可上传）
+  ],
   courses: [
     ['tags', "VARCHAR(255) DEFAULT ''"],
     ['images', "VARCHAR(2000) DEFAULT '[]'"],   // 轮播图（服务器端路径数组 JSON）

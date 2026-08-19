@@ -409,10 +409,10 @@ async function runSuite() {
   const coachPfWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'coach-profile', 'index.wxml'), 'utf8');
   const coachPfWxss = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'coach-profile', 'index.wxss'), 'utf8');
   const levelWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'member-level', 'index.wxml'), 'utf8');
-  check('FRONT-13', '课程详情页分享按钮为 button open-type=share（#53 防回退：view 不触发转发）',
-    /<button class="round-btn flex-center share-round" open-type="share"[^>]*>/.test(detailWxml)
-      && /<button class="share-btn" open-type="share">/.test(detailWxml),
-    '分享必须放在 button 组件上（open-type 仅 button 生效），view 点击无反应');
+  check('FRONT-13', '课程详情页仅中部 share-btn 为 button open-type=share，顶部 share-round 已移除（#53 防回退）',
+    /<button class="share-btn" open-type="share">/.test(detailWxml)
+      && !/share-round/.test(detailWxml),
+    '分享必须放在 button 组件上（open-type 仅 button 生效）；顶部圆钮分享已于 2026-08-19 按用户要求移除');
   check('FRONT-14', '低版本基础库换头像自动降级相册（#54 防回退）',
     /if \(!wx\.chooseAvatar\)[\s\S]{0,220}this\.chooseLocalImage\(\)/.test(pfSrc),
     '无 chooseAvatar（基础库<2.21.2）不得报错阻断，须降级相册选图保证仍可换头像');
@@ -423,6 +423,49 @@ async function runSuite() {
     /任意储值/.test(levelWxml) && !/0 节课起/.test(levelWxml)
       && /任意储值成为会员，多上课程升级会员/.test(levelWxml),
     '青铜档条件文案改「任意储值」；等级权益区有储值/上课升级引导语');
+  const coachPfSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'coach-profile', 'index.js'), 'utf8');
+  check('FRONT-17', '教练详情页生活照走 toFullUrl（云托管模式拼公网域名显示，防裂图）',
+    /life_photo: api\.toFullUrl\(c\.life_photo\)/.test(coachPfSrc),
+    'life_photo 后端存相对路径（本地）或完整 COS URL（生产），必须 toFullUrl 转换才能显示');
+  const loginWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'login', 'index.wxml'), 'utf8');
+  const loginSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'login', 'index.js'), 'utf8');
+  check('FRONT-25', '登录页已登录用户启动直跳防闪屏（booted 守卫 + autoEnterImmediate 本地即跳）',
+    /wx:if="\{\{booted\}\}"/.test(loginWxml)
+      && /booted: false/.test(loginSrc)
+      && /autoEnterImmediate/.test(loginSrc)
+      && /api\.checkLogin/.test(loginSrc),
+    '完整注册用户重启不得闪现登录页；本地立即跳转 + 后端校验兜底（清库回登录页）缺一不可');
+  // 2026-08-19 活动中心子页顶部统一批：custom 导航 + 返回钮与教练详情页一致（72rpx 圆形白半透明毛玻璃）+ 标题居中 44rpx/800（同预约页「早上好」）
+  const NAV_PAGES = ['member-level', 'member-recharge', 'invite', 'passes-buy', 'coin-shop', 'about-us', 'honors'];
+  const navAllOk = NAV_PAGES.every((p) => {
+    const j = JSON.parse(fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', p, 'index.json'), 'utf8'));
+    const w = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', p, 'index.wxml'), 'utf8');
+    const s = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', p, 'index.wxss'), 'utf8');
+    const js = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', p, 'index.js'), 'utf8');
+    return j.navigationStyle === 'custom'
+      && /class="nav-bar"[^>]*style="padding-top: \{\{statusBarH\}\}px;"/.test(w)
+      && w.indexOf('nav-bar') < w.indexOf('page-pad')          // nav-bar 须在 page-pad 之前（独立顶部导航区）
+      && /class="nav-back"[^>]*bindtap="goBack"/.test(w)
+      && /class="nav-title"/.test(w)
+      && /\.nav-back\s*\{[^}]*border-radius:\s*50%/.test(s)
+      && /\.nav-title\s*\{[^}]*text-align:\s*center/.test(s)
+      && /font-size:\s*44rpx;\s*font-weight:\s*800/.test(s)
+      && /\.nav-bar\s*\{[^}]*align-items:\s*flex-start/.test(s)
+      && /\.nav-title\s*\{[^}]*line-height:\s*1/.test(s)
+      && /\.nav-title\s*\{[^}]*margin-top:\s*8px/.test(s)
+      && /\.pt-safe\s*\{[^}]*padding-top:\s*0/.test(s)
+      && /statusBarH/.test(js)
+      && /wx\.getWindowInfo/.test(js);
+  });
+  check('FRONT-26', '活动中心 7 子页顶部导航统一（custom + 返回钮同教练详情页 + 标题 44rpx/800 + 回退钮/胶囊顶部对齐 + 标题微降 8px + 内容不交叉）',
+    navAllOk,
+    'member-level/member-recharge/invite/passes-buy/coin-shop/about-us/honors 须全部：custom 导航 + nav-bar 内联 padding-top statusBarH 且先于 page-pad + nav-bar align-items:flex-start（回退钮与胶囊顶部对齐）+ nav-title line-height:1 + margin-top:8px（用户拍板：15px 降太多回调 8px）+ pt-safe padding-top:0（内容不交叉）+ js 计算 statusBarH(wx.getWindowInfo)');
+  // FRONT-27: 次卡包页紫色 chip 只显示天数+单价（2026-08-19 用户拍板：去掉「N 次」重复展示）
+  const pbWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'passes-buy', 'index.wxml'), 'utf8');
+  check('FRONT-27', '次卡包 chip 仅「N 天 · ¥单价/次」（不重复 N 次）',
+    /class="pkg-chip">\{\{item\.valid_days\}\} 天 · ¥\{\{item\.unitPrice\}\}\/次/.test(pbWxml)
+      && !/pkg-chip[^>]*>\{\{item\.total_count\}\}/.test(pbWxml),
+    'passes-buy pkg-chip 须为 {{item.valid_days}} 天 · ¥{{item.unitPrice}}/次，不得再含 {{item.total_count}} 次');
 
   // ===== 1.65 上课页排序（BUG-LEDGER #36：纯函数模块真实断言）=====
   console.log('\n── 1.65 上课页排序（BUG-LEDGER #36）──');
@@ -457,6 +500,14 @@ async function runSuite() {
   // PASSES-01: passes.js 档位种子自守门闩（防 #30 回退：模块加载期查表早于 MySQL 建表）
   const passesSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', 'passes.js'), 'utf8');
   check('PASSES-01', 'seedPackages 自守 driver.ready 门闩', /await driver\.ready;/.test(passesSrc), 'passes.js 顶层种子须 await driver.ready（MySQL 异步建表门闩）');
+  // PASSES-02: 档位名「12次/24次」+ 老库改名迁移（2026-08-19 用户拍板：去掉「包」字；防回退：INSERT 种子不得用旧名，迁移必须幂等）
+  check('PASSES-02', '档位名为「12次/24次」且含老库改名迁移',
+    /\['12次', 12/.test(passesSrc)
+      && /\['24次', 24/.test(passesSrc)
+      && /SET name = '12次' WHERE name = '12次包'/.test(passesSrc)
+      && /SET name = '24次' WHERE name = '24次包'/.test(passesSrc)
+      && !/INSERT INTO class_packages[\s\S]*\[ '12次包'|INSERT INTO class_packages[\s\S]*\[ '24次包'/.test(passesSrc),
+    'passes.js 种子 INSERT 须用「12次」「24次」新名，且带 UPDATE 老库名迁移（12次包→12次，幂等）');
 
   // OPS-01: 运维脚本 confirm 必须参数化（防 BUG-LEDGER #44 回退：引用 main 局部变量 delUsers → WebShell 必挂）
   const opsSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'scripts', 'clean-prod-users.js'), 'utf8');
@@ -533,15 +584,15 @@ async function runSuite() {
   r = await req('POST', '/api/admin/user-role', { openid: T.user2.openid });
   check('ADMIN-18', '缺 role → 400', r.status === 400 && (r.data.message || '').includes('role'), `msg=${r.data && r.data.message}`);
   // 教练档案编辑（DESIGN #D2：名字/头像/技能/简介，前端教练详情/课程详情展示）
-  r = await req('PUT', '/api/admin/coaches/1', { name: '喻馥雅', avatar: '/images/2_1468.png', skills: 'Hybrid综合体能,产后康复', bio: '管理页编辑测试简介' }, { noToken: true });
+  r = await req('PUT', '/api/admin/coaches/1', { name: '喻馥雅', avatar: '/images/2_1468.png', skills: 'Hybrid综合体能,产后康复', bio: '管理页编辑测试简介', life_photo: '/uploads/ce_test.jpg' }, { noToken: true });
   check('ADMIN-19', '无 token 编辑档案 → 401', r.status === 401, `status=${r.status}`);
-  r = await req('PUT', '/api/admin/coaches/1', { name: '喻馥雅', avatar: '/images/2_1468.png', skills: 'Hybrid综合体能,产后康复', bio: '管理页编辑测试简介' });
+  r = await req('PUT', '/api/admin/coaches/1', { name: '喻馥雅', avatar: '/images/2_1468.png', skills: 'Hybrid综合体能,产后康复', bio: '管理页编辑测试简介', life_photo: '/uploads/ce_test.jpg' });
   check('ADMIN-20', '编辑档案成功', r.status === 200 && r.data.ok === true, `status=${r.status} msg=${r.data && r.data.message}`);
   r = await req('GET', '/api/admin/coaches');
   const edited = (r.data.coaches || []).find(c => c.id === 1);
-  check('ADMIN-20b', '列表反映编辑（bio/skills/avatar 字段）',
-    !!(edited && edited.bio === '管理页编辑测试简介' && edited.skills === 'Hybrid综合体能,产后康复' && edited.avatar === '/images/2_1468.png'),
-    `bio=${edited && edited.bio}`);
+  check('ADMIN-20b', '列表反映编辑（bio/skills/avatar/life_photo 字段）',
+    !!(edited && edited.bio === '管理页编辑测试简介' && edited.skills === 'Hybrid综合体能,产后康复' && edited.avatar === '/images/2_1468.png' && edited.life_photo === '/uploads/ce_test.jpg'),
+    `bio=${edited && edited.bio} life_photo=${edited && edited.life_photo}`);
   // COS 方言（2026-08-18 迁移）：未配置 COS_* 环境变量 → 上传仍写磁盘返回相对路径（本地/CI 行为不变）
   r = await req('POST', '/api/upload', { name: 'cos_test.jpg', data: 'data:image/jpeg;base64,' + Buffer.from('fakejpegdata').toString('base64') });
   check('COS-01', '未配置 COS 上传走磁盘（相对路径）',

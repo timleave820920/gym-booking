@@ -1698,11 +1698,11 @@ const API_ROUTES = [
   { m: 'PUT',    p: /^\/api\/admin\/coaches\/\d+$/, f: async (q, r, u) => {
       const id = Number(u.pathname.split('/')[4]);
       const body = await readBody(q);
-      const { name, avatar, skills, bio } = body || {};
-      if (name === undefined && avatar === undefined && skills === undefined && bio === undefined) {
+      const { name, avatar, skills, bio, life_photo } = body || {};
+      if (name === undefined && avatar === undefined && skills === undefined && bio === undefined && life_photo === undefined) {
         return sendJson(r, 400, { code: 400, message: '没有可更新的字段' });
       }
-      const res = await db.updateCoachProfile(id, { name, avatar, skills, bio });
+      const res = await db.updateCoachProfile(id, { name, avatar, skills, bio, life_photo });
       if (!res.ok) return sendJson(r, 400, { code: 400, message: res.error });
       await logOp('admin', 'coach_update', { coachId: id, name: name || null }, 'ok');
       sendJson(r, 200, { code: 200, ok: true });

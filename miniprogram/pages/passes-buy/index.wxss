@@ -4,7 +4,7 @@
   padding-bottom: 160rpx;
 }
 .pt-safe {
-  padding-top: calc(88rpx + env(safe-area-inset-top));
+  padding-top: 0;  /* 状态栏由 nav-bar 内联 style 按 statusBarH 动态补偿，标题与胶囊水平对齐 */
 }
 .head-row { align-items: center; }
 .back-wrap { align-items: center; gap: 12rpx; }
@@ -15,6 +15,38 @@
 .page-title {
   font-size: 48rpx; font-weight: 800; color: #1A1A23;
 }
+/* ===== 顶部导航（2026-08-19 统一批：返回钮与教练详情页一致，标题同预约页「早上好」44rpx/800；覆盖上方旧版样式） ===== */
+.nav-bar {
+  display: flex;
+  align-items: flex-start;  /* 顶部对齐：与微信胶囊按钮顶边齐平（2026-08-19） */
+  padding: 0 24rpx;
+  box-sizing: border-box;
+}
+.nav-back {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(6rpx);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav-bar .icon-back {
+  width: 36rpx; height: 36rpx;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9L11 14" stroke="%231A1A23" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center/contain;
+}
+.nav-title {
+  flex: 1;
+  text-align: center;
+  font-size: 44rpx;
+  font-weight: 800;
+  color: #1A1A23;
+
+  line-height: 1;
+  margin-top: 8px;  /* 用户拍板：15px 降太多，回调 8px（2026-08-19） */
+}
+.nav-sp { width: 72rpx; }
 
 /* 我的次卡 */
 .my-pass {

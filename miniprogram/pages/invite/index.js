@@ -11,6 +11,9 @@ Page({
   },
 
   onLoad() {
+    // 状态栏高度：顶部导航与微信胶囊按钮水平对齐（2026-08-19）
+    const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    this.setData({ statusBarH: win.statusBarHeight || 20 });
     this.load();
     // 打开右上角转发菜单，支持转发分享卡片（携带邀请人参数）
     wx.showShareMenu({ withShareTicket: false });
@@ -67,5 +70,10 @@ Page({
       showCancel: false,
       confirmText: '知道了'
     });
+  },
+
+  // 返回（统一顶部导航，2026-08-19）
+  goBack() {
+    wx.navigateBack({ delta: 1 });
   }
 });

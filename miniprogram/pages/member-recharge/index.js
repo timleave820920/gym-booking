@@ -15,6 +15,9 @@ Page({
   },
 
   onLoad() {
+    // 状态栏高度：顶部导航与微信胶囊按钮水平对齐（2026-08-19）
+    const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    this.setData({ statusBarH: win.statusBarHeight || 20 });
     this.loadPlans();
     this.loadInfo();
     // B2：查询微信支付开通状态（未开通 → 充值按钮禁用提示）
@@ -201,5 +204,10 @@ Page({
         });
       }
     });
+  },
+
+  // 返回（统一顶部导航，2026-08-19）
+  goBack() {
+    wx.navigateBack({ delta: 1 });
   }
 });

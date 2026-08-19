@@ -154,7 +154,7 @@ async function assignCoach(openid, coachId) {
  */
 async function listCoachesWithBind() {
   return await driver.all(`
-    SELECT c.id, c.name, c.avatar, c.skills, c.rating, c.status, c.bio, c.user_openid,
+    SELECT c.id, c.name, c.avatar, c.skills, c.rating, c.status, c.bio, c.life_photo, c.user_openid,
            (SELECT u.nickname FROM users u WHERE u.openid = c.user_openid) AS user_nickname
     FROM coaches c ORDER BY c.id
   `);
@@ -168,7 +168,7 @@ async function listCoachesWithBind() {
 async function updateCoachProfile(id, fields) {
   const coach = await driver.get('SELECT id FROM coaches WHERE id = ?', [id]);
   if (!coach) return { ok: false, error: '教练档案不存在' };
-  const { name, avatar, skills, bio } = fields || {};
+  const { name, avatar, skills, bio, life_photo } = fields || {};
   if (name !== undefined && !String(name).trim()) return { ok: false, error: '教练姓名不能为空' };
   const sets = [];
   const params = [];
@@ -176,6 +176,7 @@ async function updateCoachProfile(id, fields) {
   if (avatar !== undefined) { sets.push('avatar = ?'); params.push(String(avatar).trim()); }
   if (skills !== undefined) { sets.push('skills = ?'); params.push(String(skills).trim()); }
   if (bio !== undefined) { sets.push('bio = ?'); params.push(String(bio).trim()); }
+  if (life_photo !== undefined) { sets.push('life_photo = ?'); params.push(String(life_photo).trim()); }
   if (!sets.length) return { ok: true };
   await driver.run(`UPDATE coaches SET ${sets.join(', ')} WHERE id = ?`, [...params, id]);
   return { ok: true };

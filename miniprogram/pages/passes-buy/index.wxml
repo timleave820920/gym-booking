@@ -1,11 +1,11 @@
 <view class="page">
+  <!-- 顶部导航：返回钮与教练详情页一致，标题与微信胶囊按钮水平对齐（2026-08-19） -->
+  <view class="nav-bar" style="padding-top: {{statusBarH}}px;">
+    <view class="nav-back" bindtap="goBack"><text class="icon-back"></text></view>
+    <text class="nav-title">次卡包</text>
+    <view class="nav-sp"></view>
+  </view>
   <view class="page-pad pt-safe">
-    <view class="head-row">
-      <view class="flex-row back-wrap" bindtap="goBack">
-        <text class="icon-back"></text>
-        <text class="page-title">次卡包</text>
-      </view>
-    </view>
 
     <!-- 当前卡 -->
     <view class="my-pass" wx:if="{{currentPass}}">
@@ -27,7 +27,7 @@
         <view class="pkg-left flex-col flex-1">
           <view class="flex-row pkg-head">
             <text class="pkg-name">{{item.name}}</text>
-            <text class="pkg-chip">{{item.total_count}} 次 · {{item.valid_days}} 天 · ¥{{item.unitPrice}}/次</text>
+            <text class="pkg-chip">{{item.valid_days}} 天 · ¥{{item.unitPrice}}/次</text>
           </view>
           <text class="pkg-desc">{{item.desc}}</text>
         </view>

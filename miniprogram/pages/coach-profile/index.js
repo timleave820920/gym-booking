@@ -37,7 +37,7 @@ Page({
     api.getCoachProfile(this.data.coachId).then((res) => {
       const c = res.coach || {};
       this.setData({
-        coach: c,
+        coach: { ...c, life_photo: api.toFullUrl(c.life_photo) },
         skills: String(c.skills || '').split(',').map(s => s.trim()).filter(Boolean),
         certs: c.certs || [],
         achievements: c.achievements || []

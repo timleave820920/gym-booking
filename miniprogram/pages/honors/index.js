@@ -20,10 +20,21 @@ Page({
     honors: HONORS
   },
 
+  onLoad() {
+    // 状态栏高度：顶部导航与微信胶囊按钮水平对齐（2026-08-19）
+    const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    this.setData({ statusBarH: win.statusBarHeight || 20 });
+  },
+
   onShareAppMessage() {
     return {
       title: '综合训练馆 · 32 项赛事荣誉',
       path: '/pages/honors/index'
     };
+  },
+
+  // 返回（统一顶部导航，2026-08-19）
+  goBack() {
+    wx.navigateBack({ delta: 1 });
   }
 });

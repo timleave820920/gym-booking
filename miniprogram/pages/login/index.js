@@ -4,6 +4,7 @@ const i18n = require('../../utils/i18n.js');
 
 Page({
   data: {
+    booted: false,           // 页面守卫：已登录用户自动直达时保持 false 不渲染表单（防启动闪屏）
     agreed: false,         // 协议勾选（微信审核要求：禁止默认勾选，须用户主动同意）
     loggingIn: false,
     lang: 'zh',              // 当前语言
@@ -56,7 +57,16 @@ Page({
   },
 
   onLoad() {
+    // 2026-08-19: 已完整注册（token+userInfo+openid 齐备）→ 立即直达对应首页，不再展示登录页（防闪屏）
+    const ui = wx.getStorageSync('userInfo');
+    const openid = (ui && ui.openid) || wx.getStorageSync('openid');
+    const token = wx.getStorageSync('token');
+    if (ui && openid && token) {
+      this.autoEnterImmediate(ui, openid);
+      return;
+    }
     this.setData({
+      booted: true,
       lang: i18n.getLang() || 'zh',
       t: i18n.t(),
       // 协议勾选状态持久化：用户首次勾选后记住（'1'=已勾选；'0'或空=未勾选）
@@ -65,6 +75,23 @@ Page({
     // 隐私协议检测（微信 2023.9 起强制：官方 wx.getPrivacySetting）
     this.requirePrivacy().then((ok) => {
       if (!ok) this.setData({ showPrivacy: true });
+    });
+  },
+
+  // 已注册用户启动直达：本地登录态齐备时**先跳转再校验**（不等网络，无登录页闪现）；
+  // 后端 checkLogin 兜底：清库后查无此人 → 清本地态回登录页走正常注册
+  autoEnterImmediate(ui, openid) {
+    const role = ui.role || 'student';
+    wx.reLaunch({ url: role === 'coach' ? '/pages/coach-home/index' : '/pages/student-courses/index' });
+    api.checkLogin(openid).then((res) => {
+      if (!res.exists) {
+        wx.removeStorageSync('userInfo');
+        wx.removeStorageSync('openid');
+        wx.removeStorageSync('token');
+        wx.reLaunch({ url: '/pages/login/index' });
+      }
+    }).catch(() => {
+      // 网络异常：已进首页，由页面自身失败兜底（不做处理）
     });
   },
 

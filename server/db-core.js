@@ -53,6 +53,7 @@ try { db.exec('ALTER TABLE courses ADD COLUMN address TEXT DEFAULT \'\''); } cat
 try { db.exec('ALTER TABLE courses ADD COLUMN lat REAL DEFAULT 0'); } catch (e) {}
 try { db.exec('ALTER TABLE courses ADD COLUMN lng REAL DEFAULT 0'); } catch (e) {}
 try { db.exec("ALTER TABLE coaches ADD COLUMN bio TEXT DEFAULT ''"); } catch (e) {}
+try { db.exec("ALTER TABLE coaches ADD COLUMN life_photo TEXT DEFAULT ''"); } catch (e) {}
 // 兼容旧库：确保 balance_fen / coin_balance / level_lv 列存在
 try { db.exec('ALTER TABLE users ADD COLUMN balance_fen INTEGER DEFAULT 0'); } catch (e) {}
 // 候补自动取消节点（start=开课时 / 1h / 2h）
@@ -235,6 +236,7 @@ db.exec(`
     skills      TEXT DEFAULT '',
     rating      REAL DEFAULT 5.0,
     bio         TEXT DEFAULT '',
+    life_photo  TEXT DEFAULT '',
     status      TEXT DEFAULT 'active'
   );
 `);

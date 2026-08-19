@@ -338,12 +338,13 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     r = await req('POST', '/api/admin/user-role', { openid: R.openid, role: 'student' });
     assert.equal(r.data.code, 200, 'user-role 取消教练');
     // 教练档案编辑（DESIGN #D2）：PUT 档案 + 课程「教练介绍」落库
-    r = await req('PUT', '/api/admin/coaches/1', { name: '覆盖教练', skills: '探针技能', bio: '探针简介' });
+    r = await req('PUT', '/api/admin/coaches/1', { name: '覆盖教练', skills: '探针技能', bio: '探针简介', life_photo: '/uploads/cov_life.jpg' });
     assert.equal(r.data.code, 200, 'PUT 教练档案');
     r = await req('PUT', `/api/courses/${course.id}`, { name: course.name || '覆盖测试课程', coach_bio: '课程保存探针简介' });
     assert.equal(r.data.code, 200, '课程保存教练介绍');
     r = await req('GET', '/api/admin/coaches');
     assert.equal(r.data.coaches.find(c => c.id === 1).bio, '课程保存探针简介', '教练 bio 已由课程写入');
+    assert.equal(r.data.coaches.find(c => c.id === 1).life_photo, '/uploads/cov_life.jpg', '教练生活照已保存');
     // ---- 13.7 B3 管理新接口（2026-08-18）：操作日志 / 到课率 / 数据导出探针 ----
     process.env.ADMIN_TOKEN = 'cov-admin';
     r = await req('GET', '/api/admin/logs', null, { 'Admin-Token': 'cov-admin' });

@@ -13,9 +13,13 @@
   align-items: center;
   padding: 24rpx 32rpx 8rpx;
 }
+/* 与课程详情页 hero-nav 返回按钮完全一致（2026-08-19 用户拍板） */
 .cp-back {
-  width: 56rpx;
-  height: 56rpx;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(6rpx);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -32,7 +36,7 @@
   font-weight: 800;
   color: #1A1A23;
 }
-.cp-nav-sp { width: 56rpx; }
+.cp-nav-sp { width: 72rpx; }
 
 /* ===== 生活照 ===== */
 .cp-life { margin: 16rpx 32rpx 0; }

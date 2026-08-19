@@ -541,7 +541,16 @@ canvas#dashTrend { width: 100%; height: 240px; }
         <div class="field" style="margin-bottom:10px"><label>教练姓名 *（前端教练详情页显示）</label><input type="text" id="ce-name" placeholder="如：喻馥雅"></div>
         <div class="field" style="margin-bottom:10px"><label>头像 URL（小程序 /images/xxx.png 或外链图片地址）</label><input type="text" id="ce-avatar" placeholder="如：/images/2_1468.png"></div>
         <div class="field" style="margin-bottom:10px"><label>技能标签（逗号分隔，排表下拉/列表展示）</label><input type="text" id="ce-skills" placeholder="如：Hybrid综合体能,引体向上,产后康复"></div>
-        <div class="field" style="margin-bottom:14px"><label>教练介绍（课程详情页教练说明显示）</label><textarea id="ce-bio" placeholder="如：Hyrox个人精英运动员，40+引体达人"></textarea></div>
+        <div class="field" style="margin-bottom:10px"><label>教练介绍（课程详情页教练说明显示）</label><textarea id="ce-bio" placeholder="如：Hyrox个人精英运动员，40+引体达人"></textarea></div>
+        <div class="field" style="margin-bottom:14px"><label>生活照（教练介绍页顶部大图；上传或填 URL，不填显示占位图）</label>
+          <div style="display:flex; gap:8px; align-items:center">
+            <input type="text" id="ce-life-photo" placeholder="如：/uploads/xxx.jpg 或完整 URL" style="flex:1">
+            <button type="button" class="btn" style="flex-shrink:0" onclick="document.getElementById('ce-life-file').click()">上传图片</button>
+            <button type="button" class="btn" style="flex-shrink:0; background:#F0EDDF;color:var(--gray)" onclick="clearLifePhoto()">清除</button>
+            <input type="file" id="ce-life-file" accept="image/*" style="display:none" onchange="uploadLifePhoto(this)">
+          </div>
+          <img id="ce-life-preview" style="max-width:220px; max-height:130px; border-radius:8px; margin-top:8px; display:none; object-fit:cover">
+        </div>
         <div style="display:flex; gap:12px; justify-content:flex-end">
           <button class="btn" style="background:#F0EDDF;color:var(--gray)" onclick="closeCoachEditor()">取消</button>
           <button class="btn btn-save" onclick="saveCoachProfile()">保存</button>
@@ -1346,15 +1355,41 @@ function openCoachEditor(coachId) {
   $('ce-avatar').value = c.avatar || '';
   $('ce-skills').value = c.skills || '';
   $('ce-bio').value = c.bio || '';
+  $('ce-life-photo').value = c.life_photo || '';
+  var lp = c.life_photo || '';
+  $('ce-life-preview').style.display = lp ? '' : 'none';
+  if (lp) $('ce-life-preview').src = lp;
   $('coach-editor').style.display = 'flex';
 }
 function closeCoachEditor() { $('coach-editor').style.display = 'none'; }
+// 教练生活照上传（复用 /api/upload，dir=uploads 与课程轮播图一致；COS 模式返回完整 URL）
+function uploadLifePhoto(input) {
+  var file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  if (file.size > 512 * 1024) { alert('图片超过 512KB 限制，请压缩后上传'); return; }
+  var reader = new FileReader();
+  reader.onload = function () {
+    api('/upload', 'POST', { name: file.name, data: reader.result, dir: 'uploads' }).then(function (j) {
+      $('ce-life-photo').value = j.path;
+      $('ce-life-preview').src = j.path;
+      $('ce-life-preview').style.display = '';
+      toast($('coach-msg'), '生活照已上传');
+    }).catch(function (e) { alert('上传失败：' + e.message); });
+  };
+  reader.readAsDataURL(file);
+}
+function clearLifePhoto() {
+  $('ce-life-photo').value = '';
+  $('ce-life-preview').style.display = 'none';
+}
 function saveCoachProfile() {
   var payload = {
     name: $('ce-name').value.trim(),
     avatar: $('ce-avatar').value.trim(),
     skills: $('ce-skills').value.trim(),
-    bio: $('ce-bio').value.trim()
+    bio: $('ce-bio').value.trim(),
+    life_photo: $('ce-life-photo').value.trim()
   };
   if (!payload.name) { alert('教练姓名不能为空'); return; }
   api('/admin/coaches/' + editCoachId, 'PUT', payload).then(function () {

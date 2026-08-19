@@ -110,7 +110,7 @@
 
     <!-- 一次性画像卡：保存/已填后仅留轻量入口，点击重新展开编辑（2026-08-18 用户拍板） -->
     <view class="menu-row flex-row profile-entry" wx:if="{{profileSaved && !profileEditing}}" bindtap="openProfileEditor">
-      <text>🎯 资料与生日</text>
+      <text>🎂 资料与生日</text>
       <text class="profile-entry-arrow">›</text>
     </view>
 

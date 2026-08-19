@@ -1,4 +1,10 @@
 <view class="page">
+  <!-- 顶部导航：返回钮与教练详情页一致，标题与微信胶囊按钮水平对齐（2026-08-19） -->
+  <view class="nav-bar" style="padding-top: {{statusBarH}}px;">
+    <view class="nav-back" bindtap="goBack"><text class="icon-back"></text></view>
+    <text class="nav-title">储值会员</text>
+    <view class="nav-sp"></view>
+  </view>
   <view class="page-pad pt-safe">
     <!-- 余额卡 -->
     <view class="bal-card">

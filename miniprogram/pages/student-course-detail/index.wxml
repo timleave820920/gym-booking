@@ -13,9 +13,6 @@
     <view class="round-btn flex-center" bindtap="goBack">
       <text class="icon-back"></text>
     </view>
-    <button class="round-btn flex-center share-round" open-type="share" aria-label="分享">
-      <text class="icon-share"></text>
-    </button>
   </view>
 
   <!-- 内容区 -->
