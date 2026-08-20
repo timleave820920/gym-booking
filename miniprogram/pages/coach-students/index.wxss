@@ -68,8 +68,23 @@
   border-radius: 50%;
   margin-right: 20rpx;
 }
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
 .stu-name {
   font-size: 28rpx; font-weight: 600; color: #1A1A23;
+}
+/* DESIGN #D11 新学员徽标：绿色圆角小标签 */
+.tag-new {
+  font-size: 20rpx; font-weight: 700;
+  color: #0B7A3B;
+  background: #E4F9EC;
+  border: 2rpx solid #7CD99F;
+  padding: 2rpx 12rpx;
+  border-radius: 12rpx;
+  line-height: 1.5;
 }
 .stu-meta {
   font-size: 22rpx; color: #6B6B76;

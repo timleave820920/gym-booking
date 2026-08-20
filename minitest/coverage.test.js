@@ -26,7 +26,7 @@ let covCourseId = null;
 function clean() {
   // 各表按实际列清理（invitations 无 user_openid 列，需专用 SQL——CI 干净环境验证发现）
   for (const t of ['orders', 'bookings', 'waitlist', 'coin_logs', 'coin_exchanges',
-    'member_recharges', 'balance_logs', 'messages']) {
+    'member_recharges', 'balance_logs', 'messages', 'unlimited_passes']) {
     db.db.prepare(`DELETE FROM ${t} WHERE user_openid LIKE 'uid_cov_%'`).run();
   }
   db.db.prepare("DELETE FROM invitations WHERE inviter LIKE 'uid_cov_%' OR invitee LIKE 'uid_cov_%'").run();
@@ -107,9 +107,11 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     const pad2 = n => String(n).padStart(2, '0');
     const ckStartStr = `${pad2(timeMod.parts(ckStart).h)}:${pad2(timeMod.parts(ckStart).mi)}`;
     const ckEndStr = `${pad2(timeMod.parts(ckEnd).h)}:${pad2(timeMod.parts(ckEnd).mi)}`;
+    // 场次日期必须取自 ckStart（now+30min 可能跨天：深夜 23:30 后跑，todayStr 是昨天，核销窗口会误判「已结束」）
+    const ckDate = `${timeMod.parts(ckStart).y}-${pad2(timeMod.parts(ckStart).mo)}-${pad2(timeMod.parts(ckStart).d)}`;
     const ins = db.db.prepare(
       "INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source) VALUES (?,1,1,?,?,?,2,0,'published','cov_suite')"
-    ).run(course.id, todayStr, ckStartStr, ckEndStr);
+    ).run(course.id, ckDate, ckStartStr, ckEndStr);
     const sid = ins.lastInsertRowid;
 
     // ---- 03 订课（U1 订 + 支付；下单走 /api/orders，返回 order+booking） ----
@@ -155,18 +157,25 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     // ---- 06 签到 ----
     r = await req('GET', '/api/checkin/' + bookingId);
     assert.ok(r.data.info, '凭证信息');
-    r = await req('POST', `/api/bookings/${bookingId}/checkin`, { openid: COACH.openid });
-    assert.equal(r.data.code, 200, '教练核销');
-    // 按码核销探针（BUGS-INBOX #11）：凭证含 5 位码；格式错/已签到的码拒绝
-    r = await req('GET', '/api/checkin/' + bookingId);
-    const ckCode = r.data.info && r.data.info.checkin_code;
-    assert.ok(/^\d{5}$/.test(ckCode || ''), '签到码 5 位纯数字');
-    r = await req('POST', '/api/checkin/by-code', { code: '12', openid: COACH.openid });
-    assert.equal(r.status, 400, '格式错误码拒绝');
-    r = await req('POST', '/api/checkin/by-code', { code: ckCode, openid: COACH.openid });
-    assert.equal(r.status, 400, '已签到码重复核销拒绝');
+    // 跨天守卫：now+30min 场次落在明天（深夜 23:30 后跑）→ 核销强制当天不可达，窗口用例跳过（同 run-tests CHK）
+    const canCheckinToday = ckDate === timeMod.todayStr();
+    if (canCheckinToday) {
+      r = await req('POST', `/api/bookings/${bookingId}/checkin`, { openid: COACH.openid });
+      assert.equal(r.data.code, 200, '教练核销');
+      // 按码核销探针（BUGS-INBOX #11）：凭证含 5 位码；格式错/已签到的码拒绝
+      r = await req('GET', '/api/checkin/' + bookingId);
+      const ckCode = r.data.info && r.data.info.checkin_code;
+      assert.ok(/^\d{5}$/.test(ckCode || ''), '签到码 5 位纯数字');
+      r = await req('POST', '/api/checkin/by-code', { code: '12', openid: COACH.openid });
+      assert.equal(r.status, 400, '格式错误码拒绝');
+      r = await req('POST', '/api/checkin/by-code', { code: ckCode, openid: COACH.openid });
+      assert.equal(r.status, 400, '已签到码重复核销拒绝');
+    }
     r = await req('GET', `/api/sessions/${sid}/students`);
     assert.ok(Array.isArray(r.data.students), '场次名单');
+    // DESIGN #D11 新学员标记探针：名单带 isNewCategory + newCount（U1 已签到 → 老学员分支）
+    assert.ok('isNewCategory' in (r.data.students[0] || {}), '名单学员带 isNewCategory');
+    assert.equal(typeof r.data.newCount, 'number', 'newCount 数字');
 
     // ---- 07 退订退款（B3 2026-08-18：开课前 2 小时内不可退订，签到窗口场次(now+30m)已过截止 → 独立造 now+3h 场次退订） ----
     const rfT = new Date(Date.now() + 3 * 3600 * 60000);
@@ -485,6 +494,51 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     r = await req('GET', '/api/waitlist?openid=' + W4.openid);
     const refundedW = r.data.waits.find(w => w.session_id === s5);
     assert.ok(refundedW && refundedW.status === 'refunded', '过期自动退款');
+
+    // ---- 15 无限次卡（DESIGN #D14）：档位列表 → 购买发卡 → 有卡订课 0 元 ----
+    const unlCov = { openid: 'uid_cov_unl', nickname: '无限卡探针' };
+    r = await req('POST', '/api/auth/login', unlCov);
+    assert.equal(r.status, 201, '无限卡探针注册');
+    r = await req('GET', '/api/unlimited/plans');
+    assert.equal(r.data.plans.length, 2, '季卡/年卡档位');
+    const season = r.data.plans.find(p => p.type === 'season');
+    assert.ok(season && season.months === 3 && season.price_fen > 0, '季卡档位字段');
+    r = await req('GET', '/api/unlimited/my?openid=' + unlCov.openid);
+    assert.equal(r.data.hasPass, false, '无卡状态');
+    // 充值余额后购买季卡（固定价，不套会员折扣）
+    db.db.prepare('UPDATE users SET balance_fen = balance_fen + 300000 WHERE openid = ?').run(unlCov.openid);
+    r = await req('POST', '/api/orders', { openid: unlCov.openid, orderType: 'unlimited', amountFen: season.price_fen });
+    assert.equal(r.status, 201, '无限卡下单');
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: unlCov.openid, payMethod: 'balance' });
+    assert.equal(r.data.code, 200, '无限卡支付');
+    assert.equal(r.data.order.pay_source, 'balance', '购买时无卡 → 余额支付来源');
+    assert.equal(r.data.order.amount_fen, season.price_fen, '购买固定价（不套会员折扣）');
+    r = await req('GET', '/api/unlimited/my?openid=' + unlCov.openid);
+    assert.equal(r.data.hasPass, true, '购卡后有卡');
+    assert.equal(r.data.expired, false, '卡有效');
+    assert.ok(r.data.daysLeft > 80, '剩余天数（季卡 3 个月）');
+    // 有卡订课 0 元（独立场次，无查重冲突）
+    const ulT = new Date(Date.now() + 3 * 3600 * 60000);
+    const ulDate = `${timeMod.parts(ulT).y}-${pad2(timeMod.parts(ulT).mo)}-${pad2(timeMod.parts(ulT).d)}`;
+    const ulStart = `${pad2(timeMod.parts(ulT).h)}:${pad2(timeMod.parts(ulT).mi)}`;
+    const ulEndT = new Date(ulT.getTime() + 3600 * 60000);
+    const ulEnd = `${pad2(timeMod.parts(ulEndT).h)}:${pad2(timeMod.parts(ulEndT).mi)}`;
+    const s6 = db.db.prepare(
+      "INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source) VALUES (?,1,1,?,?,?,1,0,'published','cov_suite')"
+    ).run(course.id, ulDate, ulStart, ulEnd).lastInsertRowid;
+    r = await req('POST', '/api/orders', { openid: unlCov.openid, sessionId: s6, amountFen: 8000, orderType: 'book' });
+    assert.equal(r.status, 201, '有卡订课下单');
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: unlCov.openid, payMethod: 'balance' });
+    assert.equal(r.data.code, 200, '有卡订课支付');
+    assert.equal(r.data.booking.amount_fen, 0, '订课 0 元');
+    assert.equal(r.data.order.pay_source, 'unlimited', '订课来源 unlimited');
+    // 有卡再订重叠时段 → 查重拒绝（同一时间只能订一堂课）
+    const ulEnd2 = new Date(ulT.getTime() + 30 * 60000);
+    const s7 = db.db.prepare(
+      "INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source) VALUES (?,1,1,?,?,?,1,0,'published','cov_suite')"
+    ).run(course.id, ulDate, ulStart, `${pad2(timeMod.parts(ulEnd2).h)}:${pad2(timeMod.parts(ulEnd2).mi)}`).lastInsertRowid;
+    r = await req('POST', '/api/orders', { openid: unlCov.openid, sessionId: s7, amountFen: 8000, orderType: 'book' });
+    assert.equal(r.status, 400, '重叠时段订课拒绝');
 
     console.log('覆盖率探针：核心链路全部通过 ✓');
   } finally {

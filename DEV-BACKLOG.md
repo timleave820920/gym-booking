@@ -9,7 +9,37 @@
 
 ## 进行中
 
-（暂无）
+### DESIGN #D14 季卡/年卡（设计文档: 季卡年卡设计方案.md，2026-08-19 确认）
+
+> 季卡/年卡拥有者在有效期内无限次订课（0 元），同一时间只能订一堂课（全部订课时间查重）。
+> 口径（用户拍板）：季卡 3 个月/年卡 12 个月价格运营配置（默认 ¥2,980/¥9,880）；查重覆盖全部订课（含普通付费课，候补也查重）；次卡包页新增购买入口；有卡自动用 0 元（无需选择支付方式）；续期顺延（新卡从旧卡到期次日算起）；退订沿用课前 2 小时截止，无次数可退直接释放名额。
+
+- [x] **P0｜1. 数据层** — `unlimited_plans`（type season/year/months/price_fen/active 幂等种子）+ `unlimited_passes`（user_openid/type/order_id/start_at/expires_at/status）双方言建表 + 过期惰性判定（time.js 北京时间）
+- [x] **P0｜2. 订单链路** — `GET /api/unlimited/plans` + `POST /api/orders`（order_type='unlimited'）+ payOrder 扩展：支付成功发卡/续期顺延（logOp 留痕）+ `GET /api/unlimited/my`（我的卡/剩余天数）
+- [x] **P0｜3. 订课规则** — payOrder 加 unlimited 分支（0 元 pay_source='unlimited'，实付=扣款=退款=0 三一致）+ 订课/候补时间冲突查重（date 相同 + 区间重叠 → 400「该时段已订其他课程」，占用=bookings∪waitlist）+ UNL-01~10 用例
+- [x] **P1｜4. 前端** — 次卡包页「无限次卡」分区（季卡/年卡卡片 + 购买 CTA + 我的卡/剩余天数）+ 订课 0 元流程（有卡不出现支付方式选择）+ FRONT 断言
+- [x] **P1｜5. 测试** — UNL 用例 + coverage 探针（unlimited 接口）
+
+### DESIGN #D9 吐槽入口（设计文档: 吐槽入口设计方案.md，2026-08-19 确认）
+
+> 学员实名留言吐槽场馆，web 后台收件箱逐条回复（承诺每条必回复），学员站内信 + 页内看到回复闭环。
+> 口径（用户拍板）：入口在个人中心（同联系客服菜单组）；实名（后台见昵称头像）；场馆端 web 后台回复；回复通知=站内信+页内展示；收件箱放运营数据 tab 折叠卡（不动 4 tab 顺序）；吐槽历史在吐槽页内展示（不进消息中心）。
+
+- [ ] **P0｜1. 数据层** — `feedbacks` 表（双方言建表：openid/nickname 快照/content/status/reply/replied_at/reply_by/created_at + status 索引）
+- [ ] **P0｜2. 接口** — `POST /api/feedback`（实名 openid 服务端取 + 昵称快照 + ≤500 字 + 防连点幂等）+ `GET /api/my-feedbacks`（分页）+ `GET /api/admin/feedbacks`（Admin-Token，未回复优先）+ `POST /api/admin/feedbacks/:id/reply`（回复落库 + status→replied + 写站内信 type=feedback 跳吐槽页 + 已回复幂等）
+- [ ] **P1｜3. 学员端** — 个人中心「联系客服」卡片组新增「💬 吐槽」入口 + `pages/feedback/index`（承诺标语 + 500 字留言 + 历史列表：待回复/已回复徽标 + 回复展示）
+- [ ] **P1｜4. 后台收件箱** — web 运营数据 tab「💬 吐槽收件箱」折叠卡（未回复优先 + 展开回复框 + 已回复展示 + 待回复统计）+ FRONT 断言防回退
+- [ ] **P1｜5. 测试** — FBK-01~07（发/超长/列表/未回复优先/回复闭环/重复回复幂等/未登录 400）+ coverage 探针
+
+### DESIGN #D11 新学员标记（设计文档: 新学员标记设计方案.md，2026-08-19 确认）
+
+> 教练课程学员名单标注新学员（定义：第一次上该课程类型——同 category 签到过才算上过 B1，非新用户维度）。
+> 口径（用户拍板）：签到过才算上过；名单徽标「新」绿色小标签 + 顶部「新学员 N 人」统计；仅正式订课学员（候补不标）。
+
+- [ ] **P0｜1. 后端** — `GET /api/sessions/:id/students` 每学员附加 `isNewCategory`（同 category 签到历史判定）+ 响应 `newCount` + NEW-01~06 用例（无签到→新/有同类型签到→老/不同类型签到不影响/已订未上→新/候补不标/newCount 口径）
+- [ ] **P0｜2. 前端** — 教练端名单页（coach-students）：「新」绿色圆角小徽标（仅正式订课学员）+ 顶部统计「学员名单（N 人 · 新学员 M 人）」
+- [ ] **P1｜3. 防回退** — FRONT 断言（徽标 + 统计文案）+ coverage 探针（isNewCategory）
+
 
 
 ## 已完成

@@ -275,6 +275,20 @@ canvas#dashTrend { width: 100%; height: 240px; }
       </div>
     </details>
 
+    <!-- 💬 吐槽收件箱（DESIGN #D9：学员留言逐条回复，承诺每条必回复） -->
+    <details class="fold" id="fold-feedback" open>
+      <summary>💬 吐槽收件箱（学员留言 · 待回复 <b id="fb-open-count">-</b>）</summary>
+      <div class="fold-inner">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px">
+          <button class="btn" id="fb-filter-all" onclick="loadFeedbacks('')">全部</button>
+          <button class="btn" id="fb-filter-open" onclick="loadFeedbacks('open')">待回复</button>
+          <button class="btn" id="fb-filter-replied" onclick="loadFeedbacks('replied')">已回复</button>
+          <span style="font-size:12px;color:var(--gray)">回复后自动发送站内信通知学员（点击跳吐槽页）</span>
+        </div>
+        <div id="fb-list"></div>
+      </div>
+    </details>
+
     <!-- 7 KPI 卡（含昨日环比） -->
     <div class="dash-kpis">
       <div class="dash-kpi"><div class="k-label">新用户</div><div class="k-val" id="dk-new">-</div><div class="k-delta flat" id="dk-new-d">环比 --</div></div>
@@ -950,6 +964,7 @@ function loadDashboard() {
     renderDashboard();
     loadInviteBoard();          // 折叠区原邀请看板
     loadReport(false);          // 运营日报联动（DESIGN #D6：打开即报告）
+    loadFeedbacks('');          // 吐槽收件箱联动（DESIGN #D9：打开即加载）
   }).catch(function (e) { alert('运营数据加载失败：' + e.message); });
 }
 // ===== 运营日报（DESIGN #D6）：惰性生成/缓存 + 手动重新生成，建议按严重度配色 =====
@@ -988,6 +1003,49 @@ function loadReport(regen) {
       }).join('') || '<div class="empty-tip">无行动建议</div>';
     })
     .catch(function (e) { alert('运营日报加载失败：' + e.message); });
+}
+// ===== 吐槽收件箱（DESIGN #D9）：未回复优先列表 + 逐条回复（回复自动站内信通知学员）=====
+function loadFeedbacks(status) {
+  var q = status ? '?status=' + status : '';
+  api('/admin/feedbacks' + q)
+    .then(function (r) {
+      $('fb-open-count').textContent = r.counts.open || 0;
+      var list = r.list || [];
+      if (list.length === 0) {
+        $('fb-list').innerHTML = '<div class="empty-tip">收件箱是空的 🎉</div>';
+        return;
+      }
+      $('fb-list').innerHTML = list.map(function (f) {
+        var isOpen = f.status === 'open';
+        var st = isOpen ? '<span style="color:#B8860B;background:#FFF7E0;border-radius:4px;padding:1px 8px;font-size:12px">待回复</span>'
+          : '<span style="color:#1E9E5A;background:#E8F7EE;border-radius:4px;padding:1px 8px;font-size:12px">已回复</span>';
+        var replyBox = isOpen
+          ? '<div style="display:flex;gap:8px;margin-top:10px">'
+            + '<textarea id="fb-reply-' + f.id + '" rows="2" maxlength="500" placeholder="写下场馆回复（≤500 字），发送后学员收到站内信…" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></textarea>'
+            + '<button class="btn btn-save" style="align-self:flex-end" onclick="replyFeedback(' + f.id + ')">发送回复</button></div>'
+          : '<div style="margin-top:10px;background:var(--dark);border-radius:8px;padding:8px 12px;font-size:12px"><b style="color:#1E9E5A">场馆回复：</b>' + esc(f.reply) + '<div style="color:#9a9a9a;font-size:11px;margin-top:4px">' + esc(f.replied_at || '') + '</div></div>';
+        return '<div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:10px 0">'
+          + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+          + '<span style="width:30px;height:30px;border-radius:50%;background:#eee;display:inline-flex;align-items:center;justify-content:center;font-size:12px;overflow:hidden">' + (f.avatar ? '<img src="' + esc(f.avatar) + '" style="width:100%;height:100%">' : '👤') + '</span>'
+          + '<b>' + esc(f.nickname || '学员') + '</b>'
+          + st
+          + '<span style="color:#9a9a9a;font-size:11px;margin-left:auto">' + esc(f.created_at || '') + '</span></div>'
+          + '<div style="font-size:13px;color:#333;margin-top:8px;line-height:1.6">' + esc(f.content) + '</div>'
+          + replyBox
+          + '</div>';
+      }).join('');
+    })
+    .catch(function (e) { alert('吐槽收件箱加载失败：' + e.message); });
+}
+function replyFeedback(id) {
+  var reply = $('fb-reply-' + id).value;
+  if (!reply.trim()) { alert('回复内容不能为空'); return; }
+  api('/admin/feedbacks/' + id + '/reply', 'POST', { reply: reply.trim() })
+    .then(function () {
+      alert('回复已发送，学员将收到站内信');
+      loadFeedbacks('');   // 刷新列表（已回复条目标记 + 待回复数归零）
+    })
+    .catch(function (e) { alert('回复失败：' + e.message); });
 }
 function renderDashboard() {
   var c = dashData.core, p = dashPrev && dashPrev.core;

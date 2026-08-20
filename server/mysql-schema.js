@@ -332,6 +332,46 @@ CREATE TABLE IF NOT EXISTS daily_reports (
   actions     TEXT DEFAULT NULL,
   generated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 吐槽反馈（DESIGN #D9）：学员实名留言，后台收件箱逐条回复
+CREATE TABLE IF NOT EXISTS feedbacks (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  user_openid VARCHAR(64) NOT NULL,
+  nickname    VARCHAR(128) DEFAULT '',
+  avatar      VARCHAR(500) DEFAULT '',
+  content     VARCHAR(500) NOT NULL,
+  status      VARCHAR(16) DEFAULT 'open',
+  reply       VARCHAR(2000) DEFAULT '',
+  replied_at  VARCHAR(19),
+  reply_by    VARCHAR(64) DEFAULT '',
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_feedbacks_status (status, created_at),
+  CONSTRAINT fk_fb_user FOREIGN KEY (user_openid) REFERENCES users(openid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 季卡/年卡（DESIGN #D14）：有效期内无限次订课 0 元，同一时间只能订一堂课
+CREATE TABLE IF NOT EXISTS unlimited_plans (
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  \`type\`     VARCHAR(16) NOT NULL,
+  name       VARCHAR(32) NOT NULL,
+  months     INT NOT NULL,
+  price_fen  INT NOT NULL,
+  active     INT DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS unlimited_passes (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  user_openid VARCHAR(64) NOT NULL,
+  \`type\`      VARCHAR(16) NOT NULL,
+  order_id    INT DEFAULT 0,
+  start_at    VARCHAR(19) NOT NULL,
+  expires_at  VARCHAR(19) NOT NULL,
+  status      VARCHAR(16) DEFAULT 'active',
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_unl_pass_user (user_openid, status),
+  CONSTRAINT fk_unl_user FOREIGN KEY (user_openid) REFERENCES users(openid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `;
 
 module.exports = { MYSQL_SCHEMA };

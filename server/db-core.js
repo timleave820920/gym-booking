@@ -430,6 +430,47 @@ db.exec(`
     UNIQUE(coach_openid, student_openid)
   );
 `);
+
+// ===== 吐槽反馈（DESIGN #D9）：学员实名留言场馆，后台收件箱逐条回复 =====
+db.exec(`
+  CREATE TABLE IF NOT EXISTS feedbacks (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_openid TEXT NOT NULL,
+    nickname    TEXT DEFAULT '',            -- 昵称快照（回复展示用，不随改名漂移）
+    avatar      TEXT DEFAULT '',            -- 头像快照
+    content     TEXT NOT NULL,              -- 吐槽内容（≤500 字）
+    status      TEXT DEFAULT 'open',        -- open 待回复 / replied 已回复
+    reply       TEXT DEFAULT '',            -- 场馆回复
+    replied_at  TEXT,
+    reply_by    TEXT DEFAULT '',            -- 回复人（web 后台匿名 → admin）
+    created_at  TEXT DEFAULT (datetime('now','localtime'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_feedbacks_status ON feedbacks(status, created_at);
+`);
+
+// ===== 季卡/年卡（DESIGN #D14）：有效期内无限次订课 0 元，同一时间只能订一堂课 =====
+db.exec(`
+  CREATE TABLE IF NOT EXISTS unlimited_plans (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    type       TEXT NOT NULL,          -- season 季卡 / year 年卡
+    name       TEXT NOT NULL,
+    months     INTEGER NOT NULL,       -- 3 / 12
+    price_fen  INTEGER NOT NULL,       -- 运营配置，默认 季卡 298000 / 年卡 988000
+    active     INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now','localtime'))
+  );
+  CREATE TABLE IF NOT EXISTS unlimited_passes (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_openid TEXT NOT NULL,
+    type        TEXT NOT NULL,          -- season / year
+    order_id    INTEGER DEFAULT 0,
+    start_at    TEXT NOT NULL,          -- 生效日（购买日）
+    expires_at  TEXT NOT NULL,          -- 到期日 23:59:59（time.js 北京时间，BUG-LEDGER #28）
+    status      TEXT DEFAULT 'active',  -- active / expired
+    created_at  TEXT DEFAULT (datetime('now','localtime'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_unl_pass_user ON unlimited_passes(user_openid, status);
+`);
 } // end if (!IS_MYSQL)
 
 // 旧库迁移：为已存在的 courses 表补 tags 列（幂等；仅 SQLite 模式）

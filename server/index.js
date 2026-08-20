@@ -671,12 +671,55 @@ async function handleCheckinByCode(req, res) {
 }
 
 // 按场次查订课名单（GET /api/sessions/:id/students，教练端）
+// DESIGN #D11：新学员标记（第一次上该课程类型=同 category 从未签到过，B1 口径）+ 顶部统计
 async function handleSessionStudents(req, res) {
   const pathParts = req.url.split('/');
   const sessionId = parseInt(pathParts[pathParts.length - 2], 10);
   const students = await db.listBookingsBySession(sessionId);
   const checked = students.filter(s => s.checkin_at).length;
-  return sendJson(res, 200, { code: 200, students, checked, total: students.length });
+  const newCount = students.filter(s => s.isNewCategory).length;
+  return sendJson(res, 200, { code: 200, students, checked, total: students.length, newCount });
+}
+
+// ===== 吐槽反馈（DESIGN #D9）：学员留言 → 后台收件箱回复 → 站内信闭环 =====
+// 提交吐槽（实名：昵称/头像服务端取快照）
+async function handleCreateFeedback(req, res, body) {
+  const { openid, content } = body || {};
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  const user = await db.findUserByOpenid(openid);
+  if (!user) return sendJson(res, 400, { code: 400, message: '用户不存在，请先登录' });
+  const r = await db.createFeedback({ openid, content });
+  if (!r.ok) return sendJson(res, 400, { code: 400, message: r.error });
+  await logOp(openid, 'feedback_create', { fbId: r.feedback.id, len: r.feedback.content.length }, 'ok');
+  return sendJson(res, 200, { code: 200, message: '已收到，场馆承诺每条必回复', feedback: r.feedback });
+}
+
+// 我的吐槽历史（分页）
+async function handleMyFeedbacks(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  const page = url.searchParams.get('page') || 1;
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  const list = await db.listMyFeedbacks(openid, page);
+  return sendJson(res, 200, { code: 200, list });
+}
+
+// 后台收件箱（未回复优先 + 待回复统计）
+async function handleAdminFeedbacks(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const status = url.searchParams.get('status') || '';
+  const page = url.searchParams.get('page') || 1;
+  const r = await db.listAdminFeedbacks(status, page);
+  return sendJson(res, 200, { code: 200, ...r });
+}
+
+// 后台回复（回复落库 + 站内信通知学员）
+async function handleReplyFeedback(req, res, id, body) {
+  const { reply } = body || {};
+  const r = await db.replyFeedback(Number(id), reply);
+  if (!r.ok) return sendJson(res, 400, { code: 400, message: r.error });
+  await logOp('admin', 'feedback_reply', { fbId: Number(id), len: r.feedback.reply.length }, 'ok');
+  return sendJson(res, 200, { code: 200, message: '回复已发送', feedback: r.feedback });
 }
 
 // ===== 候补排位（waitlist）=====
@@ -909,7 +952,7 @@ async function handleCreateOrder(req, res) {
   if (!openid) {
     return sendJson(res, 400, { code: 400, message: '缺少 openid' });
   }
-  if (orderType !== 'recharge' && orderType !== 'pass' && !sessionId) {
+  if (orderType !== 'recharge' && orderType !== 'pass' && orderType !== 'unlimited' && !sessionId) {
     return sendJson(res, 400, { code: 400, message: '缺少 sessionId' });
   }
   const result = await db.createOrder({
@@ -949,6 +992,10 @@ async function handlePayOrder(req, res) {
   if (result.order.order_type === 'pass' && result.recharge && result.recharge.pass) {
     await logOp(openid, 'pass_buy', { orderId, pkg: result.recharge.pkgName, added: result.recharge.added, remaining: result.recharge.pass.remaining }, 'ok', result.order.order_no);
   }
+  if (result.order.order_type === 'unlimited' && result.recharge && result.recharge.unl) {
+    // 强制规矩 #6：钱的计算留痕（季卡/年卡购买）
+    await logOp(openid, 'unlimited_buy', { orderId, plan: result.recharge.planName, expiresAt: result.recharge.unl.expires_at }, 'ok', result.order.order_no);
+  }
   return sendJson(res, 200, {
     code: 200,
     message: result.already ? '订单已支付' : '支付成功',
@@ -977,6 +1024,24 @@ async function handleListOrders(req, res) {
 async function handleRevenue(req, res) {
   const stats = await db.getRevenueStats();
   return sendJson(res, 200, { code: 200, ...stats });
+}
+
+// ===== 季卡/年卡（DESIGN #D14）=====
+
+// 卡档位列表（GET /api/unlimited/plans，价格运营配置动态读取）
+async function handleUnlimitedPlans(req, res) {
+  return sendJson(res, 200, { code: 200, plans: await db.listUnlimitedPlans() });
+}
+
+// 我的卡（GET /api/unlimited/my?openid=xxx）
+async function handleMyUnlimitedPass(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const openid = url.searchParams.get('openid');
+  if (!openid) {
+    return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  }
+  const pass = await db.getMyUnlimitedPassInfo(openid);
+  return sendJson(res, 200, { code: 200, ...pass });
 }
 
 // ===== 课程管理（电脑端课程编辑网页用）=====
@@ -1505,9 +1570,24 @@ const API_ROUTES = [
     } },
   { m: 'GET',    p: '/api/admin/logs',          f: async(q, r) => await handleAdminLogs(q, r) },
   { m: 'GET',    p: '/api/admin/attendance',    f: async(q, r) => await handleAttendance(q, r) },
+  // ===== 吐槽反馈（DESIGN #D9）=====
+  { m: 'POST',   p: '/api/feedback', f: async(q, r) => {
+      const body = await readBody(q);
+      await handleCreateFeedback(q, r, body);
+    } },
+  { m: 'GET',    p: '/api/my-feedbacks',        f: async(q, r) => await handleMyFeedbacks(q, r) },
+  { m: 'GET',    p: '/api/admin/feedbacks',     f: async(q, r) => await handleAdminFeedbacks(q, r) },
+  { m: 'POST',   p: /^\/api\/admin\/feedbacks\/\d+\/reply$/, f: async(q, r, u) => {
+      const id = u.pathname.split('/')[4];
+      const body = await readBody(q);
+      await handleReplyFeedback(q, r, id, body);
+    } },
   { m: 'GET',    p: /^\/api\/admin\/export\/[a-z-]+$/, f: async(q, r, u) => await handleExport(q, r, u.pathname.split('/')[4]) },
   // ===== 次卡包 =====
   { m: 'GET',    p: '/api/passes/packages',     f: async(q, r) => sendJson(r, 200, { code: 200, packages: await db.listPassPackages() }) },
+  // ===== 季卡/年卡（DESIGN #D14）=====
+  { m: 'GET',    p: '/api/unlimited/plans',     f: async(q, r) => await handleUnlimitedPlans(q, r) },
+  { m: 'GET',    p: '/api/unlimited/my',        f: async(q, r) => await handleMyUnlimitedPass(q, r) },
   { m: 'GET',    p: '/api/achievements/sync',   f: async(q, r, u) => {
       const openid = u.searchParams.get('openid');
       if (!openid) return sendJson(r, 400, { code: 400, message: '缺少 openid' });
@@ -1743,6 +1823,9 @@ const ADMIN_PATHS = [
   { m: 'POST',   p: /^\/api\/admin\/users-analysis\/message$/ },
   { m: 'GET',    p: /^\/api\/admin\/coaches$/ },
   { m: 'GET',    p: /^\/api\/admin\/(logs|attendance)$/ },
+  // 吐槽收件箱（DESIGN #D9）：web 后台收件箱读/回复，带 Admin-Token 保护
+  { m: 'GET',    p: /^\/api\/admin\/feedbacks$/ },
+  { m: 'POST',   p: /^\/api\/admin\/feedbacks\/\d+\/reply$/ },
   { m: 'GET',    p: /^\/api\/admin\/export\/[a-z-]+$/ },
   { m: 'PUT',    p: /^\/api\/admin\/coaches\/\d+$/ },
   { m: 'DELETE', p: /^\/api\/admin\/coaches\/\d+$/ },

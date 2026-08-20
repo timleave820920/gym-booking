@@ -219,6 +219,27 @@
   border: 2rpx solid #E8A0A0;
 }
 
+/* 无限次卡横幅（DESIGN #D14：有卡订课 0 元、不展示支付方式） */
+.unl-hint {
+  margin-top: 24rpx;
+  background: #5B57EB;
+  border-radius: 20rpx;
+  padding: 24rpx 28rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.unl-hint-title {
+  font-size: 30rpx;
+  font-weight: 800;
+  color: #FFFFFF;
+}
+.unl-hint-sub {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.6;
+}
+
 /* 次卡支付：支付方式区置灰（2026-08-14 用户需求：有次卡不显示可选项） */
 .method-list-off {
   opacity: 1;

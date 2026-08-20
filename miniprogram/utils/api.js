@@ -303,6 +303,14 @@ module.exports = {
     return localRequest('/api/passes/available?openid=' + openid + q, 'GET');
   },
 
+  // ===== 季卡/年卡（无限次卡，DESIGN #D14）=====
+  getUnlimitedPlans() {
+    return localRequest('/api/unlimited/plans', 'GET');
+  },
+  getUnlimitedPass(openid) {
+    return localRequest('/api/unlimited/my?openid=' + openid, 'GET');
+  },
+
   // 成就同步：检测新解锁成就并发 50 能量币（幂等）
   syncAchievements(openid) {
     return localRequest('/api/achievements/sync?openid=' + openid, 'GET');
@@ -350,5 +358,13 @@ module.exports = {
   },
   updateMyProfile(data) {
     return localRequest('/api/me/profile', 'PUT', data);
+  },
+
+  // ===== 吐槽反馈（DESIGN #D9）：留言场馆 + 我的吐槽历史 =====
+  createFeedback(data) {
+    return localRequest('/api/feedback', 'POST', data);
+  },
+  getMyFeedbacks(openid, page = 1) {
+    return localRequest(`/api/my-feedbacks?openid=${openid}&page=${page}`, 'GET');
   }
 };

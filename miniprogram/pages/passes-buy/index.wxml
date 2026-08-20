@@ -40,6 +40,45 @@
       </view>
     </view>
 
+    <!-- 无限次卡分区（DESIGN #D14：季卡/年卡，有效期内订课 0 元） -->
+    <view class="unl-section">
+      <view class="unl-head">
+        <text class="unl-title">无限次卡</text>
+        <text class="unl-sub">有效期内不限次数订课</text>
+      </view>
+      <!-- 我的无限次卡 -->
+      <view class="my-unl" wx:if="{{currentUnl}}">
+        <view class="unl-left">
+          <text class="unl-label">我的卡</text>
+          <text class="unl-num">{{currentUnl.type === 'year' ? '年卡' : '季卡'}} <text class="unl-unit" wx:if="{{!currentUnl.expired}}">· 剩余 {{currentUnl.daysLeft}} 天</text></text>
+          <text class="unl-expire">{{currentUnl.expired ? '已过期' : '有效期至 ' + currentUnl.expiresAt.slice(0, 10)}}</text>
+        </view>
+        <view class="mp-tag" wx:if="{{!currentUnl.expired}}">使用中</view>
+        <view class="mp-tag mp-tag-gray" wx:else>已过期</view>
+      </view>
+      <!-- 档位卡片 -->
+      <view class="pkg-list">
+        <view class="pkg {{selectedUnl.id === item.id ? 'pkg-on' : ''}}" wx:for="{{unlPlans}}" wx:key="id"
+              data-id="{{item.id}}" bindtap="selectUnl">
+          <view class="pkg-left flex-col flex-1">
+            <view class="flex-row pkg-head">
+              <text class="pkg-name">{{item.name}}</text>
+              <text class="pkg-chip">{{item.days}} 天不限次</text>
+            </view>
+            <text class="pkg-desc">有效期内订课 0 元 · 同一时间只能订一堂课</text>
+          </view>
+          <text class="pkg-price">¥{{item.price_fen / 100}}</text>
+          <view class="radio {{selectedUnl.id === item.id ? 'radio-on' : ''}}">
+            <view class="radio-dot" wx:if="{{selectedUnl.id === item.id}}"></view>
+          </view>
+        </view>
+      </view>
+      <view class="rule-tip" wx:if="{{unlPlans.length}}">
+        <text class="rt-dot"></text>
+        <text class="rt-txt">有卡自动使用（订课/候补 0 元）；已购卡再购新卡续期顺延（新卡从旧卡到期次日算起）；退订直接释放名额。</text>
+      </view>
+    </view>
+
     <!-- 规则提示 -->
     <view class="rule-tip">
       <text class="rt-dot"></text>
@@ -53,11 +92,11 @@
     <view class="spacer"></view>
   </view>
 
-  <!-- 底部 CTA -->
+  <!-- 底部 CTA（跟随当前选中区：次卡 / 无限次卡） -->
   <view class="cta-bar flex-between">
     <view class="flex-col">
-      <text class="cta-price" wx:if="{{selected}}">¥{{selected.price_fen / 100}}</text>
-      <text class="cta-sub">{{selected ? selected.total_count + ' 次 · ' + selected.valid_days + ' 天' : '请选择档位'}}</text>
+      <text class="cta-price" wx:if="{{activeTab === 'unl' ? selectedUnl : selected}}">¥{{(activeTab === 'unl' ? selectedUnl.price_fen : selected.price_fen) / 100}}</text>
+      <text class="cta-sub">{{activeTab === 'unl' ? (selectedUnl ? selectedUnl.name + ' · ' + selectedUnl.days + ' 天不限次' : '请选择卡档位') : (selected ? selected.total_count + ' 次 · ' + selected.valid_days + ' 天' : '请选择档位')}}</text>
     </view>
     <view class="pay-btn {{paying ? 'btn-disabled' : ''}}" bindtap="buy">
       <text>{{paying ? '处理中...' : '立即购买'}}</text>

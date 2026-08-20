@@ -26,7 +26,9 @@ Page({
     usePass: false,        // 有可用次卡 → 强制次卡支付（支付方式区置灰、不默认选中）
     passRemaining: 0,      // 次卡剩余次数
     passExpired: false,    // 有卡但对所选场次日期不可用（次数包已过期）→ 只能用储值/微信支付
-    wxpayEnabled: false    // 微信支付开通状态（商户号未配置 → 禁用微信支付选项，B2 2026-08-18）
+    wxpayEnabled: false,   // 微信支付开通状态（商户号未配置 → 禁用微信支付选项，B2 2026-08-18）
+    hasUnl: false,         // 有有效无限次卡（季卡/年卡）→ 订课 0 元、不展示支付方式选择（DESIGN #D14）
+    unlInfo: null          // 我的无限次卡信息（类型/剩余天数/到期日）
   },
 
   onLoad() {
@@ -65,6 +67,19 @@ Page({
   onShow() {
     this.loadMemberInfo();
     this.loadPassHint();
+    this.loadUnl();
+  },
+
+  // 无限次卡（DESIGN #D14）：有有效季卡/年卡 → 订课 0 元、不展示支付方式选择（后端 effMethod=unlimited 自动用卡）
+  loadUnl() {
+    const user = app.globalData.userInfo || {};
+    const openid = user.openid || wx.getStorageSync('openid');
+    if (!openid) return;
+    api.getUnlimitedPass(openid).then((r) => {
+      const hasUnl = !!(r && r.hasPass && !r.expired);
+      this.setData({ hasUnl, unlInfo: hasUnl ? r : null });
+      this.computeTotal();
+    }).catch(() => {});
   },
 
   // 次卡：有可用次卡 → 加入「次卡抵扣」选项并默认选中；用户可切换储值/微信（2026-08-15）
@@ -151,8 +166,15 @@ Page({
 
   // 计算当前选中支付方式的结算价（余额支付 → 会员价；微信 → 原价；候补排位同样适用）
   // 有次卡 → 金额 0（后端 effMethod=pass，扣次不扣钱）
+  // 有无限次卡 → 金额 0（DESIGN #D14：后端 effMethod=unlimited 自动用卡，优先于次卡/余额）
   computeTotal() {
     const price = Number(this.data.course.price || 68);
+    if (this.data.hasUnl) {
+      const unl = this.data.unlInfo || {};
+      const typeName = unl.type === 'year' ? '年卡' : '季卡';
+      this.setData({ totalPrice: 0, payText: `无限次卡（${typeName}）订课 0 元 · 剩 ${unl.daysLeft} 天` });
+      return;
+    }
     if (this.data.usePass) {
       this.setData({ totalPrice: 0, payText: `次数包抵扣 · 剩余 ${this.data.passRemaining} 次` });
       return;
@@ -196,6 +218,32 @@ Page({
     const openid = user.openid || wx.getStorageSync('openid');
     if (!openid) {
       wx.showToast({ title: '未登录，请先登录', icon: 'none' });
+      return;
+    }
+    // 无限次卡（DESIGN #D14）：有有效卡 → 0 元订课，跳过支付方式预校验直接支付（后端自动用卡）
+    if (this.data.hasUnl) {
+      this._paying = true;
+      wx.showLoading({ title: '下单中...' });
+      api.createOrder({
+        openid,
+        sessionId: course.session_id || course.id,
+        amountFen: Math.round((course.price || 68) * 100),
+        orderType: course.mode === 'waitlist' ? 'waitlist' : 'book',
+        expireMode: course.mode === 'waitlist' ? this.data.selectedExpire : undefined
+      }).then((res) => {
+        this.setData({ order: res.order });
+        wx.showLoading({ title: '确认中...' });
+        setTimeout(() => this.confirmPay(res.order.id, openid), 500);
+      }).catch((err) => {
+        this._paying = false;
+        wx.hideLoading();
+        wx.showModal({
+          title: '下单失败',
+          content: err.message || '无法连接服务器，请稍后重试',
+          showCancel: false,
+          confirmText: '知道了'
+        });
+      });
       return;
     }
     // 余额支付预校验（余额不足拦截；有次卡时跳过——本次走次卡不扣余额）
@@ -252,10 +300,11 @@ Page({
   // 支付回写：订单 pending → paid + 生成订课/候补
   // 微信支付走真实链路（统一下单 → wx.requestPayment → 轮询回调落库）；余额/次卡直接回写
   confirmPay(orderId, openid) {
+    // 有无限次卡 → 传 balance 即可（后端 effMethod=unlimited 优先于次卡/余额，实付 0 元，DESIGN #D14）
     // 有可用次卡 → payMethod 传 pass（后端 effMethod=pass 强制次卡，金额 0）
-    // 无次卡 → 按用户选中：微信=wxpay / 余额=balance
+    // 无卡 → 按用户选中：微信=wxpay / 余额=balance
     const selected = this.data.payMethods.find(m => m.selected);
-    const payMethod = this.data.usePass ? 'pass' : (selected && selected.id === 1 ? 'wxpay' : 'balance');
+    const payMethod = this.data.hasUnl ? 'balance' : (this.data.usePass ? 'pass' : (selected && selected.id === 1 ? 'wxpay' : 'balance'));
     if (payMethod === 'wxpay') {
       this.wxpayFlow(orderId, openid);
       return;

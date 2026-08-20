@@ -8,7 +8,7 @@
         <text class="course-name">{{course.name || '课程名单'}}</text>
         <text class="course-meta">{{course.time || '选择场次查看学员'}} · {{course.venue}}</text>
       </view>
-      <view class="count-badge" wx:if="{{!loading}}">已签到 {{checked}}/{{total}}</view>
+      <view class="count-badge" wx:if="{{!loading}}">学员名单（{{total}} 人 · 新学员 {{newCount}} 人）</view>
     </view>
 
     <!-- 统计行 -->
@@ -33,7 +33,10 @@
             data-id="{{item.id}}" bindtap="toggleCheck">
         <image class="stu-avatar" src="{{item.avatar}}" mode="aspectFill"></image>
         <view class="flex-col flex-1">
-          <text class="stu-name">{{item.name}}</text>
+          <view class="name-row">
+            <text class="stu-name">{{item.name}}</text>
+            <text class="tag-new" wx:if="{{item.isNew}}">新</text>
+          </view>
           <text class="stu-meta">{{item.meta}}</text>
         </view>
         <view class="tag {{item.checked ? 'tag-green' : 'tag-orange'}}">

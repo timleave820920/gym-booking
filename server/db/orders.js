@@ -9,6 +9,7 @@ const { getSessionById, syncSessionStatus, isCancelCutoffReached } = require('./
 const { rewardInviter } = require('./invite');
 const { sendMessage } = require('./messages');
 const { listPassPackages, getUserPass, getUserPassForDate, consumePass, refundPass, applyPassPurchase } = require('./passes');
+const { listUnlimitedPlans, hasUnlimitedPass, applyUnlimitedPurchase } = require('./unlimited');
 const MEMBER_CONFIG = require('../member-config.js');
 const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 const ENERGY_CONFIG = require('../energy-config.js');
@@ -17,7 +18,8 @@ const ORDER_SELECT = `
   SELECT o.id, o.order_no, o.user_openid, o.session_id, o.booking_id, o.wait_id, o.order_type,
          o.amount_fen, o.status, o.pay_method, o.pay_source, o.paid_at, o.refunded_at, o.cancel_reason, o.created_at,
          COALESCE(s.date, '') AS date, COALESCE(s.start_time, '') AS start_time, COALESCE(s.end_time, '') AS end_time,
-         COALESCE(c.name, '储值充值') AS course_name, COALESCE(c.level, 0) AS level, COALESCE(c.duration_min, 0) AS duration_min,
+         COALESCE(c.name, CASE WHEN o.order_type = 'unlimited' THEN '无限次卡' WHEN o.order_type = 'recharge' THEN '储值充值' ELSE '' END) AS course_name,
+         COALESCE(c.level, 0) AS level, COALESCE(c.duration_min, 0) AS duration_min,
          COALESCE(co.name, '') AS coach_name, COALESCE(v.name, '') AS venue_name
   FROM orders o
   LEFT JOIN course_sessions s ON s.id = o.session_id
@@ -60,6 +62,17 @@ async function createOrder({ user_openid, session_id, amount_fen = 0, order_type
     return { ok: true, order };
   }
 
+  // 季卡/年卡购买（DESIGN #D14）：无场次依赖，按卡档位金额校验（价格运营配置动态读取）
+  if (order_type === 'unlimited') {
+    const plan = (await listUnlimitedPlans()).find(p => p.price_fen === amount_fen);
+    if (!plan) return { ok: false, error: '无效的卡档位' };
+    const orderNo = await genOrderNo();
+    const r = await driver.run(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status)
+                VALUES (?, ?, NULL, ?, ?, 'pending')`, [orderNo, user_openid, order_type, amount_fen]);
+    const order = await driver.get(`${ORDER_SELECT} WHERE o.id = ?`, [r.lastInsertRowid]);
+    return { ok: true, order };
+  }
+
   const session = await getSessionById(session_id);
   if (!session) return { ok: false, error: '课程场次不存在' };
   // published=可订；full=已满员（候补入口）——修复：syncSessionStatus 置 full 后候补被误拒（BUG-LEDGER #5）
@@ -78,6 +91,36 @@ async function createOrder({ user_openid, session_id, amount_fen = 0, order_type
     if (pendingOrder) {
       await driver.exec('ROLLBACK');
       return { ok: false, error: '您已有待支付订单，请勿重复下单' };
+    }
+
+    // DESIGN #D14 时间冲突查重（「同一时间只能订一堂课」，覆盖全部订课来源含候补占位）：
+    // 同 date 且区间重叠（start < 新场次end 且 end > 新场次start）即拒绝，返回冲突课名。
+    // 占用来源 = bookings(status='booked') ∪ waitlist(status='waiting')（用户拍板：候补也占查重名额）
+    if (order_type === 'book' || order_type === 'waitlist') {
+      const conflict = await driver.get(`
+        SELECT c.name AS course_name, s2.start_time, s2.end_time
+        FROM bookings b
+        JOIN course_sessions s2 ON s2.id = b.session_id
+        JOIN courses c ON c.id = s2.course_id
+        WHERE b.user_openid = ? AND b.status = 'booked'
+          AND s2.date = ?
+          AND s2.start_time < ?
+          AND s2.end_time > ?
+        UNION
+        SELECT c.name AS course_name, s2.start_time, s2.end_time
+        FROM waitlist w
+        JOIN course_sessions s2 ON s2.id = w.session_id
+        JOIN courses c ON c.id = s2.course_id
+        WHERE w.user_openid = ? AND w.status = 'waiting'
+          AND s2.date = ?
+          AND s2.start_time < ?
+          AND s2.end_time > ?
+        LIMIT 1
+      `, [user_openid, session.date, session.end_time, session.start_time, user_openid, session.date, session.end_time, session.start_time]);
+      if (conflict) {
+        await driver.exec('ROLLBACK');
+        return { ok: false, error: `该时段已订其他课程（${conflict.course_name} ${conflict.start_time}-${conflict.end_time}），同一时间只能订一堂课` };
+      }
     }
 
     if (order_type === 'book') {
@@ -156,7 +199,9 @@ async function payOrder({ openid, orderId, pay_method = 'balance', wxpayVerified
   }
   // 仅用户选次卡且卡可用 → 用次卡；选次卡但卡不可用 → 回退微信支付（杜绝白嫖：不扣次但金额 0）
   const canUsePass = (pay_method === 'pass') && !!pass;
-  const effMethod = canUsePass ? 'pass' : (pay_method === 'pass' ? 'wxpay' : pay_method);
+  // DESIGN #D14：有有效季卡/年卡 → 订课/候补自动 0 元（有卡自动用，后端裁决优先于前端支付选择）
+  const hasUnl = (order.order_type === 'book' || order.order_type === 'waitlist') ? await hasUnlimitedPass(order.user_openid) : false;
+  const effMethod = hasUnl ? 'unlimited' : (canUsePass ? 'pass' : (pay_method === 'pass' ? 'wxpay' : pay_method));
 
   // 钱闭环闸门（强制规矩 4）：微信支付必须由微信回调确认——最终实付方式为 wxpay
   // （含「选次卡但卡不可用」回退场景）而无 wxpayVerified 一律拒绝，杜绝「模拟微信支付成功」
@@ -212,6 +257,24 @@ async function payOrder({ openid, orderId, pay_method = 'balance', wxpayVerified
         return { ok: false, error: r.error };
       }
       recharge = { pass: r.pass, added: r.added, pkgName: pkg.name };
+    } else if (order.order_type === 'unlimited') {
+      // 季卡/年卡购买（DESIGN #D14）：固定价商品（运营配置档位价），不套订课会员折扣；
+      // 先扣款（实付=档位原价）再发卡/续期
+      const plan = (await listUnlimitedPlans()).find(p => p.price_fen === order.amount_fen);   // 档位按原价匹配
+      if (!plan) {
+        await driver.exec('ROLLBACK');
+        return { ok: false, error: '无效的卡档位' };
+      }
+      if (effMethod === 'balance') {
+        await addBalance(order.user_openid, -order.amount_fen, '季卡/年卡购买', order.order_no);
+        await driver.run('UPDATE orders SET amount_fen = ? WHERE id = ?', [order.amount_fen, orderId]);  // 订单金额落实付（退款严格一致）
+      }
+      const r = await applyUnlimitedPurchase({ openid: order.user_openid, orderId, planId: plan.id });
+      if (!r.ok) {
+        await driver.exec('ROLLBACK');
+        return { ok: false, error: r.error };
+      }
+      recharge = { unl: r.pass, planName: plan.name };
     } else if (order.order_type === 'recharge') {
       // 储值充值：发放储值 + 写充值记录（每档首充送30% / 复充送10%，比例在配置）
       const { plan, bonus, isFirst } = await calcRechargeBonus(order.user_openid, order.amount_fen);
@@ -222,11 +285,39 @@ async function payOrder({ openid, orderId, pay_method = 'balance', wxpayVerified
       recharge = await applyRecharge({ user_openid: order.user_openid, order_id: orderId, amount_fen: order.amount_fen, bonus_fen: bonus });
       recharge = { ...recharge, isFirst, bonus, rate: isFirst ? plan.firstBonusRate : plan.repeatBonusRate };
     } else if (order.order_type === 'waitlist') {
-      // 候补排位：次卡扣次 / 余额按会员价扣款（产品决策 2026-08-13：候补余额支付享会员价）
+      // 候补排位：无限卡 0 元 / 次卡扣次 / 余额按会员价扣款（产品决策 2026-08-13：候补余额支付享会员价）
       // 修复 BUG-LEDGER #9：原实现不扣款，退出候补却退款=刷钱漏洞
+      // DESIGN #D14 支付时查重（下单→支付窗口内被其他课占用同样拒绝，与订课一致）
+      const wSRow = await driver.get('SELECT * FROM course_sessions WHERE id = ?', [order.session_id]);
+      const wConflict = wSRow ? await driver.get(`
+        SELECT c.name AS course_name, s2.start_time, s2.end_time
+        FROM bookings b
+        JOIN course_sessions s2 ON s2.id = b.session_id
+        JOIN courses c ON c.id = s2.course_id
+        WHERE b.user_openid = ? AND b.status = 'booked'
+          AND s2.date = ?
+          AND s2.start_time < ?
+          AND s2.end_time > ?
+        UNION
+        SELECT c.name AS course_name, s2.start_time, s2.end_time
+        FROM waitlist w
+        JOIN course_sessions s2 ON s2.id = w.session_id
+        JOIN courses c ON c.id = s2.course_id
+        WHERE w.user_openid = ? AND w.status = 'waiting'
+          AND s2.date = ?
+          AND s2.start_time < ?
+          AND s2.end_time > ?
+        LIMIT 1
+      `, [order.user_openid, wSRow.date, wSRow.end_time, wSRow.start_time, order.user_openid, wSRow.date, wSRow.end_time, wSRow.start_time]) : null;
+      if (wConflict) {
+        await driver.exec('ROLLBACK');
+        return { ok: false, error: `该时段已订其他课程（${wConflict.course_name} ${wConflict.start_time}-${wConflict.end_time}），同一时间只能订一堂课` };
+      }
       let payFen = order.amount_fen;
       let passId = 0;
-      if (effMethod === 'pass') {
+      if (effMethod === 'unlimited') {
+        payFen = 0;
+      } else if (effMethod === 'pass') {
         payFen = 0;
         passId = await consumePass(order.user_openid) || 0;
       } else if (pay_method === 'balance' && MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {
@@ -265,10 +356,38 @@ async function payOrder({ openid, orderId, pay_method = 'balance', wxpayVerified
         await driver.exec('ROLLBACK');
         return { ok: false, error: '您已预订该课程，请勿重复支付' };
       }
-      // 会员价：仅储值支付享受等级折扣（member-config.js 配置）；次卡支付金额为 0
+      // DESIGN #D14 支付时查重（下单→支付窗口内被其他课占用同样拒绝）
+      const bSRow = await driver.get('SELECT * FROM course_sessions WHERE id = ?', [order.session_id]);
+      const bConflict = bSRow ? await driver.get(`
+        SELECT c.name AS course_name, s2.start_time, s2.end_time
+        FROM bookings b
+        JOIN course_sessions s2 ON s2.id = b.session_id
+        JOIN courses c ON c.id = s2.course_id
+        WHERE b.user_openid = ? AND b.status = 'booked'
+          AND s2.date = ?
+          AND s2.start_time < ?
+          AND s2.end_time > ?
+        UNION
+        SELECT c.name AS course_name, s2.start_time, s2.end_time
+        FROM waitlist w
+        JOIN course_sessions s2 ON s2.id = w.session_id
+        JOIN courses c ON c.id = s2.course_id
+        WHERE w.user_openid = ? AND w.status = 'waiting'
+          AND s2.date = ?
+          AND s2.start_time < ?
+          AND s2.end_time > ?
+        LIMIT 1
+      `, [order.user_openid, bSRow.date, bSRow.end_time, bSRow.start_time, order.user_openid, bSRow.date, bSRow.end_time, bSRow.start_time]) : null;
+      if (bConflict) {
+        await driver.exec('ROLLBACK');
+        return { ok: false, error: `该时段已订其他课程（${bConflict.course_name} ${bConflict.start_time}-${bConflict.end_time}），同一时间只能订一堂课` };
+      }
+      // 会员价：仅储值支付享受等级折扣（member-config.js 配置）；无限卡/次卡支付金额为 0
       let payFen = order.amount_fen;
       let passId = 0;
-      if (effMethod === 'pass') {
+      if (effMethod === 'unlimited') {
+        payFen = 0;   // DESIGN #D14：有有效季卡/年卡 → 订课 0 元（实付=扣款=退款=0 三一致）
+      } else if (effMethod === 'pass') {
         payFen = 0;
         passId = await consumePass(order.user_openid) || 0;
       } else if (pay_method === 'balance' && MEMBER_CONFIG.memberPrice && MEMBER_CONFIG.memberPrice.enabled) {
@@ -344,6 +463,14 @@ async function payOrder({ openid, orderId, pay_method = 'balance', wxpayVerified
       content: `充值 ¥${(order.amount_fen / 100).toFixed(0)} 已到账${recharge.bonus ? `，赠送 ¥${(recharge.bonus / 100).toFixed(0)}` : ''}，当前余额可前往「我的」查看`,
       biz_type: 'order', biz_id: orderId, jump_url: '/pages/member-level/index',
       dedup_key: `recharge_paid:${orderId}`
+    });
+  } else if (order.order_type === 'unlimited' && recharge) {
+    // DESIGN #D14 开卡成功
+    await sendMessage({
+      user_openid: order.user_openid, type: 'order', title: '无限卡开通成功',
+      content: `「${recharge.planName}」已生效，有效期至 ${recharge.unl.expires_at}，有效期内订课 0 元、同一时间只能订一堂课`,
+      biz_type: 'order', biz_id: orderId, jump_url: '/pages/passes-buy/index',
+      dedup_key: `unl_paid:${orderId}`
     });
   }
 
@@ -552,7 +679,8 @@ async function cancelWaitlist(openid, waitId) {
     await driver.exec('ROLLBACK');
     throw e;
   }
-  // 事务外对称退：次卡→退次（卡已过期则作废清理）；余额→退余额；微信→原路（模拟）
+  // 事务外对称退：次卡→退次（卡已过期则作废清理）；余额→退余额；微信→原路（模拟）；
+  // 无限卡（DESIGN #D14）→ 无次数可退，实付=退款=0 三一致，直接释放名额
   if (refundOrder) {
     const o = await driver.get('SELECT pay_source FROM orders WHERE id = ?', [refundOrder.id]);
     if (o && o.pay_source === 'pass') {
@@ -566,6 +694,8 @@ async function cancelWaitlist(openid, waitId) {
         });
       }
       // 'expired'：卡已过期 → 次数作废清理（不提示退回）
+    } else if (o && o.pay_source === 'unlimited') {
+      // 无限卡 0 元订单：无钱可退
     } else {
       await refundOrderMoney(refundOrder.id);
     }
@@ -628,7 +758,7 @@ async function refundExpiredWaitlist() {
       await driver.exec('ROLLBACK');
       throw e;
     }
-    // 事务外对称退：次卡→退次（卡已过期作废）；余额→退余额
+    // 事务外对称退：次卡→退次（卡已过期作废）；余额→退余额；无限卡→无钱可退（DESIGN #D14）
     if (row.order_id) {
       const o = await driver.get('SELECT pay_source FROM orders WHERE id = ?', [row.order_id]);
       if (o && o.pay_source === 'pass') {
@@ -641,7 +771,7 @@ async function refundExpiredWaitlist() {
             dedup_key: `pass_refund_expire:${row.id}`
           });
         }
-      } else {
+      } else if (o && o.pay_source !== 'unlimited') {
         await refundOrderMoney(row.order_id);
       }
     }

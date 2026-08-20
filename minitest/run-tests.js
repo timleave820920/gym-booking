@@ -273,6 +273,13 @@ async function runSuite() {
   check('MYSQL-10', 'MySQL 补列清单覆盖 courses.images / bookings.pay_source / waitlist.expire_mode / orders.pay_source',
     ["['images', \"VARCHAR(2000) DEFAULT '[]'\"]", "['pay_source', \"VARCHAR(16) DEFAULT 'wxpay'\"]", "['expire_mode', \"VARCHAR(16) DEFAULT 'start'\"]"].every(s => driverSrc.includes(s)),
     'db-driver.js MYSQL_ENSURE_COLUMNS 须与 mysql-schema.js 同步维护（新增列三处同步）');
+  // MYSQL-11：无限次卡表双方言建表防回退（DESIGN #D14：unlimited_plans/unlimited_passes 的 MySQL DDL
+  // 必须存在且含反引号 type（保留字）+ idx_unl_pass_user 索引；缺一 SQLite 绿、MySQL 上线 500）
+  check('MYSQL-11', 'mysql-schema 含 unlimited_plans/unlimited_passes DDL（反引号 type + 用户索引）',
+    /CREATE TABLE IF NOT EXISTS `?unlimited_plans`?[\s\S]{0,600}CREATE TABLE IF NOT EXISTS `?unlimited_passes`?/.test(schemaSrc)
+      && /\\`type\\`\s+VARCHAR\(16\)/.test(schemaSrc)
+      && /idx_unl_pass_user/.test(schemaSrc),
+    'mysql-schema.js 须建 unlimited 两表：type 列反引号（保留字，模板字符串内为 \\`type\\`）+ idx_unl_pass_user 索引（DESIGN #D14）');
   // FRONT-01/02：订课后页面状态刷新防回退（BUG-LEDGER #35：详情页/首页缺 onShow 刷新，
   // 订完课从支付页返回仍显示「立即预订/预约」——服务端数据已正确，纯前端展示问题）
   const detailSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.js'), 'utf8');
@@ -466,6 +473,44 @@ async function runSuite() {
     /class="pkg-chip">\{\{item\.valid_days\}\} 天 · ¥\{\{item\.unitPrice\}\}\/次/.test(pbWxml)
       && !/pkg-chip[^>]*>\{\{item\.total_count\}\}/.test(pbWxml),
     'passes-buy pkg-chip 须为 {{item.valid_days}} 天 · ¥{{item.unitPrice}}/次，不得再含 {{item.total_count}} 次');
+  // FRONT-28: 吐槽入口（DESIGN #D9）——个人中心「💬 吐槽」入口 + 吐槽页（承诺标语/提交）+ web 收件箱折叠卡/回复
+  const fbWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'feedback', 'index.wxml'), 'utf8');
+  const fbJs = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'feedback', 'index.js'), 'utf8');
+  const profJs = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-profile', 'index.js'), 'utf8');
+  const apiSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'utils', 'api.js'), 'utf8');
+  const fbWebHtml = fs.readFileSync(path.join(PROJECT_ROOT, 'web', 'courses.html'), 'utf8');
+  check('FRONT-28', '吐槽功能防回退（DESIGN #D9：入口/页面/收件箱/回复闭环）',
+    /name: '💬 吐槽', url: '\/pages\/feedback\/index'/.test(profJs)
+      && /api\/feedback/.test(apiSrc) && /api\/my-feedbacks/.test(apiSrc)
+      && /承诺每条必回复|承诺标语|我们听着/.test(fbWxml)
+      && /提交吐槽/.test(fbWxml) && /场馆回复/.test(fbWxml)
+      && /fold-feedback/.test(fbWebHtml) && /吐槽收件箱/.test(fbWebHtml)
+      && /function loadFeedbacks/.test(fbWebHtml) && /function replyFeedback/.test(fbWebHtml)
+      && /api\/admin\/feedbacks/.test(apiSrc) === false && !/admin\/feedbacks/.test(apiSrc),
+    '须：个人中心「💬 吐槽」入口指向 pages/feedback/index + api.js createFeedback/getMyFeedbacks（学员端不得直连 admin 接口）+ 吐槽页承诺标语/提交按钮/场馆回复展示 + web 收件箱折叠卡 loadFeedbacks/replyFeedback');
+  check('FRONT-28b', '吐槽页在 app.json 注册', /pages\/feedback\/index/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'app.json'), 'utf8')), 'app.json 须含 pages/feedback/index');
+  // FRONT-29: 新学员标记（DESIGN #D11）——教练名单页「新」徽标 + 顶部统计「学员名单（N 人 · 新学员 M 人）」
+  const csWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'coach-students', 'index.wxml'), 'utf8');
+  const csJs = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'coach-students', 'index.js'), 'utf8');
+  const csWxss = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'coach-students', 'index.wxss'), 'utf8');
+  check('FRONT-29', '新学员徽标防回退（DESIGN #D11：tag-new 徽标 + 顶部统计 + newCount）',
+    /tag-new/.test(csWxml) && /新/.test(csWxml)
+      && /学员名单（\{\{total\}\} 人 · 新学员 \{\{newCount\}\} 人）/.test(csWxml)
+      && /isNewCategory/.test(csJs) && /newCount/.test(csJs) && /isNew: /.test(csJs)
+      && /\.tag-new\s*\{[^}]*color:/.test(csWxss),
+    'coach-students 须：wxml「新」徽标(tag-new) + 顶部统计「学员名单（N 人 · 新学员 M 人）」+ js 映射 isNewCategory→isNew/newCount + wxss tag-new 样式');
+  // FRONT-30: 无限次卡（DESIGN #D14）——次卡包页季卡/年卡分区 + 订课 0 元流程（有卡不出现支付方式选择）
+  const pbWxml30 = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'passes-buy', 'index.wxml'), 'utf8');
+  const pbJs30 = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'passes-buy', 'index.js'), 'utf8');
+  const spWxml30 = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-pay', 'index.wxml'), 'utf8');
+  const spJs30 = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-pay', 'index.js'), 'utf8');
+  check('FRONT-30', '无限次卡分区防回退（DESIGN #D14：passes-buy 季卡/年卡 + 订课 0 元）',
+    /无限次卡/.test(pbWxml30) && /unlPlans/.test(pbWxml30) && /selectUnl/.test(pbWxml30)
+      && /orderType: isUnl \? 'unlimited' : 'pass'/.test(pbJs30)
+      && /getUnlimitedPlans/.test(apiSrc) && /getUnlimitedPass/.test(apiSrc) && /api\/unlimited\/plans/.test(apiSrc) && /api\/unlimited\/my/.test(apiSrc)
+      && /hasUnl/.test(spJs30) && /loadUnl/.test(spJs30) && /getUnlimitedPass\(openid\)/.test(spJs30)
+      && /unl-hint/.test(spWxml30) && /0 元订课/.test(spWxml30) && /wx:if="\{\{!hasUnl\}\}"/.test(spWxml30),
+    '须：passes-buy wxml 无限次卡分区(unlPlans/selectUnl) + js orderType=unlimited 分支 + api.js getUnlimitedPlans/getUnlimitedPass + student-pay js loadUnl/hasUnl + wxml 紫色横幅(unl-hint)「0 元订课」+ 支付方式区 hasUnl 隐藏');
 
   // ===== 1.65 上课页排序（BUG-LEDGER #36：纯函数模块真实断言）=====
   console.log('\n── 1.65 上课页排序（BUG-LEDGER #36）──');
@@ -981,6 +1026,65 @@ async function runSuite() {
     check('CHK-07', '提前签到拒绝(未到窗口)', r.status === 400 && (r.data.message || '').includes('未到签到时间'), `msg=${r.data && r.data.message}`);
   }
 
+  // ===== 5.5 新学员标记（DESIGN #D11）：同 category 签到过才算上过，首次上该类型标「新」=====
+  console.log('\n── 5.5 新学员标记（DESIGN #D11）──');
+  {
+    const _dbx = require('../server/db.js');
+    const NEWK = { openid: 'uid_test_newkid', nickname: '新学员小新' };
+    await req('POST', '/api/auth/login', NEWK);
+    // 完全自包含：全部直插独立课程 + 专属用户，不依赖 seed 课程与前置块状态
+    // （教训 2026-08-20：CHK 块先跑会让 T.user1 在课程 1 签到，污染类型 A 的历史判定 → NEW-03/04 时好时坏）
+    const mkCatSession = async (courseId, date, start, end) => {
+      await _dbx.driver.run(`INSERT INTO course_sessions (course_id, coach_id, venue_id, date, start_time, end_time, capacity, booked_count, status, source)
+                      VALUES (?, 1, 1, ?, ?, ?, 10, 0, 'published', 'test_suite')`, [courseId, date, start, end]);
+      return (await _dbx.driver.get("SELECT id FROM course_sessions WHERE source='test_suite' ORDER BY id DESC LIMIT 1")).id;
+    };
+    const catA = 'NEW-A-' + Math.random().toString(36).slice(2, 7);
+    const catB = 'NEW-B-' + Math.random().toString(36).slice(2, 7);
+    await _dbx.driver.run("INSERT INTO courses (name, category, status) VALUES ('NEW测试课程A', ?, 'published')", [catA]);
+    await _dbx.driver.run("INSERT INTO courses (name, category, status) VALUES ('NEW测试课程B', ?, 'published')", [catB]);
+    const cA = (await _dbx.driver.get("SELECT id FROM courses WHERE name = 'NEW测试课程A'")).id;
+    const cB = (await _dbx.driver.get("SELECT id FROM courses WHERE name = 'NEW测试课程B'")).id;
+    const newSid = await mkCatSession(cA, todayStr, '16:00', '17:00');   // 类型 A 当前场次
+    // 专属用户：newB 曾在类型 A 签过到（→老）；newA 仅在类型 B 签过到（→新）；小新无历史（→新）
+    const newA = { openid: 'uid_test_newA', nickname: '新学员A' };
+    const newB = { openid: 'uid_test_newB', nickname: '老学员B' };
+    await req('POST', '/api/auth/login', newA);
+    await req('POST', '/api/auth/login', newB);
+    // 名单：newA/newB/小新 全部订课未签到
+    await _dbx.driver.run(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status)
+                     VALUES (?, ?, ?, 6800, 'booked', 'paid')`, ['NEWA1' + newSid, newA.openid, newSid]);
+    await _dbx.driver.run(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status)
+                     VALUES (?, ?, ?, 6800, 'booked', 'paid')`, ['NEWA2' + newSid, newB.openid, newSid]);
+    await _dbx.driver.run(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status)
+                     VALUES (?, ?, ?, 6800, 'booked', 'paid')`, ['NEWA3' + newSid, NEWK.openid, newSid]);
+    // 签到历史（B1：签到=到课证明）：newB 曾在类型 A 的另一场次签到过（同类型→老）
+    const histA = await mkCatSession(cA, todayStr, '17:30', '18:30');
+    await _dbx.driver.run(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status, checkin_at)
+                     VALUES (?, ?, ?, 6800, 'booked', 'paid', ?)`, ['NEWH1' + histA, newB.openid, histA, timeMod.nowDateTimeStr()]);
+    // newA 曾在类型 B 签到过（不同类型→仍新）
+    const histB = await mkCatSession(cB, todayStr, '19:00', '20:00');
+    await _dbx.driver.run(`INSERT INTO bookings (booking_no, user_openid, session_id, amount_fen, status, pay_status, checkin_at)
+                     VALUES (?, ?, ?, 6800, 'booked', 'paid', ?)`, ['NEWH2' + histB, newA.openid, histB, timeMod.nowDateTimeStr()]);
+    r = await req('GET', `/api/sessions/${newSid}/students`);
+    const stu = (r.data.students || []);
+    const byO = (o) => stu.find(s => s.user_openid === o);
+    check('NEW-01', '无签到历史学员 → 新学员', byO(NEWK.openid) && byO(NEWK.openid).isNewCategory === true, `newkid=${byO(NEWK.openid) && byO(NEWK.openid).isNewCategory}`);
+    check('NEW-02', '同类型签到过 → 老学员', byO(newB.openid) && byO(newB.openid).isNewCategory === false, `newB=${byO(newB.openid) && byO(newB.openid).isNewCategory}`);
+    check('NEW-03', '仅不同类型签到过 → 仍是新学员', byO(newA.openid) && byO(newA.openid).isNewCategory === true, `newA=${byO(newA.openid) && byO(newA.openid).isNewCategory}`);
+    // 当前场次签到不计入新老判定（排除本场）：给 newA 当前场次补签到，仍应标新
+    await _dbx.driver.run('UPDATE bookings SET checkin_at = ? WHERE booking_no = ?', [timeMod.nowDateTimeStr(), 'NEWA1' + newSid]);
+    r = await req('GET', `/api/sessions/${newSid}/students`);
+    check('NEW-04', '当前场次签到不计入历史（新老判定排除本场）', (r.data.students || []).find(s => s.user_openid === newA.openid).isNewCategory === true, 'newA 本场签到不应使其变老');
+    check('NEW-05', 'newCount 口径=名单新学员数', r.data.newCount === stu.filter(s => s.isNewCategory).length && r.data.newCount >= 1, `newCount=${r.data.newCount}`);
+    check('NEW-06', '候补不在名单（不标新）', !stu.some(s => /wait/.test(s.status || '')), '名单只含正式订课学员');
+    // 清理直插数据（先删 bookings → sessions → 新课程 → 新用户）
+    await _dbx.driver.run("DELETE FROM bookings WHERE booking_no LIKE 'NEW%'");
+    await _dbx.driver.run(`DELETE FROM course_sessions WHERE id IN (?, ?, ?)`, [newSid, histA, histB]);
+    await _dbx.driver.run("DELETE FROM courses WHERE name IN ('NEW测试课程A', 'NEW测试课程B')");
+    await _dbx.driver.run("DELETE FROM users WHERE openid IN ('uid_test_newkid', 'uid_test_newA', 'uid_test_newB')");
+  }
+
   // ===== B3 到课率 + 数据导出（2026-08-18，管理网页新页）=====
   console.log('\n── 6.8 到课率与导出 ──');
   // 直插已签到 booking 造固定到课率数据（绕过签到窗口；booked_count 与之一致：造 3 订 1 签）
@@ -1350,7 +1454,8 @@ async function runSuite() {
     check('BDAY-05', '站内信标注生日月首订 8 折', !!bdayMsg && (bdayMsg.content || '').includes('生日月首订 8 折'), `msg=${bdayMsg && bdayMsg.content}`);
     // 第二单：当月已有 paid 书订单 → 8 折不再适用，回会员价 6600（先重置余额，第一单扣了 54 元）
     await _dbx.driver.run('UPDATE users SET balance_fen = 10000 WHERE openid = ?', [bdayOpenid]);
-    const bdaySid2 = await mkSession(todayStr, '22:30', '23:30', 5, 0);
+    // 第二单时段须与第一单（22:00-23:00）不重叠——DESIGN #D14 同一时间只能订一堂课查重（邻接 21:00-22:00 合法）
+    const bdaySid2 = await mkSession(todayStr, '21:00', '22:00', 5, 0);
     r = await req('POST', '/api/orders', { openid: bdayOpenid, sessionId: bdaySid2, amountFen: 6800 });
     const bdayOrdId2 = r.data.order.id;
     r = await req('POST', `/api/orders/${bdayOrdId2}/pay`, { openid: bdayOpenid, payMethod: 'balance' });
@@ -1398,6 +1503,11 @@ async function runSuite() {
   const coStart = new Date(now2.getTime() - 20 * 60000);
   if (timeMod.parts(coStart).d === timeMod.parts(now2).d && timeMod.parts(coEnd).d === timeMod.parts(now2).d) {
     const coSid = await mkSession(todayStr, beijingHM(coStart), beijingHM(coEnd), 5, 0);
+    // 新查重（DESIGN #D14「同一时间只能订一堂课」）：CHK 块同窗场次 user1 已订+签到（status 仍 booked）
+    // → 先直连删除该订课（签到已完成，删除不影响后续断言），否则 coSid 下单被查重拦截（2026-08-20 修）
+    await _dbx.driver.run(`DELETE FROM bookings WHERE user_openid = ? AND session_id IN
+      (SELECT id FROM course_sessions WHERE date = ? AND start_time = ? AND end_time = ?)`,
+      [T.user1.openid, todayStr, beijingHM(coStart), beijingHM(coEnd)]);
     r = await req('POST', '/api/orders', { openid: T.user1.openid, sessionId: coSid, amountFen: 6800, orderType: 'book' });
     r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: T.user1.openid, payMethod: 'balance' });
     r = await req('POST', `/api/bookings/${r.data.booking.id}/checkin`, { openid: T.coach.openid });
@@ -1453,6 +1563,10 @@ async function runSuite() {
 
   // B3 退订截止（2026-08-18 用户拍板：开课前 2 小时内不可退订）——造「开课前 1 小时」场次 → 订课支付 → 退订被拒
   {
+    // 新查重（DESIGN #D14 候补也占查重名额）：WTL-09「课前1小时」候补因 2 小时截止无法退出 → 残留 waiting 占位
+    // → ORD-10 订同窗场次前直连清理（连带其订单；无 FK 引用 waitlist 的列，balance_logs 留痕不受影响）
+    await _dbx.driver.run("DELETE FROM orders WHERE user_openid = ? AND wait_id IN (SELECT id FROM waitlist WHERE user_openid = ? AND status = 'waiting')", [T.user2.openid, T.user2.openid]);
+    await _dbx.driver.run("DELETE FROM waitlist WHERE user_openid = ? AND status = 'waiting'", [T.user2.openid]);
     const _cut = timeMod.addMinutesStr(timeMod.nowDateTimeStr(), 60);   // 北京时间 now+1h（addMinutesStr 跨天安全）
     const [cutD, cutT] = _cut.split(' ');
     const cutEnd = timeMod.addMinutesStr(_cut, 60).split(' ')[1].slice(0, 5);
@@ -1761,9 +1875,9 @@ async function runSuite() {
   check('PASS-10', '候补用次卡', ok(r, 200) && r.data.wait && r.data.wait.status === 'waiting', `msg=${r.data && r.data.message}`);
   r = await req('GET', `/api/passes/my?openid=${P.openid}`);
   check('PASS-10b', '候补扣次后剩余34', r.data.pass.remaining === 34, `rem=${r.data.pass.remaining}`);
-  // 已排队 → 再次下单被拦截（createOrder 已有 waiting 记录检查）
+  // 已排队 → 再次下单被拦截（createOrder 已有 waiting 记录检查；DESIGN #D14 后同窗候补占位同样触发查重拦截）
   r = await req('POST', '/api/orders', { openid: P.openid, sessionId: ctx.fullSessionId, amountFen: 6800, orderType: 'waitlist' });
-  check('PASS-10c', '已排队重复下单被拦截', r.status === 400 && (r.data.message || '').includes('候补队列'), `msg=${r.data && r.data.message}`);
+  check('PASS-10c', '已排队重复下单被拦截', r.status === 400 && ((r.data.message || '').includes('候补队列') || (r.data.message || '').includes('同一时间只能订一堂课')), `msg=${r.data && r.data.message}`);
   r = await req('GET', `/api/waitlist?openid=${P.openid}`);
   const passWait = (r.data.waits || []).find(w => w.session_id === ctx.fullSessionId && w.status === 'waiting');
   r = await req('DELETE', `/api/waitlist/${passWait.id}?openid=${P.openid}`);
@@ -1796,6 +1910,147 @@ async function runSuite() {
   await db.driver.run("DELETE FROM waitlist WHERE user_openid LIKE 'uid_test_pass%'");
   await db.driver.run("DELETE FROM balance_logs WHERE user_openid LIKE 'uid_test_pass%'");  // #49 次卡购买走 balance 扣款 → 留痕 balance_logs，先删再删 users（FK）
   await db.driver.run("DELETE FROM users WHERE openid LIKE 'uid_test_pass%'");
+
+  // ===== 13. 吐槽反馈（DESIGN #D9）：提交 / 我的历史 / 后台收件箱 / 回复闭环 =====
+  console.log('\n── 13. 吐槽反馈（DESIGN #D9）──');
+  const FB = { openid: 'uid_test_fb1', nickname: '吐槽学员' };
+  await req('POST', '/api/auth/login', FB);
+  // 提交吐槽（实名快照：昵称服务端取，不信任前端）
+  r = await req('POST', '/api/feedback', { openid: FB.openid, content: '团课太挤了，希望能控制人数！' });
+  check('FBK-01', '提交吐槽落库(open+实名快照)', ok(r, 200) && r.data.feedback && r.data.feedback.status === 'open' && r.data.feedback.nickname === '吐槽学员', `msg=${r.data && r.data.message}`);
+  r = await req('POST', '/api/feedback', { openid: FB.openid, content: '长'.repeat(501) });
+  check('FBK-02', '超长内容拒绝(≤500字)', r.status === 400, `msg=${r.data && r.data.message}`);
+  r = await req('POST', '/api/feedback', { openid: FB.openid, content: '   ' });
+  check('FBK-02b', '空内容拒绝', r.status === 400, `msg=${r.data && r.data.message}`);
+  r = await req('POST', '/api/feedback', { openid: FB.openid, content: '团课太挤了，希望能控制人数！' });
+  check('FBK-02c', '防连点幂等(60s内同内容拒绝)', r.status === 400, `msg=${r.data && r.data.message}`);
+  r = await req('POST', '/api/feedback', { openid: 'uid_test_nobody', content: '没有这个用户' });
+  check('FBK-07', '未登录用户拒绝', r.status === 400, `msg=${r.data && r.data.message}`);
+  r = await req('GET', `/api/my-feedbacks?openid=${FB.openid}`);
+  check('FBK-03', '我的吐槽列表(1条待回复)', ok(r, 200) && r.data.list.length === 1 && r.data.list[0].status === 'open', `n=${r.data && r.data.list && r.data.list.length}`);
+  r = await req('GET', '/api/admin/feedbacks', null, { noToken: true });
+  check('FBK-07b', '后台收件箱无 Admin-Token 401', r.status === 401, `status=${r.status}`);
+  r = await req('GET', '/api/admin/feedbacks');
+  check('FBK-04', '后台收件箱(未回复优先+待回复统计)', ok(r, 200) && r.data.counts.open >= 1 && r.data.list[0].status === 'open', `open=${r.data && r.data.counts && r.data.counts.open}`);
+  const fbId = r.data.list[0].id;
+  r = await req('POST', `/api/admin/feedbacks/${fbId}/reply`, { reply: '收到，本周起每场人数上限已调整，感谢反馈！' });
+  check('FBK-05', '回复闭环(status→replied)', ok(r, 200) && r.data.feedback.status === 'replied', `msg=${r.data && r.data.message}`);
+  r = await req('POST', `/api/admin/feedbacks/${fbId}/reply`, { reply: '再回一条' });
+  check('FBK-06', '重复回复拒绝(幂等)', r.status === 400, `msg=${r.data && r.data.message}`);
+  r = await req('GET', `/api/my-feedbacks?openid=${FB.openid}`);
+  check('FBK-05b', '学员看到回复内容', ok(r, 200) && r.data.list[0].status === 'replied' && (r.data.list[0].reply || '').includes('感谢反馈'), `st=${r.data && r.data.list && r.data.list[0] && r.data.list[0].status}`);
+  r = await req('GET', `/api/messages?openid=${FB.openid}`);
+  const fbMsg = (r.data.messages || []).find(m => m.type === 'feedback' && m.biz_id === fbId);
+  check('FBK-05c', '回复站内信已发(type=feedback 跳吐槽页)', fbMsg && fbMsg.jump_url === '/pages/feedback/index', `msg=${fbMsg && fbMsg.title}`);
+  // 测试用户自清理（依赖先删：feedbacks/messages → users）
+  await db.driver.run("DELETE FROM feedbacks WHERE user_openid LIKE 'uid_test_fb%'");
+  await db.driver.run("DELETE FROM messages WHERE user_openid LIKE 'uid_test_fb%'");
+  await db.driver.run("DELETE FROM users WHERE openid LIKE 'uid_test_fb%'");
+
+  // ===== 季卡/年卡（DESIGN #D14）：无限次订课 0 元 + 同一时间只能订一堂课 =====
+  console.log('\n── 8.5 季卡/年卡（DESIGN #D14）──');
+  {
+    const _dbx = require('../server/db.js');
+    const unl = { openid: 'uid_test_unl1', nickname: '无限卡学员' };
+    await req('POST', '/api/auth/login', unl);
+    await _dbx.driver.run('UPDATE users SET balance_fen = 2000000 WHERE openid = ?', [unl.openid]); // ¥20000 够买季卡+年卡
+    const pad2 = n => String(n).padStart(2, '0');
+    const unlSessions = [];   // 本块创建的场次 id，结尾精确清理
+    // 同日动态场次（跨天时 end 用 +24 小时字符串表示，time.parseBeijing 原生支持）
+    const mkSameDay = async (startOffsetMin, durMin = 60, cap = 10, booked = 0) => {
+      const st = new Date(Date.now() + startOffsetMin * 60000);
+      const et = new Date(st.getTime() + durMin * 60000);
+      const p = timeMod.parts(st), pe = timeMod.parts(et);
+      const date = `${p.y}-${pad2(p.mo)}-${pad2(p.d)}`;
+      const start = `${pad2(p.h)}:${pad2(p.mi)}`;
+      const end = pe.h < p.h ? `${pad2(pe.h + 24)}:${pad2(pe.mi)}` : `${pad2(pe.h)}:${pad2(pe.mi)}`;
+      const id = await mkSession(date, start, end, cap, booked);
+      unlSessions.push(id);
+      return { id, date, start, end };
+    };
+    // UNL-01：购买季卡（¥2,980）→ 发卡，有效期=购买日+3 个月 23:59:59
+    r = await req('POST', '/api/orders', { openid: unl.openid, amountFen: 298000, orderType: 'unlimited' });
+    check('UNL-01', '季卡下单', r.status === 201 && r.data.order.order_type === 'unlimited', `st=${r.status} type=${r.data && r.data.order && r.data.order.order_type}`);
+    const unlOrderId = r.data.order.id;
+    r = await req('POST', `/api/orders/${unlOrderId}/pay`, { openid: unl.openid, payMethod: 'balance' });
+    check('UNL-01b', '季卡支付成功(实付=购买价)', ok(r, 200) && r.data.order.amount_fen === 298000, `amt=${r.data && r.data.order && r.data.order.amount_fen}`);
+    r = await req('GET', `/api/unlimited/my?openid=${unl.openid}`);
+    check('UNL-01c', '我的卡=季卡且未过期', ok(r, 200) && r.data.hasPass === true && r.data.type === 'season' && !r.data.expired && r.data.daysLeft >= 80, `pass=${JSON.stringify(r.data)}`);
+    const unlPass = await _dbx.driver.get('SELECT * FROM unlimited_passes WHERE user_openid = ? ORDER BY id DESC LIMIT 1', [unl.openid]);
+    const expExpect = (() => { const d = new Date(); d.setMonth(d.getMonth() + 3); const p = timeMod.parts(d); return `${p.y}-${pad2(p.mo)}-${pad2(p.d)} 23:59:59`; })();
+    check('UNL-01d', '有效期=购买日+3个月 23:59:59', unlPass && unlPass.expires_at === expExpect, `exp=${unlPass && unlPass.expires_at} want=${expExpect}`);
+    // UNL-03：有效期内订课 → 0 元自动用卡（pay_source=unlimited）
+    const s4 = await mkSameDay(4 * 60);
+    r = await req('POST', '/api/orders', { openid: unl.openid, sessionId: s4.id, amountFen: 6800, orderType: 'book' });
+    check('UNL-03', '有卡订课下单成功', r.status === 201, `st=${r.status}`);
+    const unlBookOrder = r.data.order.id;
+    r = await req('POST', `/api/orders/${unlBookOrder}/pay`, { openid: unl.openid, payMethod: 'balance' });
+    check('UNL-03b', '有卡自动 0 元(pay_source=unlimited 实付0)', ok(r, 200) && r.data.booking && r.data.booking.amount_fen === 0 && r.data.order.pay_source === 'unlimited', `amt=${r.data.booking && r.data.booking.amount_fen} src=${r.data.order && r.data.order.pay_source}`);
+    // UNL-04：与已订课时间重叠 → 400 拒绝（含普通付费课重叠：另一用户先订，本用户订重叠时段）
+    const s45 = await mkSameDay(4 * 60 + 30);
+    r = await req('POST', '/api/orders', { openid: unl.openid, sessionId: s45.id, amountFen: 6800, orderType: 'book' });
+    check('UNL-04', '时间重叠订课拒绝(同一天可订多堂但时段不重叠)', r.status === 400 && /同一时间只能订一堂课/.test(r.data.message || ''), `msg=${r.data && r.data.message}`);
+    // UNL-04b：普通付费课(无卡用户)之间重叠同样拒绝（查重覆盖全部订课来源，不区分支付方式）
+    const unl2 = { openid: 'uid_test_unl2', nickname: '付费课学员' };
+    await req('POST', '/api/auth/login', unl2);
+    await _dbx.driver.run('UPDATE users SET balance_fen = 100000 WHERE openid = ?', [unl2.openid]);
+    const s6 = await mkSameDay(6 * 60);
+    r = await req('POST', '/api/orders', { openid: unl2.openid, sessionId: s6.id, amountFen: 6800, orderType: 'book' });
+    const unl2OrderId = r.data.order.id;
+    r = await req('POST', `/api/orders/${unl2OrderId}/pay`, { openid: unl2.openid, payMethod: 'balance' });
+    check('UNL-04b0', '无卡用户付费订课成功(对照)', ok(r, 200) && r.data.order.pay_source === 'balance', `src=${r.data.order && r.data.order.pay_source}`);
+    const s65 = await mkSameDay(6 * 60 + 30);
+    r = await req('POST', '/api/orders', { openid: unl2.openid, sessionId: s65.id, amountFen: 6800, orderType: 'book' });
+    check('UNL-04b', '与已订付费课重叠拒绝(查重覆盖全部订课)', r.status === 400 && /同一时间只能订一堂课/.test(r.data.message || ''), `msg=${r.data && r.data.message}`);
+    // UNL-05：同日不重叠时段多堂 → 允许（4h-5h 已订，6.5h 不重叠；unl2 的 6h 课不算本用户）
+    r = await req('POST', '/api/orders', { openid: unl.openid, sessionId: s65.id, amountFen: 6800, orderType: 'book' });
+    check('UNL-05', '同日不重叠时段可再订', r.status === 201, `st=${r.status} msg=${r.data && r.data.message}`);
+    // UNL-06：满员候补 0 元 + 候补时间查重
+    const sFull = await mkSameDay(8 * 60, 60, 1, 1);
+    r = await req('POST', '/api/orders', { openid: unl.openid, sessionId: sFull.id, amountFen: 6800, orderType: 'waitlist' });
+    check('UNL-06', '满员候补下单成功', r.status === 201, `st=${r.status}`);
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: unl.openid, payMethod: 'balance' });
+    check('UNL-06b', '候补 0 元(pay_source=unlimited)', ok(r, 200) && r.data.wait && r.data.wait.amount_fen === 0, `wait=${JSON.stringify(r.data.wait && r.data.wait.amount_fen)}`);
+    const sFull2 = await mkSameDay(8 * 60 + 30, 60, 1, 1);
+    r = await req('POST', '/api/orders', { openid: unl.openid, sessionId: sFull2.id, amountFen: 6800, orderType: 'waitlist' });
+    check('UNL-06c', '候补重叠时段拒绝', r.status === 400 && /同一时间只能订一堂课/.test(r.data.message || ''), `msg=${r.data && r.data.message}`);
+    // UNL-07：退订 → 释放名额、无退款（余额不变=0 元无钱可退）、订单 refunded
+    r = await req('GET', `/api/orders?openid=${unl.openid}`);
+    const unlBk = (r.data.orders || []).find(o => o.booking_id && o.session_id === s4.id);
+    const balBefore = (await _dbx.driver.get('SELECT balance_fen FROM users WHERE openid = ?', [unl.openid])).balance_fen;
+    r = await req('DELETE', `/api/bookings/${unlBk.booking_id}?openid=${unl.openid}`);
+    check('UNL-07', '卡订课退订成功(无次数可退直接释放)', ok(r, 200), `msg=${r.data && r.data.message}`);
+    const balAfter = (await _dbx.driver.get('SELECT balance_fen FROM users WHERE openid = ?', [unl.openid])).balance_fen;
+    check('UNL-07b', '退订无退款(实付=扣款=退款=0 三一致)', balBefore === balAfter, `bal ${balBefore}→${balAfter}`);
+    r = await req('GET', `/api/orders?openid=${unl.openid}`);
+    check('UNL-07c', '退订订单 refunded', (r.data.orders || []).find(o => o.id === unlBk.id && o.status === 'refunded') !== undefined, 'unlBook 订单应 refunded');
+    const s4b = await _dbx.driver.get('SELECT booked_count FROM course_sessions WHERE id = ?', [s4.id]);
+    check('UNL-07d', '退订释放名额', s4b.booked_count === 0, `booked=${s4b.booked_count}`);
+    // UNL-08：旧卡未过期买年卡 → 续期顺延（新到期=旧到期+12 个月）
+    r = await req('POST', '/api/orders', { openid: unl.openid, amountFen: 988000, orderType: 'unlimited' });
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: unl.openid, payMethod: 'balance' });
+    const unlPass2 = await _dbx.driver.get('SELECT * FROM unlimited_passes WHERE user_openid = ? ORDER BY id DESC LIMIT 1', [unl.openid]);
+    const expExpect2 = (() => { const d = new Date(); d.setMonth(d.getMonth() + 15); const p = timeMod.parts(d); return `${p.y}-${pad2(p.mo)}-${pad2(p.d)} 23:59:59`; })();
+    check('UNL-08', '续期顺延(新卡=旧卡到期+12个月)', unlPass2.expires_at === expExpect2, `exp=${unlPass2.expires_at} want=${expExpect2}`);
+    // UNL-09：卡过期 → 判定 expired，订课走正常支付（不能白嫖）
+    await _dbx.driver.run("UPDATE unlimited_passes SET expires_at = '2020-01-01 23:59:59' WHERE id = ?", [unlPass2.id]);
+    r = await req('GET', `/api/unlimited/my?openid=${unl.openid}`);
+    check('UNL-09', '过期卡判定 expired', ok(r, 200) && r.data.hasPass === true && r.data.expired === true, `pass=${JSON.stringify(r.data)}`);
+    const s9 = await mkSameDay(10 * 60);
+    r = await req('POST', '/api/orders', { openid: unl.openid, sessionId: s9.id, amountFen: 6800, orderType: 'book' });
+    r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: unl.openid, payMethod: 'balance' });
+    check('UNL-09b', '过期卡订课走正常支付(余额扣款非0)', ok(r, 200) && r.data.booking && r.data.booking.amount_fen > 0 && r.data.order.pay_source === 'balance', `amt=${r.data.booking && r.data.booking.amount_fen} src=${r.data.order && r.data.order.pay_source}`);
+    // 清理（外键顺序：先删引用表再删 users）
+    await _dbx.driver.run("DELETE FROM bookings WHERE user_openid LIKE 'uid_test_unl%'");
+    await _dbx.driver.run("DELETE FROM orders WHERE user_openid LIKE 'uid_test_unl%'");
+    await _dbx.driver.run("DELETE FROM waitlist WHERE user_openid LIKE 'uid_test_unl%'");
+    await _dbx.driver.run("DELETE FROM messages WHERE user_openid LIKE 'uid_test_unl%'");
+    await _dbx.driver.run("DELETE FROM unlimited_passes WHERE user_openid LIKE 'uid_test_unl%'");
+    await _dbx.driver.run("DELETE FROM member_recharges WHERE user_openid LIKE 'uid_test_unl%'");
+    await _dbx.driver.run("DELETE FROM balance_logs WHERE user_openid LIKE 'uid_test_unl%'");
+    await _dbx.driver.run(`DELETE FROM course_sessions WHERE id IN (${unlSessions.map(() => '?').join(',')})`, unlSessions);
+    await _dbx.driver.run("DELETE FROM users WHERE openid LIKE 'uid_test_unl%'");
+  }
 
   // WX-M 系列（2026-08-18 用户要求「测试支付必定成功」）：PAY_MOCK=1 测试支付模式。
   // 主后端 env 是 spawn 子进程（不可动态改）→ ① 主后端（PAY_MOCK 显式关）测「无测试后门」；

@@ -29,7 +29,8 @@ Page({
         name: s.student_name || '微信用户',
         meta: s.checkin_at ? `签到 ${s.checkin_at}` : '待签到',
         avatar: s.student_avatar || '/images/2_556.png',
-        checked: !!s.checkin_at
+        checked: !!s.checkin_at,
+        isNew: !!s.isNewCategory // DESIGN #D11：同类型从未签到过 → 新学员
       }));
       const checked = students.filter(s => s.checked).length;
       this.setData({
@@ -37,6 +38,7 @@ Page({
         checked,
         unchecked: students.length - checked,
         total: students.length,
+        newCount: res.newCount || 0,
         course: {
           name: res.students[0] ? res.students[0].course_name : '',
           time: res.students[0] ? `${res.students[0].date} ${res.students[0].start_time}-${res.students[0].end_time}` : '',

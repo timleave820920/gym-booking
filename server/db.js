@@ -21,6 +21,8 @@ const { getDashboard } = require('./db/dashboard');
 const { queryUsersAnalysis, getTimeline, groupMessage } = require('./db/users-analysis');
 const { batchTrack, eventsAnalysis } = require('./db/events');
 const { getDailyReport, regenerateReport, listReports } = require('./db/report');
+const { createFeedback, listMyFeedbacks, listAdminFeedbacks, replyFeedback } = require('./db/feedback');
+const { listUnlimitedPlans, getMyUnlimitedPass, getMyUnlimitedPassInfo, applyUnlimitedPurchase, hasUnlimitedPass, expireOverdueUnlimitedPasses } = require('./db/unlimited');
 
 
 module.exports = {
@@ -145,5 +147,17 @@ module.exports = {
   // 运营日报（DESIGN #D6）
   getDailyReport,
   regenerateReport,
-  listReports
+  listReports,
+  // 吐槽反馈（DESIGN #D9）
+  createFeedback,
+  listMyFeedbacks,
+  listAdminFeedbacks,
+  replyFeedback,
+  // 季卡/年卡（DESIGN #D14）
+  listUnlimitedPlans,
+  getMyUnlimitedPass,
+  getMyUnlimitedPassInfo,
+  applyUnlimitedPurchase,
+  hasUnlimitedPass,
+  expireOverdueUnlimitedPasses
 };

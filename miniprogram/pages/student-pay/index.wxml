@@ -15,17 +15,24 @@
       </view>
     </view>
 
-    <!-- 金额卡 -->
+    <!-- 金额卡（有无限次卡 → 0 元订课，DESIGN #D14） -->
     <view class="amount-card flex-col">
-      <text class="amount-label">{{usePass ? '本次抵扣（次数包）' : '需支付金额（元）'}}</text>
-      <text class="amount-value">¥ {{totalPrice || (usePass ? 0 : course.price)}}</text>
+      <text class="amount-label">{{hasUnl ? '本次订课（无限次卡）' : (usePass ? '本次抵扣（次数包）' : '需支付金额（元）')}}</text>
+      <text class="amount-value">¥ {{totalPrice || ((hasUnl || usePass) ? 0 : course.price)}}</text>
       <text class="amount-sub" wx:if="{{usePass}}">次数包剩余 {{passRemaining}} 次，本次自动扣 1 次</text>
     </view>
 
-    <!-- 次卡提示（expiredForDate 时警示样式） -->
-    <view class="pass-hint {{passExpired ? 'pass-hint-warn' : ''}}" wx:if="{{passHint}}">{{passHint}}</view>
+    <!-- 无限次卡横幅（DESIGN #D14：有卡自动 0 元，不出现支付方式选择） -->
+    <view class="unl-hint" wx:if="{{hasUnl}}">
+      <text class="unl-hint-title">无限次卡 · 订课 0 元</text>
+      <text class="unl-hint-sub">{{unlInfo.type === 'year' ? '年卡' : '季卡'}}有效期至 {{unlInfo.expiresAt.slice(0, 10)}}（剩 {{unlInfo.daysLeft}} 天），本次直接确认，无需支付</text>
+    </view>
 
-    <!-- 支付方式（有次卡默认选中次卡，可切换储值/微信，2026-08-15） -->
+    <!-- 次卡提示（expiredForDate 时警示样式） -->
+    <view class="pass-hint {{passExpired ? 'pass-hint-warn' : ''}}" wx:if="{{passHint && !hasUnl}}">{{passHint}}</view>
+
+    <!-- 支付方式（有无限次卡 → 不展示；有次卡默认选中次卡，可切换储值/微信，2026-08-15） -->
+    <block wx:if="{{!hasUnl}}">
     <view class="section-title">选择支付方式</view>
     <view class="method-list">
       <view class="method-row flex-between {{item.selected ? 'method-selected' : ''}} {{item.disabled ? 'method-row-off' : ''}}"
@@ -49,6 +56,7 @@
     </view>
     <!-- 次卡选中说明 -->
     <view class="pass-lock-tip" wx:if="{{usePass}}">当前使用次卡抵扣，可切换储值或微信支付</view>
+    </block>
 
     <!-- 候补自动取消时间（仅排位模式）：到期未转正自动退款 -->
     <view class="expire-section" wx:if="{{course.mode === 'waitlist'}}">
@@ -70,11 +78,11 @@
   <!-- 底部 CTA -->
   <view class="cta-bar flex-between">
     <view class="flex-col">
-      <text class="cta-price">¥ {{totalPrice || (usePass ? 0 : course.price)}}</text>
+      <text class="cta-price">¥ {{totalPrice || ((hasUnl || usePass) ? 0 : course.price)}}</text>
       <text class="cta-sub">{{payText}}</text>
     </view>
     <view class="pay-btn" bindtap="pay">
-      <text>{{usePass ? '使用次数包' : '确认支付'}}</text>
+      <text>{{hasUnl ? '0 元订课' : (usePass ? '使用次数包' : '确认支付')}}</text>
     </view>
   </view>
 </view>

@@ -155,11 +155,11 @@ async function checkinByCode({ code, coachOpenid }) {
  * 按场次查订课名单（教练端学员名单，含学员昵称与签到状态）
  */
 async function listBookingsBySession(sessionId) {
-  return await driver.all(`
+  const rows = await driver.all(`
     SELECT b.id, b.session_id, b.status, b.checkin_at, b.user_openid,
            u.nickname AS student_name, u.avatar AS student_avatar,
            s.date, s.start_time, s.end_time,
-           c.name AS course_name, v.name AS venue_name
+           c.name AS course_name, c.category, v.name AS venue_name
     FROM bookings b
     JOIN users u ON u.openid = b.user_openid
     JOIN course_sessions s ON s.id = b.session_id
@@ -168,6 +168,23 @@ async function listBookingsBySession(sessionId) {
     WHERE b.session_id = ? AND b.status = 'booked'
     ORDER BY b.checkin_at IS NULL, b.created_at
   `, [sessionId]);
+  if (rows.length === 0) return rows;
+  // DESIGN #D11 新学员判定：第一次上该课程类型 = 同 category 从未签到过（B1：签到是唯一到课证明）。
+  // 当前场次签到不算历史（正上着第一堂）；候补不在名单天然不标。一次查询批量算（防 N+1）。
+  const cats = [...new Set(rows.map(r => r.category))];
+  const hasHistory = new Set();
+  for (const cat of cats) {
+    const hist = await driver.all(`
+      SELECT b.user_openid AS o
+      FROM bookings b
+      JOIN course_sessions s2 ON s2.id = b.session_id
+      JOIN courses c2 ON c2.id = s2.course_id
+      WHERE b.status = 'booked' AND b.checkin_at IS NOT NULL
+        AND c2.category = ? AND b.session_id != ?
+    `, [cat, sessionId]);
+    for (const h of hist) hasHistory.add(h.o);
+  }
+  return rows.map(s => ({ ...s, isNewCategory: !hasHistory.has(s.user_openid) }));
 }
 
 /**
@@ -266,7 +283,8 @@ async function cancelBooking(openid, bookingId) {
     await driver.exec('ROLLBACK');
     throw e;
   }
-  // 事务外对称退：次卡→退次（卡已过期作废清理）；余额→退余额；微信→原路（模拟）
+  // 事务外对称退：次卡→退次（卡已过期作废清理）；余额→退余额；微信→原路（模拟）；
+  // 无限卡（DESIGN #D14）→ 无次数可退，实付=退款=0 三一致，直接释放名额
   if (refundOrder) {
     const o = await driver.get('SELECT pay_source FROM orders WHERE id = ?', [refundOrder.id]);
     if (o && o.pay_source === 'pass') {
@@ -280,6 +298,8 @@ async function cancelBooking(openid, bookingId) {
         });
       }
       // 'expired'：卡已过期 → 次数作废清理（不提示退回）
+    } else if (o && o.pay_source === 'unlimited') {
+      // 无限卡 0 元订单：无钱可退
     } else {
       await refundOrderMoney(refundOrder.id);
     }
