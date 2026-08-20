@@ -18,16 +18,24 @@
   font-size: 48rpx; font-weight: 800; color: #1A1A23;
 }
 .head-date { color: #6B6B76; font-size: 28rpx; }
-.head-right { align-items: center; gap: 24rpx; }
-/* 自助签到入口（2026-08-20 #60 转需求：学生端内部进签到页）——accent 主色胶囊小按钮 */
-.checkin-entry {
-  padding: 10rpx 32rpx;
-  font-size: 26rpx;
-  font-weight: 600;
-  color: #FFFFFF;
+/* 自助签到悬浮圆钮（2026-08-20 用户拍板：左下角固定，单手可达；fixed 不随列表滚动位移） */
+.checkin-fab {
+  position: fixed;
+  left: 32rpx;
+  /* 自定义 tabBar 上沿之上（12+8+124+8+42=194rpx + 安全区，留 36rpx 间距），绝不与 tabBar 重叠 */
+  bottom: calc(230rpx + env(safe-area-inset-bottom));
+  z-index: 90;              /* 低于 tabBar(100)，层级无冲突 */
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 50%;
   background: var(--accent);
-  border-radius: 32rpx;
-  line-height: 1.4;
+  color: #FFFFFF;
+  font-size: 28rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12rpx 28rpx rgba(91, 87, 235, 0.35);
 }
 
 /* 分段切换 */

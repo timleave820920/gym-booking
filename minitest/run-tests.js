@@ -416,16 +416,37 @@ async function runSuite() {
       && /api\/checkin\/select/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8'))
       && /api\/admin\/checkin-qr/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8')),
     'DESIGN #D13：签到页三态（invalid/none/multi/done）+ 旧核销页移除 + 教练端核销入口全移除 + web 后台签到码区块 + 后端三接口');
-  // #60 转需求（2026-08-20 用户拍板）：学生端内部签到入口——「上课」页头部签到按钮 + checkin 页守卫放开内部进入（无 scene）
+  // #60 转需求（2026-08-20 用户拍板）：学生端内部签到入口——「上课」页左下角悬浮圆钮（2026-08-20 用户拍板改版）+ checkin 页守卫放开内部进入（无 scene）
   const myCoursesWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-my-courses', 'index.wxml'), 'utf8');
   const myCoursesJs = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-my-courses', 'index.js'), 'utf8');
   const myCoursesWxss = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-my-courses', 'index.wxss'), 'utf8');
-  check('FRONT-35', '学生端签到入口防回退（#60：上课页签到按钮 + 守卫放开内部进入）',
-    /checkin-entry/.test(myCoursesWxml) && /goCheckin/.test(myCoursesWxml) && /goCheckin/.test(myCoursesJs)
+  check('FRONT-35', '学生端签到入口防回退（#60：上课页左下角悬浮圆钮 + 守卫放开内部进入）',
+    !/checkin-entry/.test(myCoursesWxml) && /checkin-fab/.test(myCoursesWxml) && /goCheckin/.test(myCoursesWxml)
+      && /goCheckin/.test(myCoursesJs)
       && /navigateTo\(\{ url: '\/pages\/checkin\/index' \}\)/.test(myCoursesJs)
-      && /checkin-entry/.test(myCoursesWxss)
+      && /\.checkin-fab\s*\{[^}]*position:\s*fixed/.test(myCoursesWxss)
+      && /bottom:\s*calc\(230rpx \+ env\(safe-area-inset-bottom\)\)/.test(myCoursesWxss)
+      && /z-index:\s*90/.test(myCoursesWxss)
+      && /border-radius:\s*50%/.test(myCoursesWxss)
       && /scene !== '' && scene !== 'checkin'/.test(checkinJs),
-    '#60：上课页头部签到按钮 → navigateTo 签到页；checkin 页守卫须放行内部进入（无 scene）同时仍拒绝非 checkin 码');
+    '#60：签到入口必须为左下角悬浮圆钮（fixed 不随滚动；bottom 在自定义 tabBar 上沿之上；z-index 低于 tabBar 不重叠），不得退回头部胶囊按钮；checkin 页守卫须放行内部进入（无 scene）同时仍拒绝非 checkin 码');
+  // 2026-08-20 用户强制规则：任何 UI 元素不得与微信胶囊按钮重叠——全部 custom 导航页必须有顶部避让机制
+  const designSystemSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'DESIGN-SYSTEM.md'), 'utf8');
+  const pagesDir = path.join(PROJECT_ROOT, 'miniprogram', 'pages');
+  const customNavOk = fs.readdirSync(pagesDir).every((p) => {
+    const jf = path.join(pagesDir, p, 'index.json');
+    if (!fs.existsSync(jf)) return true;
+    const cfg = JSON.parse(fs.readFileSync(jf, 'utf8'));
+    if (cfg.navigationStyle !== 'custom') return true;
+    const wf = path.join(pagesDir, p, 'index.wxml');
+    const sf = path.join(pagesDir, p, 'index.wxss');
+    const txt = (fs.existsSync(wf) ? fs.readFileSync(wf, 'utf8') : '') + (fs.existsSync(sf) ? fs.readFileSync(sf, 'utf8') : '');
+    return /env\(safe-area-inset-top\)|statusBarH/.test(txt);
+  });
+  check('FRONT-36', '胶囊铁律防回退（2026-08-20 用户强制规则：任何 UI 不得与微信胶囊重叠）',
+    /任何 UI 元素不得与微信胶囊按钮重叠/.test(designSystemSrc)
+      && customNavOk,
+    'DESIGN-SYSTEM.md 须保留铁律 4；全部 navigationStyle:custom 页面的顶部内容必须含避让机制（env(safe-area-inset-top) 或 statusBarH 内联），否则内容会侵入右上角胶囊区域');
   // DESIGN #D7 客户来源防回退：app.js 解析 scene/query 渠道 → login 带 channel 归因 + 已登录直达 claim 兜底
   // + api.channelClaim + web 渠道码/来源看板 + 后端三接口 + 三处同步补列（mysql-schema/db-core/db-driver）
   const appSrcD7 = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'app.js'), 'utf8');

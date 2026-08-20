@@ -16,12 +16,13 @@ Page({
     selectedDate: '',   // 默认今天
     sessions: [],       // 全部课程（按周拉取）
     daySessions: [],    // 当前选中日期的课程
-    loading: true
+    loading: true,
+    statusBarH: 0       // 胶囊避让（2026-08-20 用户强制规则：任何 UI 不得与微信胶囊重叠）
   },
 
   onLoad(options) {
     const coachId = Number(options.coach_id || 1);
-    this.setData({ coachId });
+    this.setData({ coachId, statusBarH: wx.getWindowInfo().statusBarHeight });
     this.buildWeekDays();
     this.loadCoach();
     this.loadSessions();

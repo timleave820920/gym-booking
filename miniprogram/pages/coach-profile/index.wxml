@@ -1,6 +1,6 @@
 <view class="page">
-  <!-- 导航 -->
-  <view class="cp-nav">
+  <!-- 导航（padding-top 内联 statusBarH：内容整体下移避开微信胶囊，2026-08-20 用户强制规则） -->
+  <view class="cp-nav" style="padding-top: {{statusBarH}}px;">
     <view class="cp-back" bindtap="goBack"><text class="icon-back"></text></view>
     <text class="cp-nav-title">教练介绍</text>
     <view class="cp-nav-sp"></view>

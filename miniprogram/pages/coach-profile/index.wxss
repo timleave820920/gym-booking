@@ -7,11 +7,11 @@
   box-sizing: border-box;
 }
 
-/* ===== 导航 ===== */
+/* ===== 导航 =====（顶部 padding 由内联 statusBarH 控制，避开微信胶囊——2026-08-20 用户强制规则） */
 .cp-nav {
   display: flex;
   align-items: center;
-  padding: 24rpx 32rpx 8rpx;
+  padding: 0 32rpx 8rpx;
 }
 /* 与课程详情页 hero-nav 返回按钮完全一致（2026-08-19 用户拍板） */
 .cp-back {
