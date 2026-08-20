@@ -21,6 +21,17 @@ App({
     if (options && options.query && options.query.inviter) {
       wx.setStorageSync('pending_inviter', options.query.inviter);
     }
+    // 客户来源（DESIGN #D7）：渠道码扫码进入（wxacode scene=短码 c1~c9）或 ?channel=c1&batch=xxx
+    // 路径进入 → 存本地待归因渠道；登录页 login（新/老用户）或 claim（已登录直达）时上报
+    // （first-touch 首启为准、last-touch 30 天保护期内刷新，后端 channels.js 裁决）
+    const launchQuery = (options && options.query) || {};
+    const scene = String(launchQuery.scene || '').trim();
+    const channel = scene || String(launchQuery.channel || '').trim();
+    if (channel) {
+      wx.setStorageSync('pending_channel', channel);
+      const batch = String(launchQuery.batch || '').trim();
+      if (batch) wx.setStorageSync('pending_channel_batch', batch);
+    }
     // 初始化语言（默认中文，从缓存恢复用户偏好）
     const i18n = require('./utils/i18n.js');
     this.globalData.lang = i18n.loadLang();

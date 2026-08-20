@@ -35,7 +35,11 @@ CREATE TABLE IF NOT EXISTS users (
   level_lv        INT DEFAULT 1,
   gender          TINYINT DEFAULT 0,       -- 社交画像（DESIGN #D5）：0未填/1男/2女
   birthday        VARCHAR(10) DEFAULT '',  -- YYYY-MM-DD（存生日不存年龄）
-  profile_bonus_claimed TINYINT DEFAULT 0  -- 填单奖励已领（防重复）
+  profile_bonus_claimed TINYINT DEFAULT 0, -- 填单奖励已领（防重复）
+  \`source\`       VARCHAR(10) DEFAULT '',  -- 客户来源渠道短码（DESIGN #D7，first-touch 拉新归因）
+  last_channel    VARCHAR(10) DEFAULT '',  -- last-touch 促单归因（30 天保护期）
+  last_channel_at VARCHAR(19),             -- last-touch 时间戳（保护期判据）
+  channel_batch   VARCHAR(50) DEFAULT ''   -- 首次归因的投放批次
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS class_packages (
@@ -275,6 +279,7 @@ CREATE TABLE IF NOT EXISTS orders (
   refunded_at      VARCHAR(19),
   cancel_reason    VARCHAR(255) DEFAULT '',
   reward_triggered INT DEFAULT 0,
+  channel_id       VARCHAR(10) DEFAULT '',  -- 客户来源促单归因快照（DESIGN #D7，下单时读 last_channel）
   created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_orders_user (user_openid, status),
   KEY idx_orders_status (status, created_at),

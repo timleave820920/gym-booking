@@ -213,6 +213,18 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     // DESIGN #D10 排课发布节奏探针：下次发布日（每周五 22:00，time.js 北京时间）
     r = await req('GET', '/api/schedule/next-publish');
     assert.ok(r.data.nextPublish && r.data.text && r.data.display, '下次发布日');
+    // DESIGN #D7 客户来源探针：归因落库 + 渠道清单 + 来源看板聚合 + 未知渠道拒绝
+    r = await req('POST', '/api/channel/claim', { openid: U1.openid, channel: 'c2', batch: '探针批次' });
+    assert.equal(r.data.code, 200, '渠道归因');
+    r = await req('GET', '/api/channel-config');
+    assert.ok(r.data.channels && r.data.channels.c1 === '小红书', '渠道清单');
+    // source-analysis 属 ADMIN_PATHS：成对开关 Admin-Token（.env 已配生产值，同 261 行邀请看板模式）
+    process.env.ADMIN_TOKEN = 'cov-admin';
+    r = await req('GET', '/api/admin/source-analysis?days=30', null, { 'Admin-Token': 'cov-admin' });
+    delete process.env.ADMIN_TOKEN;
+    assert.ok(Array.isArray(r.data.rows) && Array.isArray(r.data.batches) && typeof r.data.unattributed === 'number', '来源看板聚合');
+    r = await req('POST', '/api/channel/claim', { openid: U1.openid, channel: 'cX' });
+    assert.equal(r.status, 400, '未知渠道码拒绝');
 
     // ---- 09 消息中心（订课/退款/签到已触发业务埋点） ----
     r = await req('GET', '/api/messages?openid=' + U1.openid);

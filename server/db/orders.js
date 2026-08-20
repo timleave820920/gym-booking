@@ -16,7 +16,7 @@ const ENERGY_CONFIG = require('../energy-config.js');
 
 const ORDER_SELECT = `
   SELECT o.id, o.order_no, o.user_openid, o.session_id, o.booking_id, o.wait_id, o.order_type,
-         o.amount_fen, o.status, o.pay_method, o.pay_source, o.paid_at, o.refunded_at, o.cancel_reason, o.created_at,
+         o.amount_fen, o.status, o.pay_method, o.pay_source, o.channel_id, o.paid_at, o.refunded_at, o.cancel_reason, o.created_at,
          COALESCE(s.date, '') AS date, COALESCE(s.start_time, '') AS start_time, COALESCE(s.end_time, '') AS end_time,
          COALESCE(c.name, CASE WHEN o.order_type = 'unlimited' THEN '无限次卡' WHEN o.order_type = 'recharge' THEN '储值充值' ELSE '' END) AS course_name,
          COALESCE(c.level, 0) AS level, COALESCE(c.duration_min, 0) AS duration_min,
@@ -39,14 +39,16 @@ function genOrderNo() {
 async function createOrder({ user_openid, session_id, amount_fen = 0, order_type = 'book', expire_mode = 'start' }) {
   const user = await findUserByOpenid(user_openid);
   if (!user) return { ok: false, error: '用户不存在，请先登录' };
+  // 客户来源促单归因快照（DESIGN #D7，last-touch）：下单时读 last_channel，落订单不可变
+  const channelId = user.last_channel || '';
 
   // 次卡购买：无场次依赖，按套餐金额校验
   if (order_type === 'pass') {
     const pkg = (await listPassPackages()).find(p => p.price_fen === amount_fen);
     if (!pkg) return { ok: false, error: '无效的次卡套餐' };
     const orderNo = await genOrderNo();
-    const r = await driver.run(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status)
-                VALUES (?, ?, NULL, ?, ?, 'pending')`, [orderNo, user_openid, order_type, amount_fen]);
+    const r = await driver.run(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status, channel_id)
+                VALUES (?, ?, NULL, ?, ?, 'pending', ?)`, [orderNo, user_openid, order_type, amount_fen, channelId]);
     const order = await driver.get(`${ORDER_SELECT} WHERE o.id = ?`, [r.lastInsertRowid]);
     return { ok: true, order };
   }
@@ -67,8 +69,8 @@ async function createOrder({ user_openid, session_id, amount_fen = 0, order_type
     const plan = (await listUnlimitedPlans()).find(p => p.price_fen === amount_fen);
     if (!plan) return { ok: false, error: '无效的卡档位' };
     const orderNo = await genOrderNo();
-    const r = await driver.run(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status)
-                VALUES (?, ?, NULL, ?, ?, 'pending')`, [orderNo, user_openid, order_type, amount_fen]);
+    const r = await driver.run(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status, channel_id)
+                VALUES (?, ?, NULL, ?, ?, 'pending', ?)`, [orderNo, user_openid, order_type, amount_fen, channelId]);
     const order = await driver.get(`${ORDER_SELECT} WHERE o.id = ?`, [r.lastInsertRowid]);
     return { ok: true, order };
   }
@@ -137,8 +139,8 @@ async function createOrder({ user_openid, session_id, amount_fen = 0, order_type
     // 候补订单记录自动取消节点（仅 waitlist 生效，其余忽略）
     const em = (order_type === 'waitlist' && ['start', '1h', '2h'].includes(expire_mode)) ? expire_mode : 'start';
     const orderNo = await genOrderNo();
-    const r = await driver.run(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status, expire_mode)
-                VALUES (?, ?, ?, ?, ?, 'pending', ?)`, [orderNo, user_openid, session_id, order_type, amount_fen, em]);
+    const r = await driver.run(`INSERT INTO orders (order_no, user_openid, session_id, order_type, amount_fen, status, expire_mode, channel_id)
+                VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)`, [orderNo, user_openid, session_id, order_type, amount_fen, em, channelId]);
 
     const order = await driver.get(`${ORDER_SELECT} WHERE o.id = ?`, [r.lastInsertRowid]);
     await driver.exec('COMMIT');

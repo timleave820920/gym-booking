@@ -306,6 +306,45 @@ canvas#dashTrend { width: 100%; height: 240px; }
       </div>
     </details>
 
+    <!-- 📣 渠道码（DESIGN #D7：小红书/抖音/大众点评/美团等投放渠道小程序码） -->
+    <details class="fold" id="fold-channel-qr">
+      <summary>📣 渠道码（投放用 · 每渠道一张，扫码打开小程序自动归因）</summary>
+      <div class="fold-inner">
+        <div style="font-size:12px;color:var(--gray);margin-bottom:10px">
+          短码恒定（印出的码长期有效），渠道名/投放内容（批次）由运营区分；老用户 30 天内扫码刷新最近来源，不覆盖首启来源
+        </div>
+        <div class="fold-grid" id="ch-qr-grid"></div>
+      </div>
+    </details>
+
+    <!-- 📊 客户来源（DESIGN #D7：打开→注册→首订→复购漏斗） -->
+    <details class="fold" id="fold-source">
+      <summary>📊 客户来源（渠道漏斗 · 打开→注册→首订→复购）</summary>
+      <div class="fold-inner">
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px">
+          <div class="trend-switch">
+            <button class="active" id="src-d7" onclick="loadSourceAnalysis(7)">近 7 天</button>
+            <button id="src-d30" onclick="loadSourceAnalysis(30)">近 30 天</button>
+          </div>
+          <span style="font-size:12px;color:var(--gray)">未归因 = 有成交但非渠道码进入（自然流量/转介绍）；转化率按前级人数计算</span>
+        </div>
+        <div id="src-empty" class="empty-tip" style="display:none"></div>
+        <div id="src-body" style="display:none">
+          <table class="dash-table" style="width:100%">
+            <thead><tr>
+              <th>渠道</th><th>打开(PV)</th><th>注册</th><th>打开→注册</th><th>首订</th><th>注册→首订</th><th>复购</th><th>首订→复购</th>
+            </tr></thead>
+            <tbody id="src-rows"></tbody>
+          </table>
+          <h4 style="font-size:13px;margin:14px 0 8px">批次明细（同渠道不同投放内容）</h4>
+          <table class="dash-table" style="width:100%">
+            <thead><tr><th>批次</th><th>渠道</th><th>注册</th><th>成交买家</th></tr></thead>
+            <tbody id="src-batches"></tbody>
+          </table>
+        </div>
+      </div>
+    </details>
+
     <!-- 7 KPI 卡（含昨日环比） -->
     <div class="dash-kpis">
       <div class="dash-kpi"><div class="k-label">新用户</div><div class="k-val" id="dk-new">-</div><div class="k-delta flat" id="dk-new-d">环比 --</div></div>
@@ -983,7 +1022,65 @@ function loadDashboard() {
     loadReport(false);          // 运营日报联动（DESIGN #D6：打开即报告）
     loadFeedbacks('');          // 吐槽收件箱联动（DESIGN #D9：打开即加载）
     loadCheckinQr(false);       // 签到码联动（DESIGN #D13：打开即展示）
+    loadChannelQr();            // 渠道码联动（DESIGN #D7：渲染渠道清单+已缓存码，不调微信）
+    loadSourceAnalysis(30);     // 客户来源联动（DESIGN #D7：打开即看板）
   }).catch(function (e) { alert('运营数据加载失败：' + e.message); });
+}
+// ===== 渠道码（DESIGN #D7）：投放渠道小程序码，每渠道一张，点「生成/刷新」才调微信 =====
+var CHANNEL_QR_CACHE = {}; // { [code]: base64 }
+function loadChannelQr() {
+  api('/channel-config').then(function (r) {
+    var channels = r.channels || {};
+    $('ch-qr-grid').innerHTML = Object.keys(channels).map(function (code) {
+      var qr = CHANNEL_QR_CACHE[code];
+      return '<div style="min-width:200px">'
+        + '<div style="font-size:13px;font-weight:600;margin-bottom:6px">' + code + ' · ' + channels[code]
+        + ' <button class="btn btn-save" style="margin-left:6px;padding:2px 8px;font-size:11px" onclick="genChannelQr(\'' + code + '\')">生成/刷新</button></div>'
+        + (qr
+            ? '<img src="data:image/png;base64,' + qr + '" alt="' + code + ' 渠道码" style="width:180px;height:180px;border-radius:12px;border:1px solid var(--line)">'
+            : '<div style="font-size:12px;color:var(--gray);padding:20px 0">未生成，点「生成/刷新」（需云托管已配置 WX_SECRET）</div>')
+        + '<div style="font-size:11px;color:var(--gray);margin-top:4px">投放链接可附 ?batch=投放内容名 做批次对比</div>'
+        + '</div>';
+    }).join('');
+  }).catch(function (e) {
+    $('ch-qr-grid').innerHTML = '<div class="empty-tip">渠道配置加载失败：' + e.message + '</div>';
+  });
+}
+function genChannelQr(code) {
+  api('/admin/channel-qr?channel=' + code + '&refresh=1').then(function (r) {
+    if (!r.base64) { alert(r.message || '渠道码生成失败'); return; }
+    CHANNEL_QR_CACHE[code] = r.base64;
+    loadChannelQr();
+  }).catch(function (e) { alert('渠道码生成失败：' + e.message); });
+}
+// ===== 客户来源看板（DESIGN #D7）：渠道漏斗（打开→注册→首订→复购）+ 批次明细 =====
+function loadSourceAnalysis(days) {
+  $('src-d7').classList.toggle('active', days === 7);
+  $('src-d30').classList.toggle('active', days === 30);
+  api('/admin/source-analysis?days=' + days).then(function (r) {
+    var rows = r.rows || [];
+    $('src-empty').style.display = 'none';
+    $('src-body').style.display = rows.length ? 'block' : 'none';
+    if (!rows.length) return;
+    $('src-rows').innerHTML = rows.map(function (x) {
+      return '<tr><td>' + x.name + '</td><td>' + x.opens + '</td><td>' + x.regs + '</td>'
+        + '<td>' + (x.regRate * 100).toFixed(1) + '%</td><td>' + x.firstOrders + '</td>'
+        + '<td>' + (x.firstRate * 100).toFixed(1) + '%</td><td>' + x.repeatOrders + '</td>'
+        + '<td>' + (x.repeatRate * 100).toFixed(1) + '%</td></tr>';
+    }).join('')
+      + '<tr><td style="color:var(--gray)">未归因（自然流量）</td><td colspan="7">' + r.unattributed + ' 位有成交用户</td></tr>';
+    var nameOf = function (code) {
+      var hit = rows.filter(function (x) { return x.code === code; })[0];
+      return hit ? hit.name : code;
+    };
+    $('src-batches').innerHTML = (r.batches || []).map(function (b) {
+      return '<tr><td>' + b.batch + '</td><td>' + nameOf(b.channel) + '</td><td>' + b.regs + '</td><td>' + b.buyers + '</td></tr>';
+    }).join('') || '<tr><td colspan="4"><div class="empty-tip">暂无批次数据（投放链接附 ?batch=名称 后自动统计）</div></td></tr>';
+  }).catch(function (e) {
+    $('src-empty').style.display = 'block';
+    $('src-empty').textContent = '客户来源加载失败：' + e.message;
+    $('src-body').style.display = 'none';
+  });
 }
 // ===== 签到码（DESIGN #D13）：固定小程序码展示/重新生成 =====
 function loadCheckinQr(regen) {

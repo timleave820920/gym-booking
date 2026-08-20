@@ -6,7 +6,7 @@
  */
 const { driver } = require('../db-core');
 
-const EVENT_TYPES = ['page_view', 'course_view', 'course_list_view', 'search', 'waitlist_view', 'banner_click'];
+const EVENT_TYPES = ['page_view', 'course_view', 'course_list_view', 'search', 'waitlist_view', 'banner_click', 'channel_open'];
 
 /**
  * 批量落埋点事件（前端 track.js 攒批上报）

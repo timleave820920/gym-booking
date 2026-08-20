@@ -383,5 +383,12 @@ module.exports = {
   },
   getMyFeedbacks(openid, page = 1) {
     return localRequest(`/api/my-feedbacks?openid=${openid}&page=${page}`, 'GET');
+  },
+
+  // ===== 客户来源（DESIGN #D7）=====
+  // 渠道扫码归因（已登录用户扫码进入：登录页兜底调用，last-touch 30 天保护期内刷新；
+  // 首次登录用户走 login 带 channel 归因，无需此接口）
+  channelClaim(openid, channel, batch) {
+    return localRequest('/api/channel/claim', 'POST', { openid, channel, batch });
   }
 };

@@ -9,31 +9,44 @@
 
 ## 进行中
 
-### DESIGN #D13 固定二维码自助签到（设计文档: 固定二维码签到设计方案.md，2026-08-20 确认）
+### DESIGN #D7 客户来源追踪（设计文档: 客户来源追踪设计方案.md，2026-08-20 确认）
+
+> 用户拍板（2026-08-19）：链接/小程序码带参归因——各渠道投放专属小程序码，打开即识别来源，无需用户告知；全链路转化漏斗（来源→注册→首订→复购）+ 后台「客户来源」看板。
+> 调研修正（2026-08-20，已确认）：① 微信无 open-channel API，归因只能靠入口参数；② 各渠道 App 无法直接拉起小程序 → 渠道码主推小程序码，复用 D13 wxacode 生成体系；③ scene 短码 c1~c9 映射 CHANNELS 配置表（scene 限 32 字符禁 %/中文）；④ wx.login 匿名期即可归因，不必等注册；⑤ 双轨归因：first-touch（users.source 首次为准）+ last-touch（orders.channel_id 下单快照，30 天保护期）+ 批次维度。
+
+- [x] **P0｜1. 数据层** — users 补列（source/last_channel/last_channel_at/channel_batch）+ orders 补列（channel_id）+ CHANNELS 配置单源（三处同步：mysql-schema.js + db-core.js + MYSQL_ENSURE_COLUMNS）
+- [x] **P0｜2. 归因** — `applyChannelAttribution(openid, channel, batch)`（未知码不认 / first-touch 首次为准 / last-touch 30 天保护期 / channel_open 事件落库）+ `POST /api/auth/login` 扩展 channel/batch + `POST /api/channel/claim`（已登录用户扫码归因）+ createOrder 下单快照 channel_id
+- [x] **P1｜3. 接口** — `GET /api/channel-config`（渠道清单）+ `GET /api/admin/channel-qr?channel=c1`（复用 wxacode 链路生成渠道码，per-channel 缓存 + refresh）+ `GET /api/admin/source-analysis?days=30`（打开/注册/首订/复购四级漏斗 + 转化率 + 批次明细 + 未归因行；7/30 天切换由前端传 days）
+- [x] **P0｜4. 前端** — app.js parseChannel（scene/query 兼容）+ 已登录自动调 claim / 未登录存 pending 登录时带 channel + api.js 新函数
+- [x] **P1｜5. 后台** — web 运营数据 tab「📊 客户来源」+「📣 渠道码」折叠卡（渠道码生成按钮 + 四级漏斗表格 + 批次明细）
+- [x] **P1｜6. 测试** — SRC-01~10（first-touch 不覆盖/期外不抢/下单快照/事件落库/漏斗口径/双参数共存/未知码忽略）+ FRONT-34 断言 + coverage 探针（claim/source-analysis/channel-config）
+- [ ] **P2｜7. 渠道管理** — 后台增删渠道清单/批次（初期代码单源即可，先不做）
+
+### DESIGN #D13 固定二维码自助签到（设计文档: 固定二维码签到设计方案.md，2026-08-20 确认，✅ 已交付 2026-08-20）
 
 > 用户拍板（2026-08-19）：场馆张贴一个固定官方小程序码（wxacode，scene=checkin），学员相机扫码进签到页——无歧义自动签到，有歧义（同时段多课）弹框选课；教练核销只留扫码。
 > 确认补充（2026-08-20）：后端核销接口/随机码**保留兜底但无前端入口**（逃生通道零成本）；学员端凭证页（student-checkin）随教练核销入口一并移除。
 
-- [ ] **P0｜1. 后端** — wxacode 固定码生成接口（缓存 + 重新生成）+ `POST /api/checkin/scan`（判定三态：无课/唯一课自动签/多课返回候选不落库）+ `POST /api/checkin/select`（选定后签到，校验归属+窗口）+ CKIN-01~08 用例（唯一自动签/无课/多课候选/选定签/非本人拒绝/窗口外拒绝 B1/已签到幂等/未登录/scene 非 checkin 拒绝）
-- [ ] **P0｜2. 前端** — `pages/checkin/index` 签到页（scene 解析 + 自动判定 + 三态展示 + 弹框选择）+ 教练端核销入口移除（coach-home 签到/手动核销按钮、coach-scan 页、coach-students 跳核销）+ 学员凭证页 student-checkin 移除（app.json 注册 + 入口 + agreement 文案同步）
-- [ ] **P1｜3. 后台** — web 运营数据 tab「📱 签到码」区块（小程序码展示 + 重新生成按钮）
-- [ ] **P1｜4. 防回退** — FRONT 断言（签到页三态文案 + 教练端核销入口移除 + web 签到码区块）+ coverage 探针（checkin/scan、checkin/select）
+- [x] **P0｜1. 后端** — wxacode 固定码生成接口（缓存 + 重新生成）+ `POST /api/checkin/scan`（判定三态：无课/唯一课自动签/多课返回候选不落库）+ `POST /api/checkin/select`（选定后签到，校验归属+窗口）+ CKIN-01~08 用例（唯一自动签/无课/多课候选/选定签/非本人拒绝/窗口外拒绝 B1/已签到幂等/未登录/scene 非 checkin 拒绝）
+- [x] **P0｜2. 前端** — `pages/checkin/index` 签到页（scene 解析 + 自动判定 + 三态展示 + 弹框选择）+ 教练端核销入口移除（coach-home 签到/手动核销按钮、coach-scan 页、coach-students 跳核销）+ 学员凭证页 student-checkin 移除（app.json 注册 + 入口 + agreement 文案同步）
+- [x] **P1｜3. 后台** — web 运营数据 tab「📱 签到码」区块（小程序码展示 + 重新生成按钮）
+- [x] **P1｜4. 防回退** — FRONT 断言（签到页三态文案 + 教练端核销入口移除 + web 签到码区块）+ coverage 探针（checkin/scan、checkin/select）
 
-### DESIGN #D12 缺席标记（设计文档: 缺席标记设计方案.md，2026-08-20 确认）
+### DESIGN #D12 缺席标记（设计文档: 缺席标记设计方案.md，2026-08-20 确认，✅ 已交付 2026-08-20）
 
 > 用户拍板（2026-08-19）：课程已结束但学员未签到 → 「已完成」列表标记灰色「缺席」（纯前端，无接口/数据变更，B1 口径不变）。
 
-- [ ] **P0｜1. 前端** — student-my-courses 已完成卡：未签到文案「未签到」→「缺席」灰色圆角标签（已签到「已签到 ✓」不变）
-- [ ] **P1｜2. 防回退** — FRONT 断言（缺席文案 + 已签到不变）+ ABS 用例
+- [x] **P0｜1. 前端** — student-my-courses 已完成卡：未签到文案「未签到」→「缺席」灰色圆角标签（已签到「已签到 ✓」不变）
+- [x] **P1｜2. 防回退** — FRONT 断言（缺席文案 + 已签到不变）+ ABS 用例
 
-### DESIGN #D10 排课发布节奏与空课占位（设计文档: 排课发布节奏与空课占位设计方案.md，2026-08-20 确认）
+### DESIGN #D10 排课发布节奏与空课占位（设计文档: 排课发布节奏与空课占位设计方案.md，2026-08-20 确认，✅ 已交付 2026-08-20）
 
 > 用户拍板（2026-08-19）：每周五 22:00 运营手动发布下周（周六~下周五）课表（运营约定，系统不自动排课）；预约页未来空课日显示「课表将于本周五（x月x日 22:00）更新」。
 > 确认补充（2026-08-20）：所有未来空课日显示（规则统一）；「本周五」= 最近的未来周五 22:00（time.js 北京时间，后端权威）；跨年文案带年；副文案「新一周课表发布后即可预约」；今天/过去空课日、搜索空态保持原样。
 
-- [ ] **P0｜1. 接口** — `GET /api/schedule/next-publish`（返回 nextPublish 日期 + 展示文本，time.js 计算，PUB-01~05 边界用例含 TZ=UTC）
-- [ ] **P0｜2. 前端** — student-courses 预约页空态改造：未来空课日 → 占位文案（`课表将于本周五（{{text}} 22:00）更新` + 副文案）；今天/过去/搜索态保持原样
-- [ ] **P1｜3. 防回退** — FRONT 断言（占位文案 + 原空态保持）+ coverage 探针（next-publish）
+- [x] **P0｜1. 接口** — `GET /api/schedule/next-publish`（返回 nextPublish 日期 + 展示文本，time.js 计算，PUB-01~05 边界用例含 TZ=UTC）
+- [x] **P0｜2. 前端** — student-courses 预约页空态改造：未来空课日 → 占位文案（`课表将于本周五（{{text}} 22:00）更新` + 副文案）；今天/过去/搜索态保持原样
+- [x] **P1｜3. 防回退** — FRONT 断言（占位文案 + 原空态保持）+ coverage 探针（next-publish）
 
 ### DESIGN #D14 季卡/年卡（设计文档: 季卡年卡设计方案.md，2026-08-19 确认）
 

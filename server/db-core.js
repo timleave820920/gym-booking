@@ -43,7 +43,11 @@ db.exec(`
     login_count   INTEGER DEFAULT 0,             -- 登录次数
     balance_fen   INTEGER DEFAULT 0,             -- 储值余额（单位：分）
     coin_balance  INTEGER DEFAULT 0,             -- 能量币余额
-    level_lv      INTEGER DEFAULT 1              -- 当前会员等级（升级检测用）
+    level_lv      INTEGER DEFAULT 1,             -- 当前会员等级（升级检测用）
+    source        TEXT DEFAULT '',               -- 客户来源渠道短码（DESIGN #D7，first-touch 拉新归因）
+    last_channel  TEXT DEFAULT '',               -- last-touch 促单归因（30 天保护期）
+    last_channel_at TEXT,                        -- last-touch 时间戳（保护期判据）
+    channel_batch TEXT DEFAULT ''                -- 首次归因的投放批次
   );
 `);
 // 课程详情页重构字段：轮播图(服务器端)/简要标题/地址/经纬度/教练简介
@@ -71,6 +75,11 @@ try { db.exec("ALTER TABLE orders ADD COLUMN pay_source TEXT DEFAULT 'balance'")
 try { db.exec('ALTER TABLE users ADD COLUMN gender INTEGER DEFAULT 0'); } catch (e) {}
 try { db.exec("ALTER TABLE users ADD COLUMN birthday TEXT DEFAULT ''"); } catch (e) {}
 try { db.exec('ALTER TABLE users ADD COLUMN profile_bonus_claimed INTEGER DEFAULT 0'); } catch (e) {}
+// 客户来源（DESIGN #D7）：first-touch 拉新归因（首次为准）+ last-touch 促单归因（30 天保护期）+ 投放批次
+try { db.exec("ALTER TABLE users ADD COLUMN source TEXT DEFAULT ''"); } catch (e) {}
+try { db.exec("ALTER TABLE users ADD COLUMN last_channel TEXT DEFAULT ''"); } catch (e) {}
+try { db.exec('ALTER TABLE users ADD COLUMN last_channel_at TEXT'); } catch (e) {}
+try { db.exec("ALTER TABLE users ADD COLUMN channel_batch TEXT DEFAULT ''"); } catch (e) {}
 
 // ===== 浏览埋点（DESIGN #D5）：用户行为事件——捕捉「看了没订」的意图 =====
 db.exec(`
@@ -400,6 +409,7 @@ db.exec(`
     cancel_reason TEXT DEFAULT '',
     created_at   TEXT DEFAULT (datetime('now','localtime')),
     reward_triggered INTEGER DEFAULT 0,           -- 邀请奖励已触发
+    channel_id   TEXT DEFAULT '',                 -- 客户来源促单归因快照（DESIGN #D7，下单时读 last_channel）
     FOREIGN KEY (user_openid) REFERENCES users(openid),
     FOREIGN KEY (session_id)  REFERENCES course_sessions(id)
   );
@@ -407,6 +417,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status, created_at);
 `);
 try { db.exec('ALTER TABLE orders ADD COLUMN reward_triggered INTEGER DEFAULT 0'); } catch (e) {}
+try { db.exec("ALTER TABLE orders ADD COLUMN channel_id TEXT DEFAULT ''"); } catch (e) {}
 
 // 教练分成配置表（单行配置单源，DESIGN #D1 任务2）
 db.exec(`

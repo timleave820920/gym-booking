@@ -81,6 +81,9 @@ Page({
   // 已注册用户启动直达：本地登录态齐备时**先跳转再校验**（不等网络，无登录页闪现）；
   // 后端 checkLogin 兜底：清库后查无此人 → 清本地态回登录页走正常注册
   autoEnterImmediate(ui, openid) {
+    // 客户来源（DESIGN #D7）：已登录用户扫码进入（无登录请求）→ 渠道归因兜底
+    // last-touch 保护期内刷新；不阻塞跳转（失败静默，下次登录再补）
+    this.claimChannelIfPending(openid);
     const role = ui.role || 'student';
     wx.reLaunch({ url: role === 'coach' ? '/pages/coach-home/index' : '/pages/student-courses/index' });
     api.checkLogin(openid).then((res) => {
@@ -277,13 +280,19 @@ Page({
         const openid = '';
         wx.setStorageSync('openid', openid);
 
+        // 客户来源（DESIGN #D7）：登录请求携带渠道码（app.js onLaunch 解析 scene/query 存入）
+        // 后端 login 归因：首次=first-touch 落库，老用户=last-touch 保护期内刷新
+        const channel = String(wx.getStorageSync('pending_channel') || '').trim();
+        const batch = String(wx.getStorageSync('pending_channel_batch') || '').trim();
+
         // 请求后端注册/登录
         api.login({
           code,
           openid,
           nickname: userProfile.name || '',
           avatar: userProfile.avatar || '',
-          phone: userProfile.phone || ''
+          phone: userProfile.phone || '',
+          ...(channel ? { channel, batch } : {})
         }).then((res2) => {
           const isNewUser = res2.isNewUser;
           const user = res2.user;
@@ -308,6 +317,9 @@ Page({
           // 2026-08-15: 用后端返回的真实 openid 覆盖兜底值（code 换号成功后即微信真实 openid，
           // 修复：原来只存演示兜底值，页面读 storage 的 openid 全变成演示账号）
           wx.setStorageSync('openid', userInfo.openid);
+          // 客户来源（DESIGN #D7）：login 已带 channel 归因成功 → 清除待归因渠道（防重复上报）
+          wx.removeStorageSync('pending_channel');
+          wx.removeStorageSync('pending_channel_batch');
           app.globalData.userInfo = userInfo;
           app.globalData.role = userInfo.role;
 
@@ -359,6 +371,20 @@ Page({
         this.setData({ loggingIn: false });
         wx.showToast({ title: '微信登录失败', icon: 'none' });
       }
+    });
+  },
+
+  // 客户来源（DESIGN #D7）：已登录用户扫码进入 → 渠道归因兜底（last-touch 30 天保护期内刷新）
+  // 不阻塞、不打断登录流程；失败静默（下次 login 时后端会再补一次 last-touch）
+  claimChannelIfPending(openid) {
+    const channel = String(wx.getStorageSync('pending_channel') || '').trim();
+    if (!channel || !openid) return;
+    const batch = String(wx.getStorageSync('pending_channel_batch') || '').trim();
+    api.channelClaim(openid, channel, batch).then(() => {
+      wx.removeStorageSync('pending_channel');
+      wx.removeStorageSync('pending_channel_batch');
+    }).catch((err) => {
+      console.warn('[channel] 归因失败（静默）', err && err.message);
     });
   },
 

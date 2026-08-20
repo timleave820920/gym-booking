@@ -416,6 +416,33 @@ async function runSuite() {
       && /api\/checkin\/select/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8'))
       && /api\/admin\/checkin-qr/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8')),
     'DESIGN #D13：签到页三态（invalid/none/multi/done）+ 旧核销页移除 + 教练端核销入口全移除 + web 后台签到码区块 + 后端三接口');
+  // DESIGN #D7 客户来源防回退：app.js 解析 scene/query 渠道 → login 带 channel 归因 + 已登录直达 claim 兜底
+  // + api.channelClaim + web 渠道码/来源看板 + 后端三接口 + 三处同步补列（mysql-schema/db-core/db-driver）
+  const appSrcD7 = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'app.js'), 'utf8');
+  const dbCoreSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db-core.js'), 'utf8');
+  const mysqlSchemaSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'mysql-schema.js'), 'utf8');
+  const dbDriverSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db-driver.js'), 'utf8');
+  const channelsSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'db', 'channels.js'), 'utf8');
+  check('FRONT-34', '客户来源防回退（DESIGN #D7：scene 解析 + login 归因 + claim 兜底 + web 看板 + 双轨字段）',
+    /pending_channel/.test(appSrcD7) && /launchQuery\.scene/.test(appSrcD7)
+      && /pending_channel/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'login', 'index.js'), 'utf8'))
+      && /channel, batch/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'login', 'index.js'), 'utf8'))
+      && /claimChannelIfPending/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'login', 'index.js'), 'utf8'))
+      && /channelClaim\(/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'utils', 'api.js'), 'utf8'))
+      && /api\/channel\/claim/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'utils', 'api.js'), 'utf8'))
+      && /fold-channel-qr/.test(webCoursesSrc) && /fold-source/.test(webCoursesSrc)
+      && /loadSourceAnalysis/.test(webCoursesSrc) && /genChannelQr/.test(webCoursesSrc)
+      && /api\/channel\/claim/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8'))
+      && /api\/channel-config/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8'))
+      && /api\/admin\/channel-qr/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8'))
+      && /api\/admin\/source-analysis/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8'))
+      && /applyChannelAttribution/.test(channelsSrc) && /sourceAnalysis/.test(channelsSrc)
+      && /CHANNEL_TOUCH_WINDOW_MS/.test(channelsSrc)
+      && /source/.test(dbCoreSrc) && /last_channel/.test(dbCoreSrc) && /channel_id/.test(dbCoreSrc)
+      // mysql-schema.js 的 DDL 是模板字符串（第 18 行反引号起）→ 源码里保留字反引号写成 \`source\`（转义），运行时才是 `source`
+      && /\\`source\\`/.test(mysqlSchemaSrc) && /channel_id/.test(mysqlSchemaSrc)
+      && /last_channel/.test(dbDriverSrc) && /channel_id/.test(dbDriverSrc),
+    'D7：app.js 解析 scene/query 存 pending_channel → login 带 channel+batch、已登录直达 claimChannelIfPending；api.channelClaim；web 渠道码+来源看板；后端 4 接口；双轨字段三处同步补列');
   // DESIGN #D5 浏览埋点防回退：首页 page_view 曝光/搜索词、详情 course_view 停留时长（onHide/onUnload 上报）
   const d5DetailJs = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.js'), 'utf8');
   check('FRONT-20', '浏览埋点防回退（DESIGN #D5：首页曝光/搜索词/详情停留时长）',
@@ -1123,6 +1150,132 @@ async function runSuite() {
     check('CKIN-08', 'scan 缺 openid 拒绝', r.status === 400 && (r.data.message || '').includes('openid'), `msg=${r.data && r.data.message}`);
     r = await req('POST', '/api/checkin/select', { openid: CK2.openid });
     check('CKIN-09', 'select 缺 bookingId 拒绝', r.status === 400 && (r.data.message || '').includes('bookingId'), `msg=${r.data && r.data.message}`);
+  }
+
+  // ===== 6.2 客户来源（DESIGN #D7）：双轨归因 / 下单快照 / 漏斗聚合 =====
+  console.log('\n── 6.2 客户来源（DESIGN #D7）──');
+  {
+    const srcDb = require('../server/db.js');
+    const SRC1 = 'uid_test_src1', SRC2 = 'uid_test_src2', SRC3 = 'uid_test_src3';
+    // 前置清理（独立用户防污染：events→orders→bookings→users）
+    await srcDb.driver.run("DELETE FROM course_events WHERE openid IN (?, ?, ?)", [SRC1, SRC2, SRC3]);
+    await srcDb.driver.run("DELETE FROM bookings WHERE user_openid IN (?, ?, ?)", [SRC1, SRC2, SRC3]);
+    await srcDb.driver.run("DELETE FROM orders WHERE user_openid IN (?, ?, ?)", [SRC1, SRC2, SRC3]);
+    await srcDb.driver.run("DELETE FROM users WHERE openid IN (?, ?, ?)", [SRC1, SRC2, SRC3]);
+
+    // SRC-01：落地页带 channel=c1&batch 静默登录（新用户注册）→ first-touch 落库（source+批次）
+    r = await req('POST', '/api/auth/login', { openid: SRC1, nickname: '渠道测试一', channel: 'c1', batch: '小红书双十一' });
+    check('SRC-01', '落地页带渠道登录：注册成功不阻断', r.status === 201, `status=${r.status} msg=${r.data && r.data.message}`);
+    {
+      const u = await srcDb.driver.get('SELECT source, channel_batch, last_channel FROM users WHERE openid = ?', [SRC1]);
+      check('SRC-01b', 'first-touch 落库 source=c1 + 批次', !!(u && u.source === 'c1' && u.channel_batch === '小红书双十一'), `source=${u && u.source} batch=${u && u.channel_batch}`);
+    }
+
+    // SRC-02：重复打开不同渠道码 → first-touch 不覆盖（首次为准）、last-touch 30 天内刷新
+    r = await req('POST', '/api/auth/login', { openid: SRC1, nickname: '渠道测试一', channel: 'c2' });
+    {
+      const u = await srcDb.driver.get('SELECT source, last_channel FROM users WHERE openid = ?', [SRC1]);
+      check('SRC-02', '再打开 c2：source 仍 c1（不覆盖）、last_channel 刷新 c2', !!(u && u.source === 'c1' && u.last_channel === 'c2'), `source=${u && u.source} last=${u && u.last_channel}`);
+    }
+
+    // SRC-03：已建档无 source 用户 claim 绑定；已绑定再 claim 不覆盖 first-touch
+    await req('POST', '/api/auth/login', { openid: SRC2, nickname: '渠道测试二' });
+    r = await req('POST', '/api/channel/claim', { openid: SRC2, channel: 'c3', batch: '美团到店' });
+    check('SRC-03', 'claim 归因成功', r.status === 200, `status=${r.status} msg=${r.data && r.data.message}`);
+    {
+      const u = await srcDb.driver.get('SELECT source, last_channel FROM users WHERE openid = ?', [SRC2]);
+      check('SRC-03b', 'claim 后 source=c3 + last=c3', !!(u && u.source === 'c3' && u.last_channel === 'c3'), `source=${u && u.source} last=${u && u.last_channel}`);
+    }
+    await req('POST', '/api/channel/claim', { openid: SRC2, channel: 'c4' });
+    {
+      const u = await srcDb.driver.get('SELECT source, last_channel FROM users WHERE openid = ?', [SRC2]);
+      check('SRC-03c', '再 claim c4：source 不覆盖（仍 c3）、last 刷新 c4', !!(u && u.source === 'c3' && u.last_channel === 'c4'), `source=${u && u.source} last=${u && u.last_channel}`);
+    }
+
+    // SRC-04：last-touch 30 天保护期——直插 last_channel_at=45 天前 → 期外扫码不抢（last_channel 不变）
+    await srcDb.driver.run('UPDATE users SET last_channel_at = ? WHERE openid = ?', [timeMod.addDaysStr(timeMod.todayStr(), -45) + ' 12:00:00', SRC2]);
+    await req('POST', '/api/channel/claim', { openid: SRC2, channel: 'c1' });
+    {
+      const u = await srcDb.driver.get('SELECT last_channel, last_channel_at FROM users WHERE openid = ?', [SRC2]);
+      check('SRC-04', '期外(45天)扫码不抢 last-touch（仍 c4、at 未刷新）',
+        !!(u && u.last_channel === 'c4' && String(u.last_channel_at).startsWith(timeMod.addDaysStr(timeMod.todayStr(), -45))),
+        `last=${u && u.last_channel} at=${u && u.last_channel_at}`);
+    }
+
+    // SRC-05：下单 → orders.channel_id = 下单时 last_channel 快照（SRC1 last=c2），支付后不可变
+    await srcDb.driver.run('UPDATE users SET balance_fen = balance_fen + 100000 WHERE openid = ?', [SRC1]); // 注入余额（新注册 0）
+    const srcS1 = await mkFutureSession(5, 10, 0);
+    r = await req('POST', '/api/orders', { openid: SRC1, sessionId: srcS1.id, amountFen: 6800, orderType: 'book' });
+    check('SRC-05', '下单成功（SRC1）', r.status === 201, `status=${r.status} msg=${r.data && r.data.message}`);
+    const srcOrderId = r.data.order.id;
+    {
+      const o = await srcDb.driver.get('SELECT channel_id FROM orders WHERE id = ?', [srcOrderId]);
+      check('SRC-05b', '订单快照 channel_id=last_channel(c2)', !!(o && o.channel_id === 'c2'), `channel_id=${o && o.channel_id}`);
+    }
+    r = await req('POST', `/api/orders/${srcOrderId}/pay`, { openid: SRC1, payMethod: 'balance' });
+    check('SRC-05c', '支付成功', ok(r, 200) && r.data.order.status === 'paid', `status=${r.data && r.data.order && r.data.order.status}`);
+    {
+      const o = await srcDb.driver.get('SELECT channel_id FROM orders WHERE id = ?', [srcOrderId]);
+      check('SRC-05d', '支付后快照不可变（仍 c2）', !!(o && o.channel_id === 'c2'), `channel_id=${o && o.channel_id}`);
+    }
+    // 第二单（复购口径，SRC-07 断言用）
+    const srcS2 = await mkFutureSession(6, 10, 0);
+    r = await req('POST', '/api/orders', { openid: SRC1, sessionId: srcS2.id, amountFen: 6800, orderType: 'book' });
+    if (r.data && r.data.order) await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: SRC1, payMethod: 'balance' });
+
+    // SRC-06：channel_open 事件每次归因记一条（SRC1 共 2 次：c1 带批次、c2）
+    {
+      const ev = await srcDb.driver.all("SELECT event_type, source, keyword FROM course_events WHERE openid = ? AND event_type = 'channel_open' ORDER BY id", [SRC1]);
+      check('SRC-06', 'channel_open 事件：SRC1 两条（c1 带批次/c2）',
+        ev.length === 2 && ev.some(e => e.source === 'c1' && e.keyword === '小红书双十一') && ev.some(e => e.source === 'c2'),
+        `n=${ev.length} ${ev.map(e => e.source + '/' + e.keyword).join(',')}`);
+    }
+
+    // SRC-07：漏斗聚合（打开/注册/首订/复购 + 批次明细）
+    r = await req('GET', '/api/admin/source-analysis?days=30');
+    check('SRC-07', '看板 200 + 结构（rows/batches/unattributed/days）',
+      r.status === 200 && Array.isArray(r.data.rows) && Array.isArray(r.data.batches) && typeof r.data.unattributed === 'number' && r.data.days === 30,
+      `status=${r.status}`);
+    {
+      const c1 = (r.data.rows || []).find(x => x.code === 'c1');
+      check('SRC-07b', 'c1 行口径：opens≥1/regs=1/首订=1/复购=1',
+        !!(c1 && c1.opens >= 1 && c1.regs === 1 && c1.firstOrders === 1 && c1.repeatOrders === 1),
+        `c1=${JSON.stringify(c1)}`);
+      const batch = (r.data.batches || []).find(b => b.batch === '小红书双十一');
+      check('SRC-07c', '批次明细含「小红书双十一」注册=1（渠道 c1）',
+        !!(batch && batch.regs === 1 && batch.channel === 'c1'), `batch=${JSON.stringify(batch)}`);
+    }
+
+    // SRC-08：channel+c9 与 inviter 双参数共存互不干扰（登录归因 + 邀请绑定独立生效）
+    await req('POST', '/api/auth/login', { openid: SRC3, nickname: '渠道测试三', channel: 'c9' });
+    r = await req('POST', '/api/invite', { inviter: SRC1, invitee: SRC3 });
+    {
+      const u = await srcDb.driver.get('SELECT source FROM users WHERE openid = ?', [SRC3]);
+      const inv = await srcDb.driver.get('SELECT 1 FROM invitations WHERE inviter = ? AND invitee = ?', [SRC1, SRC3]);
+      check('SRC-08', '双参数共存：source=c9 且邀请关系成立', !!(u && u.source === 'c9') && !!inv, `source=${u && u.source} inv=${!!inv}`);
+    }
+
+    // SRC-09：未知短码 cX 不认（防随意造码）——登录不阻断但归因静默、claim 明确 400
+    r = await req('POST', '/api/auth/login', { openid: SRC3, nickname: '渠道测试三', channel: 'cX' });
+    check('SRC-09', '未知短码登录不阻断', r.status === 200, `status=${r.status}`);
+    r = await req('POST', '/api/channel/claim', { openid: SRC3, channel: 'cX' });
+    check('SRC-09b', '未知短码 claim → 400', r.status === 400 && (r.data.message || '').includes('未知渠道码'), `status=${r.status} msg=${r.data && r.data.message}`);
+    {
+      const u = await srcDb.driver.get('SELECT source FROM users WHERE openid = ?', [SRC3]);
+      check('SRC-09c', '未知码不落库（source 仍 c9）', !!(u && u.source === 'c9'), `source=${u && u.source}`);
+    }
+
+    // SRC-10：接口保护——source-analysis/channel-qr 走 ADMIN_PATHS（无 token 401），channel-config 学员端不保护
+    r = await req('GET', '/api/admin/source-analysis', null, { noToken: true });
+    check('SRC-10', '无 token 拉来源看板 → 401', r.status === 401, `status=${r.status}`);
+    r = await req('GET', '/api/admin/channel-qr?channel=c1', null, { noToken: true });
+    check('SRC-10b', '无 token 拉渠道码 → 401', r.status === 401, `status=${r.status}`);
+    r = await req('GET', '/api/admin/channel-qr?channel=c1');
+    check('SRC-10c', '带 token 未配 WX_SECRET → 400 明确报错', r.status === 400 && (r.data.message || '').includes('WX_SECRET'), `status=${r.status} msg=${r.data && r.data.message}`);
+    r = await req('GET', '/api/admin/channel-qr?channel=cX');
+    check('SRC-10d', '未知渠道码生成 → 400', r.status === 400 && (r.data.message || '').includes('未知渠道码'), `msg=${r.data && r.data.message}`);
+    r = await req('GET', '/api/channel-config', null, { noToken: true });
+    check('SRC-10e', 'channel-config 学员端接口不保护', r.status === 200 && r.data.channels && r.data.channels.c1 === '小红书', `status=${r.status}`);
   }
 
   // ===== 5.5 新学员标记（DESIGN #D11）：同 category 签到过才算上过，首次上该类型标「新」=====

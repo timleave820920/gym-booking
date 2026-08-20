@@ -212,6 +212,10 @@ const MYSQL_ENSURE_COLUMNS = {
     ['gender', 'TINYINT DEFAULT 0'],                    // 社交画像（DESIGN #D5）
     ['birthday', "VARCHAR(10) DEFAULT ''"],
     ['profile_bonus_claimed', 'TINYINT DEFAULT 0'],
+    ['source', "VARCHAR(10) DEFAULT ''"],               // 客户来源（DESIGN #D7）
+    ['last_channel', "VARCHAR(10) DEFAULT ''"],
+    ['last_channel_at', 'VARCHAR(19)'],
+    ['channel_batch', "VARCHAR(50) DEFAULT ''"],
   ],
   bookings: [
     ['checkin_code', 'VARCHAR(5)'],             // 随机 5 位签到码（BUGS-INBOX #11）
@@ -227,6 +231,7 @@ const MYSQL_ENSURE_COLUMNS = {
     ['pay_source', "VARCHAR(16) DEFAULT 'balance'"],
     ['expire_mode', "VARCHAR(16) DEFAULT 'start'"],
     ['reward_triggered', 'INT DEFAULT 0'],
+    ['channel_id', "VARCHAR(10) DEFAULT ''"],           // 客户来源促单归因快照（DESIGN #D7）
   ],
 };
 

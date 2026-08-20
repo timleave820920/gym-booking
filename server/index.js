@@ -216,7 +216,7 @@ function handleCors(req, res) {
 
 async function handleLogin(req, res) {
   const body = await readBody(req);
-  const { code, openid, nickname, avatar, phone, role } = body;
+  const { code, openid, nickname, avatar, phone, role, channel, batch } = body;
 
   // 1. 优先用 code 调微信接口换真实 openid（真实微信身份）
   // 2026-08-17 用户指令：登录不再有演示账号兜底——有 code 只信 code，
@@ -256,6 +256,8 @@ async function handleLogin(req, res) {
     if (nickname && nickname.trim() && !curNick) {
       user = await db.updateProfile(finalOpenid, { nickname: nickname.trim(), avatar: avatar || user.avatar || '' });
     }
+    // 客户来源归因（DESIGN #D7，可选参数）：未知渠道/归因异常均不阻断登录（SRC-09）
+    if (channel) await db.applyChannelAttribution(finalOpenid, String(channel), batch).catch(() => {});
     return sendJson(res, 200, {
       code: 200,
       message: '登录成功',
@@ -273,6 +275,8 @@ async function handleLogin(req, res) {
     phone: phone || '',
     role: role || 'student'
   });
+  // 客户来源归因（DESIGN #D7）：新用户首次归因 first-touch（SRC-01）；异常不阻断注册
+  if (channel) await db.applyChannelAttribution(finalOpenid, String(channel), batch).catch(() => {});
   return sendJson(res, 201, {
     code: 201,
     message: '注册成功',
@@ -709,6 +713,22 @@ async function handleCheckinSelect(req, res) {
   return sendJson(res, 200, { code: 200, message: '签到成功', booking: result.booking });
 }
 
+// 微信 access_token（cgi-bin/token，登录场景同款流程，BUG-LEDGER #46：白名单内关证书校验）
+// 固定签到码（DESIGN #D13）与渠道码（DESIGN #D7）共用
+function getWxAccessToken() {
+  if (!WX_APPID || !WX_SECRET) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const tokenUrl = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${WX_APPID}&secret=${WX_SECRET}`;
+    const tReq = https.get(tokenUrl, { rejectUnauthorized: !WECHAT_API_HOSTS.has(new URL(tokenUrl).hostname) }, (tRes) => {
+      let data = '';
+      tRes.on('data', c => data += c);
+      tRes.on('end', () => { try { resolve(JSON.parse(data).access_token || null); } catch (e) { resolve(null); } });
+    });
+    tReq.on('error', () => resolve(null));
+    tReq.setTimeout(8000, () => { tReq.destroy(); resolve(null); });
+  });
+}
+
 // 固定签到码（GET /api/admin/checkin-qr，DESIGN #D13）：官方小程序码生成
 // wxacode.getUnlimited（scene=checkin，path=pages/checkin/index）——码内容固定公开无泄露风险
 // 内存缓存 24h（内容不变；运营「重新生成」传 ?refresh=1 强制刷新）；未配置 WX_SECRET → 400 明确报错
@@ -722,17 +742,8 @@ async function handleCheckinQr(req, res) {
   if (!WX_SECRET) {
     return sendJson(res, 400, { code: 400, message: '未配置 WX_SECRET，无法生成签到码（生产环境需在云托管配置）' });
   }
-  // 1. access_token（登录场景同款流程，BUG-LEDGER #46：白名单内关证书校验）
-  const token = await new Promise((resolve) => {
-    const tokenUrl = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${WX_APPID}&secret=${WX_SECRET}`;
-    const tReq = https.get(tokenUrl, { rejectUnauthorized: !WECHAT_API_HOSTS.has(new URL(tokenUrl).hostname) }, (tRes) => {
-      let data = '';
-      tRes.on('data', c => data += c);
-      tRes.on('end', () => { try { resolve(JSON.parse(data).access_token || null); } catch (e) { resolve(null); } });
-    });
-    tReq.on('error', () => resolve(null));
-    tReq.setTimeout(8000, () => { tReq.destroy(); resolve(null); });
-  });
+  // 1. access_token（签到码/渠道码共用抽取，见 getWxAccessToken）
+  const token = await getWxAccessToken();
   if (!token) {
     return sendJson(res, 400, { code: 400, message: '获取微信 access_token 失败（检查 WX_APPID/WX_SECRET 配置）' });
   }
@@ -761,6 +772,80 @@ async function handleCheckinQr(req, res) {
   if (qr.err) return sendJson(res, 400, { code: 400, message: `签到码生成失败：${qr.err}` });
   checkinQrCache = { base64: qr.base64, at: Date.now() };
   return sendJson(res, 200, { code: 200, base64: qr.base64, cached: false });
+}
+
+// ===== 客户来源（DESIGN #D7）：渠道归因 / 渠道清单 / 渠道码 / 来源看板 =====
+// 渠道扫码归因（POST /api/channel/claim）：渠道码落地登录页读 scene 后上报
+// 语义与 login 带 channel 相同：first-touch 首启不覆盖、last-touch 30 天保护期刷新（channels.js）
+async function handleChannelClaim(req, res) {
+  const body = await readBody(req);
+  const { openid, channel, batch } = body || {};
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少 openid' });
+  const r = await db.applyChannelAttribution(openid, String(channel || ''), batch);
+  if (!r.ok) return sendJson(res, 400, { code: 400, message: r.error });
+  return sendJson(res, 200, { code: 200, message: '渠道归因成功' });
+}
+
+// 渠道清单（GET /api/channel-config）：小程序渠道码落地页/前端读渠道名
+function handleChannelConfig(req, res) {
+  return sendJson(res, 200, { code: 200, channels: db.CHANNELS });
+}
+
+// 渠道码生成（GET /api/admin/channel-qr?channel=c1&refresh=1，DESIGN #D7，web 后台）
+// wxacode.getUnlimited：scene=渠道短码（<32 字符、无 %/中文，微信限定——短码天然合规）
+// 落地 path=pages/login/index（首启自动登录时 login 带 channel 归因）
+// per-channel 内存缓存 24h（内容不变；运营「重新生成」传 ?refresh=1 强制刷新）
+const channelQrCache = {}; // { [channel]: { base64, at } }
+async function handleChannelQr(req, res) {
+  const u = new URL(req.url, 'http://x');
+  const channel = String(u.searchParams.get('channel') || '');
+  const refresh = u.searchParams.get('refresh') === '1';
+  if (!db.isValidChannel(channel)) return sendJson(res, 400, { code: 400, message: '未知渠道码' });
+  const hit = channelQrCache[channel];
+  if (!refresh && hit && Date.now() - hit.at < 24 * 3600 * 1000) {
+    return sendJson(res, 200, { code: 200, channel, base64: hit.base64, cached: true });
+  }
+  if (!WX_SECRET) {
+    return sendJson(res, 400, { code: 400, message: '未配置 WX_SECRET，无法生成渠道码（生产环境需在云托管配置）' });
+  }
+  const token = await getWxAccessToken();
+  if (!token) {
+    return sendJson(res, 400, { code: 400, message: '获取微信 access_token 失败（检查 WX_APPID/WX_SECRET 配置）' });
+  }
+  // getwxacodeunlimit（响应为图片二进制；JSON 响应 = 微信报错）
+  const qr = await new Promise((resolve) => {
+    const qrUrl = `https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${token}`;
+    const qReq = https.request(qrUrl, {
+      method: 'POST',
+      rejectUnauthorized: !WECHAT_API_HOSTS.has(new URL(qrUrl).hostname)
+    }, (qRes) => {
+      const chunks = [];
+      qRes.on('data', c => chunks.push(c));
+      qRes.on('end', () => {
+        const buf = Buffer.concat(chunks);
+        if ((qRes.headers['content-type'] || '').includes('json')) {
+          try { resolve({ err: JSON.parse(buf.toString()).errmsg }); } catch (e) { resolve({ err: '生成失败' }); }
+          return;
+        }
+        resolve({ base64: buf.toString('base64') });
+      });
+    });
+    qReq.on('error', () => resolve({ err: '请求微信生成失败' }));
+    qReq.setTimeout(15000, () => { qReq.destroy(); resolve({ err: '生成超时' }); });
+    qReq.end(JSON.stringify({ scene: channel, path: 'pages/login/index', check_path: false, env_version: 'release' }));
+  });
+  if (qr.err) return sendJson(res, 400, { code: 400, message: `渠道码生成失败：${qr.err}` });
+  channelQrCache[channel] = { base64: qr.base64, at: Date.now() };
+  return sendJson(res, 200, { code: 200, channel, base64: qr.base64, cached: false });
+}
+
+// 客户来源看板（GET /api/admin/source-analysis?days=30，web 后台，带 Admin-Token）
+// 漏斗口径见 channels.js sourceAnalysis：打开→注册→首订→复购 + 未归因 + 批次明细
+async function handleSourceAnalysis(req, res) {
+  const u = new URL(req.url, 'http://x');
+  const days = Number(u.searchParams.get('days')) || 30;
+  const data = await db.sourceAnalysis(days);
+  return sendJson(res, 200, { code: 200, ...data });
 }
 
 // 按场次查订课名单（GET /api/sessions/:id/students，教练端）
@@ -1622,6 +1707,11 @@ const API_ROUTES = [
   { m: 'POST',   p: '/api/checkin/select',        f: async (q, r) => await handleCheckinSelect(q, r) }, // 弹框选课后签到（DESIGN #D13）
   { m: 'GET',    p: /^\/api\/checkin\/\d+$/, f: async(q, r) => await handleCheckinInfo(q, r) },
   { m: 'GET',    p: '/api/admin/checkin-qr',      f: async (q, r) => await handleCheckinQr(q, r) }, // 固定签到码生成（DESIGN #D13，web 后台）
+  // 客户来源（DESIGN #D7）：渠道归因/清单/渠道码/来源看板
+  { m: 'POST',   p: '/api/channel/claim',         f: async (q, r) => await handleChannelClaim(q, r) },
+  { m: 'GET',    p: '/api/channel-config',        f: (q, r) => handleChannelConfig(q, r) },
+  { m: 'GET',    p: '/api/admin/channel-qr',      f: async (q, r) => await handleChannelQr(q, r) }, // 渠道码生成（DESIGN #D7，web 后台）
+  { m: 'GET',    p: '/api/admin/source-analysis', f: async (q, r) => await handleSourceAnalysis(q, r) }, // 来源看板（DESIGN #D7，web 后台）
   { m: 'GET',    p: /^\/api\/sessions\/\d+\/students$/, f: async(q, r) => await handleSessionStudents(q, r) },
   // DESIGN #D10：下一次课表发布日（每周五 22:00 运营约定，time.js 北京时间）
   { m: 'GET',    p: '/api/schedule/next-publish', f: async(q, r) => sendJson(r, 200, { code: 200, ...db.nextPublishInfo() }) },
@@ -1926,6 +2016,8 @@ const ADMIN_PATHS = [
   { m: 'POST',   p: /^\/api\/admin\/feedbacks\/\d+\/reply$/ },
   // 固定签到码（DESIGN #D13）：web 后台「签到码」区块展示/重新生成（调用微信 wxacode，仅管理网页用）
   { m: 'GET',    p: /^\/api\/admin\/checkin-qr$/ },
+  // 客户来源（DESIGN #D7）：渠道码生成 + 来源看板，web 后台专用
+  { m: 'GET',    p: /^\/api\/admin\/(channel-qr|source-analysis)$/ },
   { m: 'GET',    p: /^\/api\/admin\/export\/[a-z-]+$/ },
   { m: 'PUT',    p: /^\/api\/admin\/coaches\/\d+$/ },
   { m: 'DELETE', p: /^\/api\/admin\/coaches\/\d+$/ },

@@ -24,6 +24,7 @@ const { getDailyReport, regenerateReport, listReports } = require('./db/report')
 const { createFeedback, listMyFeedbacks, listAdminFeedbacks, replyFeedback } = require('./db/feedback');
 const { listUnlimitedPlans, getMyUnlimitedPass, getMyUnlimitedPassInfo, applyUnlimitedPurchase, hasUnlimitedPass, expireOverdueUnlimitedPasses } = require('./db/unlimited');
 const { nextPublishInfo } = require('./db/schedule');
+const { CHANNELS, isValidChannel, applyChannelAttribution, sourceAnalysis } = require('./db/channels');
 
 
 module.exports = {
@@ -84,6 +85,11 @@ module.exports = {
   listBookingsBySession,
   // 排课发布节奏（DESIGN #D10）
   nextPublishInfo,
+  // 客户来源（DESIGN #D7）
+  CHANNELS,
+  isValidChannel,
+  applyChannelAttribution,
+  sourceAnalysis,
   // 候补排位
   joinWaitlist,
   cancelWaitlist,
