@@ -178,5 +178,7 @@ Page({
 
   goHome() { wx.switchTab({ url: '/pages/member-center/index' }); },
   goCourses() { wx.switchTab({ url: '/pages/student-courses/index' }); },
-  goProfile() { wx.switchTab({ url: '/pages/student-profile/index' }); }
+  goProfile() { wx.switchTab({ url: '/pages/student-profile/index' }); },
+  // 自助签到入口（2026-08-20 用户拍板 #60：学生端内部进入签到页，scan 三态判定——无课可签提示/唯一课自动签/多课选课）
+  goCheckin() { wx.navigateTo({ url: '/pages/checkin/index' }); }
 });

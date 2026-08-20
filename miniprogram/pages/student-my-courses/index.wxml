@@ -4,7 +4,11 @@
     <view class="page-pad pt-safe">
       <view class="flex-between head-row">
         <text class="page-title">上课</text>
-        <text class="head-date">8月</text>
+        <view class="flex-row head-right">
+          <!-- 签到入口（2026-08-20 用户拍板 #60：学生端内部加入口，跳自助签到页判定三态） -->
+          <view class="checkin-entry" bindtap="goCheckin">签到</view>
+          <text class="head-date">8月</text>
+        </view>
       </view>
 
       <!-- 分段切换 -->

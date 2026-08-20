@@ -31,6 +31,7 @@
 - [x] **P0｜2. 前端** — `pages/checkin/index` 签到页（scene 解析 + 自动判定 + 三态展示 + 弹框选择）+ 教练端核销入口移除（coach-home 签到/手动核销按钮、coach-scan 页、coach-students 跳核销）+ 学员凭证页 student-checkin 移除（app.json 注册 + 入口 + agreement 文案同步）
 - [x] **P1｜3. 后台** — web 运营数据 tab「📱 签到码」区块（小程序码展示 + 重新生成按钮）
 - [x] **P1｜4. 防回退** — FRONT 断言（签到页三态文案 + 教练端核销入口移除 + web 签到码区块）+ coverage 探针（checkin/scan、checkin/select）
+- [x] **P2｜5. 学生端内部入口（#60 转需求，2026-08-20 用户拍板）** — checkin 页守卫放开内部进入（无 scene 放行、非 checkin 码仍拒绝）+ 「上课」页头部「签到」胶囊按钮 → navigateTo 签到页（scan 三态判定）；FRONT-33 断言更新 + FRONT-35 防回退
 
 ### DESIGN #D12 缺席标记（设计文档: 缺席标记设计方案.md，2026-08-20 确认，✅ 已交付 2026-08-20）
 

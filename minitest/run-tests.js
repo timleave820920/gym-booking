@@ -408,7 +408,7 @@ async function runSuite() {
   check('FRONT-33', '自助签到防回退（DESIGN #D13：签到页三态 + 核销入口移除 + web 签到码）',
     /pages\/checkin\/index/.test(appJsonSrc) && !/coach-scan|student-checkin/.test(appJsonSrc)
       && /签到成功/.test(checkinWxml) && /检测到多节可签到课程/.test(checkinWxml) && /确认签到/.test(checkinWxml)
-      && /decodeURIComponent/.test(checkinJs) && /scene !== 'checkin'/.test(checkinJs)
+      && /decodeURIComponent/.test(checkinJs) && /scene !== '' && scene !== 'checkin'/.test(checkinJs)
       && /api\.checkinScan/.test(checkinJs) && /api\.checkinSelect/.test(checkinJs)
       && !/checkin-code/.test(coachHomeJs) && !/扫码签到/.test(coachStudentsWxml) && !/goScan/.test(coachScheduleWxml)
       && /fold-checkin-qr/.test(webCoursesSrc) && /loadCheckinQr/.test(webCoursesSrc)
@@ -416,6 +416,16 @@ async function runSuite() {
       && /api\/checkin\/select/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8'))
       && /api\/admin\/checkin-qr/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8')),
     'DESIGN #D13：签到页三态（invalid/none/multi/done）+ 旧核销页移除 + 教练端核销入口全移除 + web 后台签到码区块 + 后端三接口');
+  // #60 转需求（2026-08-20 用户拍板）：学生端内部签到入口——「上课」页头部签到按钮 + checkin 页守卫放开内部进入（无 scene）
+  const myCoursesWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-my-courses', 'index.wxml'), 'utf8');
+  const myCoursesJs = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-my-courses', 'index.js'), 'utf8');
+  const myCoursesWxss = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-my-courses', 'index.wxss'), 'utf8');
+  check('FRONT-35', '学生端签到入口防回退（#60：上课页签到按钮 + 守卫放开内部进入）',
+    /checkin-entry/.test(myCoursesWxml) && /goCheckin/.test(myCoursesWxml) && /goCheckin/.test(myCoursesJs)
+      && /navigateTo\(\{ url: '\/pages\/checkin\/index' \}\)/.test(myCoursesJs)
+      && /checkin-entry/.test(myCoursesWxss)
+      && /scene !== '' && scene !== 'checkin'/.test(checkinJs),
+    '#60：上课页头部签到按钮 → navigateTo 签到页；checkin 页守卫须放行内部进入（无 scene）同时仍拒绝非 checkin 码');
   // DESIGN #D7 客户来源防回退：app.js 解析 scene/query 渠道 → login 带 channel 归因 + 已登录直达 claim 兜底
   // + api.channelClaim + web 渠道码/来源看板 + 后端三接口 + 三处同步补列（mysql-schema/db-core/db-driver）
   const appSrcD7 = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'app.js'), 'utf8');

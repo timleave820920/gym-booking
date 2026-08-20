@@ -2,6 +2,7 @@
 
 > 输入「bug：xxx」自动登记（UserPromptSubmit 钩子捕获）；描述不清我会追问。
 > 状态：⬜ 待确认 ｜ ⏳ 修复中 ｜ ✅ 已修复（登记 BUG-LEDGER #N）
+- [x] #60（2026-08-20）学生端没有签到入口了呢？→ **用户澄清（2026-08-20）：非 bug，转需求——学生端加内部签到入口**：D13 拍板为「张贴码扫码签到」内部无入口属预期，用户要求学生端也加入口。✅ 已实施：checkin 页守卫放开内部进入（无 scene 放行，非 checkin 码仍拒绝）+ 「上课」页头部「签到」胶囊按钮 → navigateTo pages/checkin/index（scan 三态判定：无课可签提示/唯一课自动签/多课选课）；FRONT-33 断言更新 + FRONT-35 防回退
 - [x] #59（2026-08-18）用户完成完善画像，点了保存后，弹框恭喜玩家获得能量币。然后玩家画像就不再显示了。→ **用户澄清（2026-08-18）：非 bug，转功能需求——画像卡一次性表单**：用户填写保存后整卡不再出现（已填用户进页也不显示）；用户拍板保留轻量入口（「🎯 资料与生日 ›」菜单行，openProfileEditor 展开编辑，满足 PIPL 更正权）。✅ 已实施：WXML `wx:if="{{profile && (!profileSaved || profileEditing)}}"` + 入口行；JS data 声明 profileEditing + openProfileEditor + saveProfile 成功后收起；saveProfile 兜底 `res.profile || this.data.profile`；FRONT-21b 防回退断言。357/357 绿。
 - [x] #58（2026-08-18）后台的四个 tab 顺序：运营数据，课程设定，排课系统，教练分配（当前顺序与要求不符，待批准后修）→ ✅ 已修复（BUG-LEDGER #58：nav 顺序+active 移至运营数据+「排表管理」更名「排课系统」+init 默认 switchTab('board')；FRONT-24 回归，352/352 绿）
 - [x] #42（2026-08-17）教练工作台，我的课程页面，课程排序方式：1）当前正在进行的课程；2）未来的课程，越近的越靠前；3）已经结束的课程，越近的越靠前 → ✅ 已修复（BUG-LEDGER #42：session-sort.js 新增 sortCoachSessions 三态排序——进行中→未开始升序→已结束降序；SORT-05~08 回归，186/186 绿）

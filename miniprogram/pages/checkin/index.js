@@ -1,9 +1,10 @@
 /**
  * 固定二维码自助签到页（DESIGN #D13）
- * 场馆张贴固定官方小程序码（scene=checkin，path=pages/checkin/index），学员相机扫码进入本页：
- *  - 无歧义（窗口内唯一订课）→ 自动签到
- *  - 有歧义（窗口内多订课/连堂）→ 弹框选课 → 确认签到
- * 签到主体 = 扫码设备的登录账号（openid 服务端取，码本身公开无泄露风险）
+ * 两种进入方式（2026-08-20 用户拍板 #60 转需求：学生端内部加入口）：
+ *  - 场馆张贴固定官方小程序码（scene=checkin）扫码进入
+ *  - 学生端「上课」页「签到」按钮内部进入（无 scene——页面守卫放行，签到判定交给后端三态）
+ * 签到逻辑一致：无歧义（窗口内唯一订课）→ 自动签到；有歧义（多订课/连堂）→ 弹框选课
+ * 签到主体 = 设备登录账号（openid 服务端取，码公开无泄露风险；内部入口同主体）
  */
 const api = require('../../utils/api.js');
 const app = getApp();
@@ -11,7 +12,7 @@ const app = getApp();
 Page({
   data: {
     state: 'loading',    // loading 判定中 / invalid 无效码 / none 无课可签 / done 签到成功 / multi 多课选择
-    scene: '',           // 解析后的 scene（校验 === 'checkin'）
+    scene: '',           // 解析后的 scene（'' = 内部入口进入 / 'checkin' = 扫码进入）
     message: '',         // none/invalid 提示文案
     checked: null,       // 签到成功信息（课程名/时间/教练）
     candidates: [],      // 多课候选列表
@@ -27,7 +28,8 @@ Page({
     } else if (options.s) {
       scene = options.s;
     }
-    if (scene !== 'checkin') {
+    // 守卫：扫码进入必须 scene=checkin；内部入口进入无 scene 放行（'' 合法，签到判定交给 scan 三态）
+    if (scene !== '' && scene !== 'checkin') {
       this.setData({ state: 'invalid', message: '无效的签到码' });
       return;
     }
