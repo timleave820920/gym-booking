@@ -56,9 +56,7 @@ Page({
             end: b.end_time,
             duration: `${b.duration_min}分钟`,
             price: (b.amount_fen / 100).toFixed(0),
-            checked: b.checkin_at ? true : false,
-            // 签到时间窗口（与后端一致，2026-08-16 统一为课后 30 分钟 DESIGN #D1）：当天 + 开课前30分钟~结束后30分钟
-            canCheckin: this.inCheckinWindow(b.date, b.start_time, b.end_time)
+            checked: b.checkin_at ? true : false
           };
           if (this.isSessionEnded(b.date, b.end_time)) {
             doneAll.push({ ...card, status: '已完成', statusType: 'done', isWait: false });
@@ -115,12 +113,6 @@ Page({
     return now.getHours() * 60 + now.getMinutes() >= h * 60 + m;
   },
 
-  // 签到时间窗口（共享配置 checkin-config.js，与后端规则一致）
-  inCheckinWindow(date, startTime, endTime) {
-    const { inCheckinWindow: check } = require('../../utils/checkin-config.js');
-    return check(date, startTime, endTime);
-  },
-
   // 排位按钮提示（候补状态说明）
   showWaitHint() {
     wx.showToast({ title: '已进入候补队列，有人取消将自动转正', icon: 'none' });
@@ -175,11 +167,6 @@ Page({
         }
       }
     });
-  },
-
-  checkin(e) {
-    const id = e.currentTarget.dataset.id;
-    wx.navigateTo({ url: '/pages/student-checkin/index?id=' + id });
   },
 
   // 2026-08-14: 点课程卡片 → 课程详情页（详情页按钮按状态显示：已预订/排位中）

@@ -51,7 +51,6 @@
           <view class="flex-row card-actions">
             <view class="btn-sm btn-outline" wx:if="{{!item.isWait}}" catchtap="refund" data-id="{{item.id}}" data-name="{{item.name}}">退订</view>
             <view class="btn-sm btn-outline" wx:if="{{item.isWait}}" catchtap="exitWaitlist" data-id="{{item.id}}" data-name="{{item.name}}">退出候补</view>
-            <view class="btn-sm btn-primary" wx:if="{{!item.isWait && item.statusType === 'pending' && item.canCheckin}}" catchtap="checkin" data-id="{{item.id}}">签到</view>
             <view class="btn-sm btn-purple" wx:if="{{item.isWait}}" catchtap="showWaitHint">排位</view>
           </view>
         </view>
@@ -85,7 +84,7 @@
           </view>
           <text class="wait-expire" wx:if="{{item.isWait}}">{{item.expireText}}</text>
           <view class="flex-row card-actions">
-            <text class="done-status {{item.checked ? 'done-checked' : ''}}">{{item.checked ? '已签到 ✓' : '未签到'}}</text>
+            <text class="done-status {{item.checked ? 'done-checked' : 'done-absent'}}">{{item.checked ? '已签到 ✓' : '缺席'}}</text>
           </view>
         </view>
         <!-- 只显示最近 7 天的提示 -->

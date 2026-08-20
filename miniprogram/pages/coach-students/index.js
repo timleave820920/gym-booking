@@ -52,13 +52,4 @@ Page({
     });
   },
 
-  goScan() {
-    const sessionId = this.data.sessionId;
-    wx.navigateTo({ url: '/pages/coach-scan/index' + (sessionId ? '?session_id=' + sessionId : '') });
-  },
-
-  // 点击学员行 → 跳扫码核销（不再本地改状态，扫码才是真实签到）
-  toggleCheck() {
-    this.goScan();
-  }
 });

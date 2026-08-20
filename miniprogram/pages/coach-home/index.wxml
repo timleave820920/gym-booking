@@ -43,9 +43,8 @@
           <text class="course-venue">{{item.venue}} · {{item.dateText}}</text>
           <text class="course-seat">席位 {{item.enrolled}}/{{item.capacity}}</text>
         </view>
-        <!-- 窗口内 → 绿色签到按钮；窗口外 → 状态灰字 -->
-        <view wx:if="{{item.checkinOpen}}" class="checkin-btn" data-id="{{item.id}}" catchtap="startCheckin">签到</view>
-        <text wx:else class="status-txt">{{item.statusText}}</text>
+        <!-- DESIGN #D13：教练核销移除（学员扫固定码自助签到）；状态灰字 -->
+        <text class="status-txt">{{item.statusText}}</text>
       </view>
 
       <!-- 空状态 -->
@@ -114,19 +113,6 @@
     </block>
 
     <view class="list-spacer"></view>
-  </view>
-
-  <!-- 手动输入签到码弹窗 -->
-  <view class="modal-mask" wx:if="{{manualShow}}" bindtap="closeManual">
-    <view class="modal-box" catchtap="noop">
-      <text class="modal-title">手动核销</text>
-      <input class="manual-input" type="number" maxlength="10"
-             placeholder="输入学员出示的纯数字签到码" value="{{manualCode}}" bindinput="onManualInput"/>
-      <view class="flex-row modal-btns">
-        <text class="modal-btn cancel" bindtap="closeManual">取消</text>
-        <text class="modal-btn confirm" bindtap="confirmManual">核销</text>
-      </view>
-    </view>
   </view>
 
   <!-- 学员详情弹层：跟课记录 + 笔记 -->

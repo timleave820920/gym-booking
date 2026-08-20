@@ -170,6 +170,16 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
       assert.equal(r.status, 400, '格式错误码拒绝');
       r = await req('POST', '/api/checkin/by-code', { code: ckCode, openid: COACH.openid });
       assert.equal(r.status, 400, '已签到码重复核销拒绝');
+      // DESIGN #D13 自助签到探针：scan 三态 + select（U2 订同一场次未签 → 唯一候选自动签）
+      r = await req('POST', '/api/checkin/scan', { openid: U2.openid });
+      assert.ok(r.data && r.data.state === 'done' && r.data.booking && r.data.booking.checkin_at, 'scan 唯一候选自动签到');
+      r = await req('POST', '/api/checkin/scan', { openid: U2.openid });
+      assert.equal(r.data.state, 'none', 'scan 无课可签');
+      r = await req('POST', '/api/checkin/select', { openid: U2.openid });
+      assert.equal(r.status, 400, 'select 缺参数');
+      // 非本人/已签到拒绝分支（U1 已被教练核销）
+      r = await req('POST', '/api/checkin/select', { openid: U1.openid, bookingId: bookingId });
+      assert.equal(r.status, 400, 'select 已签到拒绝');
     }
     r = await req('GET', `/api/sessions/${sid}/students`);
     assert.ok(Array.isArray(r.data.students), '场次名单');
@@ -200,6 +210,9 @@ test('核心链路覆盖率探针（同进程）', async (t) => {
     assert.ok(Array.isArray(r.data.users), '用户列表');
     r = await req('GET', '/api/health');
     assert.equal(r.data.code, 200, '健康检查');
+    // DESIGN #D10 排课发布节奏探针：下次发布日（每周五 22:00，time.js 北京时间）
+    r = await req('GET', '/api/schedule/next-publish');
+    assert.ok(r.data.nextPublish && r.data.text && r.data.display, '下次发布日');
 
     // ---- 09 消息中心（订课/退款/签到已触发业务埋点） ----
     r = await req('GET', '/api/messages?openid=' + U1.openid);

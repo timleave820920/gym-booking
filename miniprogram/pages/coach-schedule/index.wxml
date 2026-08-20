@@ -8,8 +8,8 @@
       <image class="coach-avatar" src="/images/2_645.png" mode="aspectFill"></image>
     </view>
 
-    <!-- 今日概览 -->
-    <view class="today-card flex-row" bindtap="goScan">
+    <!-- 今日概览（DESIGN #D13：教练核销移除，卡片纯展示） -->
+    <view class="today-card flex-row">
       <view class="icon-calendar"></view>
       <view class="flex-col flex-1">
         <text class="today-title">{{dateText}}</text>

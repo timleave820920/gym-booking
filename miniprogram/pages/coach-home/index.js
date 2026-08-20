@@ -2,11 +2,9 @@ const api = require('../../utils/api.js');
 const app = getApp();
 const i18n = require('../../utils/i18n.js');
 const courseStatus = require('../../utils/course-status.js');
-const { isValidCode, normalizeCode } = require('../../utils/checkin-code.js');
 const { sortCoachSessions } = require('../../utils/session-sort.js'); // #42 课程三态排序
 const { getGreeting } = require('../../utils/greeting.js');
 const { buildWeekDays } = require('../../utils/week-bar.js');
-const { EARLY_WINDOW, LATE_WINDOW } = require('../../utils/checkin-config.js');
 
 const DEFAULT_AVATAR = '/images/2_1468.png';   // 学员未设头像占位
 
@@ -22,9 +20,6 @@ Page({
     sessions: [],
     loading: true,
     offline: false,
-    // 手动输入验证码
-    manualShow: false,
-    manualCode: '',
     // Tab2 学员
     students: [],
     studentsLoading: true,
@@ -65,7 +60,7 @@ Page({
   },
 
   onShow() {
-    // 每次显示刷新（核销签到后回本页即时更新）
+    // 每次显示刷新（名单/结算变化后回本页即时更新）
     this.loadSessions();
     if (this.data.tab === 2) this.loadSettlement(this.data.month);
   },
@@ -111,97 +106,21 @@ Page({
     });
   },
 
-  // 装饰场次：状态 + 签到入口判定（窗口：开课前30分钟~课后30分钟）
+  // 装饰场次：状态 + 名单入口（DESIGN #D13：教练核销移除，只留扫码自助签到）
   decorateSession(s) {
-    const date = s.date;
-    const now = new Date();
-    const todayFull = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const toMin = (t) => { const [h, m] = (t || '00:00').split(':').map(Number); return h * 60 + m; };
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    const st = courseStatus.getSessionStatus(date, s.start_time, s.end_time);
-    const checkinOpen = date === todayFull
-      && nowMin >= toMin(s.start_time) - EARLY_WINDOW && nowMin <= toMin(s.end_time) + LATE_WINDOW;
+    const st = courseStatus.getSessionStatus(s.date, s.start_time, s.end_time);
     const statusText = st === 'upcoming' ? '未开始' : '已结束';
     return {
       id: s.id,
       name: s.course_name,
       venue: s.venue_name,
-      dateText: `${date.slice(5, 7)}/${date.slice(8, 10)}`,
+      dateText: `${s.date.slice(5, 7)}/${s.date.slice(8, 10)}`,
       time: `${s.start_time}-${s.end_time}`,
       enrolled: s.booked_count || 0,
       capacity: s.capacity || 0,
-      checkinOpen,
       status: st,       // #42 排序键：ongoing/upcoming/ended
       statusText
     };
-  },
-
-  // 签到入口：扫码 / 手动输入
-  startCheckin(e) {
-    const id = e.currentTarget.dataset.id;
-    if (!id) return;
-    wx.showActionSheet({
-      itemList: ['相机扫码核销', '手动输入签到码'],
-      success: (res) => {
-        if (res.tapIndex === 0) this.scanCheckin();
-        else this.setData({ manualShow: true, manualCode: '' });
-      }
-    });
-  },
-
-  // 相机扫码核销（随机 5 位纯数字凭证码，BUGS-INBOX #11）
-  scanCheckin() {
-    wx.scanCode({
-      onlyFromCamera: true,
-      scanType: ['qrCode'],
-      success: (res) => {
-        const code = normalizeCode(res.result || '');
-        if (!isValidCode(code)) {
-          wx.showToast({ title: '无法识别的签到码', icon: 'none' });
-          return;
-        }
-        this.doCheckin(code);
-      },
-      fail: () => {}
-    });
-  },
-
-  // 手动输入（纯数字弹窗）
-  onManualInput(e) {
-    this.setData({ manualCode: e.detail.value });
-  },
-  confirmManual() {
-    const code = normalizeCode(this.data.manualCode);
-    if (!isValidCode(code)) {
-      wx.showToast({ title: '签到码格式不正确（应为 5 位数字）', icon: 'none' });
-      return;
-    }
-    this.setData({ manualShow: false });
-    this.doCheckin(code);
-  },
-  closeManual() {
-    this.setData({ manualShow: false });
-  },
-
-  // 核销签到（按 5 位码，BUGS-INBOX #11）
-  doCheckin(code) {
-    const openid = this.data.openid;
-    if (!openid) {
-      wx.showToast({ title: '未登录，无法核销', icon: 'none' });
-      return;
-    }
-    wx.showLoading({ title: '核销中...' });
-    api.checkinByCode(code, openid).then((res) => {
-      wx.hideLoading();
-      const b = res.booking;
-      wx.showToast({
-        title: `签到成功：${b.course_name}`, icon: 'success', duration: 2000
-      });
-      this.loadSessions();
-    }).catch((err) => {
-      wx.hideLoading();
-      wx.showToast({ title: (err && err.message) || '核销失败', icon: 'none' });
-    });
   },
 
   // 场次名单（从课程卡进入）

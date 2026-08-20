@@ -14,7 +14,7 @@ const { sendMessage, listMessages, unreadMessageCount, markMessageRead, markAllM
 const { listPassPackages, getUserPass, getUserPassForDate, getUserPassInfo, expireOverduePasses } = require('./db/passes');
 const { syncAchievements, REWARD_COINS } = require('./db/achievements');
 const { genOrderNo, createOrder, payOrder, calcBirthdayDiscount, listOrdersByUser, getRevenueStats, promoteFromWaitlist, joinWaitlist, cancelWaitlist, listWaitlistByUser, refundExpiredWaitlist } = require('./db/orders');
-const { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, checkinByCode, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings, attendanceStats } = require('./db/bookings');
+const { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, checkinByCode, studentCheckin, listCheckinCandidates, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings, attendanceStats } = require('./db/bookings');
 const { findCoachByOpenid, listCoachStudents, listStudentLessons, getCoachNote, upsertCoachNote, getCoachSettlement, assignCoach, listCoachesWithBind, unassignCoach, setUserRole, updateCoachProfile, deleteCoach } = require('./db/coach');
 const { addAdminLog, listAdminLogs } = require('./db/admin-log');
 const { getDashboard } = require('./db/dashboard');
@@ -23,6 +23,7 @@ const { batchTrack, eventsAnalysis } = require('./db/events');
 const { getDailyReport, regenerateReport, listReports } = require('./db/report');
 const { createFeedback, listMyFeedbacks, listAdminFeedbacks, replyFeedback } = require('./db/feedback');
 const { listUnlimitedPlans, getMyUnlimitedPass, getMyUnlimitedPassInfo, applyUnlimitedPurchase, hasUnlimitedPass, expireOverdueUnlimitedPasses } = require('./db/unlimited');
+const { nextPublishInfo } = require('./db/schedule');
 
 
 module.exports = {
@@ -77,8 +78,12 @@ module.exports = {
   // 签到
   getCheckinInfo,
   checkinBooking,
-  checkinByCode,        // 按 5 位码核销（BUGS-INBOX #11）
+  checkinByCode,        // 按 5 位码核销（BUGS-INBOX #11，DESIGN #D13 后仅兜底无前端入口）
+  studentCheckin,       // 学员自助签到（DESIGN #D13：扫码固定码/选课签到）
+  listCheckinCandidates, // 自助签到候选查询（DESIGN #D13 三态判定）
   listBookingsBySession,
+  // 排课发布节奏（DESIGN #D10）
+  nextPublishInfo,
   // 候补排位
   joinWaitlist,
   cancelWaitlist,

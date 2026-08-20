@@ -311,6 +311,23 @@ module.exports = {
     return localRequest('/api/unlimited/my?openid=' + openid, 'GET');
   },
 
+  // ===== 排课发布节奏（DESIGN #D10）=====
+  getNextPublish() {
+    return localRequest('/api/schedule/next-publish', 'GET');
+  },
+
+  // ===== 固定二维码自助签到（DESIGN #D13）=====
+  checkinScan(openid) {
+    return localRequest('/api/checkin/scan', 'POST', { openid });
+  },
+  checkinSelect(openid, bookingId) {
+    return localRequest('/api/checkin/select', 'POST', { openid, bookingId });
+  },
+  getCheckinQr(refresh) {
+    const q = refresh ? '?refresh=1' : '';
+    return localRequest('/api/admin/checkin-qr' + q, 'GET');
+  },
+
   // 成就同步：检测新解锁成就并发 50 能量币（幂等）
   syncAchievements(openid) {
     return localRequest('/api/achievements/sync?openid=' + openid, 'GET');

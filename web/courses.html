@@ -289,6 +289,23 @@ canvas#dashTrend { width: 100%; height: 240px; }
       </div>
     </details>
 
+    <!-- 📱 签到码（DESIGN #D13：场馆张贴用固定小程序码，学员扫码自助签到） -->
+    <details class="fold" id="fold-checkin-qr" open>
+      <summary>📱 签到码（场馆张贴用 · 学员扫码自助签到）</summary>
+      <div class="fold-inner">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px">
+          <button class="btn" onclick="loadCheckinQr(false)">刷新</button>
+          <button class="btn btn-save" onclick="loadCheckinQr(true)">重新生成</button>
+          <span style="font-size:12px;color:var(--gray)">打印张贴在馆内显眼处；学员用微信相机扫码 → 自动签到（同时段多课会弹框选课）</span>
+        </div>
+        <div id="cq-tip" class="empty-tip" style="display:none"></div>
+        <div id="cq-body" style="display:none">
+          <img id="cq-img" alt="签到码" style="width:220px;height:220px;border-radius:12px;border:1px solid var(--line)">
+          <div style="font-size:11px;color:var(--gray);margin-top:8px">路径 pages/checkin/index · scene=checkin（码公开无泄露风险，签到主体=扫码设备登录账号）</div>
+        </div>
+      </div>
+    </details>
+
     <!-- 7 KPI 卡（含昨日环比） -->
     <div class="dash-kpis">
       <div class="dash-kpi"><div class="k-label">新用户</div><div class="k-val" id="dk-new">-</div><div class="k-delta flat" id="dk-new-d">环比 --</div></div>
@@ -965,7 +982,28 @@ function loadDashboard() {
     loadInviteBoard();          // 折叠区原邀请看板
     loadReport(false);          // 运营日报联动（DESIGN #D6：打开即报告）
     loadFeedbacks('');          // 吐槽收件箱联动（DESIGN #D9：打开即加载）
+    loadCheckinQr(false);       // 签到码联动（DESIGN #D13：打开即展示）
   }).catch(function (e) { alert('运营数据加载失败：' + e.message); });
+}
+// ===== 签到码（DESIGN #D13）：固定小程序码展示/重新生成 =====
+function loadCheckinQr(regen) {
+  api('/admin/checkin-qr' + (regen ? '?refresh=1' : ''))
+    .then(function (r) {
+      if (!r.base64) {
+        $('cq-tip').style.display = 'block';
+        $('cq-tip').textContent = r.message || '签到码生成失败';
+        $('cq-body').style.display = 'none';
+        return;
+      }
+      $('cq-tip').style.display = 'none';
+      $('cq-img').src = 'data:image/png;base64,' + r.base64;
+      $('cq-body').style.display = 'block';
+    })
+    .catch(function (e) {
+      $('cq-tip').style.display = 'block';
+      $('cq-tip').textContent = '签到码加载失败：' + e.message;
+      $('cq-body').style.display = 'none';
+    });
 }
 // ===== 运营日报（DESIGN #D6）：惰性生成/缓存 + 手动重新生成，建议按严重度配色 =====
 function loadReport(regen) {

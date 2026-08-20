@@ -23,7 +23,9 @@ Page({
     t: i18n.t(),         // 语言字典
     memberLevelName: '会员',  // 当前会员等级名（青铜/白银/黄金/钻石），价格旁标注
     searchKeyword: '',   // 课程搜索关键字（B3 2026-08-18：按课程名/教练名过滤）
-    searchResult: []     // 过滤后的课程列表（关键字非空时使用）
+    searchResult: [],    // 过滤后的课程列表（关键字非空时使用）
+    isFutureDay: false,  // 当前选中日是否为未来日（DESIGN #D10：未来空课日显示发布占位）
+    nextPublishText: ''  // 下一次课表发布时间文案（如 '8月21日'，后端 time.js 权威计算）
   },
 
   onLoad() {
@@ -34,6 +36,15 @@ Page({
     const dateText = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日 ${week[today.getDay()]}`;
     this.setData({ 'user.date': dateText });
     this.buildWeek();
+    this.loadNextPublish();
+  },
+
+  // DESIGN #D10：下一次课表发布日（每周五 22:00 运营约定，后端 time.js 北京时间权威计算，前端不自行算日期）
+  // 拉取失败降级：nextPublishText 保持空 → 未来空课日显示原空态（不显示无日期的残缺占位）
+  loadNextPublish() {
+    api.getNextPublish().then((res) => {
+      if (res && res.text) this.setData({ nextPublishText: res.text });
+    }).catch(() => {});
   },
 
   onShow() {
@@ -107,6 +118,10 @@ Page({
   // 从后端拉取当天场次；失败则回退演示数据
   // 性能优化：有本地缓存先秒开渲染（loading=false），后台刷新替换；无缓存才显示骨架屏
   loadSessions(full) {
+    // DESIGN #D10：未来日判定（'YYYY-MM-DD' 字符串比较；今天及过去不算未来 → 保持原空态）
+    const d = new Date();
+    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    this.setData({ isFutureDay: full > todayStr });
     const user = app.globalData.userInfo || {};
     const openid = user.openid || wx.getStorageSync('openid');
     let discount = 1;

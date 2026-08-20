@@ -112,11 +112,21 @@
         </view>
       </view>
 
-      <!-- 空状态 -->
+      <!-- 空状态（DESIGN #D10：搜索无结果 / 未来空课日发布占位 / 今天及过去原空态） -->
       <view class="empty-state flex-col" wx:if="{{(searchKeyword ? searchResult.length : courseList.length) === 0}}">
         <text class="empty-icon">▦</text>
-        <text class="empty-txt">{{searchKeyword ? '未找到匹配的课程' : '当天暂无排课'}}</text>
-        <text class="empty-sub">{{searchKeyword ? '换个关键字试试' : '试试选择其他日期'}}</text>
+        <block wx:if="{{searchKeyword}}">
+          <text class="empty-txt">未找到匹配的课程</text>
+          <text class="empty-sub">换个关键字试试</text>
+        </block>
+        <block wx:elif="{{isFutureDay && nextPublishText}}">
+          <text class="empty-txt">课表将于本周五（{{nextPublishText}} 22:00）更新</text>
+          <text class="empty-sub">新一周课表发布后即可预约</text>
+        </block>
+        <block wx:else>
+          <text class="empty-txt">当天暂无排课</text>
+          <text class="empty-sub">试试选择其他日期</text>
+        </block>
       </view>
       </view>
 

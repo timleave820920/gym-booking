@@ -1,0 +1,54 @@
+<view class="page">
+  <!-- 自定义导航：返回钮/标题/微信胶囊顶部对齐（FRONT-26 同款布局） -->
+  <view class="nav-bar" style="padding-top: {{statusBarH}}px;">
+    <view class="nav-back" bindtap="goBack">‹</view>
+    <text class="nav-title">吐槽</text>
+    <view class="nav-right"></view>
+  </view>
+
+  <view class="page-pad pt-safe">
+    <!-- 承诺标语 -->
+    <view class="promise-card">
+      <text class="promise-emoji">💬</text>
+      <view class="promise-text">
+        <text class="promise-title">想吐槽？我们听着</text>
+        <text class="promise-sub">场馆承诺每条必回复，请放心留言（实名可见昵称）</text>
+      </view>
+    </view>
+
+    <!-- 留言输入 -->
+    <view class="input-card">
+      <textarea class="fb-input" placeholder="说说你的建议或不满…（不超过 500 字）"
+                placeholder-class="fb-ph" maxlength="{{maxLen}}" value="{{content}}"
+                bindinput="onInput" auto-height="{{false}}" />
+      <view class="fb-count">{{content.length}}/{{maxLen}}</view>
+    </view>
+    <view class="fb-submit {{submitting ? 'disabled' : ''}}" bindtap="submit">
+      {{submitting ? '提交中…' : '提交吐槽'}}
+    </view>
+
+    <!-- 历史列表 -->
+    <view class="hist-head" wx:if="{{list.length > 0}}">
+      <text class="hist-title">我的吐槽记录</text>
+      <text class="hist-tip">场馆回复后你会收到站内信</text>
+    </view>
+    <view class="hist-list" wx:if="{{list.length > 0}}">
+      <view class="hist-item" wx:for="{{list}}" wx:key="id">
+        <view class="hist-top">
+          <text class="hist-status {{item.status === 'replied' ? 'replied' : ''}}">{{item.status === 'replied' ? '已回复' : '待回复'}}</text>
+          <text class="hist-time">{{item.created_at}}</text>
+        </view>
+        <text class="hist-content">{{item.content}}</text>
+        <view class="hist-reply" wx:if="{{item.status === 'replied'}}">
+          <text class="hist-reply-label">场馆回复</text>
+          <text class="hist-reply-text">{{item.reply}}</text>
+          <text class="hist-reply-time" wx:if="{{item.replied_at}}">{{item.replied_at}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="hist-empty" wx:else>
+      <text>还没有吐槽记录</text>
+    </view>
+    <view class="list-spacer"></view>
+  </view>
+</view>

@@ -12,6 +12,11 @@ const { refundPass } = require('./passes');
 const ENERGY_CONFIG = require('../energy-config.js');
 const time = require('../time.js'); // 所有「当前时间」取值唯一入口（北京时间，BUG-LEDGER #28）
 
+// 签到窗口（B1 + DESIGN #D1 统一口径）：开课前 CHECKIN_EARLY_WINDOW 分钟 ～ 课后 CHECKIN_LATE_WINDOW 分钟。
+// 模块级常量：_doCheckin（落库校验）与 listCheckinCandidates（自助签到候选判定）共用，防两侧漂移
+const CHECKIN_EARLY_WINDOW = 30;
+const CHECKIN_LATE_WINDOW = 30;
+
 /** 随机 5 位纯数字签到码（BUGS-INBOX #11：bookingId 补零 → 随机码，防猜测/串号）
  * 唯一性：生成后查重，撞号重试（表无 UNIQUE 约束，因 SQLite 不支持 ADD COLUMN 带 UNIQUE）
  */
@@ -188,7 +193,8 @@ async function listBookingsBySession(sessionId) {
 }
 
 /**
- * 教练核销签到（扫码后调用）
+ * 教练核销签到（扫码后调用；DESIGN #D13 起无前端入口，接口保留作异常兜底）
+ * 身份校验后走共用落库核心 _doCheckin
  * @param {object} p { bookingId, coachOpenid }
  * @returns {{ok:true, booking:object}|{ok:false, error:string}}
  */
@@ -197,7 +203,51 @@ async function checkinBooking({ bookingId, coachOpenid }) {
   const coach = await driver.get("SELECT * FROM users WHERE openid = ? AND \`role\` = 'coach'", [coachOpenid])
     || await driver.get('SELECT * FROM coaches WHERE user_openid = ?', [coachOpenid]);
   if (!coach) return { ok: false, error: '无教练权限' };
+  return _doCheckin({ bookingId });
+}
 
+/**
+ * 学员自助签到（DESIGN #D13：扫码固定码后自动签到 / 弹框选课后签到）
+ * 归属校验（只能签自己的订课，防替他人签到）后走共用落库核心 _doCheckin
+ * @param {object} p { bookingId, openid }
+ */
+async function studentCheckin({ bookingId, openid }) {
+  const booking = await driver.get('SELECT id, user_openid FROM bookings WHERE id = ?', [bookingId]);
+  if (!booking) return { ok: false, error: '订课记录不存在' };
+  if (booking.user_openid !== openid) return { ok: false, error: '只能签到自己的订课' };
+  return _doCheckin({ bookingId });
+}
+
+/**
+ * 学员可签到场次候选（DESIGN #D13 自助签到判定）
+ * 口径：status='booked' 未签到 + 当天 + 开课前30分钟~课后30分钟窗口（与 _doCheckin 完全一致，常量共用防漂移）
+ * @returns {Promise<Array>} 候选列表（含课程名/时间，供 scan 三态判定与选课弹框）
+ */
+async function listCheckinCandidates(openid) {
+  const todayStr = time.todayStr();
+  const nowMin = time.nowMin();
+  const rows = await driver.all(`
+    SELECT b.id, s.course_id, s.date, s.start_time, s.end_time, c.name AS course_name,
+           c.category, v.name AS venue_name
+    FROM bookings b
+    JOIN course_sessions s ON s.id = b.session_id
+    JOIN courses c ON c.id = s.course_id
+    JOIN venues v ON v.id = s.venue_id
+    WHERE b.user_openid = ? AND b.status = 'booked' AND b.checkin_at IS NULL AND s.date = ?
+  `, [openid, todayStr]);
+  const toMin = (t) => { const [h, m] = (t || '00:00').split(':').map(Number); return h * 60 + m; };
+  return rows.filter(r => {
+    const startMin = toMin(r.start_time), endMin = toMin(r.end_time);
+    return nowMin >= startMin - CHECKIN_EARLY_WINDOW && nowMin <= endMin + CHECKIN_LATE_WINDOW;
+  });
+}
+
+/**
+ * 签到落库核心（教练核销 checkinBooking / 学员自助 studentCheckin 共用，DESIGN #D13 抽取）
+ * 校验：订课存在/状态有效/未签到幂等/当天/开课前30分钟~课后30分钟窗口（B1 + DESIGN #D1）
+ * 落库：checkin_at + total_classes+1 + 能量币（签到/上课）+ 站内信 —— 结算/成长/签到率联动口径不变
+ */
+async function _doCheckin({ bookingId }) {
   const booking = await driver.get('SELECT * FROM bookings WHERE id = ?', [bookingId]);
   if (!booking) return { ok: false, error: '订课记录不存在' };
   if (booking.status !== 'booked') return { ok: false, error: '该订课已失效' };
@@ -206,7 +256,7 @@ async function checkinBooking({ bookingId, coachOpenid }) {
   const session = await driver.get('SELECT * FROM course_sessions WHERE id = ?', [booking.session_id]);
   if (!session) return { ok: false, error: '场次不存在' };
 
-  // 时间校验：只允许当天签到（开课前 30 分钟至课程结束后 30 分钟）
+  // 时间校验：只允许当天签到（开课前 CHECKIN_EARLY_WINDOW 分钟至课程结束后 CHECKIN_LATE_WINDOW 分钟）
   // 取时间走 time.js（显式北京时间，不依赖容器系统时区，BUG-LEDGER #28）
   const todayStr = time.todayStr();
   if (session.date !== todayStr) {
@@ -217,12 +267,10 @@ async function checkinBooking({ bookingId, coachOpenid }) {
   const nowMin = time.nowMin();
   const startMin = toMin(session.start_time);
   const endMin = toMin(session.end_time);
-  const EARLY_WINDOW = 30;   // 开课前可提前 30 分钟
-  const LATE_WINDOW = 30;    // 结束后可补签 30 分钟
-  if (nowMin < startMin - EARLY_WINDOW) {
-    return { ok: false, error: `未到签到时间，开课前 ${EARLY_WINDOW} 分钟开始可签到（${session.start_time} 开课）` };
+  if (nowMin < startMin - CHECKIN_EARLY_WINDOW) {
+    return { ok: false, error: `未到签到时间，开课前 ${CHECKIN_EARLY_WINDOW} 分钟开始可签到（${session.start_time} 开课）` };
   }
-  if (nowMin > endMin + LATE_WINDOW) {
+  if (nowMin > endMin + CHECKIN_LATE_WINDOW) {
     return { ok: false, error: '课程已结束超过 30 分钟，无法签到' };
   }
 
@@ -393,4 +441,4 @@ async function countUpcomingBookings(openid) {
 }
 
 // ===== 导出 =====
-module.exports = { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, checkinByCode, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings, attendanceStats };
+module.exports = { createBooking, listBookingsByUser, getCheckinInfo, listBookingsBySession, checkinBooking, checkinByCode, studentCheckin, listCheckinCandidates, cancelBooking, countBookingsByUser, countFinishedWorkouts, countUpcomingBookings, attendanceStats };

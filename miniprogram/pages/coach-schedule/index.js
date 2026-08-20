@@ -93,10 +93,6 @@ Page({
     wx.navigateTo({ url: `/pages/coach-students/index?id=${id}` });
   },
 
-  goScan() {
-    wx.navigateTo({ url: '/pages/coach-scan/index' });
-  },
-
   goProfile() {
     wx.removeStorageSync('token');
     wx.removeStorageSync('userInfo');

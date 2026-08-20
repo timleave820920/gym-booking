@@ -29,8 +29,7 @@
 
     <!-- 学员列表 -->
     <view class="student-list" wx:if="{{!loading}}">
-      <view class="student-row flex-row" wx:for="{{students}}" wx:key="id"
-            data-id="{{item.id}}" bindtap="toggleCheck">
+      <view class="student-row flex-row" wx:for="{{students}}" wx:key="id">
         <image class="stu-avatar" src="{{item.avatar}}" mode="aspectFill"></image>
         <view class="flex-col flex-1">
           <view class="name-row">
@@ -49,6 +48,5 @@
       </view>
     </view>
 
-    <view class="scan-btn" bindtap="goScan">扫码签到</view>
   </view>
 </view>

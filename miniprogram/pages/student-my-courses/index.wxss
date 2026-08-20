@@ -108,7 +108,7 @@
 
 .list-spacer { height: 60rpx; }
 
-/* 已完成卡片：签到状态文字 */
+/* 已完成卡片：签到状态文字（DESIGN #D12：未签到标灰「缺席」，同 tag-gray 风格低调） */
 .done-status {
   margin-left: auto;
   font-size: 26rpx;
@@ -117,6 +117,12 @@
 }
 .done-checked {
   color: #3D9970;
+}
+.done-absent {
+  background: var(--divider);
+  color: var(--ink-300);
+  padding: 4rpx 18rpx;
+  border-radius: 8rpx;
 }
 /* 底部提示：只显示最近7天 */
 .list-hint {

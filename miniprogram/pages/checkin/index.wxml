@@ -1,0 +1,63 @@
+<!-- 固定二维码自助签到页（DESIGN #D13）：
+     场馆张贴固定小程序码 → 扫码进入 → 无歧义自动签 / 多课弹框选课确认签到 -->
+<view class="page">
+
+  <!-- 判定中 -->
+  <view class="center" wx:if="{{state === 'loading'}}">
+    <text class="big-icon">📷</text>
+    <text class="status-txt">签到判定中...</text>
+  </view>
+
+  <!-- 无效码 / 未登录 -->
+  <view class="center" wx:elif="{{state === 'invalid'}}">
+    <text class="big-icon">⚠️</text>
+    <text class="status-txt">{{message}}</text>
+    <view class="action-btn" bindtap="goCourses">去课程列表</view>
+  </view>
+
+  <!-- 无课可签 -->
+  <view class="center" wx:elif="{{state === 'none'}}">
+    <text class="big-icon">▦</text>
+    <text class="status-txt">{{message}}</text>
+    <text class="status-sub">订课后在开课前 30 分钟 ~ 课后 30 分钟内可扫码签到</text>
+    <view class="action-row">
+      <view class="action-btn" bindtap="goCourses">去订课</view>
+      <view class="action-btn ghost" bindtap="retryScan">重新签到</view>
+    </view>
+  </view>
+
+  <!-- 签到成功 -->
+  <view class="center" wx:elif="{{state === 'done'}}">
+    <text class="ok-icon">✓</text>
+    <text class="ok-title">签到成功</text>
+    <view class="done-card">
+      <text class="done-name">{{checked.course_name}}</text>
+      <text class="done-meta">{{checked.time}}</text>
+      <text class="done-meta" wx:if="{{checked.coach}}">教练 · {{checked.coach}}{{checked.venue ? ' · ' + checked.venue : ''}}</text>
+    </view>
+    <text class="done-tip">训练愉快，记得拉伸放松</text>
+  </view>
+
+  <!-- 多课候选（弹框选课） -->
+  <view class="center" wx:elif="{{state === 'multi'}}">
+    <text class="big-icon">📋</text>
+    <text class="status-txt">检测到多节可签到课程</text>
+    <text class="status-sub">请选择本次实际参加的课程</text>
+    <view class="cand-list">
+      <view
+        class="cand-row {{selectedId === item.id ? 'cand-on' : ''}}"
+        wx:for="{{candidates}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="selectCandidate">
+        <view class="radio {{selectedId === item.id ? 'radio-on' : ''}}"></view>
+        <view class="cand-info">
+          <text class="cand-name">{{item.name}}</text>
+          <text class="cand-time">{{item.time}} · {{item.venue}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="action-btn confirm-btn" bindtap="confirmSelect">确认签到</view>
+  </view>
+
+</view>

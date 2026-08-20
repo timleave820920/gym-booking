@@ -655,6 +655,7 @@ async function handleCheckin(req, res) {
 }
 
 // 教练按签到码核销（POST /api/checkin/by-code，BUGS-INBOX #11：随机 5 位码）
+// DESIGN #D13 起无前端入口，接口保留作异常兜底
 async function handleCheckinByCode(req, res) {
   const body = await readBody(req);
   const { code, openid } = body || {};
@@ -668,6 +669,98 @@ async function handleCheckinByCode(req, res) {
   }
   await logOp(result.booking.user_openid, 'checkin', { code, course: result.booking.course_name }, 'ok', result.booking.booking_no);
   return sendJson(res, 200, { code: 200, message: '签到成功', booking: result.booking });
+}
+
+// 学员自助签到判定（POST /api/checkin/scan，DESIGN #D13：扫固定码进签到页后调用）
+// 三态：none 无课可签 / done 唯一课自动签到（落库）/ multi 多课候选（不落库，前端弹框 select 确认）
+async function handleCheckinScan(req, res) {
+  const body = await readBody(req);
+  const { openid } = body || {};
+  if (!openid) return sendJson(res, 400, { code: 400, message: '缺少openid' });
+  const candidates = await db.listCheckinCandidates(openid);
+  if (candidates.length === 0) {
+    return sendJson(res, 200, { code: 200, state: 'none', message: '当前没有可签到的课程' });
+  }
+  if (candidates.length === 1) {
+    const c = candidates[0];
+    const result = await db.studentCheckin({ bookingId: c.id, openid });
+    if (!result.ok) {
+      await logOp(openid, 'checkin', { bookingId: c.id }, 'fail');
+      return sendJson(res, 400, { code: 400, message: result.error });
+    }
+    await logOp(openid, 'checkin', { bookingId: c.id, course: result.booking.course_name }, 'ok', result.booking.booking_no);
+    return sendJson(res, 200, { code: 200, state: 'done', message: '签到成功', booking: result.booking });
+  }
+  // ≥2：返回候选列表（不落库，前端弹框选课后调 select）
+  return sendJson(res, 200, { code: 200, state: 'multi', candidates });
+}
+
+// 学员弹框选定后签到（POST /api/checkin/select，DESIGN #D13）
+async function handleCheckinSelect(req, res) {
+  const body = await readBody(req);
+  const { openid, bookingId } = body || {};
+  if (!openid || !bookingId) return sendJson(res, 400, { code: 400, message: '缺少openid或bookingId' });
+  const result = await db.studentCheckin({ bookingId, openid });
+  if (!result.ok) {
+    await logOp(openid, 'checkin', { bookingId }, 'fail');
+    return sendJson(res, 400, { code: 400, message: result.error });
+  }
+  await logOp(openid, 'checkin', { bookingId, course: result.booking.course_name }, 'ok', result.booking.booking_no);
+  return sendJson(res, 200, { code: 200, message: '签到成功', booking: result.booking });
+}
+
+// 固定签到码（GET /api/admin/checkin-qr，DESIGN #D13）：官方小程序码生成
+// wxacode.getUnlimited（scene=checkin，path=pages/checkin/index）——码内容固定公开无泄露风险
+// 内存缓存 24h（内容不变；运营「重新生成」传 ?refresh=1 强制刷新）；未配置 WX_SECRET → 400 明确报错
+let checkinQrCache = null; // { base64, at }
+async function handleCheckinQr(req, res) {
+  const u = new URL(req.url, 'http://x');
+  const refresh = u.searchParams.get('refresh') === '1';
+  if (!refresh && checkinQrCache && Date.now() - checkinQrCache.at < 24 * 3600 * 1000) {
+    return sendJson(res, 200, { code: 200, base64: checkinQrCache.base64, cached: true });
+  }
+  if (!WX_SECRET) {
+    return sendJson(res, 400, { code: 400, message: '未配置 WX_SECRET，无法生成签到码（生产环境需在云托管配置）' });
+  }
+  // 1. access_token（登录场景同款流程，BUG-LEDGER #46：白名单内关证书校验）
+  const token = await new Promise((resolve) => {
+    const tokenUrl = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${WX_APPID}&secret=${WX_SECRET}`;
+    const tReq = https.get(tokenUrl, { rejectUnauthorized: !WECHAT_API_HOSTS.has(new URL(tokenUrl).hostname) }, (tRes) => {
+      let data = '';
+      tRes.on('data', c => data += c);
+      tRes.on('end', () => { try { resolve(JSON.parse(data).access_token || null); } catch (e) { resolve(null); } });
+    });
+    tReq.on('error', () => resolve(null));
+    tReq.setTimeout(8000, () => { tReq.destroy(); resolve(null); });
+  });
+  if (!token) {
+    return sendJson(res, 400, { code: 400, message: '获取微信 access_token 失败（检查 WX_APPID/WX_SECRET 配置）' });
+  }
+  // 2. getwxacodeunlimit（响应为图片二进制；JSON 响应 = 微信报错）
+  const qr = await new Promise((resolve) => {
+    const qrUrl = `https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${token}`;
+    const qReq = https.request(qrUrl, {
+      method: 'POST',
+      rejectUnauthorized: !WECHAT_API_HOSTS.has(new URL(qrUrl).hostname)
+    }, (qRes) => {
+      const chunks = [];
+      qRes.on('data', c => chunks.push(c));
+      qRes.on('end', () => {
+        const buf = Buffer.concat(chunks);
+        if ((qRes.headers['content-type'] || '').includes('json')) {
+          try { resolve({ err: JSON.parse(buf.toString()).errmsg }); } catch (e) { resolve({ err: '生成失败' }); }
+          return;
+        }
+        resolve({ base64: buf.toString('base64') });
+      });
+    });
+    qReq.on('error', () => resolve({ err: '请求微信生成失败' }));
+    qReq.setTimeout(15000, () => { qReq.destroy(); resolve({ err: '生成超时' }); });
+    qReq.end(JSON.stringify({ scene: 'checkin', path: 'pages/checkin/index', check_path: false, env_version: 'release' }));
+  });
+  if (qr.err) return sendJson(res, 400, { code: 400, message: `签到码生成失败：${qr.err}` });
+  checkinQrCache = { base64: qr.base64, at: Date.now() };
+  return sendJson(res, 200, { code: 200, base64: qr.base64, cached: false });
 }
 
 // 按场次查订课名单（GET /api/sessions/:id/students，教练端）
@@ -1524,9 +1617,14 @@ const API_ROUTES = [
   { m: 'GET',    p: '/api/bookings',            f: async(q, r) => await handleListBookings(q, r) },
   { m: 'DELETE', p: /^\/api\/bookings\//,    f: async(q, r) => await handleCancelBooking(q, r) },
   { m: 'POST',   p: /^\/api\/bookings\/\d+\/checkin$/, f: async (q, r) => await handleCheckin(q, r) },
-  { m: 'POST',   p: '/api/checkin/by-code',       f: async (q, r) => await handleCheckinByCode(q, r) }, // 按码核销（BUGS-INBOX #11）
+  { m: 'POST',   p: '/api/checkin/by-code',       f: async (q, r) => await handleCheckinByCode(q, r) }, // 按码核销（BUGS-INBOX #11，DESIGN #D13 后仅兜底）
+  { m: 'POST',   p: '/api/checkin/scan',          f: async (q, r) => await handleCheckinScan(q, r) }, // 自助签到判定（DESIGN #D13）
+  { m: 'POST',   p: '/api/checkin/select',        f: async (q, r) => await handleCheckinSelect(q, r) }, // 弹框选课后签到（DESIGN #D13）
   { m: 'GET',    p: /^\/api\/checkin\/\d+$/, f: async(q, r) => await handleCheckinInfo(q, r) },
+  { m: 'GET',    p: '/api/admin/checkin-qr',      f: async (q, r) => await handleCheckinQr(q, r) }, // 固定签到码生成（DESIGN #D13，web 后台）
   { m: 'GET',    p: /^\/api\/sessions\/\d+\/students$/, f: async(q, r) => await handleSessionStudents(q, r) },
+  // DESIGN #D10：下一次课表发布日（每周五 22:00 运营约定，time.js 北京时间）
+  { m: 'GET',    p: '/api/schedule/next-publish', f: async(q, r) => sendJson(r, 200, { code: 200, ...db.nextPublishInfo() }) },
   { m: 'POST',   p: '/api/waitlist',            f: async (q, r) => await handleJoinWaitlist(q, r) },
   { m: 'GET',    p: '/api/waitlist',            f: async(q, r) => await handleListWaitlist(q, r) },
   { m: 'DELETE', p: /^\/api\/waitlist\//,    f: async(q, r) => await handleCancelWaitlist(q, r) },
@@ -1826,6 +1924,8 @@ const ADMIN_PATHS = [
   // 吐槽收件箱（DESIGN #D9）：web 后台收件箱读/回复，带 Admin-Token 保护
   { m: 'GET',    p: /^\/api\/admin\/feedbacks$/ },
   { m: 'POST',   p: /^\/api\/admin\/feedbacks\/\d+\/reply$/ },
+  // 固定签到码（DESIGN #D13）：web 后台「签到码」区块展示/重新生成（调用微信 wxacode，仅管理网页用）
+  { m: 'GET',    p: /^\/api\/admin\/checkin-qr$/ },
   { m: 'GET',    p: /^\/api\/admin\/export\/[a-z-]+$/ },
   { m: 'PUT',    p: /^\/api\/admin\/coaches\/\d+$/ },
   { m: 'DELETE', p: /^\/api\/admin\/coaches\/\d+$/ },

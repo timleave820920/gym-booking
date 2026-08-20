@@ -286,11 +286,8 @@ async function runSuite() {
   check('FRONT-01', '课程详情页 onShow 刷新预约状态（#35 防回退）', /onShow\(\)[\s\S]{0,120}loadSession\(this\._sessionId\)/.test(detailSrc), '详情页必须 onShow 重新拉取场次（订完课返回按钮状态才更新）');
   const activitySrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-activity', 'index.js'), 'utf8');
   check('FRONT-02', '首页 onShow 刷新今日课程（#35 防回退）', /onShow\(\)[\s\S]*?this\.loadTodayCourses\(\)/.test(activitySrc), '首页必须 onShow 重新拉取今日课程（订完课返回卡片状态才更新）');
-  // FRONT-03/04：签到码页画码与按钮（BUGS-INBOX #38/#39：画码引用未定义变量致模拟器首帧无码；
-  // 刷新按钮仅重画同码无意义已删除）
-  const ckSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-checkin', 'index.js'), 'utf8');
-  check('FRONT-03', '签到码画码用 this.data.checkinCode（#38 防回退）', /this\.drawQr\(this\.data\.checkinCode\)/.test(ckSrc), '画码必须读页面 data，禁止裸引用作用域外变量');
-  check('FRONT-04', '签到码页无 refreshCode 残留且画码有首帧重试（#38/#39 防回退）', !/refreshCode/.test(ckSrc) && /paintQr\(qr, qr\.getModuleCount\(\), 0\)/.test(ckSrc), '刷新按钮已删；首帧 canvas 拿不到尺寸须延迟重试而非直接放弃');
+  // FRONT-03/04 已随 DESIGN #D13 移除：学员凭证页（student-checkin）整页删除，改场馆固定码自助签到
+  // （#38/#39 画码 bug 的载体页面不存在了；防回退由 FRONT-33 的「凭证页不在 app.json」断言接管）
   // 教练端切学员端按钮（DESIGN #D2：会话内切换，不动 role，下次登录仍按身份分流）
   const chHomeSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'coach-home', 'index.js'), 'utf8');
   const chHomeWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'coach-home', 'index.wxml'), 'utf8');
@@ -387,6 +384,38 @@ async function runSuite() {
       && webHtml.indexOf("switchTab('board')") < webHtml.indexOf("switchTab('set')")
       && /switchTab\('board'\);/.test(webHtml),
     'nav 顺序：运营数据(active)/课程设定/排课系统/教练分配；「排表管理」更名「排课系统」；init 默认 switchTab(board)');
+  // DESIGN #D12 缺席标记防回退：已完成未签到 → 灰色「缺席」标签（done-absent）；已签到「已签到 ✓」不变
+  check('FRONT-31', '缺席标记防回退（DESIGN #D12：已完成未签到显示「缺席」）',
+    /缺席/.test(d3MyCoursesWxml) && /done-absent/.test(d3MyCoursesWxml)
+      && /已签到 ✓/.test(d3MyCoursesWxml) && /done-checked/.test(d3MyCoursesWxml),
+    'DESIGN #D12：已完成卡未签到 → 灰色圆角「缺席」标签；已签到「已签到 ✓」不变');
+  // DESIGN #D10 排课发布节奏防回退：预约页未来空课日占位文案 + 前端拉取/未来日判定 + 后端路由
+  const coursesWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-courses', 'index.wxml'), 'utf8');
+  check('FRONT-32', '排课发布占位防回退（DESIGN #D10：未来空课日显示发布占位）',
+    /课表将于本周五/.test(coursesWxml) && /nextPublishText/.test(coursesWxml)
+      && /新一周课表发布后即可预约/.test(coursesWxml) && /isFutureDay/.test(coursesWxml)
+      && /loadNextPublish/.test(coursesSrc) && /api\.getNextPublish/.test(coursesSrc)
+      && /schedule\/next-publish/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8')),
+    'DESIGN #D10：未来空课日 → 「课表将于本周五（x月x日 22:00）更新」+ 副文案；isFutureDay/loadNextPublish 存在；后端路由注册');
+  // DESIGN #D13 固定二维码自助签到防回退：签到页三态 + app.json 注册且旧核销页移除 + 教练端核销入口移除 + web 签到码区块 + 后端三接口
+  const checkinWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'checkin', 'index.wxml'), 'utf8');
+  const checkinJs = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'checkin', 'index.js'), 'utf8');
+  const appJsonSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'app.json'), 'utf8');
+  const coachHomeJs = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'coach-home', 'index.js'), 'utf8');
+  const coachStudentsWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'coach-students', 'index.wxml'), 'utf8');
+  const coachScheduleWxml = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'coach-schedule', 'index.wxml'), 'utf8');
+  const webCoursesSrc = fs.readFileSync(path.join(PROJECT_ROOT, 'web', 'courses.html'), 'utf8');
+  check('FRONT-33', '自助签到防回退（DESIGN #D13：签到页三态 + 核销入口移除 + web 签到码）',
+    /pages\/checkin\/index/.test(appJsonSrc) && !/coach-scan|student-checkin/.test(appJsonSrc)
+      && /签到成功/.test(checkinWxml) && /检测到多节可签到课程/.test(checkinWxml) && /确认签到/.test(checkinWxml)
+      && /decodeURIComponent/.test(checkinJs) && /scene !== 'checkin'/.test(checkinJs)
+      && /api\.checkinScan/.test(checkinJs) && /api\.checkinSelect/.test(checkinJs)
+      && !/checkin-code/.test(coachHomeJs) && !/扫码签到/.test(coachStudentsWxml) && !/goScan/.test(coachScheduleWxml)
+      && /fold-checkin-qr/.test(webCoursesSrc) && /loadCheckinQr/.test(webCoursesSrc)
+      && /api\/checkin\/scan/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8'))
+      && /api\/checkin\/select/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8'))
+      && /api\/admin\/checkin-qr/.test(fs.readFileSync(path.join(PROJECT_ROOT, 'server', 'index.js'), 'utf8')),
+    'DESIGN #D13：签到页三态（invalid/none/multi/done）+ 旧核销页移除 + 教练端核销入口全移除 + web 后台签到码区块 + 后端三接口');
   // DESIGN #D5 浏览埋点防回退：首页 page_view 曝光/搜索词、详情 course_view 停留时长（onHide/onUnload 上报）
   const d5DetailJs = fs.readFileSync(path.join(PROJECT_ROOT, 'miniprogram', 'pages', 'student-course-detail', 'index.js'), 'utf8');
   check('FRONT-20', '浏览埋点防回退（DESIGN #D5：首页曝光/搜索词/详情停留时长）',
@@ -1026,6 +1055,76 @@ async function runSuite() {
     check('CHK-07', '提前签到拒绝(未到窗口)', r.status === 400 && (r.data.message || '').includes('未到签到时间'), `msg=${r.data && r.data.message}`);
   }
 
+  // ===== 6.1 固定二维码自助签到（DESIGN #D13）：scan 三态 / select 选课签到 =====
+  // 完全自包含：独立用户 + 独立场次（不污染 CHK 块 T.user1/2 已签到状态；教训同 NEW 块 2026-08-20）
+  console.log('\n── 6.1 自助签到（DESIGN #D13）──');
+  {
+    const _dbx = require('../server/db.js');
+    const CK = { openid: 'uid_test_ckin', nickname: '自助签学员' };
+    const CK2 = { openid: 'uid_test_ckin2', nickname: '自助签学员2' };
+    await req('POST', '/api/auth/login', CK);
+    await req('POST', '/api/auth/login', CK2);
+    await _dbx.driver.run('UPDATE users SET balance_fen = balance_fen + 100000 WHERE openid IN (?, ?)', [CK.openid, CK2.openid]);
+    // 连堂两课造法（multi 场景真相，2026-08-20 排障）：D14「同一时间只能订一堂课」禁止同时段双订，
+    // multi 实际来自「连堂」——A 已结束但仍在课后 30 分钟窗口、B 进行中（两课时间不重叠，D14 放行）：
+    //   A: now-50m ~ now-25m（窗口 [now-80m, now+5m] 含 now）  B: now-20m ~ now+40m（窗口 [now-50m, now+70m] 含 now）
+    const ckinNow = new Date();
+    const ckinAStart = new Date(ckinNow.getTime() - 50 * 60000);
+    const ckinAEnd = new Date(ckinNow.getTime() - 25 * 60000);
+    const ckinBStart = new Date(ckinNow.getTime() - 20 * 60000);
+    const ckinBEnd = new Date(ckinNow.getTime() + 40 * 60000);
+    // 跨天守卫：两端点同天则中间各点必同天（A 在凌晨跨昨天 / B 在深夜跨明天都不可造）
+    if (timeMod.parts(ckinAStart).d !== timeMod.parts(ckinNow).d || timeMod.parts(ckinBEnd).d !== timeMod.parts(ckinNow).d) {
+      console.log('  [跳过] 深夜/凌晨 CKIN-01~07 窗口签到用例（now±跨天造数不安全）');
+    } else {
+      const ckinSidA = await mkSession(todayStr, beijingHM(ckinAStart), beijingHM(ckinAEnd), 10, 0);
+      const ckinSidB = await mkSession(todayStr, beijingHM(ckinBStart), beijingHM(ckinBEnd), 10, 0);
+      // CK 只订一门 → 唯一候选自动签（scan 直接落库）
+      r = await req('POST', '/api/orders', { openid: CK.openid, sessionId: ckinSidA, amountFen: 6800, orderType: 'book' });
+      r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: CK.openid, payMethod: 'balance' });
+      const ckinBK = r.data.booking.id;
+      r = await req('POST', '/api/checkin/scan', { openid: CK.openid });
+      check('CKIN-01', '唯一订课扫码自动签到', ok(r, 200) && r.data.state === 'done' && r.data.booking && r.data.booking.id === ckinBK && !!r.data.booking.checkin_at, `state=${r.data && r.data.state} checkin=${r.data && r.data.booking && r.data.booking.checkin_at}`);
+      r = await req('POST', '/api/checkin/scan', { openid: CK.openid });
+      check('CKIN-02', '无待签课程→none', ok(r, 200) && r.data.state === 'none', `state=${r.data && r.data.state} msg=${r.data && r.data.message}`);
+      // CK2 两门同时在窗口 → multi 返回候选、不落库（DB 直查佐证）
+      r = await req('POST', '/api/orders', { openid: CK2.openid, sessionId: ckinSidA, amountFen: 6800, orderType: 'book' });
+      r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: CK2.openid, payMethod: 'balance' });
+      const ckinBK2a = r.data.booking.id;
+      r = await req('POST', '/api/orders', { openid: CK2.openid, sessionId: ckinSidB, amountFen: 6800, orderType: 'book' });
+      r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: CK2.openid, payMethod: 'balance' });
+      const ckinBK2b = r.data.booking.id;
+      r = await req('POST', '/api/checkin/scan', { openid: CK2.openid });
+      const ck2aDb = await _dbx.driver.get('SELECT checkin_at FROM bookings WHERE id = ?', [ckinBK2a]);
+      check('CKIN-03', '多订课→multi候选不落库', ok(r, 200) && r.data.state === 'multi' && r.data.candidates && r.data.candidates.length === 2 && !ck2aDb.checkin_at, `state=${r.data && r.data.state} cand=${r.data && r.data.candidates && r.data.candidates.length}`);
+      // select 选定签到
+      r = await req('POST', '/api/checkin/select', { openid: CK2.openid, bookingId: ckinBK2a });
+      check('CKIN-04', 'select 选定签到成功', ok(r, 200) && r.data.booking && r.data.booking.id === ckinBK2a && !!r.data.booking.checkin_at, `msg=${r.data && r.data.message}`);
+      // 非本人订课拒绝（选别人的订课签到）
+      r = await req('POST', '/api/checkin/select', { openid: CK2.openid, bookingId: ckinBK });
+      check('CKIN-05', '非本人订课拒绝', r.status === 400 && (r.data.message || '').includes('只能签到自己的订课'), `msg=${r.data && r.data.message}`);
+      // 已签到幂等
+      r = await req('POST', '/api/checkin/select', { openid: CK2.openid, bookingId: ckinBK2a });
+      check('CKIN-06', '重复签到拒绝(幂等)', r.status === 400 && (r.data.message || '').includes('已签到'), `msg=${r.data && r.data.message}`);
+      // 窗口外（未来课未到开课前30分钟）拒绝；now+120m 跨天则跳过（同 CHK-07 策略）
+      const ckinPlus120 = new Date(ckinNow.getTime() + 120 * 60000);
+      if (timeMod.parts(ckinPlus120).d === timeMod.parts(ckinNow).d) {
+        const ckinSidFuture = await mkSession(todayStr, beijingHM(ckinPlus120), beijingHM(new Date(ckinPlus120.getTime() + 3600000)), 10, 0);
+        r = await req('POST', '/api/orders', { openid: CK2.openid, sessionId: ckinSidFuture, amountFen: 6800, orderType: 'book' });
+        r = await req('POST', `/api/orders/${r.data.order.id}/pay`, { openid: CK2.openid, payMethod: 'balance' });
+        r = await req('POST', '/api/checkin/select', { openid: CK2.openid, bookingId: r.data.booking.id });
+        check('CKIN-07', '窗口外签到拒绝(未到时间)', r.status === 400 && (r.data.message || '').includes('未到签到时间'), `msg=${r.data && r.data.message}`);
+      } else {
+        console.log('  [跳过] CKIN-07 窗口外签到（now+120m 跨天不安全）');
+      }
+    }
+    // 缺参数 400（不依赖窗口，恒可跑）
+    r = await req('POST', '/api/checkin/scan', {});
+    check('CKIN-08', 'scan 缺 openid 拒绝', r.status === 400 && (r.data.message || '').includes('openid'), `msg=${r.data && r.data.message}`);
+    r = await req('POST', '/api/checkin/select', { openid: CK2.openid });
+    check('CKIN-09', 'select 缺 bookingId 拒绝', r.status === 400 && (r.data.message || '').includes('bookingId'), `msg=${r.data && r.data.message}`);
+  }
+
   // ===== 5.5 新学员标记（DESIGN #D11）：同 category 签到过才算上过，首次上该类型标「新」=====
   console.log('\n── 5.5 新学员标记（DESIGN #D11）──');
   {
@@ -1235,6 +1334,35 @@ async function runSuite() {
   check('REP-11', '无 date 返回报告列表（今天在列）',
     r.status === 200 && Array.isArray(r.data.reports) && r.data.reports.some(x => x.date === todayStr),
     `n=${r.data.reports && r.data.reports.length}`);
+
+  // ===== 6.9.5 排课发布节奏（DESIGN #D10）：下一次发布日 = 最近未来周五 22:00（time.js 北京时间） =====
+  console.log('\n── 排课发布节奏（DESIGN #D10）──');
+  {
+    const sch = require('../server/db/schedule.js');
+    // 边界用例（Date 用 UTC 时刻构造，内部 time.parts 转北京时间——无系统时区依赖）
+    const pWed = sch.nextPublishInfo(new Date('2026-08-19T12:00:00Z'));   // 北京周三 20:00
+    const pFri21 = sch.nextPublishInfo(new Date('2026-08-21T13:00:00Z')); // 北京周五 21:00
+    const pFri23 = sch.nextPublishInfo(new Date('2026-08-21T15:00:00Z')); // 北京周五 23:00
+    const pSat = sch.nextPublishInfo(new Date('2026-08-22T00:30:00Z'));   // 北京周六 08:30
+    const pNewYear = sch.nextPublishInfo(new Date('2026-12-31T10:00:00Z')); // 北京周四 18:00 → 跨年
+    check('PUB-01', '周三 → 下一次发布 = 本周五（2026-08-21，text 不带年）',
+      pWed.nextPublish === '2026-08-21' && pWed.text === '8月21日' && pWed.display === '2026-08-21 22:00',
+      `nextPublish=${pWed.nextPublish} text=${pWed.text}`);
+    check('PUB-02', '周五 21:00 → 本周五（未到 22:00）',
+      pFri21.nextPublish === '2026-08-21', `nextPublish=${pFri21.nextPublish}`);
+    check('PUB-03', '周五 23:00 → 下周五（已过 22:00）',
+      pFri23.nextPublish === '2026-08-28', `nextPublish=${pFri23.nextPublish}`);
+    check('PUB-04', '周六 → 下周五（2026-08-28）',
+      pSat.nextPublish === '2026-08-28', `nextPublish=${pSat.nextPublish}`);
+    check('PUB-06', '跨年（12-31 → 明年 1 月）文案带年',
+      pNewYear.nextPublish === '2027-01-01' && pNewYear.text === '2027年1月1日',
+      `nextPublish=${pNewYear.nextPublish} text=${pNewYear.text}`);
+  }
+  r = await req('GET', '/api/schedule/next-publish');
+  check('PUB-05', '接口 GET /api/schedule/next-publish 返回结构（nextPublish/text/display）',
+    r.status === 200 && r.data.code === 200 && typeof r.data.nextPublish === 'string'
+      && typeof r.data.text === 'string' && r.data.text.length > 0 && / 22:00$/.test(r.data.display),
+    `body=${r.raw && r.raw.slice(0, 160)}`);
 
   // ===== 6.10 用户分析（DESIGN #D4-3）：RMF 分层 / 时间线 / 群组触达 / CSV =====
   console.log('\n── 6.10 用户分析 ──');
